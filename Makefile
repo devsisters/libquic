@@ -1,8 +1,8 @@
 CC=g++
 C=gcc
-CFLAGS=-Wall -Isrc --std=gnu++11 -DUSE_OPENSSL=1 -Iboringssl/include -g -gdwarf-4
+CFLAGS=-Wall -Isrc -Isrc/third_party/modp_b64 --std=gnu++11 -DUSE_OPENSSL=1 -Iboringssl/include -g -gdwarf-4
 LDFLAGS=-pthread -Lboringssl/build/crypto -Lboringssl/build/ssl
-LDLIBS=-lssl -lcrypto
+LDLIBS=-lssl -lcrypto -lz
 CHROMIUM=/home/hodduc/repos/chromium/src
 SRCROOT=$(CURDIR)/src
 CPP_FILES:=$(wildcard src/*/*.cc) $(wildcard src/*/*/*.cc) $(wildcard src/*/*/*/*.cc)
@@ -63,6 +63,35 @@ sync:
 		--exclude base/tracked_objects.h \
 		--cmd | bash
 	
+	python getdep.py /home/hodduc/repos/chromium/src net/quic/quic_session.cc \
+		--exclude net/base/net_util.h \
+		--exclude base/debug/debugger.h \
+		--exclude base/sequence_checker.h \
+		--exclude base/files/file.h \
+		--exclude base/tracked_objects.h \
+		--exclude base/third_party/valgrind/memcheck.h \
+		--exclude zconf.h \
+		--exclude net/ssl/ssl_info.h \
+		--exclude base/metrics/stats_counters.h \
+		--exclude url/url_canon.h \
+		--exclude net/spdy/spdy_header_block.h \
+		--cmd | bash
+	
+	python getdep.py /home/hodduc/repos/chromium/src net/quic/quic_session.cc \
+		--exclude net/base/net_util.h \
+		--exclude base/debug/debugger.h \
+		--exclude base/sequence_checker.h \
+		--exclude base/files/file.h \
+		--exclude base/tracked_objects.h \
+		--exclude base/third_party/valgrind/memcheck.h \
+		--exclude zconf.h \
+		--exclude net/ssl/ssl_info.h \
+		--exclude base/metrics/stats_counters.h \
+		--exclude url/url_canon.h \
+		--exclude net/spdy/spdy_header_block.h \
+		--exclude modp_b64.h \
+		--cmd | bash
+	
 	cp custom/net_util.h $(SRCROOT)/net/base/net_util.h
 	cp custom/net_util.cc $(SRCROOT)/net/base/net_util.cc
 	cp custom/debugger.h $(SRCROOT)/base/debug/debugger.h
@@ -74,6 +103,13 @@ sync:
 	cp custom/stack_trace.cc $(SRCROOT)/base/debug/stack_trace.cc
 	cp custom/platform_thread_posix.cc $(SRCROOT)/base/threading/platform_thread_posix.cc
 	cp custom/platform_thread_linux.cc $(SRCROOT)/base/threading/platform_thread_linux.cc
+	cp custom/quic_session.h $(SRCROOT)/net/quic/quic_session.h
+	cp custom/quic_session.cc $(SRCROOT)/net/quic/quic_session.cc
+	cp custom/quic_data_stream.cc $(SRCROOT)/net/quic/quic_data_stream.cc
+	cp custom/spdy_framer.h $(SRCROOT)/net/spdy/spdy_framer.h
+	cp custom/spdy_framer.cc $(SRCROOT)/net/spdy/spdy_framer.cc
+	cp custom/crypto_utils.h $(SRCROOT)/net/quic/crypto/crypto_utils.h
+	cp custom/crypto_utils.cc $(SRCROOT)/net/quic/crypto/crypto_utils.cc
 	
 	rm -f src/base/os_compat_android.*
 	
@@ -106,3 +142,8 @@ sync:
 	cp $(CHROMIUM)/net/quic/crypto/aead_base_decrypter_openssl.cc $(SRCROOT)/net/quic/crypto/
 	cp $(CHROMIUM)/net/quic/crypto/aead_base_encrypter.h $(SRCROOT)/net/quic/crypto/
 	cp $(CHROMIUM)/net/quic/crypto/aead_base_encrypter_openssl.cc $(SRCROOT)/net/quic/crypto/
+	cp $(CHROMIUM)/crypto/hmac_openssl.cc $(SRCROOT)/crypto/
+	cp $(CHROMIUM)/crypto/symmetric_key_openssl.cc $(SRCROOT)/crypto/
+	cp $(CHROMIUM)/crypto/openssl_util.h $(SRCROOT)/crypto/
+	cp $(CHROMIUM)/crypto/openssl_util.cc $(SRCROOT)/crypto/
+	cp $(CHROMIUM)/base/memory/scoped_vector.h $(SRCROOT)/base/memory/
