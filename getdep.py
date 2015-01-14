@@ -4,9 +4,10 @@ import argparse
 
 
 class DependencyTree(object):
-    def __init__(self, root, excludes):
+    def __init__(self, root, excludes, debug=False):
         self.root = root
         self.excludes = set(excludes) if excludes else set()
+        self.debug = debug
 
     def get_dependencies(self, target):
         depmap = {}
@@ -26,14 +27,13 @@ class DependencyTree(object):
         while q:
             now = q.pop(0)
 
-            # DEBUG START
-            # n = now
-            # print "  [ ",
-            # while n:
-            #     print n, " => ",
-            #     n = wherefrom[n]
-            # print " ]"
-            # DEBUG END
+            if self.debug:
+                n = now
+                print "  [ ",
+                while n:
+                    print n, " => ",
+                    n = wherefrom[n]
+                print " ]"
 
             if now.endswith(".h") and os.path.exists(self.realpath(now[:-1] + 'cc')):
                 enq(now[:-1] + 'cc', now)
@@ -92,9 +92,10 @@ def main():
     parser.add_argument("--exclude", action="append")
     parser.add_argument("--dot", action="store_true")
     parser.add_argument("--cmd", action="store_true")
+    parser.add_argument("--debug", action="store_true")
 
     args = parser.parse_args()
-    tree = DependencyTree(args.srcroot, args.exclude)
+    tree = DependencyTree(args.srcroot, args.exclude, args.debug)
     depmap = tree.get_dependencies(args.target)
 
     if args.dot:
