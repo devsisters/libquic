@@ -1,0 +1,33 @@
+mkdir build
+cd build
+cmake ..
+make
+
+Note that the default build flags in the top-leve CMakeLists.txt are for
+debugging - optimisation isn't enabled.
+
+If you'll be building a lot, then installing Ninja[1] is highly recommended.
+Wipe out the build directory and recreate it, but using:
+
+cmake -GNinja ..
+ninja
+
+If you want to cross-compile then there are example toolchain files for 32-bit
+Intel and ARM in util/. Wipe out the build directory, recreate it and run cmake
+like this:
+
+cmake -DCMAKE_TOOLCHAIN_FILE=../util/arm-toolchain.cmake -GNinja ..
+
+If you want to build as a shared library you need to tweak the STATIC tags in
+the CMakeLists.txts and also define BORINGSSL_SHARED_LIBRARY and
+BORINGSSL_IMPLEMENTATION. On Windows, where functions need to be tagged with
+"dllimport" when coming from a shared library, you need just
+BORINGSSL_SHARED_LIBRARY defined in the code which #includes the BoringSSL
+headers.
+
+To build on Windows, Yasm[2] is required for assembly. Either ensure yasm.exe
+is in %PATH% or configure CMAKE_ASM_NASM_COMPILER appropriately. Note that
+full Windows support is still in progress.
+
+[1] http://martine.github.io/ninja/
+[2] http://yasm.tortall.net/
