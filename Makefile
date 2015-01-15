@@ -1,4 +1,5 @@
 CC=g++
+AR=ar
 C=gcc
 CFLAGS=-Wall -Isrc -Isrc/third_party/modp_b64 --std=gnu++11 -DUSE_OPENSSL=1 -Iboringssl/include -g -gdwarf-4
 LDFLAGS=-pthread -Lboringssl/build/crypto -Lboringssl/build/ssl
@@ -9,14 +10,18 @@ CPP_FILES:=$(wildcard src/*/*.cc) $(wildcard src/*/*/*.cc) $(wildcard src/*/*/*/
 BASE_FILES:=$(CPP_FILES:src/%=%)
 OBJ_FILES:=$(addprefix obj/,$(BASE_FILES:.cc=.o)) obj/base/third_party/superfasthash/superfasthash.o
 EXE_FILE=build/exe
+LIB_FILE=build/libquic.a
 
-all: init $(OBJ_FILES) $(EXE_FILE)
+all: init $(OBJ_FILES) $(EXE_FILE) $(LIB_FILE)
 
-$(EXE_FILE): obj/main.o $(OBJ_FILES) boringssl/build/.builded
-	$(CC) $(LDFLAGS) -o $@ $< $(OBJ_FILES) $(LDLIBS)
+$(EXE_FILE): obj/main.o $(LIB_FILE) boringssl/build/.builded
+	$(CC) $(LDFLAGS) -o $@ $< $(LIB_FILE) $(LDLIBS)
 
 obj/main.o: custom/main.cc
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(LIB_FILE): $(OBJ_FILES)
+	$(AR) rvs $@ $(OBJ_FILES)
 
 boringssl/build/.builded:
 	mkdir -p boringssl/build
