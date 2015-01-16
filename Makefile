@@ -8,7 +8,7 @@ CHROMIUM=/home/hodduc/repos/chromium/src
 SRCROOT=$(CURDIR)/src
 CPP_FILES:=$(wildcard src/*/*.cc) $(wildcard src/*/*/*.cc) $(wildcard src/*/*/*/*.cc)
 BASE_FILES:=$(CPP_FILES:src/%=%)
-OBJ_FILES:=$(addprefix obj/,$(BASE_FILES:.cc=.o)) obj/base/third_party/superfasthash/superfasthash.o
+OBJ_FILES:=$(addprefix obj/,$(BASE_FILES:.cc=.o)) obj/base/third_party/superfasthash/superfasthash.o obj/crypto/curve25519-donna.o
 EXE_FILE=build/exe
 LIB_FILE=build/libquic.a
 
@@ -33,6 +33,10 @@ obj/net/base/net_util_linux.o obj/url/url_util.o obj/base/win/scoped_handle.o: c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 obj/base/third_party/superfasthash/superfasthash.o: src/base/third_party/superfasthash/superfasthash.c
+	mkdir -p $(dir $@)
+	$(C) -Wall -Isrc -c -o $@ $<
+
+obj/crypto/curve25519-donna.o: src/crypto/curve25519-donna.c
 	mkdir -p $(dir $@)
 	$(C) -Wall -Isrc -c -o $@ $<
 
@@ -168,5 +172,6 @@ sync:
 	cp $(CHROMIUM)/crypto/symmetric_key_openssl.cc $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/crypto/openssl_util.h $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/crypto/openssl_util.cc $(SRCROOT)/crypto/
+	cp $(CHROMIUM)/crypto/curve25519-donna.c $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/base/memory/scoped_vector.h $(SRCROOT)/base/memory/
 	cp $(CHROMIUM)/third_party/modp_b64/modp_b64_data.h $(SRCROOT)/third_party/modp_b64/
