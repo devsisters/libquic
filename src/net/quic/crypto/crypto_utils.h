@@ -38,7 +38,6 @@ class NET_EXPORT_PRIVATE CryptoUtils {
                             base::StringPiece orbit,
                             std::string* nonce);
 
-#if 0
   // Returns true if the sni is valid, false otherwise.
   //  (1) disallow IP addresses;
   //  (2) check that the hostname contains valid characters only; and
@@ -49,7 +48,6 @@ class NET_EXPORT_PRIVATE CryptoUtils {
   // Returns |hostname|. NormalizeHostname() doesn't support IP address
   // literals. IsValidSNI() should be called before calling NormalizeHostname().
   static std::string NormalizeHostname(const char* hostname);
-#endif
 
   // DeriveKeys populates |crypters->encrypter|, |crypters->decrypter|, and
   // |subkey_secret| (optional -- may be null) given the contents of

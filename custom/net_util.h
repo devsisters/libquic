@@ -96,6 +96,11 @@ NET_EXPORT std::string IPAddressToStringWithPort(
 // Returns the address as a sequence of bytes in network-byte-order.
 NET_EXPORT std::string IPAddressToPackedString(const IPAddressNumber& addr);
 
+// Converts an IPv4 address to an IPv4-mapped IPv6 address.
+// For example 192.168.0.1 would be converted to ::ffff:192.168.0.1.
+NET_EXPORT_PRIVATE IPAddressNumber ConvertIPv4NumberToIPv6Number(
+    const IPAddressNumber& ipv4_number);
+
 }
 
 

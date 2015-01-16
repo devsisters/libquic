@@ -94,8 +94,25 @@ sync:
 		--exclude base/metrics/stats_counters.h \
 		--exclude url/url_canon.h \
 		--exclude net/spdy/spdy_header_block.h \
-		--exclude modp_b64.h \
 		--cmd | bash
+	
+	python getdep.py /home/hodduc/repos/chromium/src net/quic/quic_crypto_server_stream.cc \
+		--exclude net/base/net_util.h \
+		--exclude base/debug/debugger.h \
+		--exclude base/sequence_checker.h \
+		--exclude base/files/file.h \
+		--exclude base/tracked_objects.h \
+		--exclude base/third_party/valgrind/memcheck.h \
+		--exclude zconf.h \
+		--exclude net/ssl/ssl_info.h \
+		--exclude base/metrics/stats_counters.h \
+		--exclude url/url_canon.h \
+		--exclude net/spdy/spdy_header_block.h \
+		--exclude modp_b64.h \
+		--exclude modp_b64_data.h \
+		--exclude base/cpu.h \
+		--cmd | bash
+		# "third_party/modp_b64.cc" uses relative import. so we should exclude this and add -I option to CFLAGS
 	
 	cp custom/net_util.h $(SRCROOT)/net/base/net_util.h
 	cp custom/net_util.cc $(SRCROOT)/net/base/net_util.cc
@@ -152,3 +169,4 @@ sync:
 	cp $(CHROMIUM)/crypto/openssl_util.h $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/crypto/openssl_util.cc $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/base/memory/scoped_vector.h $(SRCROOT)/base/memory/
+	cp $(CHROMIUM)/third_party/modp_b64/modp_b64_data.h $(SRCROOT)/third_party/modp_b64/

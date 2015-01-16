@@ -249,4 +249,25 @@ std::string IPAddressToPackedString(const IPAddressNumber& addr) {
                      addr.size());
 }
 
+namespace {
+
+const unsigned char kIPv4MappedPrefix[] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF };
+}
+
+IPAddressNumber ConvertIPv4NumberToIPv6Number(
+    const IPAddressNumber& ipv4_number) {
+  DCHECK(ipv4_number.size() == 4);
+
+  // IPv4-mapped addresses are formed by:
+  // <80 bits of zeros>  + <16 bits of ones> + <32-bit IPv4 address>.
+  IPAddressNumber ipv6_number;
+  ipv6_number.reserve(16);
+  ipv6_number.insert(ipv6_number.end(),
+                     kIPv4MappedPrefix,
+                     kIPv4MappedPrefix + arraysize(kIPv4MappedPrefix));
+  ipv6_number.insert(ipv6_number.end(), ipv4_number.begin(), ipv4_number.end());
+  return ipv6_number;
+}
+
 }  // namespace net
