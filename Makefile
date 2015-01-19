@@ -168,10 +168,13 @@ sync:
 	cp $(CHROMIUM)/net/quic/crypto/aead_base_decrypter_openssl.cc $(SRCROOT)/net/quic/crypto/
 	cp $(CHROMIUM)/net/quic/crypto/aead_base_encrypter.h $(SRCROOT)/net/quic/crypto/
 	cp $(CHROMIUM)/net/quic/crypto/aead_base_encrypter_openssl.cc $(SRCROOT)/net/quic/crypto/
+	cp $(CHROMIUM)/net/quic/crypto/p256_key_exchange_openssl.cc $(SRCROOT)/net/quic/crypto/
+	cp $(CHROMIUM)/net/quic/crypto/channel_id_openssl.cc $(SRCROOT)/net/quic/crypto/
 	cp $(CHROMIUM)/crypto/hmac_openssl.cc $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/crypto/symmetric_key_openssl.cc $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/crypto/openssl_util.h $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/crypto/openssl_util.cc $(SRCROOT)/crypto/
+	cp $(CHROMIUM)/crypto/secure_hash_openssl.cc $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/crypto/curve25519-donna.c $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/base/memory/scoped_vector.h $(SRCROOT)/base/memory/
 	cp $(CHROMIUM)/third_party/modp_b64/modp_b64_data.h $(SRCROOT)/third_party/modp_b64/
