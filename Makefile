@@ -1,14 +1,17 @@
 CC=g++
 AR=ar
 C=gcc
-CFLAGS=-Wall -Isrc -Isrc/third_party/modp_b64 --std=gnu++11 -DUSE_OPENSSL=1 -Iboringssl/include -g -gdwarf-4
+CFLAGS=-Wall -Isrc -Isrc/third_party/modp_b64 -DUSE_OPENSSL=1 -Iboringssl/include -g -gdwarf-4
+CPPFLAGS=--std=gnu++11
 LDFLAGS=-pthread -Lboringssl/build/crypto -Lboringssl/build/ssl
-LDLIBS=-lssl -lcrypto -lz
+LDLIBS=-lssl -lcrypto
 CHROMIUM=/home/hodduc/repos/chromium/src
 SRCROOT=$(CURDIR)/src
 CPP_FILES:=$(wildcard src/*/*.cc) $(wildcard src/*/*/*.cc) $(wildcard src/*/*/*/*.cc)
-BASE_FILES:=$(CPP_FILES:src/%=%)
-OBJ_FILES:=$(addprefix obj/,$(BASE_FILES:.cc=.o)) obj/base/third_party/superfasthash/superfasthash.o obj/crypto/curve25519-donna.o
+CPP_BASE_FILES:=$(CPP_FILES:src/%=%)
+C_FILES:=$(wildcard src/*/*.c) $(wildcard src/*/*/*.c) $(wildcard src/*/*/*/*.c)
+C_BASE_FILES:=$(C_FILES:src/%=%)
+OBJ_FILES:=$(addprefix obj/,$(CPP_BASE_FILES:.cc=.o)) $(addprefix obj/,$(C_BASE_FILES:.c=.o)) obj/base/third_party/superfasthash/superfasthash.o obj/crypto/curve25519-donna.o
 EXE_FILE=build/exe
 LIB_FILE=build/libquic.a
 
@@ -18,7 +21,7 @@ $(EXE_FILE): obj/main.o $(LIB_FILE) boringssl/build/.builded
 	$(CC) $(LDFLAGS) -o $@ $< $(LIB_FILE) $(LDLIBS)
 
 obj/main.o: custom/main.cc
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 $(LIB_FILE): $(OBJ_FILES)
 	$(AR) rvs $@ $(OBJ_FILES)
@@ -28,9 +31,9 @@ boringssl/build/.builded:
 	cd boringssl/build && cmake -GNinja .. && ninja
 	touch boringssl/build/.builded
 
-obj/net/base/net_util_linux.o obj/url/url_util.o obj/base/win/scoped_handle.o: custom/empty.cc
+obj/net/base/net_util_linux.o obj/url/url_util.o obj/base/win/scoped_handle.o obj/net/quic/crypto/common_cert_set_0.o obj/net/quic/crypto/common_cert_set_1.o: custom/empty.cc
 	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 obj/base/third_party/superfasthash/superfasthash.o: src/base/third_party/superfasthash/superfasthash.c
 	mkdir -p $(dir $@)
@@ -40,9 +43,13 @@ obj/crypto/curve25519-donna.o: src/crypto/curve25519-donna.c
 	mkdir -p $(dir $@)
 	$(C) -Wall -Isrc -c -o $@ $<
 
+obj/%.o: src/%.c
+	mkdir -p $(dir $@)
+	$(C) $(CFLAGS) -c -o $@ $<
+
 obj/%.o: src/%.cc
 	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 init:
 	mkdir -p obj build
@@ -182,3 +189,9 @@ sync:
 	cp $(CHROMIUM)/crypto/curve25519-donna.c $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/base/memory/scoped_vector.h $(SRCROOT)/base/memory/
 	cp $(CHROMIUM)/third_party/modp_b64/modp_b64_data.h $(SRCROOT)/third_party/modp_b64/
+	
+	cp -r $(CHROMIUM)/third_party/zlib/*.c $(SRCROOT)/third_party/zlib
+	cp -r $(CHROMIUM)/third_party/zlib/*.h $(SRCROOT)/third_party/zlib
+	rm $(SRCROOT)/third_party/zlib/crc_folding.c
+	rm $(SRCROOT)/third_party/zlib/fill_window_sse.c
+	rm $(SRCROOT)/third_party/zlib/x86.c
