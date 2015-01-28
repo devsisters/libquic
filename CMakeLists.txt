@@ -152,8 +152,38 @@ set(
 	src/net/spdy/hpack_huffman_table.cc
 )
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	set(
+		BASE_ARCH_LIBRARIES
+	)
+	set(
+		BASE_ARCH_SOURCES
+
+		src/base/threading/platform_thread_linux.cc
+	)
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	FIND_LIBRARY(COREFOUNDATION_LIBRARY CoreFoundation)
+	FIND_LIBRARY(COCOA_LIBRARY Cocoa)
+	set(
+		BASE_ARCH_LIBRARIES
+
+		${COREFOUNDATION_LIBRARY}
+		${COCOA_LIBRARY}
+	)
+	set(
+		BASE_ARCH_SOURCES
+
+		src/base/threading/platform_thread_mac.mm
+		src/base/mac/mach_logging.cc
+		src/base/mac/scoped_mach_port.cc
+		src/base/time/time_mac.cc
+	)
+endif()
+
 set(
 	BASE_SOURCES
+
+	${BASE_ARCH_SOURCES}
 
 	src/base/logging.cc
 	src/base/memory/weak_ptr.cc
@@ -167,7 +197,6 @@ set(
 	src/base/threading/thread_local_storage_posix.cc
 	src/base/threading/thread_local_storage.cc
 	src/base/threading/thread_collision_warner.cc
-	src/base/threading/platform_thread_linux.cc
 	src/base/threading/thread_local_posix.cc
 	src/base/safe_strerror_posix.cc
 	src/base/time/time_posix.cc
@@ -280,4 +309,4 @@ add_executable(
 # XXX(serialx): Not sure if this is safe, since our CFLAGS contaminate boringssl build
 add_subdirectory(boringssl)
 
-target_link_libraries(test_quic_server quic ssl crypto -pthread)
+target_link_libraries(test_quic_server quic ssl crypto -pthread ${BASE_ARCH_LIBRARIES})
