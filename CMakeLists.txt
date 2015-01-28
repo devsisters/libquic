@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 2.8.10)
 
 project (libquic)
 
-set(COMMON_C_FLAGS "-Wall -g -gdwarf-4")
+set(COMMON_C_FLAGS "${COMMON_C_FLAGS} -Wall -g -gdwarf-4")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_C_FLAGS} -std=gnu++11")
 
