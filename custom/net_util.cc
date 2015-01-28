@@ -1,5 +1,7 @@
 #include "net/base/net_util.h"
 
+#include <limits>
+
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -248,6 +250,11 @@ std::string IPAddressToPackedString(const IPAddressNumber& addr) {
   return std::string(reinterpret_cast<const char *>(&addr.front()),
                      addr.size());
 }
+
+bool IsPortValid(int port) {
+  return port >= 0 && port <= std::numeric_limits<uint16>::max();
+}
+
 
 namespace {
 

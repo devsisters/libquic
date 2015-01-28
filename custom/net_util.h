@@ -101,6 +101,10 @@ NET_EXPORT std::string IPAddressToPackedString(const IPAddressNumber& addr);
 NET_EXPORT_PRIVATE IPAddressNumber ConvertIPv4NumberToIPv6Number(
     const IPAddressNumber& ipv4_number);
 
+// Checks if |port| is in the valid range (0 to 65535, though 0 is technically
+// // reserved).  Should be used before casting a port to a uint16.
+NET_EXPORT bool IsPortValid(int port);
+
 }
 
 

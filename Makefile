@@ -93,7 +93,7 @@ sync:
 		--exclude net/spdy/spdy_header_block.h \
 		--cmd | bash
 	
-	python getdep.py /home/hodduc/repos/chromium/src net/quic/quic_session.cc \
+	python getdep.py /home/hodduc/repos/chromium/src net/quic/quic_client_session_base.cc \
 		--exclude net/base/net_util.h \
 		--exclude base/debug/debugger.h \
 		--exclude base/sequence_checker.h \
@@ -105,6 +105,30 @@ sync:
 		--exclude base/metrics/stats_counters.h \
 		--exclude url/url_canon.h \
 		--exclude net/spdy/spdy_header_block.h \
+		--exclude modp_b64.h \
+		--exclude modp_b64_data.h \
+		--exclude base/cpu.h \
+		--exclude net/base/host_port_pair.h \
+		--exclude base/profiler/scoped_tracker.h \
+		--cmd | bash
+	
+	python getdep.py /home/hodduc/repos/chromium/src net/quic/quic_crypto_client_stream.cc \
+		--exclude net/base/net_util.h \
+		--exclude base/debug/debugger.h \
+		--exclude base/sequence_checker.h \
+		--exclude base/files/file.h \
+		--exclude base/tracked_objects.h \
+		--exclude base/third_party/valgrind/memcheck.h \
+		--exclude zconf.h \
+		--exclude net/ssl/ssl_info.h \
+		--exclude base/metrics/stats_counters.h \
+		--exclude url/url_canon.h \
+		--exclude net/spdy/spdy_header_block.h \
+		--exclude modp_b64.h \
+		--exclude modp_b64_data.h \
+		--exclude base/cpu.h \
+		--exclude net/base/host_port_pair.h \
+		--exclude base/profiler/scoped_tracker.h \
 		--cmd | bash
 	
 	python getdep.py /home/hodduc/repos/chromium/src net/quic/quic_crypto_server_stream.cc \
@@ -143,6 +167,9 @@ sync:
 	cp custom/spdy_framer.cc $(SRCROOT)/net/spdy/spdy_framer.cc
 	cp custom/crypto_utils.h $(SRCROOT)/net/quic/crypto/crypto_utils.h
 	cp custom/crypto_utils.cc $(SRCROOT)/net/quic/crypto/crypto_utils.cc
+	cp custom/host_port_pair.h $(SRCROOT)/net/base/host_port_pair.h
+	cp custom/host_port_pair.cc $(SRCROOT)/net/base/host_port_pair.cc
+	cp custom/quic_crypto_client_stream.cc $(SRCROOT)/net/quic/quic_crypto_client_stream.cc
 	
 	rm -f src/base/os_compat_android.*
 	
