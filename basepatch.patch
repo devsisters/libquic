@@ -1,0 +1,459 @@
+diff --git a/src/base/debug/stack_trace.cc b/src/base/debug/stack_trace.cc
+index ce9e9ad..8da6083 100644
+--- a/src/base/debug/stack_trace.cc
++++ b/src/base/debug/stack_trace.cc
+@@ -10,33 +10,29 @@
+ 
+ #include <algorithm>
+ #include <sstream>
++#include <ostream>
+ 
+ namespace base {
+ namespace debug {
+ 
++StackTrace::StackTrace() {
++}
++
+ StackTrace::StackTrace(const void* const* trace, size_t count) {
+-  count = std::min(count, arraysize(trace_));
+-  if (count)
+-    memcpy(trace_, trace, count * sizeof(trace_[0]));
+-  count_ = count;
+ }
+ 
+ StackTrace::~StackTrace() {
+ }
+ 
++void StackTrace::OutputToStream(std::ostream* os) const {
++}
++
+ const void *const *StackTrace::Addresses(size_t* count) const {
+-  *count = count_;
+-  if (count_)
+-    return trace_;
+   return NULL;
+ }
+ 
+ std::string StackTrace::ToString() const {
+-  std::stringstream stream;
+-#if !defined(__UCLIBC__)
+-  OutputToStream(&stream);
+-#endif
+-  return stream.str();
++  return "";
+ }
+ 
+ }  // namespace debug
+diff --git a/src/base/rand_util_posix.cc b/src/base/rand_util_posix.cc
+index fe73b96..abe0590 100644
+--- a/src/base/rand_util_posix.cc
++++ b/src/base/rand_util_posix.cc
+@@ -8,7 +8,6 @@
+ #include <fcntl.h>
+ #include <unistd.h>
+ 
+-#include "base/files/file_util.h"
+ #include "base/lazy_instance.h"
+ #include "base/logging.h"
+ 
+@@ -45,6 +44,18 @@ uint64 RandUint64() {
+   return number;
+ }
+ 
++bool ReadFromFD(int fd, char* buffer, size_t bytes) {
++  size_t total_read = 0;
++  while (total_read < bytes) {
++    ssize_t bytes_read =
++        read(fd, buffer + total_read, bytes - total_read);
++    if (bytes_read <= 0)
++      break;
++    total_read += bytes_read;
++  }
++  return total_read == bytes;
++}
++
+ void RandBytes(void* output, size_t output_length) {
+   const int urandom_fd = g_urandom_fd.Pointer()->fd();
+   const bool success =
+diff --git a/src/base/sequence_checker.h b/src/base/sequence_checker.h
+index ad01828..dde18a9 100644
+--- a/src/base/sequence_checker.h
++++ b/src/base/sequence_checker.h
+@@ -6,6 +6,7 @@
+ #define BASE_SEQUENCE_CHECKER_H_
+ 
+ // See comments for the similar block in thread_checker.h.
++#if 0
+ #if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
+ #define ENABLE_SEQUENCE_CHECKER 1
+ #else
+@@ -13,6 +14,9 @@
+ #endif
+ 
+ #include "base/sequence_checker_impl.h"
++#else
++#define ENABLE_SEQUENCE_CHECKER 0
++#endif
+ 
+ namespace base {
+ 
+diff --git a/src/base/threading/platform_thread_linux.cc b/src/base/threading/platform_thread_linux.cc
+index d97a3f4..480bf05 100644
+--- a/src/base/threading/platform_thread_linux.cc
++++ b/src/base/threading/platform_thread_linux.cc
+@@ -13,7 +13,9 @@
+ #include "base/safe_strerror_posix.h"
+ #include "base/threading/thread_id_name_manager.h"
+ #include "base/threading/thread_restrictions.h"
++#if 0
+ #include "base/tracked_objects.h"
++#endif
+ 
+ #if !defined(OS_NACL)
+ #include <sys/prctl.h>
+@@ -50,7 +52,9 @@ int ThreadNiceValue(ThreadPriority priority) {
+ // static
+ void PlatformThread::SetName(const char* name) {
+   ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
++#if 0
+   tracked_objects::ThreadData::InitializeThreadContext(name);
++#endif
+ 
+ #if !defined(OS_NACL)
+   // On linux we can get the thread names to show up in the debugger by setting
+diff --git a/src/base/threading/platform_thread_mac.mm b/src/base/threading/platform_thread_mac.mm
+index 147e625..6ce6c77 100644
+--- a/src/base/threading/platform_thread_mac.mm
++++ b/src/base/threading/platform_thread_mac.mm
+@@ -16,7 +16,9 @@
+ #include "base/logging.h"
+ #include "base/mac/mach_logging.h"
+ #include "base/threading/thread_id_name_manager.h"
++#if 0
+ #include "base/tracked_objects.h"
++#endif
+ 
+ namespace base {
+ 
+@@ -44,7 +46,9 @@ void InitThreading() {
+ // static
+ void PlatformThread::SetName(const char* name) {
+   ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
++#if 0
+   tracked_objects::ThreadData::InitializeThreadContext(name);
++#endif
+ 
+   // Mac OS X does not expose the length limit of the name, so
+   // hardcode it.
+diff --git a/src/base/threading/platform_thread_posix.cc b/src/base/threading/platform_thread_posix.cc
+index 42b416d..9e37cf7 100644
+--- a/src/base/threading/platform_thread_posix.cc
++++ b/src/base/threading/platform_thread_posix.cc
+@@ -14,7 +14,9 @@
+ #include "base/synchronization/waitable_event.h"
+ #include "base/threading/thread_id_name_manager.h"
+ #include "base/threading/thread_restrictions.h"
++#if 0
+ #include "base/tracked_objects.h"
++#endif
+ 
+ #if defined(OS_MACOSX)
+ #include <sys/resource.h>
+diff --git a/src/net/base/host_port_pair.cc b/src/net/base/host_port_pair.cc
+index 1550c36..7ab6086 100644
+--- a/src/net/base/host_port_pair.cc
++++ b/src/net/base/host_port_pair.cc
+@@ -11,7 +11,9 @@
+ #include "base/strings/stringprintf.h"
+ #include "net/base/ip_endpoint.h"
+ #include "net/base/net_util.h"
++#if 0
+ #include "url/gurl.h"
++#endif
+ 
+ namespace net {
+ 
+@@ -19,11 +21,13 @@ HostPortPair::HostPortPair() : port_(0) {}
+ HostPortPair::HostPortPair(const std::string& in_host, uint16 in_port)
+     : host_(in_host), port_(in_port) {}
+ 
++#if 0
+ // static
+ HostPortPair HostPortPair::FromURL(const GURL& url) {
+   return HostPortPair(url.HostNoBrackets(),
+                       static_cast<uint16>(url.EffectiveIntPort()));
+ }
++#endif
+ 
+ // static
+ HostPortPair HostPortPair::FromIPEndPoint(const IPEndPoint& ipe) {
+diff --git a/src/net/base/host_port_pair.h b/src/net/base/host_port_pair.h
+index a4e5761..fbe405d 100644
+--- a/src/net/base/host_port_pair.h
++++ b/src/net/base/host_port_pair.h
+@@ -9,7 +9,9 @@
+ #include "base/basictypes.h"
+ #include "net/base/net_export.h"
+ 
++#if 0
+ class GURL;
++#endif
+ 
+ namespace net {
+ 
+@@ -21,8 +23,10 @@ class NET_EXPORT HostPortPair {
+   // If |in_host| represents an IPv6 address, it should not bracket the address.
+   HostPortPair(const std::string& in_host, uint16 in_port);
+ 
++#if 0
+   // Creates a HostPortPair for the origin of |url|.
+   static HostPortPair FromURL(const GURL& url);
++#endif
+ 
+   // Creates a HostPortPair from an IPEndPoint.
+   static HostPortPair FromIPEndPoint(const IPEndPoint& ipe);
+diff --git a/src/net/base/net_errors.cc b/src/net/base/net_errors.cc
+index 55cdebb..91f64ab 100644
+--- a/src/net/base/net_errors.cc
++++ b/src/net/base/net_errors.cc
+@@ -73,6 +73,7 @@ std::vector<int> GetAllErrorCodesForUma() {
+       kAllErrorCodes, arraysize(kAllErrorCodes));
+ }
+ 
++#if 0
+ Error FileErrorToNetError(base::File::Error file_error) {
+   switch (file_error) {
+     case base::File::FILE_OK:
+@@ -87,5 +88,6 @@ Error FileErrorToNetError(base::File::Error file_error) {
+       return net::ERR_FAILED;
+   }
+ }
++#endif
+ 
+ }  // namespace net
+diff --git a/src/net/base/net_errors.h b/src/net/base/net_errors.h
+index 64343f1..4794edb 100644
+--- a/src/net/base/net_errors.h
++++ b/src/net/base/net_errors.h
+@@ -9,7 +9,9 @@
+ #include <vector>
+ 
+ #include "base/basictypes.h"
++#if 0
+ #include "base/files/file.h"
++#endif
+ #include "base/logging.h"
+ #include "net/base/net_export.h"
+ 
+@@ -57,8 +59,10 @@ NET_EXPORT Error MapSystemError(logging::SystemErrorCode os_error);
+ // error code that is not followed immediately by a valid error code.
+ NET_EXPORT std::vector<int> GetAllErrorCodesForUma();
+ 
++#if 0
+ // A convenient function to translate file error to net error code.
+ NET_EXPORT Error FileErrorToNetError(base::File::Error file_error);
++#endif
+ 
+ }  // namespace net
+ 
+diff --git a/src/net/quic/crypto/crypto_utils.cc b/src/net/quic/crypto/crypto_utils.cc
+index c595775..35a5b78 100644
+--- a/src/net/quic/crypto/crypto_utils.cc
++++ b/src/net/quic/crypto/crypto_utils.cc
+@@ -12,7 +12,9 @@
+ #include "net/quic/crypto/quic_encrypter.h"
+ #include "net/quic/crypto/quic_random.h"
+ #include "net/quic/quic_time.h"
++#if 0
+ #include "url/url_canon.h"
++#endif
+ 
+ using base::StringPiece;
+ using std::numeric_limits;
+@@ -47,6 +49,7 @@ void CryptoUtils::GenerateNonce(QuicWallTime now,
+                               kNonceSize - bytes_written);
+ }
+ 
++#if 0
+ // static
+ bool CryptoUtils::IsValidSNI(StringPiece sni) {
+   // TODO(rtenneti): Support RFC2396 hostname.
+@@ -78,6 +81,29 @@ string CryptoUtils::NormalizeHostname(const char* hostname) {
+   }
+   return host;
+ }
++#else
++// TODO(hodduc): We should implement this !
++// static
++bool CryptoUtils::IsValidSNI(StringPiece sni) {
++  return sni.find_last_of('.') != string::npos;
++}
++
++string CryptoUtils::NormalizeHostname(const char* hostname) {
++  string host(hostname);
++
++  // Walk backwards over the string, stopping at the first trailing dot.
++  size_t host_end = host.length();
++  while (host_end != 0 && host[host_end - 1] == '.') {
++    host_end--;
++  }
++
++  // Erase the trailing dots.
++  if (host_end != host.length()) {
++    host.erase(host_end, host.length() - host_end);
++  }
++  return host;
++}
++#endif
+ 
+ // static
+ bool CryptoUtils::DeriveKeys(StringPiece premaster_secret,
+diff --git a/src/net/quic/quic_crypto_client_stream.cc b/src/net/quic/quic_crypto_client_stream.cc
+index 2a82aad..f0f5f45 100644
+--- a/src/net/quic/quic_crypto_client_stream.cc
++++ b/src/net/quic/quic_crypto_client_stream.cc
+@@ -5,7 +5,9 @@
+ #include "net/quic/quic_crypto_client_stream.h"
+ 
+ #include "base/metrics/histogram.h"
++#if 0
+ #include "base/profiler/scoped_tracker.h"
++#endif
+ #include "net/quic/crypto/crypto_protocol.h"
+ #include "net/quic/crypto/crypto_utils.h"
+ #include "net/quic/crypto/null_encrypter.h"
+@@ -176,10 +178,12 @@ static const int kMaxClientHellos = 3;
+ 
+ void QuicCryptoClientStream::DoHandshakeLoop(
+     const CryptoHandshakeMessage* in) {
++#if 0
+   // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+   tracked_objects::ScopedTracker tracking_profile(
+       FROM_HERE_WITH_EXPLICIT_FUNCTION(
+           "422516 QuicCryptoClientStream::DoHandshakeLoop"));
++#endif
+ 
+   QuicCryptoClientConfig::CachedState* cached =
+       crypto_config_->LookupOrCreate(server_id_);
+diff --git a/src/net/quic/quic_data_stream.cc b/src/net/quic/quic_data_stream.cc
+index aac58f9..ac2e7d2 100644
+--- a/src/net/quic/quic_data_stream.cc
++++ b/src/net/quic/quic_data_stream.cc
+@@ -128,9 +128,11 @@ const IPEndPoint& QuicDataStream::GetPeerAddress() {
+   return session()->peer_address();
+ }
+ 
++#if 0
+ bool QuicDataStream::GetSSLInfo(SSLInfo* ssl_info) {
+   return session()->GetSSLInfo(ssl_info);
+ }
++#endif
+ 
+ uint32 QuicDataStream::ProcessHeaderData() {
+   if (decompressed_headers_.empty()) {
+diff --git a/src/net/quic/quic_session.cc b/src/net/quic/quic_session.cc
+index 865af07..dd18553 100644
+--- a/src/net/quic/quic_session.cc
++++ b/src/net/quic/quic_session.cc
+@@ -9,7 +9,9 @@
+ #include "net/quic/quic_connection.h"
+ #include "net/quic/quic_flow_controller.h"
+ #include "net/quic/quic_headers_stream.h"
++#if 0
+ #include "net/ssl/ssl_info.h"
++#endif
+ 
+ using base::StringPiece;
+ using base::hash_map;
+@@ -719,10 +721,12 @@ bool QuicSession::HasDataToWrite() const {
+          connection_->HasQueuedData();
+ }
+ 
++#if 0
+ bool QuicSession::GetSSLInfo(SSLInfo* ssl_info) const {
+   NOTIMPLEMENTED();
+   return false;
+ }
++#endif
+ 
+ void QuicSession::PostProcessAfterData() {
+   STLDeleteElements(&closed_streams_);
+diff --git a/src/net/quic/quic_session.h b/src/net/quic/quic_session.h
+index 34fa2f4..425632d 100644
+--- a/src/net/quic/quic_session.h
++++ b/src/net/quic/quic_session.h
+@@ -28,7 +28,9 @@ namespace net {
+ class QuicCryptoStream;
+ class QuicFlowController;
+ class ReliableQuicStream;
++#if 0
+ class SSLInfo;
++#endif
+ class VisitorShim;
+ 
+ namespace test {
+@@ -196,8 +198,10 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
+     return goaway_sent_;
+   }
+ 
++  #if 0
+   // Gets the SSL connection information.
+   virtual bool GetSSLInfo(SSLInfo* ssl_info) const;
++  #endif
+ 
+   QuicErrorCode error() const { return error_; }
+ 
+diff --git a/src/net/spdy/spdy_framer.cc b/src/net/spdy/spdy_framer.cc
+index 7a926ce..95fa79d 100644
+--- a/src/net/spdy/spdy_framer.cc
++++ b/src/net/spdy/spdy_framer.cc
+@@ -6,8 +6,10 @@
+ 
+ #include "base/lazy_instance.h"
+ #include "base/memory/scoped_ptr.h"
++#if 0
+ #include "base/metrics/stats_counters.h"
+ #include "base/third_party/valgrind/memcheck.h"
++#endif
+ #include "net/spdy/spdy_frame_builder.h"
+ #include "net/spdy/spdy_frame_reader.h"
+ #include "net/spdy/spdy_bitmasks.h"
+@@ -3250,9 +3252,11 @@ void SpdyFramer::SerializeNameValueBlock(
+     return;
+   }
+ 
++#if 0
+   base::StatsCounter compressed_frames("spdy.CompressedFrames");
+   base::StatsCounter pre_compress_bytes("spdy.PreCompressSize");
+   base::StatsCounter post_compress_bytes("spdy.PostCompressSize");
++#endif
+ 
+   // Create an output frame.
+   // Since we'll be performing lots of flushes when compressing the data,
+@@ -3291,10 +3295,12 @@ void SpdyFramer::SerializeNameValueBlock(
+   builder->Seek(compressed_size);
+   builder->RewriteLength(*this);
+ 
++#if 0
+   pre_compress_bytes.Add(uncompressed_len);
+   post_compress_bytes.Add(compressed_size);
+ 
+   compressed_frames.Increment();
++#endif
+ }
+ 
+ }  // namespace net
+diff --git a/src/net/spdy/spdy_framer.h b/src/net/spdy/spdy_framer.h
+index bb6e61d..b267a25 100644
+--- a/src/net/spdy/spdy_framer.h
++++ b/src/net/spdy/spdy_framer.h
+@@ -20,7 +20,9 @@
+ #include "net/base/net_export.h"
+ #include "net/spdy/hpack_decoder.h"
+ #include "net/spdy/hpack_encoder.h"
++#if 0
+ #include "net/spdy/spdy_header_block.h"
++#endif
+ #include "net/spdy/spdy_protocol.h"
+ 
+ // TODO(akalin): Remove support for CREDENTIAL frames.

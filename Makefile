@@ -149,29 +149,6 @@ sync:
 		--cmd | bash
 		# "third_party/modp_b64.cc" uses relative import. so we should exclude this and add -I option to CFLAGS
 	
-	cp custom/net_util.h $(SRCROOT)/net/base/net_util.h
-	cp custom/net_util.cc $(SRCROOT)/net/base/net_util.cc
-	cp custom/debugger.h $(SRCROOT)/base/debug/debugger.h
-	cp custom/debugger.cc $(SRCROOT)/base/debug/debugger.cc
-	cp custom/sequence_checker.h $(SRCROOT)/base/sequence_checker.h
-	cp custom/net_errors.h $(SRCROOT)/net/base/net_errors.h
-	cp custom/net_errors.cc $(SRCROOT)/net/base/net_errors.cc
-	cp custom/rand_util_posix.cc $(SRCROOT)/base/rand_util_posix.cc
-	cp custom/stack_trace.cc $(SRCROOT)/base/debug/stack_trace.cc
-	cp custom/platform_thread_posix.cc $(SRCROOT)/base/threading/platform_thread_posix.cc
-	cp custom/platform_thread_linux.cc $(SRCROOT)/base/threading/platform_thread_linux.cc
-	cp custom/platform_thread_mac.mm $(SRCROOT)/base/threading/platform_thread_mac.mm
-	cp custom/quic_session.h $(SRCROOT)/net/quic/quic_session.h
-	cp custom/quic_session.cc $(SRCROOT)/net/quic/quic_session.cc
-	cp custom/quic_data_stream.cc $(SRCROOT)/net/quic/quic_data_stream.cc
-	cp custom/spdy_framer.h $(SRCROOT)/net/spdy/spdy_framer.h
-	cp custom/spdy_framer.cc $(SRCROOT)/net/spdy/spdy_framer.cc
-	cp custom/crypto_utils.h $(SRCROOT)/net/quic/crypto/crypto_utils.h
-	cp custom/crypto_utils.cc $(SRCROOT)/net/quic/crypto/crypto_utils.cc
-	cp custom/host_port_pair.h $(SRCROOT)/net/base/host_port_pair.h
-	cp custom/host_port_pair.cc $(SRCROOT)/net/base/host_port_pair.cc
-	cp custom/quic_crypto_client_stream.cc $(SRCROOT)/net/quic/quic_crypto_client_stream.cc
-	
 	rm -f src/base/os_compat_android.*
 	
 	cp $(CHROMIUM)/base/atomicops_internals_portable.* $(SRCROOT)/base/
@@ -179,6 +156,10 @@ sync:
 	cp $(CHROMIUM)/base/callback_helpers.h $(SRCROOT)/base/
 	cp $(CHROMIUM)/base/callback_helpers.cc $(SRCROOT)/base/
 	cp $(CHROMIUM)/base/cancelable_callback.h $(SRCROOT)/base/
+	cp $(CHROMIUM)/base/rand_util_posix.cc $(SRCROOT)/base/
+	cp $(CHROMIUM)/base/sequence_checker.h $(SRCROOT)/base/
+	cp $(CHROMIUM)/base/debug/debugger.h $(SRCROOT)/base/debug/
+	cp $(CHROMIUM)/base/debug/debugger.cc $(SRCROOT)/base/debug/
 	cp $(CHROMIUM)/base/time/time_posix.cc $(SRCROOT)/base/time/
 	cp $(CHROMIUM)/base/third_party/dmg_fp/dtoa.cc $(SRCROOT)/base/third_party/dmg_fp/
 	cp $(CHROMIUM)/base/third_party/dmg_fp/g_fmt.cc $(SRCROOT)/base/third_party/dmg_fp/
@@ -188,6 +169,7 @@ sync:
 	cp $(CHROMIUM)/base/strings/string_util_constants.cc $(SRCROOT)/base/strings/
 	cp $(CHROMIUM)/base/threading/thread_local_storage_posix.cc $(SRCROOT)/base/threading/
 	cp $(CHROMIUM)/base/threading/thread_local_posix.cc $(SRCROOT)/base/threading/
+	cp $(CHROMIUM)/base/threading/platform_thread_mac.mm $(SRCROOT)/base/threading/
 	cp $(CHROMIUM)/base/synchronization/lock_impl_posix.cc $(SRCROOT)/base/synchronization/
 	cp $(CHROMIUM)/base/synchronization/waitable_event_posix.cc $(SRCROOT)/base/synchronization/
 	cp $(CHROMIUM)/base/synchronization/condition_variable.h $(SRCROOT)/base/synchronization/
@@ -197,6 +179,10 @@ sync:
 	cp $(CHROMIUM)/net/base/io_buffer.h $(SRCROOT)/net/base/
 	cp $(CHROMIUM)/net/base/io_buffer.cc $(SRCROOT)/net/base/
 	cp $(CHROMIUM)/net/base/completion_callback.h $(SRCROOT)/net/base/
+	cp $(CHROMIUM)/net/base/net_util.h $(SRCROOT)/net/base/
+	cp $(CHROMIUM)/net/base/net_util.cc $(SRCROOT)/net/base/
+	cp $(CHROMIUM)/net/base/host_port_pair.h $(SRCROOT)/net/base/
+	cp $(CHROMIUM)/net/base/host_port_pair.cc $(SRCROOT)/net/base/
 	cp $(CHROMIUM)/net/quic/crypto/chacha20_poly1305_decrypter.h $(SRCROOT)/net/quic/crypto/
 	cp $(CHROMIUM)/net/quic/crypto/chacha20_poly1305_decrypter_openssl.cc $(SRCROOT)/net/quic/crypto/
 	cp $(CHROMIUM)/net/quic/crypto/chacha20_poly1305_encrypter.h $(SRCROOT)/net/quic/crypto/
@@ -233,3 +219,32 @@ sync:
 	rm $(SRCROOT)/third_party/zlib/crc_folding.c
 	rm $(SRCROOT)/third_party/zlib/fill_window_sse.c
 	rm $(SRCROOT)/third_party/zlib/x86.c
+	
+	#cp custom/net_util.h $(SRCROOT)/net/base/net_util.h
+	#cp custom/net_util.cc $(SRCROOT)/net/base/net_util.cc
+	#cp custom/debugger.h $(SRCROOT)/base/debug/debugger.h
+	#cp custom/debugger.cc $(SRCROOT)/base/debug/debugger.cc
+	#cp custom/sequence_checker.h $(SRCROOT)/base/sequence_checker.h
+	#cp custom/net_errors.h $(SRCROOT)/net/base/net_errors.h
+	#cp custom/net_errors.cc $(SRCROOT)/net/base/net_errors.cc
+	#cp custom/rand_util_posix.cc $(SRCROOT)/base/rand_util_posix.cc
+	#cp custom/stack_trace.cc $(SRCROOT)/base/debug/stack_trace.cc
+	#cp custom/platform_thread_posix.cc $(SRCROOT)/base/threading/platform_thread_posix.cc
+	#cp custom/platform_thread_linux.cc $(SRCROOT)/base/threading/platform_thread_linux.cc
+	#cp custom/platform_thread_mac.mm $(SRCROOT)/base/threading/platform_thread_mac.mm
+	#cp custom/quic_session.h $(SRCROOT)/net/quic/quic_session.h
+	#cp custom/quic_session.cc $(SRCROOT)/net/quic/quic_session.cc
+	#cp custom/quic_data_stream.cc $(SRCROOT)/net/quic/quic_data_stream.cc
+	#cp custom/spdy_framer.h $(SRCROOT)/net/spdy/spdy_framer.h
+	#cp custom/spdy_framer.cc $(SRCROOT)/net/spdy/spdy_framer.cc
+	#cp custom/crypto_utils.h $(SRCROOT)/net/quic/crypto/crypto_utils.h
+	#cp custom/crypto_utils.cc $(SRCROOT)/net/quic/crypto/crypto_utils.cc
+	#cp custom/host_port_pair.h $(SRCROOT)/net/base/host_port_pair.h
+	#cp custom/host_port_pair.cc $(SRCROOT)/net/base/host_port_pair.cc
+	#cp custom/quic_crypto_client_stream.cc $(SRCROOT)/net/quic/quic_crypto_client_stream.cc
+	
+	patch -p1 < basepatch.patch
+	cp custom/net_util.h $(SRCROOT)/net/base/net_util.h
+	cp custom/net_util.cc $(SRCROOT)/net/base/net_util.cc
+	cp custom/debugger.h $(SRCROOT)/base/debug/debugger.h
+	cp custom/debugger.cc $(SRCROOT)/base/debug/debugger.cc
