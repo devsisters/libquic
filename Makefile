@@ -160,6 +160,7 @@ sync:
 	cp custom/stack_trace.cc $(SRCROOT)/base/debug/stack_trace.cc
 	cp custom/platform_thread_posix.cc $(SRCROOT)/base/threading/platform_thread_posix.cc
 	cp custom/platform_thread_linux.cc $(SRCROOT)/base/threading/platform_thread_linux.cc
+	cp custom/platform_thread_mac.mm $(SRCROOT)/base/threading/platform_thread_mac.mm
 	cp custom/quic_session.h $(SRCROOT)/net/quic/quic_session.h
 	cp custom/quic_session.cc $(SRCROOT)/net/quic/quic_session.cc
 	cp custom/quic_data_stream.cc $(SRCROOT)/net/quic/quic_data_stream.cc
@@ -218,6 +219,14 @@ sync:
 	cp $(CHROMIUM)/crypto/curve25519-donna.c $(SRCROOT)/crypto/
 	cp $(CHROMIUM)/base/memory/scoped_vector.h $(SRCROOT)/base/memory/
 	cp $(CHROMIUM)/third_party/modp_b64/modp_b64_data.h $(SRCROOT)/third_party/modp_b64/
+	
+	# MAC support
+	cp $(CHROMIUM)/base/mac/mach_logging.cc $(SRCROOT)/base/mac/
+	cp $(CHROMIUM)/base/mac/mach_logging.h $(SRCROOT)/base/mac/
+	cp $(CHROMIUM)/base/mac/scoped_mach_port.cc $(SRCROOT)/base/mac/
+	cp $(CHROMIUM)/base/mac/scoped_mach_port.h $(SRCROOT)/base/mac/
+	cp $(CHROMIUM)/base/scoped_generic.h $(SRCROOT)/base/
+	cp $(CHROMIUM)/base/time/time_mac.cc $(SRCROOT)/base/time/
 	
 	cp -r $(CHROMIUM)/third_party/zlib/*.c $(SRCROOT)/third_party/zlib
 	cp -r $(CHROMIUM)/third_party/zlib/*.h $(SRCROOT)/third_party/zlib
