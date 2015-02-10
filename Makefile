@@ -177,6 +177,7 @@ sync:
 	cp $(CHROMIUM)/base/atomicops_internals_x86_gcc.* $(SRCROOT)/base/
 	cp $(CHROMIUM)/base/callback_helpers.h $(SRCROOT)/base/
 	cp $(CHROMIUM)/base/callback_helpers.cc $(SRCROOT)/base/
+	cp $(CHROMIUM)/base/cancelable_callback.h $(SRCROOT)/base/
 	cp $(CHROMIUM)/base/time/time_posix.cc $(SRCROOT)/base/time/
 	cp $(CHROMIUM)/base/third_party/dmg_fp/dtoa.cc $(SRCROOT)/base/third_party/dmg_fp/
 	cp $(CHROMIUM)/base/third_party/dmg_fp/g_fmt.cc $(SRCROOT)/base/third_party/dmg_fp/
@@ -194,6 +195,7 @@ sync:
 	cp $(CHROMIUM)/base/process/process_handle_posix.cc $(SRCROOT)/base/process/
 	cp $(CHROMIUM)/net/base/io_buffer.h $(SRCROOT)/net/base/
 	cp $(CHROMIUM)/net/base/io_buffer.cc $(SRCROOT)/net/base/
+	cp $(CHROMIUM)/net/base/completion_callback.h $(SRCROOT)/net/base/
 	cp $(CHROMIUM)/net/quic/crypto/chacha20_poly1305_decrypter.h $(SRCROOT)/net/quic/crypto/
 	cp $(CHROMIUM)/net/quic/crypto/chacha20_poly1305_decrypter_openssl.cc $(SRCROOT)/net/quic/crypto/
 	cp $(CHROMIUM)/net/quic/crypto/chacha20_poly1305_encrypter.h $(SRCROOT)/net/quic/crypto/
