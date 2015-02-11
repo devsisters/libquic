@@ -238,7 +238,7 @@ class BASE_EXPORT FilePath {
   // ASSERT(new_path == path.value());
   // NOTE: this is different from the original file_util implementation which
   // returned the extension without a leading "." ("jpg" instead of ".jpg")
-  StringType Extension() const;
+  StringType Extension() const WARN_UNUSED_RESULT;
 
   // Returns the path's file extension, as in Extension(), but will
   // never return a double extension.
@@ -247,7 +247,7 @@ class BASE_EXPORT FilePath {
   // we can rename this to Extension() and the other to something like
   // LongExtension(), defaulting to short extensions and leaving the
   // long "extensions" to logic like base::GetUniquePathNumber().
-  StringType FinalExtension() const;
+  StringType FinalExtension() const WARN_UNUSED_RESULT;
 
   // Returns "C:\pics\jojo" for path "C:\pics\jojo.jpg"
   // NOTE: this is slightly different from the similar file_util implementation

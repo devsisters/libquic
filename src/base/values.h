@@ -33,6 +33,7 @@
 
 namespace base {
 
+class BinaryValue;
 class DictionaryValue;
 class FundamentalValue;
 class ListValue;
@@ -85,6 +86,7 @@ class BASE_EXPORT Value {
   virtual bool GetAsString(std::string* out_value) const;
   virtual bool GetAsString(string16* out_value) const;
   virtual bool GetAsString(const StringValue** out_value) const;
+  virtual bool GetAsBinary(const BinaryValue** out_value) const;
   virtual bool GetAsList(ListValue** out_value);
   virtual bool GetAsList(const ListValue** out_value) const;
   virtual bool GetAsDictionary(DictionaryValue** out_value);
@@ -188,6 +190,7 @@ class BASE_EXPORT BinaryValue: public Value {
   const char* GetBuffer() const { return buffer_.get(); }
 
   // Overridden from Value:
+  bool GetAsBinary(const BinaryValue** out_value) const override;
   BinaryValue* DeepCopy() const override;
   bool Equals(const Value* other) const override;
 

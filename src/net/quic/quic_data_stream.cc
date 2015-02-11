@@ -48,7 +48,7 @@ size_t QuicDataStream::WriteHeaders(
     bool fin,
     QuicAckNotifier::DelegateInterface* ack_notifier_delegate) {
   size_t bytes_written = session()->WriteHeaders(
-      id(), header_block, fin, ack_notifier_delegate);
+      id(), header_block, fin, priority_, ack_notifier_delegate);
   if (fin) {
     // TODO(rch): Add test to ensure fin_sent_ is set whenever a fin is sent.
     set_fin_sent(true);

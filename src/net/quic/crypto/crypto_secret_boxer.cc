@@ -74,26 +74,29 @@ bool CryptoSecretBoxer::Unbox(StringPiece ciphertext,
     return false;
   }
 
-  char nonce[kBoxNonceSize];
-  memcpy(nonce, ciphertext.data(), kBoxNonceSize);
+  StringPiece nonce(ciphertext.data(), kBoxNonceSize);
   ciphertext.remove_prefix(kBoxNonceSize);
-
-  size_t len = ciphertext.size();
-  out_storage->resize(len);
-  char* data = const_cast<char*>(out_storage->data());
+  QuicPacketSequenceNumber sequence_number;
+  StringPiece nonce_prefix(nonce.data(),
+                           nonce.size() - sizeof(sequence_number));
+  memcpy(&sequence_number, nonce.data() + nonce_prefix.size(),
+         sizeof(sequence_number));
 
   scoped_ptr<QuicDecrypter> decrypter(QuicDecrypter::Create(kAESG));
   if (!decrypter->SetKey(key_)) {
     DLOG(DFATAL) << "CryptoSecretBoxer's decrypter->SetKey failed.";
     return false;
   }
-  if (!decrypter->Decrypt(StringPiece(nonce, kBoxNonceSize), StringPiece(),
-                          ciphertext, reinterpret_cast<unsigned char*>(data),
-                          &len)) {
+  decrypter->SetNoncePrefix(nonce_prefix);
+  scoped_ptr<QuicData> decrypted(
+      decrypter->DecryptPacket(sequence_number, StringPiece(), ciphertext));
+  if (!decrypted.get()) {
     return false;
   }
 
-  out->set(data, len);
+  out_storage->resize(decrypted->length());
+  out_storage->assign(decrypted->data(), decrypted->length());
+  out->set(out_storage->data(), decrypted->length());
   return true;
 }
 

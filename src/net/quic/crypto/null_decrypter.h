@@ -24,11 +24,6 @@ class NET_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
   // QuicDecrypter implementation
   bool SetKey(base::StringPiece key) override;
   bool SetNoncePrefix(base::StringPiece nonce_prefix) override;
-  bool Decrypt(base::StringPiece nonce,
-               base::StringPiece associated_data,
-               base::StringPiece ciphertext,
-               unsigned char* output,
-               size_t* output_length) override;
   QuicData* DecryptPacket(QuicPacketSequenceNumber sequence_number,
                           base::StringPiece associated_data,
                           base::StringPiece ciphertext) override;

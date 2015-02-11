@@ -36,8 +36,8 @@ enum SpdyMajorVersion {
   SPDY_MIN_VERSION = SPDY2,
   SPDY3 = 3,
   SPDY4 = 4,
-  SPDY5 = 5,
-  SPDY_MAX_VERSION = SPDY5
+  HTTP2 = SPDY4,
+  SPDY_MAX_VERSION = SPDY4
 };
 
 // A SPDY stream id is a 31 bit entity.
@@ -47,17 +47,11 @@ typedef uint32 SpdyStreamId;
 // flow control).
 const SpdyStreamId kSessionFlowControlStreamId = 0;
 
-// Initial window size for a Spdy stream in bytes.
-const int32 kSpdyStreamInitialWindowSize = 64 * 1024;  // 64 KBytes
-
 // The maxmium possible control frame size allowed by the spec.
 const int32 kSpdyMaxControlFrameSize = (1 << 24) - 1;
 
 // The maximum control frame size we accept.
 const int32 kControlFrameSizeLimit = 1 << 14;
-
-// Initial window size for a Spdy session in bytes.
-const int32 kSpdySessionInitialWindowSize = 64 * 1024;  // 64 KBytes
 
 // Maximum window size for a Spdy stream or session.
 const int32 kSpdyMaximumWindowSize = 0x7FFFFFFF;  // Max signed 32bit int
@@ -532,6 +526,12 @@ class NET_EXPORT_PRIVATE SpdyConstants {
 
   // Returns the size (in bytes) of a wire setting ID and value.
   static size_t GetSettingSize(SpdyMajorVersion version);
+
+  // Initial window size for a stream in bytes.
+  static int32 GetInitialStreamWindowSize(SpdyMajorVersion version);
+
+  // Initial window size for a session in bytes.
+  static int32 GetInitialSessionWindowSize(SpdyMajorVersion version);
 
   static SpdyMajorVersion ParseMajorVersion(int version_number);
 

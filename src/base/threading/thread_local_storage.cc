@@ -140,8 +140,8 @@ void OnThreadExitInternal(void* value) {
     base::subtle::Atomic32 last_used_tls_key =
         base::subtle::NoBarrier_Load(&g_last_used_tls_key);
     for (int slot = last_used_tls_key; slot > 0; --slot) {
-      void* value = stack_allocated_tls_data[slot];
-      if (value == NULL)
+      void* tls_value = stack_allocated_tls_data[slot];
+      if (tls_value == NULL)
         continue;
 
       base::ThreadLocalStorage::TLSDestructorFunc destructor =
@@ -149,7 +149,7 @@ void OnThreadExitInternal(void* value) {
       if (destructor == NULL)
         continue;
       stack_allocated_tls_data[slot] = NULL;  // pre-clear the slot.
-      destructor(value);
+      destructor(tls_value);
       // Any destructor might have called a different service, which then set
       // a different slot to a non-NULL value.  Hence we need to check
       // the whole vector again.  This is a pthread standard.

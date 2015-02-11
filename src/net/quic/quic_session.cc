@@ -238,6 +238,10 @@ void QuicSession::OnConnectionClosed(QuicErrorCode error, bool from_peer) {
   }
 }
 
+void QuicSession::OnSuccessfulVersionNegotiation(const QuicVersion& version) {
+  headers_stream_->OnSuccessfulVersionNegotiation(version);
+}
+
 void QuicSession::OnWindowUpdateFrames(
     const vector<QuicWindowUpdateFrame>& frames) {
   bool connection_window_updated = false;
@@ -255,13 +259,6 @@ void QuicSession::OnWindowUpdateFrames(
         connection_window_updated = true;
       }
       continue;
-    }
-
-    if (connection_->version() < QUIC_VERSION_21 &&
-        (stream_id == kCryptoStreamId || stream_id == kHeadersStreamId)) {
-      DLOG(DFATAL) << "WindowUpdate for stream " << stream_id << " in version "
-                   << QuicVersionToString(connection_->version());
-      return;
     }
 
     ReliableQuicStream* stream = GetStream(stream_id);
@@ -368,8 +365,10 @@ size_t QuicSession::WriteHeaders(
     QuicStreamId id,
     const SpdyHeaderBlock& headers,
     bool fin,
+    QuicPriority priority,
     QuicAckNotifier::DelegateInterface* ack_notifier_delegate) {
-  return headers_stream_->WriteHeaders(id, headers, fin, ack_notifier_delegate);
+  return headers_stream_->WriteHeaders(id, headers, fin, priority,
+                                       ack_notifier_delegate);
 }
 
 void QuicSession::SendRstStream(QuicStreamId id,
@@ -500,10 +499,8 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
   }
 
   // Inform all existing streams about the new window.
-  if (connection_->version() >= QUIC_VERSION_21) {
-    GetCryptoStream()->UpdateSendWindowOffset(new_window);
-    headers_stream_->UpdateSendWindowOffset(new_window);
-  }
+  GetCryptoStream()->UpdateSendWindowOffset(new_window);
+  headers_stream_->UpdateSendWindowOffset(new_window);
   for (DataStreamMap::iterator it = stream_map_.begin();
        it != stream_map_.end(); ++it) {
     it->second->UpdateSendWindowOffset(new_window);

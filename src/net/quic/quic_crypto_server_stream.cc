@@ -19,8 +19,6 @@ using std::string;
 namespace net {
 
 void ServerHelloNotifier::OnAckNotification(
-    int num_original_packets,
-    int num_original_bytes,
     int num_retransmitted_packets,
     int num_retransmitted_bytes,
     QuicTime::Delta delta_largest_observed) {
@@ -130,13 +128,9 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
 
   // We want to be notified when the SHLO is ACKed so that we can disable
   // HANDSHAKE_MODE in the sent packet manager.
-  if (session()->connection()->version() <= QUIC_VERSION_21) {
-    SendHandshakeMessage(reply);
-  } else {
-    scoped_refptr<ServerHelloNotifier> server_hello_notifier(
-        new ServerHelloNotifier(this));
-    SendHandshakeMessage(reply, server_hello_notifier.get());
-  }
+  scoped_refptr<ServerHelloNotifier> server_hello_notifier(
+      new ServerHelloNotifier(this));
+  SendHandshakeMessage(reply, server_hello_notifier.get());
 
   session()->connection()->SetEncrypter(
       ENCRYPTION_FORWARD_SECURE,
@@ -152,8 +146,7 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
 
 void QuicCryptoServerStream::SendServerConfigUpdate(
     const CachedNetworkParameters* cached_network_params) {
-  if (session()->connection()->version() <= QUIC_VERSION_21 ||
-      !handshake_confirmed_) {
+  if (!handshake_confirmed_) {
     return;
   }
 

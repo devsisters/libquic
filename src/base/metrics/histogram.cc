@@ -369,7 +369,7 @@ HistogramBase* Histogram::DeserializeInfoImpl(PickleIterator* iter) {
 scoped_ptr<SampleVector> Histogram::SnapshotSampleVector() const {
   scoped_ptr<SampleVector> samples(new SampleVector(bucket_ranges()));
   samples->Add(*samples_);
-  return samples;
+  return samples.Pass();
 }
 
 void Histogram::WriteAsciiImpl(bool graph_it,
@@ -495,13 +495,13 @@ void Histogram::GetCountAndBucketData(Count* count,
   *sum = snapshot->sum();
   size_t index = 0;
   for (size_t i = 0; i < bucket_count(); ++i) {
-    Sample count = snapshot->GetCountAtIndex(i);
-    if (count > 0) {
+    Sample count_at_index = snapshot->GetCountAtIndex(i);
+    if (count_at_index > 0) {
       scoped_ptr<DictionaryValue> bucket_value(new DictionaryValue());
       bucket_value->SetInteger("low", ranges(i));
       if (i != bucket_count() - 1)
         bucket_value->SetInteger("high", ranges(i + 1));
-      bucket_value->SetInteger("count", count);
+      bucket_value->SetInteger("count", count_at_index);
       buckets->Set(index, bucket_value.release());
       ++index;
     }

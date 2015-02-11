@@ -23,7 +23,6 @@ class ReliableQuicStream;
 
 // Buffers frames until we have something which can be passed
 // up to the next layer.
-// TOOD(alyssar) add some checks for overflow attempts [1, 256,] [2, 256]
 class NET_EXPORT_PRIVATE QuicStreamSequencer {
  public:
   explicit QuicStreamSequencer(ReliableQuicStream* quic_stream);
@@ -76,6 +75,8 @@ class NET_EXPORT_PRIVATE QuicStreamSequencer {
     return num_duplicate_frames_received_;
   }
 
+  int num_early_frames_received() const { return num_early_frames_received_; }
+
  private:
   friend class test::QuicStreamSequencerPeer;
 
@@ -122,6 +123,10 @@ class NET_EXPORT_PRIVATE QuicStreamSequencer {
 
   // Count of the number of duplicate frames received.
   int num_duplicate_frames_received_;
+
+  // Count of the number of frames received before all previous frames were
+  // received.
+  int num_early_frames_received_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicStreamSequencer);
 };

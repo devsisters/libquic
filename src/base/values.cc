@@ -89,6 +89,10 @@ Value* Value::CreateNullValue() {
   return new Value(TYPE_NULL);
 }
 
+bool Value::GetAsBinary(const BinaryValue** out_value) const {
+  return false;
+}
+
 bool Value::GetAsBoolean(bool* out_value) const {
   return false;
 }
@@ -317,6 +321,12 @@ BinaryValue* BinaryValue::CreateWithCopiedBuffer(const char* buffer,
   memcpy(buffer_copy, buffer, size);
   scoped_ptr<char[]> scoped_buffer_copy(buffer_copy);
   return new BinaryValue(scoped_buffer_copy.Pass(), size);
+}
+
+bool BinaryValue::GetAsBinary(const BinaryValue** out_value) const {
+  if (out_value)
+    *out_value = this;
+  return true;
 }
 
 BinaryValue* BinaryValue::DeepCopy() const {

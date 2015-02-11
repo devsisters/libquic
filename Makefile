@@ -244,6 +244,7 @@ sync:
 	#cp custom/quic_crypto_client_stream.cc $(SRCROOT)/net/quic/quic_crypto_client_stream.cc
 	
 	patch -p1 < basepatch.patch
+	patch -p1 < patch_remove_scoped_tracker.patch
 	cp custom/net_util.h $(SRCROOT)/net/base/net_util.h
 	cp custom/net_util.cc $(SRCROOT)/net/base/net_util.cc
 	cp custom/debugger.h $(SRCROOT)/base/debug/debugger.h

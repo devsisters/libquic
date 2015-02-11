@@ -350,7 +350,7 @@ const LogSeverity LOG_0 = LOG_ERROR;
   ((verboselevel) <= ::logging::GetVlogLevel(__FILE__))
 
 // Helper macro which avoids evaluating the arguments to a stream if
-// the condition doesn't hold.
+// the condition doesn't hold. Condition is evaluated once and only once.
 #define LAZY_STREAM(stream, condition)                                  \
   !(condition) ? (void) 0 : ::logging::LogMessageVoidify() & (stream)
 

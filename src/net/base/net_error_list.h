@@ -440,13 +440,16 @@ NET_ERROR(CERT_WEAK_KEY, -211)
 // The certificate claimed DNS names that are in violation of name constraints.
 NET_ERROR(CERT_NAME_CONSTRAINT_VIOLATION, -212)
 
+// The certificate's validity period is too long.
+NET_ERROR(CERT_VALIDITY_TOO_LONG, -213)
+
 // Add new certificate error codes here.
 //
 // Update the value of CERT_END whenever you add a new certificate error
 // code.
 
 // The value immediately past the last certificate error code.
-NET_ERROR(CERT_END, -213)
+NET_ERROR(CERT_END, -214)
 
 // The URL is invalid.
 NET_ERROR(INVALID_URL, -300)

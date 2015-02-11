@@ -132,11 +132,9 @@ AdvanceFirstGapAndGarbageCollectEntropyMap() {
   }
 }
 
-QuicReceivedPacketManager::QuicReceivedPacketManager(
-    QuicConnectionStats* stats)
+QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
     : peer_least_packet_awaiting_ack_(0),
       time_largest_observed_(QuicTime::Zero()),
-      receive_algorithm_(ReceiveAlgorithmInterface::Create(kTCP)),
       stats_(stats) {
   ack_frame_.largest_observed = 0;
   ack_frame_.entropy_hash = 0;
@@ -178,9 +176,6 @@ void QuicReceivedPacketManager::RecordPacketReceived(
   }
   entropy_tracker_.RecordPacketEntropyHash(sequence_number,
                                            header.entropy_hash);
-
-  receive_algorithm_->RecordIncomingPacket(
-      bytes, sequence_number, receipt_time);
 
   received_packet_times_.push_back(
       std::make_pair(sequence_number, receipt_time));
@@ -238,13 +233,8 @@ void QuicReceivedPacketManager::UpdateReceivedPacketInfo(
   // Remove all packets that are too far from largest_observed to express.
   received_packet_times_.remove_if(isTooLarge(ack_frame_.largest_observed));
 
-  ack_frame->received_packet_times = received_packet_times_;
-  received_packet_times_.clear();
-}
-
-bool QuicReceivedPacketManager::GenerateCongestionFeedback(
-    QuicCongestionFeedbackFrame* feedback) {
-  return receive_algorithm_->GenerateCongestionFeedback(feedback);
+  ack_frame->received_packet_times.clear();
+  ack_frame->received_packet_times.swap(received_packet_times_);
 }
 
 QuicPacketEntropyHash QuicReceivedPacketManager::EntropyHash(

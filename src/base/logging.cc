@@ -164,13 +164,12 @@ PathString GetDefaultLogFile() {
   wchar_t module_name[MAX_PATH];
   GetModuleFileName(NULL, module_name, MAX_PATH);
 
-  PathString log_file = module_name;
-  PathString::size_type last_backslash =
-      log_file.rfind('\\', log_file.size());
+  PathString log_name = module_name;
+  PathString::size_type last_backslash = log_name.rfind('\\', log_name.size());
   if (last_backslash != PathString::npos)
-    log_file.erase(last_backslash + 1);
-  log_file += L"debug.log";
-  return log_file;
+    log_name.erase(last_backslash + 1);
+  log_name += L"debug.log";
+  return log_name;
 #elif defined(OS_POSIX)
   // On other platforms we just use the current directory.
   return PathString("debug.log");

@@ -445,7 +445,6 @@ void QuicPacketCreator::FillPacketHeader(QuicFecGroupNumber fec_group,
 bool QuicPacketCreator::ShouldRetransmit(const QuicFrame& frame) {
   switch (frame.type) {
     case ACK_FRAME:
-    case CONGESTION_FEEDBACK_FRAME:
     case PADDING_FRAME:
     case STOP_WAITING_FRAME:
       return false;

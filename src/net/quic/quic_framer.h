@@ -121,10 +121,6 @@ class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // the framer will stop parsing the current packet.
   virtual bool OnAckFrame(const QuicAckFrame& frame) = 0;
 
-  // Called when a CongestionFeedbackFrame has been parsed.
-  virtual bool OnCongestionFeedbackFrame(
-      const QuicCongestionFeedbackFrame& frame) = 0;
-
   // Called when a StopWaitingFrame has been parsed.
   virtual bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) = 0;
 
@@ -414,8 +410,6 @@ class NET_EXPORT_PRIVATE QuicFramer {
   bool ProcessTimestampsInAckFrame(QuicAckFrame* frame);
   bool ProcessStopWaitingFrame(const QuicPacketHeader& public_header,
                                QuicStopWaitingFrame* stop_waiting);
-  bool ProcessCongestionFeedbackFrame(
-      QuicCongestionFeedbackFrame* congestion_feedback);
   bool ProcessRstStreamFrame(QuicRstStreamFrame* frame);
   bool ProcessConnectionCloseFrame(QuicConnectionCloseFrame* frame);
   bool ProcessGoAwayFrame(QuicGoAwayFrame* frame);
@@ -468,8 +462,6 @@ class NET_EXPORT_PRIVATE QuicFramer {
   bool AppendAckFrameAndTypeByte(const QuicPacketHeader& header,
                                  const QuicAckFrame& frame,
                                  QuicDataWriter* builder);
-  bool AppendCongestionFeedbackFrame(const QuicCongestionFeedbackFrame& frame,
-                                     QuicDataWriter* builder);
   bool AppendTimestampToAckFrame(const QuicAckFrame& frame,
                                  QuicDataWriter* builder);
   bool AppendStopWaitingFrame(const QuicPacketHeader& header,

@@ -62,7 +62,6 @@ const uint8 kPublicHeaderSequenceNumberShift = 4;
 // all in the Frame Type byte. Currently defined Special Frame Types are:
 // Stream             : 0b 1xxxxxxx
 // Ack                : 0b 01xxxxxx
-// CongestionFeedback : 0b 001xxxxx
 //
 // Semantics of the flag bits above (the x bits) depends on the frame type.
 
@@ -71,7 +70,6 @@ const uint8 kPublicHeaderSequenceNumberShift = 4;
 const uint8 kQuicFrameTypeSpecialMask = 0xE0;  // 0b 11100000
 const uint8 kQuicFrameTypeStreamMask = 0x80;
 const uint8 kQuicFrameTypeAckMask = 0x40;
-const uint8 kQuicFrameTypeCongestionFeedbackMask = 0x20;
 
 // Stream frame relative shifts and masks for interpreting the stream flags.
 // StreamID may be 1, 2, 3, or 4 bytes.
@@ -359,13 +357,6 @@ SerializedPacket QuicFramer::BuildDataPacket(
           return kNoPacket;
         }
         break;
-      case CONGESTION_FEEDBACK_FRAME:
-        if (!AppendCongestionFeedbackFrame(
-                *frame.congestion_feedback_frame, &writer)) {
-          LOG(DFATAL) << "AppendCongestionFeedbackFrame failed";
-          return kNoPacket;
-        }
-        break;
       case STOP_WAITING_FRAME:
         if (!AppendStopWaitingFrame(
                 header, *frame.stop_waiting_frame, &writer)) {
@@ -419,7 +410,7 @@ SerializedPacket QuicFramer::BuildDataPacket(
   // Less than or equal because truncated acks end up with max_plaintex_size
   // length, even though they're typically slightly shorter.
   DCHECK_LE(len, packet_size);
-  QuicPacket* packet = QuicPacket::NewDataPacket(
+  QuicPacket* packet = new QuicPacket(
       writer.take(), len, true, header.public_header.connection_id_length,
       header.public_header.version_flag,
       header.public_header.sequence_number_length);
@@ -454,14 +445,16 @@ SerializedPacket QuicFramer::BuildFecPacket(const QuicPacketHeader& header,
     return kNoPacket;
   }
 
-  return SerializedPacket(
+  SerializedPacket packet(
       header.packet_sequence_number,
       header.public_header.sequence_number_length,
-      QuicPacket::NewFecPacket(writer.take(), len, true,
-                               header.public_header.connection_id_length,
-                               header.public_header.version_flag,
-                               header.public_header.sequence_number_length),
+      new QuicPacket(writer.take(), len, true,
+                     header.public_header.connection_id_length,
+                     header.public_header.version_flag,
+                     header.public_header.sequence_number_length),
       GetPacketEntropyHash(header), nullptr);
+  packet.is_fec_packet = true;
+  return packet;
 }
 
 // static
@@ -1124,24 +1117,6 @@ bool QuicFramer::ProcessFrameData(const QuicPacketHeader& header) {
         continue;
       }
 
-      // Congestion Feedback Frame
-      if (frame_type & kQuicFrameTypeCongestionFeedbackMask) {
-        if (quic_version_ > QUIC_VERSION_22) {
-          set_detailed_error("Congestion Feedback Frame has been deprecated.");
-          DLOG(WARNING) << "Congestion Feedback Frame has been deprecated.";
-        }
-        QuicCongestionFeedbackFrame frame;
-        if (!ProcessCongestionFeedbackFrame(&frame)) {
-          return RaiseError(QUIC_INVALID_CONGESTION_FEEDBACK_DATA);
-        }
-        if (!visitor_->OnCongestionFeedbackFrame(frame)) {
-          DVLOG(1) << "Visitor asked to stop further processing.";
-          // Returning true since there was no parsing error.
-          return true;
-        }
-        continue;
-      }
-
       // This was a special frame type that did not match any
       // of the known ones. Error.
       set_detailed_error("Illegal frame type.");
@@ -1406,7 +1381,7 @@ bool QuicFramer::ProcessAckFrame(uint8 frame_type, QuicAckFrame* ack_frame) {
 }
 
 bool QuicFramer::ProcessTimestampsInAckFrame(QuicAckFrame* ack_frame) {
-  if (version() > QUIC_VERSION_22 && !ack_frame->is_truncated) {
+  if (!ack_frame->is_truncated) {
     uint8 num_received_packets;
     if (!reader_->ReadBytes(&num_received_packets, 1)) {
       set_detailed_error("Unable to read num received packets.");
@@ -1479,38 +1454,6 @@ bool QuicFramer::ProcessStopWaitingFrame(const QuicPacketHeader& header,
   DCHECK_GE(header.packet_sequence_number, least_unacked_delta);
   stop_waiting->least_unacked =
       header.packet_sequence_number - least_unacked_delta;
-
-  return true;
-}
-
-bool QuicFramer::ProcessCongestionFeedbackFrame(
-    QuicCongestionFeedbackFrame* frame) {
-  uint8 feedback_type;
-  if (!reader_->ReadBytes(&feedback_type, 1)) {
-    set_detailed_error("Unable to read congestion feedback type.");
-    return false;
-  }
-  frame->type =
-      static_cast<CongestionFeedbackType>(feedback_type);
-
-  switch (frame->type) {
-    case kTCP: {
-      CongestionFeedbackMessageTCP* tcp = &frame->tcp;
-      uint16 receive_window = 0;
-      if (!reader_->ReadUInt16(&receive_window)) {
-        set_detailed_error("Unable to read receive window.");
-        return false;
-      }
-      // Simple bit packing, don't send the 4 least significant bits.
-      tcp->receive_window = static_cast<QuicByteCount>(receive_window) << 4;
-      break;
-    }
-    default:
-      set_detailed_error("Illegal congestion feedback type.");
-      DLOG(WARNING) << "Illegal congestion feedback type: "
-                    << frame->type;
-      return RaiseError(QUIC_INVALID_FRAME_DATA);
-  }
 
   return true;
 }
@@ -1789,8 +1732,7 @@ size_t QuicFramer::GetAckFrameSize(
 
   // In version 23, if the ack will be truncated due to too many nack ranges,
   // then do not include the number of timestamps (1 byte).
-  if (version() > QUIC_VERSION_22 &&
-      ack_info.nack_ranges.size() <= kMaxNackRanges) {
+  if (ack_info.nack_ranges.size() <= kMaxNackRanges) {
     // 1 byte for the number of timestamps.
     ack_size += 1;
     if (ack.received_packet_times.size() > 0) {
@@ -1821,23 +1763,6 @@ size_t QuicFramer::ComputeFrameLength(
           frame.stream_frame->data.TotalBufferSize();
     case ACK_FRAME: {
       return GetAckFrameSize(*frame.ack_frame, sequence_number_length);
-    }
-    case CONGESTION_FEEDBACK_FRAME: {
-      size_t len = kQuicFrameTypeSize;
-      const QuicCongestionFeedbackFrame& congestion_feedback =
-          *frame.congestion_feedback_frame;
-      len += 1;  // Congestion feedback type.
-
-      switch (congestion_feedback.type) {
-        case kTCP:
-          len += 2;  // Receive window.
-          break;
-        default:
-          set_detailed_error("Illegal feedback type.");
-          DVLOG(1) << "Illegal feedback type: " << congestion_feedback.type;
-          break;
-      }
-      return len;
     }
     case STOP_WAITING_FRAME:
       return GetStopWaitingFrameSize(sequence_number_length);
@@ -1900,11 +1825,6 @@ bool QuicFramer::AppendTypeByte(const QuicFrame& frame,
     }
     case ACK_FRAME:
       return true;
-    case CONGESTION_FEEDBACK_FRAME: {
-      // TODO(ianswett): Use extra 5 bits in the congestion feedback framing.
-      type_byte = kQuicFrameTypeCongestionFeedbackMask;
-      break;
-    }
     default:
       type_byte = static_cast<uint8>(frame.type);
       break;
@@ -2064,7 +1984,7 @@ bool QuicFramer::AppendAckFrameAndTypeByte(
   }
 
   // Timestamp goes at the end of the required fields.
-  if (version() > QUIC_VERSION_22 && !truncated) {
+  if (!truncated) {
     if (!AppendTimestampToAckFrame(frame, writer)) {
       return false;
     }
@@ -2118,31 +2038,6 @@ bool QuicFramer::AppendAckFrameAndTypeByte(
                                     *iter, writer)) {
       return false;
     }
-  }
-
-  return true;
-}
-
-bool QuicFramer::AppendCongestionFeedbackFrame(
-    const QuicCongestionFeedbackFrame& frame,
-    QuicDataWriter* writer) {
-  if (!writer->WriteBytes(&frame.type, 1)) {
-    return false;
-  }
-
-  switch (frame.type) {
-    case kTCP: {
-      const CongestionFeedbackMessageTCP& tcp = frame.tcp;
-      DCHECK_LE(tcp.receive_window, 1u << 20);
-      // Simple bit packing, don't send the 4 least significant bits.
-      uint16 receive_window = static_cast<uint16>(tcp.receive_window >> 4);
-      if (!writer->WriteUInt16(receive_window)) {
-        return false;
-      }
-      break;
-    }
-    default:
-      return false;
   }
 
   return true;

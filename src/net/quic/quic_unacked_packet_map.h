@@ -141,9 +141,25 @@ class NET_EXPORT_PRIVATE QuicUnackedPacketMap {
 
   void MaybeRemoveRetransmittableFrames(TransmissionInfo* transmission_info);
 
+  // Returns true if packet may be useful for an RTT measurement.
+  bool IsPacketUsefulForMeasuringRtt(QuicPacketSequenceNumber sequence_number,
+                                     const TransmissionInfo& info) const;
+
+  // Returns true if packet may be useful for congestion control purposes.
+  bool IsPacketUsefulForCongestionControl(
+      QuicPacketSequenceNumber sequence_number,
+      const TransmissionInfo& info) const;
+
+  // Returns true if packet may be associated with retransmittable data
+  // directly or through retransmissions.
+  bool IsPacketUsefulForRetransmittableData(
+      QuicPacketSequenceNumber sequence_number,
+      const TransmissionInfo& info) const;
+
   // Returns true if the packet no longer has a purpose in the map.
   bool IsPacketUseless(QuicPacketSequenceNumber sequence_number,
                        const TransmissionInfo& info) const;
+
   // Returns true if the packet is useless or it's only purpose is RTT
   // measurement, and it's old enough that is unlikely to ever happen.
   bool IsPacketRemovable(QuicPacketSequenceNumber sequence_number,

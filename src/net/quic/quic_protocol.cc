@@ -158,12 +158,10 @@ QuicVersionVector QuicSupportedVersions() {
 
 QuicTag QuicVersionToQuicTag(const QuicVersion version) {
   switch (version) {
-    case QUIC_VERSION_21:
-      return MakeQuicTag('Q', '0', '2', '1');
-    case QUIC_VERSION_22:
-      return MakeQuicTag('Q', '0', '2', '2');
     case QUIC_VERSION_23:
       return MakeQuicTag('Q', '0', '2', '3');
+    case QUIC_VERSION_24:
+      return MakeQuicTag('Q', '0', '2', '4');
     default:
       // This shold be an ERROR because we should never attempt to convert an
       // invalid QuicVersion to be written to the wire.
@@ -190,9 +188,8 @@ return #x
 
 string QuicVersionToString(const QuicVersion version) {
   switch (version) {
-    RETURN_STRING_LITERAL(QUIC_VERSION_21);
-    RETURN_STRING_LITERAL(QUIC_VERSION_22);
     RETURN_STRING_LITERAL(QUIC_VERSION_23);
+    RETURN_STRING_LITERAL(QUIC_VERSION_24);
     default:
       return "QUIC_VERSION_UNSUPPORTED";
   }
@@ -260,14 +257,6 @@ QuicAckFrame::QuicAckFrame()
 
 QuicAckFrame::~QuicAckFrame() {}
 
-CongestionFeedbackMessageTCP::CongestionFeedbackMessageTCP()
-    : receive_window(0) {
-}
-
-QuicCongestionFeedbackFrame::QuicCongestionFeedbackFrame() : type(kTCP) {}
-
-QuicCongestionFeedbackFrame::~QuicCongestionFeedbackFrame() {}
-
 QuicRstStreamErrorCode AdjustErrorForVersion(
     QuicRstStreamErrorCode error_code,
     QuicVersion version) {
@@ -307,11 +296,6 @@ QuicFrame::QuicFrame(QuicStreamFrame* stream_frame)
 QuicFrame::QuicFrame(QuicAckFrame* frame)
     : type(ACK_FRAME),
       ack_frame(frame) {
-}
-
-QuicFrame::QuicFrame(QuicCongestionFeedbackFrame* frame)
-    : type(CONGESTION_FEEDBACK_FRAME),
-      congestion_feedback_frame(frame) {
 }
 
 QuicFrame::QuicFrame(QuicStopWaitingFrame* frame)
@@ -418,11 +402,6 @@ ostream& operator<<(ostream& os, const QuicFrame& frame) {
       os << "type { ACK_FRAME } " << *(frame.ack_frame);
       break;
     }
-    case CONGESTION_FEEDBACK_FRAME: {
-      os << "type { CONGESTION_FEEDBACK_FRAME } "
-         << *(frame.congestion_feedback_frame);
-      break;
-    }
     case STOP_WAITING_FRAME: {
       os << "type { STOP_WAITING_FRAME } " << *(frame.stop_waiting_frame);
       break;
@@ -482,19 +461,6 @@ ostream& operator<<(ostream& os, const QuicStreamFrame& stream_frame) {
   return os;
 }
 
-ostream& operator<<(ostream& os,
-                    const QuicCongestionFeedbackFrame& congestion_frame) {
-  os << "type: " << congestion_frame.type;
-  switch (congestion_frame.type) {
-    case kTCP: {
-      const CongestionFeedbackMessageTCP& tcp = congestion_frame.tcp;
-      os << " receive_window: " << tcp.receive_window;
-      break;
-    }
-  }
-  return os;
-}
-
 QuicGoAwayFrame::QuicGoAwayFrame()
     : error_code(QUIC_NO_ERROR),
       last_good_stream_id(0) {
@@ -543,11 +509,9 @@ QuicPacket::QuicPacket(char* buffer,
                        bool owns_buffer,
                        QuicConnectionIdLength connection_id_length,
                        bool includes_version,
-                       QuicSequenceNumberLength sequence_number_length,
-                       bool is_fec_packet)
+                       QuicSequenceNumberLength sequence_number_length)
     : QuicData(buffer, length, owns_buffer),
       buffer_(buffer),
-      is_fec_packet_(is_fec_packet),
       connection_id_length_(connection_id_length),
       includes_version_(includes_version),
       sequence_number_length_(sequence_number_length) {
@@ -608,9 +572,6 @@ RetransmittableFrames::~RetransmittableFrames() {
         break;
       case ACK_FRAME:
         delete it->ack_frame;
-        break;
-      case CONGESTION_FEEDBACK_FRAME:
-        delete it->congestion_feedback_frame;
         break;
       case STOP_WAITING_FRAME:
         delete it->stop_waiting_frame;
@@ -676,7 +637,8 @@ SerializedPacket::SerializedPacket(
       sequence_number_length(sequence_number_length),
       packet(packet),
       entropy_hash(entropy_hash),
-      retransmittable_frames(retransmittable_frames) {
+      retransmittable_frames(retransmittable_frames),
+      is_fec_packet(false) {
 }
 
 SerializedPacket::~SerializedPacket() {}

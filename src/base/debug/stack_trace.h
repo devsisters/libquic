@@ -17,6 +17,7 @@
 
 #if defined(OS_WIN)
 struct _EXCEPTION_POINTERS;
+struct _CONTEXT;
 #endif
 
 namespace base {
@@ -54,6 +55,7 @@ class BASE_EXPORT StackTrace {
   // Note: this function will throw an import not found (StackWalk64) exception
   // on system without dbghelp 5.1.
   StackTrace(const _EXCEPTION_POINTERS* exception_pointers);
+  StackTrace(const _CONTEXT* context);
 #endif
 
   // Copying and assignment are allowed with the default functions.
@@ -76,6 +78,10 @@ class BASE_EXPORT StackTrace {
   std::string ToString() const;
 
  private:
+#if defined(OS_WIN)
+  void InitTrace(_CONTEXT* context_record);
+#endif
+
   // From http://msdn.microsoft.com/en-us/library/bb204633.aspx,
   // the sum of FramesToSkip and FramesToCapture must be less than 63,
   // so set it to 62. Even if on POSIX it could be a larger value, it usually

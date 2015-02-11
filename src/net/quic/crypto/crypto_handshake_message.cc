@@ -65,8 +65,8 @@ void CryptoHandshakeMessage::MarkDirty() {
 void CryptoHandshakeMessage::SetTaglist(QuicTag tag, ...) {
   // Warning, if sizeof(QuicTag) > sizeof(int) then this function will break
   // because the terminating 0 will only be promoted to int.
-  COMPILE_ASSERT(sizeof(QuicTag) <= sizeof(int),
-                 crypto_tag_may_not_be_larger_than_int_or_varargs_will_break);
+  static_assert(sizeof(QuicTag) <= sizeof(int),
+                "crypto tag may not be larger than int or varargs will break");
 
   vector<QuicTag> tags;
   va_list ap;

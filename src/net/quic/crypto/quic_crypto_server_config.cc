@@ -1102,11 +1102,9 @@ void QuicCryptoServerConfig::BuildRejection(
     out->SetStringPiece(kServerNonceTag, NewServerNonce(rand, info.now));
   }
 
-  if (FLAGS_send_quic_crypto_reject_reason) {
-    // Send client the reject reason for debugging purposes.
-    DCHECK_LT(0u, info.reject_reasons.size());
-    out->SetVector(kRREJ, info.reject_reasons);
-  }
+  // Send client the reject reason for debugging purposes.
+  DCHECK_LT(0u, info.reject_reasons.size());
+  out->SetVector(kRREJ, info.reject_reasons);
 
   // The client may have requested a certificate chain.
   const QuicTag* their_proof_demands;
@@ -1175,8 +1173,8 @@ void QuicCryptoServerConfig::BuildRejection(
   // token.
   const size_t max_unverified_size =
       client_hello.size() * kMultiplier - kREJOverheadBytes;
-  COMPILE_ASSERT(kClientHelloMinimumSize * kMultiplier >= kREJOverheadBytes,
-                 overhead_calculation_may_underflow);
+  static_assert(kClientHelloMinimumSize * kMultiplier >= kREJOverheadBytes,
+                "overhead calculation may overflow");
   if (info.valid_source_address_token ||
       signature.size() + compressed.size() < max_unverified_size) {
     out->SetStringPiece(kCertificateTag, compressed);
@@ -1251,7 +1249,8 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
                     " Got " << orbit.size() << " want " << kOrbitSize;
     return nullptr;
   }
-  COMPILE_ASSERT(sizeof(config->orbit) == kOrbitSize, orbit_incorrect_size);
+  static_assert(sizeof(config->orbit) == kOrbitSize,
+                "orbit has incorrect size");
   memcpy(config->orbit, orbit.data(), sizeof(config->orbit));
 
   {
@@ -1615,7 +1614,7 @@ string QuicCryptoServerConfig::NewServerNonce(QuicRandom* rand,
   const uint32 timestamp = static_cast<uint32>(now.ToUNIXSeconds());
 
   uint8 server_nonce[kServerNoncePlaintextSize];
-  COMPILE_ASSERT(sizeof(server_nonce) > sizeof(timestamp), nonce_too_small);
+  static_assert(sizeof(server_nonce) > sizeof(timestamp), "nonce too small");
   server_nonce[0] = static_cast<uint8>(timestamp >> 24);
   server_nonce[1] = static_cast<uint8>(timestamp >> 16);
   server_nonce[2] = static_cast<uint8>(timestamp >> 8);
@@ -1652,8 +1651,8 @@ HandshakeFailureReason QuicCryptoServerConfig::ValidateServerNonce(
   memcpy(server_nonce + 4, server_nonce_orbit_, sizeof(server_nonce_orbit_));
   memcpy(server_nonce + 4 + sizeof(server_nonce_orbit_), plaintext.data() + 4,
          20);
-  COMPILE_ASSERT(4 + sizeof(server_nonce_orbit_) + 20 == sizeof(server_nonce),
-                 bad_nonce_buffer_length);
+  static_assert(4 + sizeof(server_nonce_orbit_) + 20 == sizeof(server_nonce),
+                "bad nonce buffer length");
 
   InsertStatus nonce_error;
   {

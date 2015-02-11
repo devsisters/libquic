@@ -27,6 +27,7 @@
 #include "net/quic/quic_config.h"
 #include "net/quic/quic_fec_group.h"
 #include "net/quic/quic_flags.h"
+#include "net/quic/quic_packet_generator.h"
 #include "net/quic/quic_utils.h"
 
 using base::StringPiece;
@@ -161,6 +162,23 @@ class PingAlarm : public QuicAlarm::Delegate {
   DISALLOW_COPY_AND_ASSIGN(PingAlarm);
 };
 
+// This alarm may be scheduled when an FEC protected packet is sent out.
+class FecAlarm : public QuicAlarm::Delegate {
+ public:
+  explicit FecAlarm(QuicPacketGenerator* packet_generator)
+      : packet_generator_(packet_generator) {}
+
+  QuicTime OnAlarm() override {
+    packet_generator_->OnFecTimeout();
+    return QuicTime::Zero();
+  }
+
+ private:
+  QuicPacketGenerator* packet_generator_;
+
+  DISALLOW_COPY_AND_ASSIGN(FecAlarm);
+};
+
 }  // namespace
 
 QuicConnection::QueuedPacket::QueuedPacket(SerializedPacket packet,
@@ -226,6 +244,7 @@ QuicConnection::QuicConnection(QuicConnectionId connection_id,
       timeout_alarm_(helper->CreateAlarm(new TimeoutAlarm(this))),
       ping_alarm_(helper->CreateAlarm(new PingAlarm(this))),
       packet_generator_(connection_id_, &framer_, random_generator_, this),
+      fec_alarm_(helper->CreateAlarm(new FecAlarm(&packet_generator_))),
       idle_network_timeout_(QuicTime::Delta::Infinite()),
       overall_connection_timeout_(QuicTime::Delta::Infinite()),
       time_of_last_received_packet_(clock_->ApproximateNow()),
@@ -272,7 +291,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.negotiated()) {
     SetNetworkTimeouts(QuicTime::Delta::Infinite(),
                        config.IdleConnectionStateLifetime());
-    if (FLAGS_quic_allow_silent_close && config.SilentClose()) {
+    if (config.SilentClose()) {
       silent_close_enabled_ = true;
     }
   } else {
@@ -281,8 +300,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
 
   sent_packet_manager_.SetFromConfig(config);
-  if (FLAGS_allow_truncated_connection_ids_for_quic &&
-      config.HasReceivedBytesForConnectionId() &&
+  if (config.HasReceivedBytesForConnectionId() &&
       can_truncate_connection_ids_) {
     packet_generator_.SetConnectionIdLength(
         config.ReceivedBytesForConnectionId());
@@ -326,10 +344,20 @@ void QuicConnection::OnError(QuicFramer* framer) {
   SendConnectionCloseWithDetails(framer->error(), framer->detailed_error());
 }
 
+void QuicConnection::MaybeSetFecAlarm(
+    QuicPacketSequenceNumber sequence_number) {
+  if (fec_alarm_->IsSet()) {
+    return;
+  }
+  QuicTime::Delta timeout = packet_generator_.GetFecTimeout(sequence_number);
+  if (!timeout.IsInfinite()) {
+    fec_alarm_->Set(clock_->ApproximateNow().Add(timeout));
+  }
+}
+
 void QuicConnection::OnPacket() {
   DCHECK(last_stream_frames_.empty() &&
          last_ack_frames_.empty() &&
-         last_congestion_frames_.empty() &&
          last_stop_waiting_frames_.empty() &&
          last_rst_frames_.empty() &&
          last_goaway_frames_.empty() &&
@@ -628,16 +656,6 @@ void QuicConnection::ProcessStopWaitingFrame(
   CloseFecGroupsBefore(stop_waiting.least_unacked + 1);
 }
 
-bool QuicConnection::OnCongestionFeedbackFrame(
-    const QuicCongestionFeedbackFrame& feedback) {
-  DCHECK(connected_);
-  if (debug_visitor_.get() != nullptr) {
-    debug_visitor_->OnCongestionFeedbackFrame(feedback);
-  }
-  last_congestion_frames_.push_back(feedback);
-  return connected_;
-}
-
 bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
   DCHECK(connected_);
 
@@ -829,7 +847,6 @@ void QuicConnection::OnPacketComplete() {
            << " packet " << last_header_.packet_sequence_number
            << " with " << last_stream_frames_.size()<< " stream frames "
            << last_ack_frames_.size() << " acks, "
-           << last_congestion_frames_.size() << " congestions, "
            << last_stop_waiting_frames_.size() << " stop_waiting, "
            << last_rst_frames_.size() << " rsts, "
            << last_goaway_frames_.size() << " goaways, "
@@ -882,10 +899,6 @@ void QuicConnection::OnPacketComplete() {
   for (size_t i = 0; i < last_ack_frames_.size(); ++i) {
     ProcessAckFrame(last_ack_frames_[i]);
   }
-  for (size_t i = 0; i < last_congestion_frames_.size(); ++i) {
-    sent_packet_manager_.OnIncomingQuicCongestionFeedbackFrame(
-        last_congestion_frames_[i], time_of_last_received_packet_);
-  }
   for (size_t i = 0; i < last_stop_waiting_frames_.size(); ++i) {
     ProcessStopWaitingFrame(last_stop_waiting_frames_[i]);
   }
@@ -929,7 +942,6 @@ void QuicConnection::MaybeQueueAck() {
 void QuicConnection::ClearLastFrames() {
   last_stream_frames_.clear();
   last_ack_frames_.clear();
-  last_congestion_frames_.clear();
   last_stop_waiting_frames_.clear();
   last_rst_frames_.clear();
   last_goaway_frames_.clear();
@@ -957,22 +969,16 @@ void QuicConnection::MaybeCloseIfTooManyOutstandingPackets() {
   }
 }
 
-QuicAckFrame* QuicConnection::CreateAckFrame() {
-  QuicAckFrame* outgoing_ack = new QuicAckFrame();
-  received_packet_manager_.UpdateReceivedPacketInfo(
-      outgoing_ack, clock_->ApproximateNow());
-  DVLOG(1) << ENDPOINT << "Creating ack frame: " << *outgoing_ack;
-  return outgoing_ack;
+void QuicConnection::PopulateAckFrame(QuicAckFrame* ack) {
+  received_packet_manager_.UpdateReceivedPacketInfo(ack,
+                                                    clock_->ApproximateNow());
 }
 
-QuicCongestionFeedbackFrame* QuicConnection::CreateFeedbackFrame() {
-  return new QuicCongestionFeedbackFrame(outgoing_congestion_feedback_);
-}
-
-QuicStopWaitingFrame* QuicConnection::CreateStopWaitingFrame() {
-  QuicStopWaitingFrame stop_waiting;
-  UpdateStopWaiting(&stop_waiting);
-  return new QuicStopWaitingFrame(stop_waiting);
+void QuicConnection::PopulateStopWaitingFrame(
+    QuicStopWaitingFrame* stop_waiting) {
+  stop_waiting->least_unacked = GetLeastUnacked();
+  stop_waiting->entropy_hash = sent_entropy_manager_.GetCumulativeEntropy(
+      stop_waiting->least_unacked - 1);
 }
 
 bool QuicConnection::ShouldLastPacketInstigateAck() const {
@@ -1070,9 +1076,7 @@ QuicConsumedData QuicConnection::SendStreamData(
     QuicAckNotifier::DelegateInterface* delegate) {
   if (!fin && data.Empty()) {
     LOG(DFATAL) << "Attempt to send empty stream frame";
-    if (FLAGS_quic_empty_data_no_fin_early_return) {
-      return QuicConsumedData(0, false);
-    }
+    return QuicConsumedData(0, false);
   }
 
   // Opportunistically bundle an ack with every outgoing packet.
@@ -1117,29 +1121,22 @@ void QuicConnection::SendBlocked(QuicStreamId id) {
 }
 
 const QuicConnectionStats& QuicConnection::GetStats() {
-  if (!FLAGS_quic_use_initial_rtt_for_stats) {
-    stats_.min_rtt_us =
-        sent_packet_manager_.GetRttStats()->min_rtt().ToMicroseconds();
-    stats_.srtt_us =
-        sent_packet_manager_.GetRttStats()->smoothed_rtt().ToMicroseconds();
-  } else {
-    const RttStats* rtt_stats = sent_packet_manager_.GetRttStats();
+  const RttStats* rtt_stats = sent_packet_manager_.GetRttStats();
 
-    // Update rtt and estimated bandwidth.
-    QuicTime::Delta min_rtt = rtt_stats->min_rtt();
-    if (min_rtt.IsZero()) {
-      // If min RTT has not been set, use initial RTT instead.
-      min_rtt = QuicTime::Delta::FromMicroseconds(rtt_stats->initial_rtt_us());
-    }
-    stats_.min_rtt_us = min_rtt.ToMicroseconds();
-
-    QuicTime::Delta srtt = rtt_stats->smoothed_rtt();
-    if (srtt.IsZero()) {
-      // If SRTT has not been set, use initial RTT instead.
-      srtt = QuicTime::Delta::FromMicroseconds(rtt_stats->initial_rtt_us());
-    }
-    stats_.srtt_us = srtt.ToMicroseconds();
+  // Update rtt and estimated bandwidth.
+  QuicTime::Delta min_rtt = rtt_stats->min_rtt();
+  if (min_rtt.IsZero()) {
+    // If min RTT has not been set, use initial RTT instead.
+    min_rtt = QuicTime::Delta::FromMicroseconds(rtt_stats->initial_rtt_us());
   }
+  stats_.min_rtt_us = min_rtt.ToMicroseconds();
+
+  QuicTime::Delta srtt = rtt_stats->smoothed_rtt();
+  if (srtt.IsZero()) {
+    // If SRTT has not been set, use initial RTT instead.
+    srtt = QuicTime::Delta::FromMicroseconds(rtt_stats->initial_rtt_us());
+  }
+  stats_.srtt_us = srtt.ToMicroseconds();
 
   stats_.estimated_bandwidth = sent_packet_manager_.BandwidthEstimate();
   stats_.max_packet_size = packet_generator_.max_packet_length();
@@ -1397,7 +1394,8 @@ bool QuicConnection::WritePacketInner(QueuedPacket* packet) {
     return true;
   }
   // Connection close packets are encrypted and saved, so don't exit early.
-  if (writer_->IsWriteBlocked() && !IsConnectionClose(*packet)) {
+  const bool is_connection_close = IsConnectionClose(*packet);
+  if (writer_->IsWriteBlocked() && !is_connection_close) {
     return false;
   }
 
@@ -1421,7 +1419,7 @@ bool QuicConnection::WritePacketInner(QueuedPacket* packet) {
   // Connection close packets are eventually owned by TimeWaitListManager.
   // Others are deleted at the end of this call.
   scoped_ptr<QuicEncryptedPacket> encrypted_deleter;
-  if (IsConnectionClose(*packet)) {
+  if (is_connection_close) {
     DCHECK(connection_close_packet_.get() == nullptr);
     connection_close_packet_.reset(encrypted);
     // This assures we won't try to write *forced* packets when blocked.
@@ -1439,15 +1437,14 @@ bool QuicConnection::WritePacketInner(QueuedPacket* packet) {
   }
   DCHECK_LE(encrypted->length(), packet_generator_.max_packet_length());
   DVLOG(1) << ENDPOINT << "Sending packet " << sequence_number << " : "
-           << (packet->serialized_packet.packet->is_fec_packet() ? "FEC " :
-               (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA
-                ? "data bearing " : " ack only "))
-           << ", encryption level: "
+           << (packet->serialized_packet.is_fec_packet
+                   ? "FEC "
+                   : (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA
+                          ? "data bearing "
+                          : " ack only ")) << ", encryption level: "
            << QuicUtils::EncryptionLevelToString(packet->encryption_level)
-           << ", length:"
-           << packet->serialized_packet.packet->length()
-           << ", encrypted length:"
-           << encrypted->length();
+           << ", length:" << packet->serialized_packet.packet->length()
+           << ", encrypted length:" << encrypted->length();
   DVLOG(2) << ENDPOINT << "packet(" << sequence_number << "): " << std::endl
            << QuicUtils::StringToHexASCIIDump(
                packet->serialized_packet.packet->AsStringPiece());
@@ -1500,6 +1497,7 @@ bool QuicConnection::WritePacketInner(QueuedPacket* packet) {
     time_of_last_sent_new_packet_ = packet_send_time;
   }
   SetPingAlarm();
+  MaybeSetFecAlarm(sequence_number);
   DVLOG(1) << ENDPOINT << "time "
            << (FLAGS_quic_record_send_time_before_write ?
                "we began writing " : "we finished writing ")
@@ -1535,6 +1533,10 @@ bool QuicConnection::WritePacketInner(QueuedPacket* packet) {
 
   if (result.status == WRITE_STATUS_ERROR) {
     OnWriteError(result.error_code);
+    DLOG(ERROR) << ENDPOINT << "failed writing " << encrypted->length()
+                << "bytes "
+                << " from host " << self_address().ToStringWithoutPort()
+                << " to address " << peer_address().ToString();
     return false;
   }
 
@@ -1594,6 +1596,14 @@ void QuicConnection::OnSerializedPacket(
   if (serialized_packet.retransmittable_frames) {
     serialized_packet.retransmittable_frames->
         set_encryption_level(encryption_level_);
+
+    if (FLAGS_quic_ack_notifier_informed_on_serialized) {
+      sent_packet_manager_.OnSerializedPacket(serialized_packet);
+    }
+  }
+  if (serialized_packet.is_fec_packet && fec_alarm_->IsSet()) {
+    // If an FEC packet is serialized with the FEC alarm set, cancel the alarm.
+    fec_alarm_->Cancel();
   }
   SendOrQueuePacket(QueuedPacket(serialized_packet, encryption_level_));
 }
@@ -1640,12 +1650,6 @@ void QuicConnection::SendOrQueuePacket(QueuedPacket packet) {
   }
 }
 
-void QuicConnection::UpdateStopWaiting(QuicStopWaitingFrame* stop_waiting) {
-  stop_waiting->least_unacked = GetLeastUnacked();
-  stop_waiting->entropy_hash = sent_entropy_manager_.GetCumulativeEntropy(
-      stop_waiting->least_unacked - 1);
-}
-
 void QuicConnection::SendPing() {
   if (retransmission_alarm_->IsSet()) {
     return;
@@ -1657,19 +1661,8 @@ void QuicConnection::SendAck() {
   ack_alarm_->Cancel();
   stop_waiting_count_ = 0;
   num_packets_received_since_last_ack_sent_ = 0;
-  bool send_feedback = false;
 
-  // Deprecating the Congestion Feedback Frame after QUIC_VERSION_22.
-  if (version() <= QUIC_VERSION_22) {
-    if (received_packet_manager_.GenerateCongestionFeedback(
-            &outgoing_congestion_feedback_)) {
-      DVLOG(1) << ENDPOINT << "Sending feedback: "
-               << outgoing_congestion_feedback_;
-      send_feedback = true;
-    }
-  }
-
-  packet_generator_.SetShouldSendAck(send_feedback, true);
+  packet_generator_.SetShouldSendAck(true);
 }
 
 void QuicConnection::OnRetransmissionTimeout() {
@@ -1893,6 +1886,7 @@ void QuicConnection::CloseConnection(QuicErrorCode error, bool from_peer) {
   // connection is closed.
   ack_alarm_->Cancel();
   ping_alarm_->Cancel();
+  fec_alarm_->Cancel();
   resume_writes_alarm_->Cancel();
   retransmission_alarm_->Cancel();
   send_alarm_->Cancel();
@@ -2099,15 +2093,14 @@ HasRetransmittableData QuicConnection::IsRetransmittable(
   }
 }
 
-bool QuicConnection::IsConnectionClose(
-    QueuedPacket packet) {
-  RetransmittableFrames* retransmittable_frames =
+bool QuicConnection::IsConnectionClose(const QueuedPacket& packet) {
+  const RetransmittableFrames* retransmittable_frames =
       packet.serialized_packet.retransmittable_frames;
-  if (!retransmittable_frames) {
+  if (retransmittable_frames == nullptr) {
     return false;
   }
-  for (size_t i = 0; i < retransmittable_frames->frames().size(); ++i) {
-    if (retransmittable_frames->frames()[i].type == CONNECTION_CLOSE_FRAME) {
+  for (const QuicFrame& frame : retransmittable_frames->frames()) {
+    if (frame.type == CONNECTION_CLOSE_FRAME) {
       return true;
     }
   }

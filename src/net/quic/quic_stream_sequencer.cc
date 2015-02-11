@@ -25,7 +25,8 @@ QuicStreamSequencer::QuicStreamSequencer(ReliableQuicStream* quic_stream)
       blocked_(false),
       num_bytes_buffered_(0),
       num_frames_received_(0),
-      num_duplicate_frames_received_(0) {
+      num_duplicate_frames_received_(0),
+      num_early_frames_received_(0) {
 }
 
 QuicStreamSequencer::~QuicStreamSequencer() {
@@ -63,6 +64,10 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
 
   IOVector data;
   data.AppendIovec(frame.data.iovec(), frame.data.Size());
+
+  if (byte_offset > num_bytes_consumed_) {
+    ++num_early_frames_received_;
+  }
 
   // If the frame has arrived in-order then we can process it immediately, only
   // buffering if the stream is unable to process it.

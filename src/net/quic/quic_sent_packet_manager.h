@@ -48,7 +48,7 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
     virtual ~DebugDelegate() {}
 
     // Called when a spurious retransmission is detected.
-    virtual void OnSpuriousPacketRetransmition(
+    virtual void OnSpuriousPacketRetransmission(
         TransmissionType transmission_type,
         QuicByteCount byte_size) {}
 
@@ -156,11 +156,6 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   // been acked by the peer.
   QuicPacketSequenceNumber GetLeastUnacked() const;
 
-  // Called when a congestion feedback frame is received from peer.
-  virtual void OnIncomingQuicCongestionFeedbackFrame(
-      const QuicCongestionFeedbackFrame& frame,
-      const QuicTime& feedback_receive_time);
-
   // Called when we have sent bytes to the peer.  This informs the manager both
   // the number of bytes sent and if they were retransmitted.  Returns true if
   // the sender should reset the retransmission timer.
@@ -216,6 +211,9 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   // TCP segments, aka ssthresh.  Some send algorithms do not define a slow
   // start threshold and will return 0.
   QuicPacketCount GetSlowStartThresholdInTcpMss() const;
+
+  // Called by the connection every time it receives a serialized packet.
+  void OnSerializedPacket(const SerializedPacket& serialized_packet);
 
   // Enables pacing if it has not already been enabled.
   void EnablePacing();
@@ -286,6 +284,10 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Retransmits all crypto stream packets.
   void RetransmitCryptoPackets();
+
+  // Retransmits two packets for an RTO and removes any non-retransmittable
+  // packets from flight.
+  void RetransmitRtoPackets();
 
   // Retransmits all the packets and abandons by invoking a full RTO.
   void RetransmitAllPackets();
@@ -390,11 +392,14 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   size_t consecutive_tlp_count_;
   // Number of times the crypto handshake has been retransmitted.
   size_t consecutive_crypto_retransmission_count_;
-  // Number of pending transmissions of TLP or crypto packets.
+  // Number of pending transmissions of TLP, RTO, or crypto packets.
   size_t pending_timer_transmission_count_;
   // Maximum number of tail loss probes to send before firing an RTO.
   size_t max_tail_loss_probes_;
   bool using_pacing_;
+  // If true, use the new RTO with loss based CWND reduction instead of the send
+  // algorithms's OnRetransmissionTimeout to reduce the congestion window.
+  bool use_new_rto_;
 
   // Vectors packets acked and lost as a result of the last congestion event.
   SendAlgorithmInterface::CongestionVector packets_acked_;

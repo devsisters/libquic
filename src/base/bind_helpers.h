@@ -435,45 +435,46 @@ struct UnwrapTraits<PassedWrapper<T> > {
 
 // Utility for handling different refcounting semantics in the Bind()
 // function.
-template <bool is_method, typename T>
-struct MaybeRefcount;
+template <bool is_method, typename... T>
+struct MaybeScopedRefPtr;
 
-template <typename T>
-struct MaybeRefcount<false, T> {
-  static void AddRef(const T&) {}
-  static void Release(const T&) {}
+template <bool is_method>
+struct MaybeScopedRefPtr<is_method> {
+  MaybeScopedRefPtr() {}
 };
 
-template <typename T, size_t n>
-struct MaybeRefcount<false, T[n]> {
-  static void AddRef(const T*) {}
-  static void Release(const T*) {}
+template <typename T, typename... Rest>
+struct MaybeScopedRefPtr<false, T, Rest...> {
+  MaybeScopedRefPtr(const T&, const Rest&...) {}
 };
 
-template <typename T>
-struct MaybeRefcount<true, T> {
-  static void AddRef(const T&) {}
-  static void Release(const T&) {}
+template <typename T, size_t n, typename... Rest>
+struct MaybeScopedRefPtr<false, T[n], Rest...> {
+  MaybeScopedRefPtr(const T*, const Rest&...) {}
 };
 
-template <typename T>
-struct MaybeRefcount<true, T*> {
-  static void AddRef(T* o) { o->AddRef(); }
-  static void Release(T* o) { o->Release(); }
+template <typename T, typename... Rest>
+struct MaybeScopedRefPtr<true, T, Rest...> {
+  MaybeScopedRefPtr(const T& o, const Rest&...) {}
+};
+
+template <typename T, typename... Rest>
+struct MaybeScopedRefPtr<true, T*, Rest...> {
+  MaybeScopedRefPtr(T* o, const Rest&...) : ref_(o) {}
+  scoped_refptr<T> ref_;
 };
 
 // No need to additionally AddRef() and Release() since we are storing a
 // scoped_refptr<> inside the storage object already.
-template <typename T>
-struct MaybeRefcount<true, scoped_refptr<T> > {
-  static void AddRef(const scoped_refptr<T>& o) {}
-  static void Release(const scoped_refptr<T>& o) {}
+template <typename T, typename... Rest>
+struct MaybeScopedRefPtr<true, scoped_refptr<T>, Rest...> {
+  MaybeScopedRefPtr(const scoped_refptr<T>&, const Rest&...) {}
 };
 
-template <typename T>
-struct MaybeRefcount<true, const T*> {
-  static void AddRef(const T* o) { o->AddRef(); }
-  static void Release(const T* o) { o->Release(); }
+template <typename T, typename... Rest>
+struct MaybeScopedRefPtr<true, const T*, Rest...> {
+  MaybeScopedRefPtr(const T* o, const Rest&...) : ref_(o) {}
+  scoped_refptr<const T> ref_;
 };
 
 // IsWeakMethod is a helper that determine if we are binding a WeakPtr<> to a
@@ -481,15 +482,72 @@ struct MaybeRefcount<true, const T*> {
 // InvokeHelper that will no-op itself in the event the WeakPtr<> for
 // the target object is invalidated.
 //
-// P1 should be the type of the object that will be received of the method.
-template <bool IsMethod, typename P1>
+// The first argument should be the type of the object that will be received by
+// the method.
+template <bool IsMethod, typename... Args>
 struct IsWeakMethod : public false_type {};
 
-template <typename T>
-struct IsWeakMethod<true, WeakPtr<T> > : public true_type {};
+template <typename T, typename... Args>
+struct IsWeakMethod<true, WeakPtr<T>, Args...> : public true_type {};
 
-template <typename T>
-struct IsWeakMethod<true, ConstRefWrapper<WeakPtr<T> > > : public true_type {};
+template <typename T, typename... Args>
+struct IsWeakMethod<true, ConstRefWrapper<WeakPtr<T>>, Args...>
+    : public true_type {};
+
+
+// Packs a list of types to hold them in a single type.
+template <typename... Types>
+struct TypeList {};
+
+// Used for DropTypeListItem implementation.
+template <size_t n, typename List>
+struct DropTypeListItemImpl;
+
+// Do not use enable_if and SFINAE here to avoid MSVC2013 compile failure.
+template <size_t n, typename T, typename... List>
+struct DropTypeListItemImpl<n, TypeList<T, List...>>
+    : DropTypeListItemImpl<n - 1, TypeList<List...>> {};
+
+template <typename T, typename... List>
+struct DropTypeListItemImpl<0, TypeList<T, List...>> {
+  typedef TypeList<T, List...> Type;
+};
+
+template <>
+struct DropTypeListItemImpl<0, TypeList<>> {
+  typedef TypeList<> Type;
+};
+
+// A type-level function that drops |n| list item from given TypeList.
+template <size_t n, typename List>
+using DropTypeListItem = typename DropTypeListItemImpl<n, List>::Type;
+
+// Used for ConcatTypeLists implementation.
+template <typename List1, typename List2>
+struct ConcatTypeListsImpl;
+
+template <typename... Types1, typename... Types2>
+struct ConcatTypeListsImpl<TypeList<Types1...>, TypeList<Types2...>> {
+  typedef TypeList<Types1..., Types2...> Type;
+};
+
+// A type-level function that concats two TypeLists.
+template <typename List1, typename List2>
+using ConcatTypeLists = typename ConcatTypeListsImpl<List1, List2>::Type;
+
+// Used for MakeFunctionType implementation.
+template <typename R, typename ArgList>
+struct MakeFunctionTypeImpl;
+
+template <typename R, typename... Args>
+struct MakeFunctionTypeImpl<R, TypeList<Args...>> {
+  typedef R(Type)(Args...);
+};
+
+// A type-level function that constructs a function type that has |R| as its
+// return type and has TypeLists items as its arguments.
+template <typename R, typename ArgList>
+using MakeFunctionType = typename MakeFunctionTypeImpl<R, ArgList>::Type;
 
 }  // namespace internal
 

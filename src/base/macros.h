@@ -63,7 +63,7 @@ template <typename T, size_t N>
 char (&ArraySizeHelper(const T (&array)[N]))[N];
 #endif
 
-#define arraysize(array) (sizeof(ArraySizeHelper(array)))
+#define arraysize(array) (sizeof(::ArraySizeHelper(array)))
 
 
 // Use implicit_cast as a safe version of static_cast or const_cast

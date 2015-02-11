@@ -428,7 +428,7 @@ bool JSONParser::EatComment() {
   if (next_char == '/') {
     // Single line comment, read to newline.
     while (CanConsume(1)) {
-      char next_char = *NextChar();
+      next_char = *NextChar();
       if (next_char == '\n' || next_char == '\r')
         return true;
     }

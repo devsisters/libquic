@@ -9,6 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/move.h"
 #include "base/stl_util.h"
 
@@ -64,6 +65,7 @@ class ScopedVector {
   reference back() { return v_.back(); }
 
   void push_back(T* elem) { v_.push_back(elem); }
+  void push_back(scoped_ptr<T> elem) { v_.push_back(elem.release()); }
 
   void pop_back() {
     DCHECK(!empty());

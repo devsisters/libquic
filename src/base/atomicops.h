@@ -28,9 +28,13 @@
 #ifndef BASE_ATOMICOPS_H_
 #define BASE_ATOMICOPS_H_
 
-#include <cassert>  // Small C++ header which defines implementation specific
-                    // macros used to identify the STL implementation.
 #include <stdint.h>
+
+// Small C++ header which defines implementation specific macros used to
+// identify the STL implementation.
+// - libc++: captures __config for _LIBCPP_VERSION
+// - libstdc++: captures bits/c++config.h for __GLIBCXX__
+#include <cstddef>
 
 #include "base/base_export.h"
 #include "build/build_config.h"

@@ -80,7 +80,7 @@ enum HandshakeFailureReason {
 
 // These errors will be packed into an uint32 and we don't want to set the most
 // significant bit, which may be misinterpreted as the sign bit.
-COMPILE_ASSERT(MAX_FAILURE_REASON <= 32, failure_reason_out_of_sync);
+static_assert(MAX_FAILURE_REASON <= 32, "failure reason out of sync");
 
 // A CrypterPair contains the encrypter and decrypter for an encryption level.
 struct NET_EXPORT_PRIVATE CrypterPair {

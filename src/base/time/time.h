@@ -100,6 +100,15 @@ class BASE_EXPORT TimeDelta {
     return delta_;
   }
 
+  // Returns the magnitude (absolute value) of this TimeDelta.
+  TimeDelta magnitude() const {
+    // Some toolchains provide an incomplete C++11 implementation and lack an
+    // int64 overload for std::abs().  The following is a simple branchless
+    // implementation:
+    const int64 mask = delta_ >> (sizeof(delta_) * 8 - 1);
+    return TimeDelta((delta_ + mask) ^ mask);
+  }
+
   // Returns true if the time delta is the maximum time delta.
   bool is_max() const {
     return delta_ == std::numeric_limits<int64>::max();
@@ -588,18 +597,17 @@ class BASE_EXPORT TimeTicks {
   TimeTicks() : ticks_(0) {
   }
 
-  // Platform-dependent tick count representing "right now."
-  // The resolution of this clock is ~1-15ms.  Resolution varies depending
-  // on hardware/operating system configuration.
+  // Platform-dependent tick count representing "right now." When
+  // IsHighResolution() returns false, the resolution of the clock could be
+  // as coarse as ~15.6ms. Otherwise, the resolution should be no worse than one
+  // microsecond.
   static TimeTicks Now();
 
-  // Returns a platform-dependent high-resolution tick count. Implementation
-  // is hardware dependent and may or may not return sub-millisecond
-  // resolution.  THIS CALL IS GENERALLY MUCH MORE EXPENSIVE THAN Now() AND
-  // SHOULD ONLY BE USED WHEN IT IS REALLY NEEDED.
-  static TimeTicks HighResNow();
-
-  static bool IsHighResNowFastAndReliable();
+  // Returns true if the high resolution clock is working on this system and
+  // Now() will return high resolution values. Note that, on systems where the
+  // high resolution clock works but is deemed inefficient, the low resolution
+  // clock will be used instead.
+  static bool IsHighResolution();
 
   // Returns true if ThreadNow() is supported on this system.
   static bool IsThreadNowSupported() {
@@ -616,24 +624,33 @@ class BASE_EXPORT TimeTicks {
   // to (approximately) measure how much time the calling thread spent doing
   // actual work vs. being de-scheduled. May return bogus results if the thread
   // migrates to another CPU between two calls.
+  //
+  // WARNING: The returned value might NOT have the same origin as Now(). Do not
+  // perform math between TimeTicks values returned by Now() and ThreadNow() and
+  // expect meaningful results.
+  // TODO(miu): Since the timeline of these values is different, the values
+  // should be of a different type.
   static TimeTicks ThreadNow();
 
-  // Returns the current system trace time or, if none is defined, the current
-  // high-res time (i.e. HighResNow()). On systems where a global trace clock
-  // is defined, timestamping TraceEvents's with this value guarantees
-  // synchronization between events collected inside chrome and events
-  // collected outside (e.g. kernel, X server).
+  // Returns the current system trace time or, if not available on this
+  // platform, a high-resolution time value; or a low-resolution time value if
+  // neither are avalable. On systems where a global trace clock is defined,
+  // timestamping TraceEvents's with this value guarantees synchronization
+  // between events collected inside chrome and events collected outside
+  // (e.g. kernel, X server).
+  //
+  // WARNING: The returned value might NOT have the same origin as Now(). Do not
+  // perform math between TimeTicks values returned by Now() and
+  // NowFromSystemTraceTime() and expect meaningful results.
+  // TODO(miu): Since the timeline of these values is different, the values
+  // should be of a different type.
   static TimeTicks NowFromSystemTraceTime();
 
 #if defined(OS_WIN)
-  // Get the absolute value of QPC time drift. For testing.
-  static int64 GetQPCDriftMicroseconds();
-
+  // Translates an absolute QPC timestamp into a TimeTicks value. The returned
+  // value has the same origin as Now(). Do NOT attempt to use this if
+  // IsHighResolution() returns false.
   static TimeTicks FromQPCValue(LONGLONG qpc_value);
-
-  // Returns true if the high resolution clock is working on this system.
-  // This is only for testing.
-  static bool IsHighResClockWorking();
 #endif
 
   // Returns true if this object has not been initialized.

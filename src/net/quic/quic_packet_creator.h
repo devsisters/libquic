@@ -107,6 +107,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
   // Returns true if there are retransmittable frames pending to be serialized.
   bool HasPendingRetransmittableFrames() const;
 
+  // TODO(jri): Remove this method.
   // Returns whether FEC protection is currently enabled. Note: Enabled does not
   // mean that an FEC group is currently active; i.e., IsFecProtected() may
   // still return false.
@@ -221,6 +222,11 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
   // this setter enforces a min value of kLowestMaxPacketsPerFecGroup.
   // To turn off FEC protection, use StopFecProtectingPackets().
   void set_max_packets_per_fec_group(size_t max_packets_per_fec_group);
+
+  // Returns the currently open FEC group's number. If there isn't an open FEC
+  // group, returns the last closed FEC group number. Returns 0 when FEC is
+  // disabled or no FEC group has been created yet.
+  QuicFecGroupNumber fec_group_number() { return fec_group_number_; }
 
  private:
   friend class test::QuicPacketCreatorPeer;

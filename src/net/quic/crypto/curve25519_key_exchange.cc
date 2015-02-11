@@ -25,11 +25,10 @@ Curve25519KeyExchange* Curve25519KeyExchange::New(
   // We don't want to #include the NaCl headers in the public header file, so
   // we use literals for the sizes of private_key_ and public_key_. Here we
   // assert that those values are equal to the values from the NaCl header.
-  COMPILE_ASSERT(
-      sizeof(ka->private_key_) == crypto::curve25519::kScalarBytes,
-      header_out_of_sync);
-  COMPILE_ASSERT(sizeof(ka->public_key_) == crypto::curve25519::kBytes,
-                 header_out_of_sync);
+  static_assert(sizeof(ka->private_key_) == crypto::curve25519::kScalarBytes,
+                "header out of sync");
+  static_assert(sizeof(ka->public_key_) == crypto::curve25519::kBytes,
+                "header out of sync");
 
   if (private_key.size() != crypto::curve25519::kScalarBytes) {
     return nullptr;

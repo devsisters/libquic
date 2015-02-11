@@ -256,11 +256,6 @@ class NET_EXPORT_PRIVATE QuicConfig {
   QuicConfig();
   ~QuicConfig();
 
-  void SetCongestionFeedback(const QuicTagVector& congestion_feedback,
-                             QuicTag default_congestion_feedback);
-
-  QuicTag CongestionFeedback() const;
-
   void SetConnectionOptionsToSend(const QuicTagVector& connection_options);
 
   bool HasReceivedConnectionOptions() const;

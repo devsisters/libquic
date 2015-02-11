@@ -9,7 +9,6 @@
 #include "base/logging.h"
 #include "net/quic/crypto/crypto_handshake_message.h"
 #include "net/quic/crypto/crypto_protocol.h"
-#include "net/quic/quic_flags.h"
 #include "net/quic/quic_utils.h"
 
 using std::min;
@@ -428,7 +427,7 @@ QuicConfig::QuicConfig()
     : max_time_before_crypto_handshake_(QuicTime::Delta::Zero()),
       max_idle_time_before_crypto_handshake_(QuicTime::Delta::Zero()),
       max_undecryptable_packets_(0),
-      congestion_feedback_(kCGST, PRESENCE_REQUIRED),
+      congestion_feedback_(kCGST, PRESENCE_OPTIONAL),
       connection_options_(kCOPT, PRESENCE_OPTIONAL),
       idle_connection_state_lifetime_seconds_(kICSL, PRESENCE_REQUIRED),
       silent_close_(kSCLS, PRESENCE_OPTIONAL),
@@ -442,16 +441,6 @@ QuicConfig::QuicConfig()
 }
 
 QuicConfig::~QuicConfig() {}
-
-void QuicConfig::SetCongestionFeedback(
-    const QuicTagVector& congestion_feedback,
-    QuicTag default_congestion_feedback) {
-  congestion_feedback_.set(congestion_feedback, default_congestion_feedback);
-}
-
-QuicTag QuicConfig::CongestionFeedback() const {
-  return congestion_feedback_.GetTag();
-}
 
 void QuicConfig::SetConnectionOptionsToSend(
     const QuicTagVector& connection_options) {
@@ -604,22 +593,21 @@ bool QuicConfig::negotiated() const {
   // TODO(ianswett): Add the negotiated parameters once and iterate over all
   // of them in negotiated, ToHandshakeMessage, ProcessClientHello, and
   // ProcessServerHello.
-  return congestion_feedback_.negotiated() &&
-      idle_connection_state_lifetime_seconds_.negotiated() &&
-      max_streams_per_connection_.negotiated();
+  return idle_connection_state_lifetime_seconds_.negotiated() &&
+         max_streams_per_connection_.negotiated();
 }
 
 void QuicConfig::SetDefaults() {
   QuicTagVector congestion_feedback;
+  // TODO(alyssar) stop sending this once QUIC_VERSION_23 is sunset.
+  // This field was required until version 22 was removed but by the time
+  // QUIC_VERSION_23 is sunset, no users of QUIC_VERSION_24 should be expecting
+  // it.
   congestion_feedback.push_back(kQBIC);
   congestion_feedback_.set(congestion_feedback, kQBIC);
   idle_connection_state_lifetime_seconds_.set(kMaximumIdleTimeoutSecs,
                                               kDefaultIdleTimeoutSecs);
-  if (FLAGS_quic_allow_silent_close) {
-    silent_close_.set(1, 0);
-  } else {
-    silent_close_.set(0, 0);
-  }
+  silent_close_.set(1, 0);
   SetMaxStreamsPerConnection(kDefaultMaxStreamsPerConnection,
                              kDefaultMaxStreamsPerConnection);
   max_time_before_crypto_handshake_ =
@@ -652,10 +640,6 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
   DCHECK(error_details != nullptr);
 
   QuicErrorCode error = QUIC_NO_ERROR;
-  if (error == QUIC_NO_ERROR) {
-    error = congestion_feedback_.ProcessPeerHello(
-        peer_hello,  hello_type, error_details);
-  }
   if (error == QUIC_NO_ERROR) {
     error = idle_connection_state_lifetime_seconds_.ProcessPeerHello(
         peer_hello, hello_type, error_details);

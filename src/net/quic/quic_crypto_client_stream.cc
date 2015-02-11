@@ -200,7 +200,7 @@ void QuicCryptoClientStream::DoHandshakeLoop(
         break;
       case STATE_SEND_CHLO:
         DoSendCHLO(in, cached);
-        return;
+        return;  // return waiting to hear from server.
       case STATE_RECV_REJ:
         DoReceiveREJ(in, cached);
         break;
@@ -235,6 +235,13 @@ void QuicCryptoClientStream::DoHandshakeLoop(
 
 void QuicCryptoClientStream::DoInitialize(
     QuicCryptoClientConfig::CachedState* cached) {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientStream::DoInitialize"));
+#endif
+
   if (!cached->IsEmpty() && !cached->signature().empty() &&
       server_id_.is_https()) {
     // Note that we verify the proof even if the cached proof is valid.
@@ -252,6 +259,13 @@ void QuicCryptoClientStream::DoInitialize(
 void QuicCryptoClientStream::DoSendCHLO(
     const CryptoHandshakeMessage* in,
     QuicCryptoClientConfig::CachedState* cached) {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile1(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientStream::DoSendCHLO1"));
+#endif
+
   // Send the client hello in plaintext.
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_NONE);
   if (num_client_hellos_ > kMaxClientHellos) {
@@ -301,6 +315,13 @@ void QuicCryptoClientStream::DoSendCHLO(
       &crypto_negotiated_params_,
       &out,
       &error_details);
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile2(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientStream::DoSendCHLO2"));
+#endif
+
   if (error != QUIC_NO_ERROR) {
     // Flush the cached config so that, if it's bad, the server has a
     // chance to send us another in the future.
@@ -340,6 +361,13 @@ void QuicCryptoClientStream::DoSendCHLO(
 void QuicCryptoClientStream::DoReceiveREJ(
     const CryptoHandshakeMessage* in,
     QuicCryptoClientConfig::CachedState* cached) {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientStream::DoReceiveREJ"));
+#endif
+
   // We sent a dummy CHLO because we didn't have enough information to
   // perform a handshake, or we sent a full hello that the server
   // rejected. Here we hope to have a REJ that contains the information
@@ -378,6 +406,13 @@ void QuicCryptoClientStream::DoReceiveREJ(
 
 QuicAsyncStatus QuicCryptoClientStream::DoVerifyProof(
     QuicCryptoClientConfig::CachedState* cached) {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientStream::DoVerifyProof"));
+#endif
+
   ProofVerifier* verifier = crypto_config_->proof_verifier();
   DCHECK(verifier);
   next_state_ = STATE_VERIFY_PROOF_COMPLETE;
@@ -416,9 +451,18 @@ QuicAsyncStatus QuicCryptoClientStream::DoVerifyProof(
 
 void QuicCryptoClientStream::DoVerifyProofComplete(
     QuicCryptoClientConfig::CachedState* cached) {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientStream::DoVerifyProofComplete"));
+#endif
+
   if (!verify_ok_) {
     next_state_ = STATE_NONE;
-    client_session()->OnProofVerifyDetailsAvailable(*verify_details_);
+    if (verify_details_.get()) {
+      client_session()->OnProofVerifyDetailsAvailable(*verify_details_);
+    }
     UMA_HISTOGRAM_BOOLEAN("Net.QuicVerifyProofFailed.HandshakeConfirmed",
                           handshake_confirmed());
     CloseConnectionWithDetails(
@@ -443,6 +487,13 @@ void QuicCryptoClientStream::DoVerifyProofComplete(
 
 QuicAsyncStatus QuicCryptoClientStream::DoGetChannelID(
     QuicCryptoClientConfig::CachedState* cached) {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientStream::DoGetChannelID"));
+#endif
+
   next_state_ = STATE_GET_CHANNEL_ID_COMPLETE;
   channel_id_key_.reset();
   if (!RequiresChannelID(cached)) {
@@ -476,6 +527,13 @@ QuicAsyncStatus QuicCryptoClientStream::DoGetChannelID(
 }
 
 void QuicCryptoClientStream::DoGetChannelIDComplete() {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientStream::DoGetChannelIDComplete"));
+#endif
+
   if (!channel_id_key_.get()) {
     next_state_ = STATE_NONE;
     CloseConnectionWithDetails(QUIC_INVALID_CHANNEL_ID_SIGNATURE,
@@ -488,6 +546,13 @@ void QuicCryptoClientStream::DoGetChannelIDComplete() {
 void QuicCryptoClientStream::DoReceiveSHLO(
     const CryptoHandshakeMessage* in,
     QuicCryptoClientConfig::CachedState* cached) {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientStream::DoReceiveSHLO"));
+#endif
+
   next_state_ = STATE_NONE;
   // We sent a CHLO that we expected to be accepted and now we're hoping
   // for a SHLO from the server to confirm that.
@@ -558,6 +623,13 @@ void QuicCryptoClientStream::DoReceiveSHLO(
 
 void QuicCryptoClientStream::DoInitializeServerConfigUpdate(
     QuicCryptoClientConfig::CachedState* cached) {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientStream::DoInitializeServerConfigUpdate"));
+#endif
+
   bool update_ignored = false;
   if (!server_id_.is_https()) {
     // We don't check the certificates for insecure QUIC connections.
@@ -589,7 +661,7 @@ bool QuicCryptoClientStream::RequiresChannelID(
     return false;
   }
   const CryptoHandshakeMessage* scfg = cached->GetServerConfig();
-  if (!scfg) {  // scfg may be null when we send an inchoate CHLO.
+  if (!scfg) {  // scfg may be null then we send an inchoate CHLO.
     return false;
   }
   const QuicTag* their_proof_demands;

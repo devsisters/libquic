@@ -54,7 +54,7 @@ void QuicUnackedPacketMap::AddSentPacket(
                         transmission_type,
                         sent_time);
   DCHECK(packet.packet != nullptr);
-  info.is_fec_packet = packet.packet->is_fec_packet();
+  info.is_fec_packet = packet.is_fec_packet;
 
   if (old_sequence_number == 0) {
     if (packet.retransmittable_frames != nullptr &&
@@ -247,21 +247,45 @@ void QuicUnackedPacketMap::IncreaseLargestObserved(
   largest_observed_ = largest_observed;
 }
 
+bool QuicUnackedPacketMap::IsPacketUsefulForMeasuringRtt(
+    QuicPacketSequenceNumber sequence_number,
+    const TransmissionInfo& info) const {
+  // Packet can be used for RTT measurement if it may yet be acked as the
+  // largest observed packet by the receiver.
+  return !info.is_unackable && sequence_number > largest_observed_;
+}
+
+bool QuicUnackedPacketMap::IsPacketUsefulForCongestionControl(
+    QuicPacketSequenceNumber sequence_number,
+    const TransmissionInfo& info) const {
+  // Packet contributes to congestion control if it is considered inflight.
+  return info.in_flight;
+}
+
+bool QuicUnackedPacketMap::IsPacketUsefulForRetransmittableData(
+    QuicPacketSequenceNumber sequence_number,
+    const TransmissionInfo& info) const {
+  // Packet may have retransmittable frames, or the data may have been
+  // retransmitted with a new sequence number.
+  return info.retransmittable_frames != nullptr ||
+         info.all_transmissions != nullptr;
+}
+
 bool QuicUnackedPacketMap::IsPacketUseless(
     QuicPacketSequenceNumber sequence_number,
     const TransmissionInfo& info) const {
-  return (info.is_unackable || sequence_number <= largest_observed_) &&
-         !info.in_flight && info.retransmittable_frames == nullptr &&
-         info.all_transmissions == nullptr;
+  return !IsPacketUsefulForMeasuringRtt(sequence_number, info) &&
+         !IsPacketUsefulForCongestionControl(sequence_number, info) &&
+         !IsPacketUsefulForRetransmittableData(sequence_number, info);
 }
 
 bool QuicUnackedPacketMap::IsPacketRemovable(
     QuicPacketSequenceNumber sequence_number,
     const TransmissionInfo& info) const {
-  return (info.is_unackable || sequence_number <= largest_observed_ ||
+  return (!IsPacketUsefulForMeasuringRtt(sequence_number, info) ||
           unacked_packets_.size() > kMaxTcpCongestionWindow) &&
-         !info.in_flight && info.retransmittable_frames == nullptr &&
-         info.all_transmissions == nullptr;
+         !IsPacketUsefulForCongestionControl(sequence_number, info) &&
+         !IsPacketUsefulForRetransmittableData(sequence_number, info);
 }
 
 bool QuicUnackedPacketMap::IsUnacked(

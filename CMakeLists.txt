@@ -107,9 +107,7 @@ set(
 	src/net/quic/congestion_control/pacing_sender.cc
 	src/net/quic/congestion_control/time_loss_algorithm.cc
 	src/net/quic/congestion_control/loss_detection_interface.cc
-	src/net/quic/congestion_control/receive_algorithm_interface.cc
 	src/net/quic/congestion_control/send_algorithm_interface.cc
-	src/net/quic/congestion_control/tcp_receiver.cc
 	src/net/quic/congestion_control/cubic.cc
 	src/net/quic/congestion_control/cube_root.cc
 	src/net/quic/congestion_control/tcp_loss_algorithm.cc
@@ -300,13 +298,13 @@ add_library(
 	src/third_party/zlib/uncompr.c
 )
 
-add_executable(
-	test_quic_server
-
-	custom/main.cc
-)
+#add_executable(
+#	test_quic_server
+#
+#	custom/main.cc
+#)
 
 # XXX(serialx): Not sure if this is safe, since our CFLAGS contaminate boringssl build
 add_subdirectory(boringssl)
 
-target_link_libraries(test_quic_server quic ssl crypto -pthread ${BASE_ARCH_LIBRARIES})
+#target_link_libraries(test_quic_server quic ssl crypto -pthread ${BASE_ARCH_LIBRARIES})

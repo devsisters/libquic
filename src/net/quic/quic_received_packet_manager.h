@@ -10,7 +10,6 @@
 
 #include <deque>
 
-#include "net/quic/congestion_control/receive_algorithm_interface.h"
 #include "net/quic/quic_config.h"
 #include "net/quic/quic_framer.h"
 #include "net/quic/quic_protocol.h"
@@ -120,13 +119,6 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
   void UpdateReceivedPacketInfo(QuicAckFrame* ack_frame,
                                 QuicTime approximate_now);
 
-  // Should be called before sending an ACK packet, to decide if we need
-  // to attach a QuicCongestionFeedbackFrame block.
-  // Returns false if no QuicCongestionFeedbackFrame block is needed.
-  // Otherwise fills in feedback and returns true.
-  virtual bool GenerateCongestionFeedback(
-      QuicCongestionFeedbackFrame* feedback);
-
   // QuicReceivedEntropyHashCalculatorInterface
   // Called by QuicFramer, when the outgoing ack gets truncated, to recalculate
   // the received entropy hash for the truncated ack frame.
@@ -172,8 +164,6 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
   // no sequence numbers have been received since UpdateReceivedPacketInfo.
   // Needed for calculating delta_time_largest_observed.
   QuicTime time_largest_observed_;
-
-  scoped_ptr<ReceiveAlgorithmInterface> receive_algorithm_;
 
   QuicConnectionStats* stats_;
 

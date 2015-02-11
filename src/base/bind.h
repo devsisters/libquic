@@ -52,13 +52,14 @@ base::Callback<
     typename internal::BindState<
         typename internal::FunctorTraits<Functor>::RunnableType,
         typename internal::FunctorTraits<Functor>::RunType,
-        void()>::UnboundRunType>
+        internal::TypeList<>>::UnboundRunType>
 Bind(Functor functor) {
   // Typedefs for how to store and run the functor.
   typedef typename internal::FunctorTraits<Functor>::RunnableType RunnableType;
   typedef typename internal::FunctorTraits<Functor>::RunType RunType;
 
-  typedef internal::BindState<RunnableType, RunType, void()> BindState;
+  typedef internal::BindState<RunnableType, RunType,
+                              internal::TypeList<>> BindState;
 
   return Callback<typename BindState::UnboundRunType>(
       new BindState(internal::MakeRunnable(functor)));
@@ -69,7 +70,8 @@ base::Callback<
     typename internal::BindState<
         typename internal::FunctorTraits<Functor>::RunnableType,
         typename internal::FunctorTraits<Functor>::RunType,
-        void(typename internal::CallbackParamTraits<Args>::StorageType...)>
+        internal::TypeList<
+            typename internal::CallbackParamTraits<Args>::StorageType...>>
             ::UnboundRunType>
 Bind(Functor functor, const Args&... args) {
   // Typedefs for how to store and run the functor.
@@ -101,8 +103,10 @@ Bind(Functor functor, const Args&... args) {
       !internal::HasRefCountedParamAsRawPtr<is_method, Args...>::value,
       "a_parameter_is_refcounted_type_and_needs_scoped_refptr");
 
-  typedef internal::BindState<RunnableType, RunType,
-      void(typename internal::CallbackParamTraits<Args>::StorageType...)>
+  typedef internal::BindState<
+      RunnableType, RunType,
+      internal::TypeList<
+          typename internal::CallbackParamTraits<Args>::StorageType...>>
       BindState;
 
   return Callback<typename BindState::UnboundRunType>(

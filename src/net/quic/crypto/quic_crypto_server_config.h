@@ -59,7 +59,7 @@ struct ClientHelloInfo {
 
   // Errors from EvaluateClientHello.
   std::vector<uint32> reject_reasons;
-  COMPILE_ASSERT(sizeof(QuicTag) == sizeof(uint32), header_out_of_sync);
+  static_assert(sizeof(QuicTag) == sizeof(uint32), "header out of sync");
 };
 
 namespace test {

@@ -19,31 +19,6 @@ bool NullDecrypter::SetNoncePrefix(StringPiece nonce_prefix) {
   return nonce_prefix.empty();
 }
 
-bool NullDecrypter::Decrypt(StringPiece /*nonce*/,
-                            StringPiece associated_data,
-                            StringPiece ciphertext,
-                            unsigned char* output,
-                            size_t* output_length) {
-  QuicDataReader reader(ciphertext.data(), ciphertext.length());
-
-  uint128 hash;
-  if (!ReadHash(&reader, &hash)) {
-    return false;
-  }
-
-  StringPiece plaintext = reader.ReadRemainingPayload();
-
-  // TODO(rch): avoid buffer copy here
-  string buffer = associated_data.as_string();
-  plaintext.AppendToString(&buffer);
-  if (hash != ComputeHash(buffer)) {
-    return false;
-  }
-  memcpy(output, plaintext.data(), plaintext.length());
-  *output_length = plaintext.length();
-  return true;
-}
-
 QuicData* NullDecrypter::DecryptPacket(QuicPacketSequenceNumber /*seq_number*/,
                                        StringPiece associated_data,
                                        StringPiece ciphertext) {

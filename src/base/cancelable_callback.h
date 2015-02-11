@@ -62,8 +62,7 @@ class CancelableCallback<void(A...)> {
 
   // |callback| must not be null.
   explicit CancelableCallback(const base::Callback<void(A...)>& callback)
-      : weak_factory_(this),
-        callback_(callback) {
+      : callback_(callback), weak_factory_(this) {
     DCHECK(!callback.is_null());
     InitializeForwarder();
   }
@@ -113,16 +112,14 @@ class CancelableCallback<void(A...)> {
                             weak_factory_.GetWeakPtr());
   }
 
-  // Used to ensure Forward() is not run when this object is destroyed.
-  // TODO(ckehoe): This should be the last class member.
-  // Move it there when crbug.com/433583 is fixed.
-  base::WeakPtrFactory<CancelableCallback<void(A...)> > weak_factory_;
-
   // The wrapper closure.
   base::Callback<void(A...)> forwarder_;
 
   // The stored closure that may be cancelled.
   base::Callback<void(A...)> callback_;
+
+  // Used to ensure Forward() is not run when this object is destroyed.
+  base::WeakPtrFactory<CancelableCallback<void(A...)>> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(CancelableCallback);
 };

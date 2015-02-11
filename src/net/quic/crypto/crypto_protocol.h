@@ -58,6 +58,7 @@ const QuicTag kPACE = TAG('P', 'A', 'C', 'E');   // Paced TCP cubic
 const QuicTag k1CON = TAG('1', 'C', 'O', 'N');   // Emulate a single connection
 const QuicTag kNTLP = TAG('N', 'T', 'L', 'P');   // No tail loss probe
 const QuicTag kNCON = TAG('N', 'C', 'O', 'N');   // N Connection Congestion Ctrl
+const QuicTag kNRTO = TAG('N', 'R', 'T', 'O');   // CWND reduction on loss
 
 // Loss detection algorithm types
 const QuicTag kNACK = TAG('N', 'A', 'C', 'K');   // TCP style nack counting

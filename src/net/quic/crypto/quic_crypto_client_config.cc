@@ -6,6 +6,9 @@
 
 #include "base/metrics/histogram.h"
 #include "base/metrics/sparse_histogram.h"
+#if 0
+#include "base/profiler/scoped_tracker.h"
+#endif
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
 #include "net/quic/crypto/cert_compressor.h"
@@ -344,6 +347,13 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
     const CachedState* cached,
     QuicCryptoNegotiatedParameters* out_params,
     CryptoHandshakeMessage* out) const {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientConfig::FillInchoateClientHello"));
+#endif
+
   out->set_tag(kCHLO);
   out->set_minimum_size(kClientHelloMinimumSize);
 
@@ -402,6 +412,13 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     QuicCryptoNegotiatedParameters* out_params,
     CryptoHandshakeMessage* out,
     string* error_details) const {
+#if 0
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "422516 QuicCryptoClientConfig::FillClientHello"));
+#endif
+
   DCHECK(error_details != nullptr);
 
   FillInchoateClientHello(server_id, preferred_version, cached,
@@ -669,7 +686,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
 
   const uint32* reject_reasons;
   size_t num_reject_reasons;
-  COMPILE_ASSERT(sizeof(QuicTag) == sizeof(uint32), header_out_of_sync);
+  static_assert(sizeof(QuicTag) == sizeof(uint32), "header out of sync");
   if (rej.GetTaglist(kRREJ, &reject_reasons,
                      &num_reject_reasons) == QUIC_NO_ERROR) {
     uint32 packed_error = 0;

@@ -34,9 +34,7 @@ class NET_EXPORT_PRIVATE ServerHelloNotifier : public
       : server_stream_(stream) {}
 
   // QuicAckNotifier::DelegateInterface implementation
-  void OnAckNotification(int num_original_packets,
-                         int num_original_bytes,
-                         int num_retransmitted_packets,
+  void OnAckNotification(int num_retransmitted_packets,
                          int num_retransmitted_bytes,
                          QuicTime::Delta delta_largest_observed) override;
 
