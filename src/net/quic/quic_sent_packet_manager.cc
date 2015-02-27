@@ -696,7 +696,7 @@ bool QuicSentPacketManager::MaybeRetransmitTailLossProbe() {
     MarkForRetransmission(sequence_number, TLP_RETRANSMISSION);
     return true;
   }
-  DLOG(FATAL)
+  DLOG(ERROR)
     << "No retransmittable packets, so RetransmitOldestPacket failed.";
   return false;
 }
