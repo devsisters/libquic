@@ -206,9 +206,9 @@
         }
     ],
     "patches": [
-        "basepatch.patch",
-        "patch_remove_scoped_tracker.patch",
-        "retrasmitoldestpacket_fatal_fix.patch"
+        "patch/basepatch.patch",
+        "patch/patch_remove_scoped_tracker.patch",
+        "patch/retrasmitoldestpacket_fatal_fix.patch"
     ],
     "custom_files": [
         {"from": "custom/net_util.h", "to": "net/base/net_util.h"},
