@@ -76,9 +76,6 @@ class NET_EXPORT_PRIVATE QuicUnackedPacketMap {
   // been acked by the peer.  If there are no unacked packets, returns 0.
   QuicPacketSequenceNumber GetLeastUnacked() const;
 
-  // Restores the in flight status for a packet that was previously sent.
-  void RestoreInFlight(QuicPacketSequenceNumber sequence_number);
-
   // Clears all previous transmissions in order to make room in the ack frame
   // for newly acked packets.
   void ClearAllPreviousRetransmissions();
@@ -100,9 +97,6 @@ class NET_EXPORT_PRIVATE QuicUnackedPacketMap {
 
   // Returns the time that the last unacked packet was sent.
   QuicTime GetLastPacketSentTime() const;
-
-  // Returns the time that the first in flight packet was sent.
-  QuicTime GetFirstInFlightPacketSentTime() const;
 
   // Returns the number of unacked packets.
   size_t GetNumUnackedPacketsDebugOnly() const;
@@ -146,15 +140,11 @@ class NET_EXPORT_PRIVATE QuicUnackedPacketMap {
                                      const TransmissionInfo& info) const;
 
   // Returns true if packet may be useful for congestion control purposes.
-  bool IsPacketUsefulForCongestionControl(
-      QuicPacketSequenceNumber sequence_number,
-      const TransmissionInfo& info) const;
+  bool IsPacketUsefulForCongestionControl(const TransmissionInfo& info) const;
 
   // Returns true if packet may be associated with retransmittable data
   // directly or through retransmissions.
-  bool IsPacketUsefulForRetransmittableData(
-      QuicPacketSequenceNumber sequence_number,
-      const TransmissionInfo& info) const;
+  bool IsPacketUsefulForRetransmittableData(const TransmissionInfo& info) const;
 
   // Returns true if the packet no longer has a purpose in the map.
   bool IsPacketUseless(QuicPacketSequenceNumber sequence_number,

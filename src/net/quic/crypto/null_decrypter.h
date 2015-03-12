@@ -24,15 +24,19 @@ class NET_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
   // QuicDecrypter implementation
   bool SetKey(base::StringPiece key) override;
   bool SetNoncePrefix(base::StringPiece nonce_prefix) override;
-  QuicData* DecryptPacket(QuicPacketSequenceNumber sequence_number,
-                          base::StringPiece associated_data,
-                          base::StringPiece ciphertext) override;
+  bool DecryptPacket(QuicPacketSequenceNumber sequence_number,
+                     const base::StringPiece& associated_data,
+                     const base::StringPiece& ciphertext,
+                     char* output,
+                     size_t* output_length,
+                     size_t max_output_length) override;
   base::StringPiece GetKey() const override;
   base::StringPiece GetNoncePrefix() const override;
 
  private:
   bool ReadHash(QuicDataReader* reader, uint128* hash);
-  uint128 ComputeHash(const std::string& data) const;
+  uint128 ComputeHash(const base::StringPiece& data1,
+                      const base::StringPiece& data2) const;
 
   DISALLOW_COPY_AND_ASSIGN(NullDecrypter);
 };

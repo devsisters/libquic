@@ -274,6 +274,22 @@ TimeTicks TimeTicks::UnixEpoch() {
   return leaky_unix_epoch_singleton_instance.Get().unix_epoch();
 }
 
+TimeTicks TimeTicks::SnappedToNextTick(TimeTicks tick_phase,
+                                       TimeDelta tick_interval) const {
+  // |interval_offset| is the offset from |this| to the next multiple of
+  // |tick_interval| after |tick_phase|, possibly negative if in the past.
+  TimeDelta interval_offset = TimeDelta::FromInternalValue(
+      (tick_phase - *this).ToInternalValue() % tick_interval.ToInternalValue());
+  // If |this| is exactly on the interval (i.e. offset==0), don't adjust.
+  // Otherwise, if |tick_phase| was in the past, adjust forward to the next
+  // tick after |this|.
+  if (interval_offset.ToInternalValue() != 0 && tick_phase < *this) {
+    interval_offset += tick_interval;
+  }
+
+  return *this + interval_offset;
+}
+
 std::ostream& operator<<(std::ostream& os, TimeTicks time_ticks) {
   // This function formats a TimeTicks object as "bogo-microseconds".
   // The origin and granularity of the count are platform-specific, and may very

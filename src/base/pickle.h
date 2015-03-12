@@ -13,6 +13,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
 #include "base/strings/string16.h"
+#include "base/strings/string_piece.h"
 
 class Pickle;
 
@@ -39,8 +40,11 @@ class BASE_EXPORT PickleIterator {
   bool ReadFloat(float* result) WARN_UNUSED_RESULT;
   bool ReadDouble(double* result) WARN_UNUSED_RESULT;
   bool ReadString(std::string* result) WARN_UNUSED_RESULT;
-  bool ReadWString(std::wstring* result) WARN_UNUSED_RESULT;
+  // The StringPiece data will only be valid for the lifetime of the message.
+  bool ReadStringPiece(base::StringPiece* result) WARN_UNUSED_RESULT;
   bool ReadString16(base::string16* result) WARN_UNUSED_RESULT;
+  // The StringPiece16 data will only be valid for the lifetime of the message.
+  bool ReadStringPiece16(base::StringPiece16* result) WARN_UNUSED_RESULT;
 
   // A pointer to the data will be placed in |*data|, and the length will be
   // placed in |*length|. The pointer placed into |*data| points into the
@@ -195,9 +199,8 @@ class BASE_EXPORT Pickle {
   bool WriteDouble(double value) {
     return WritePOD(value);
   }
-  bool WriteString(const std::string& value);
-  bool WriteWString(const std::wstring& value);
-  bool WriteString16(const base::string16& value);
+  bool WriteString(const base::StringPiece& value);
+  bool WriteString16(const base::StringPiece16& value);
   // "Data" is a blob with a length. When you read it out you will be given the
   // length. See also WriteBytes.
   bool WriteData(const char* data, int length);

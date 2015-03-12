@@ -24,7 +24,7 @@ class NET_EXPORT_PRIVATE QuicWriteBlockedList {
   static const QuicPriority kHighestPriority;
   static const QuicPriority kLowestPriority;
 
-  QuicWriteBlockedList();
+  explicit QuicWriteBlockedList(bool avoid_duplicate_streams);
   ~QuicWriteBlockedList();
 
   bool HasWriteBlockedDataStreams() const {
@@ -80,7 +80,8 @@ class NET_EXPORT_PRIVATE QuicWriteBlockedList {
       return;
     }
 
-    if (blocked_streams_.find(stream_id) != blocked_streams_.end()) {
+    if (!base_write_blocked_list_.avoids_inserting_duplicates() &&
+        blocked_streams_.find(stream_id) != blocked_streams_.end()) {
       DVLOG(1) << "Stream " << stream_id << " already in write blocked list.";
       return;
     }

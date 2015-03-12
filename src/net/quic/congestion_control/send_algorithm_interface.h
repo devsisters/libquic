@@ -72,9 +72,6 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
   // nor OnPacketLost will be called for these packets.
   virtual void OnRetransmissionTimeout(bool packets_retransmitted) = 0;
 
-  // Called when the last retransmission timeout was spurious.
-  virtual void RevertRetransmissionTimeout() = 0;
-
   // Calculate the time until we can send the next packet.
   virtual QuicTime::Delta TimeUntilSend(
       QuicTime now,

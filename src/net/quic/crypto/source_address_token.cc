@@ -12,7 +12,7 @@ using std::string;
 namespace net {
 
 SourceAddressToken::SourceAddressToken()
-    : has_cached_network_parameters_(false) {
+    : timestamp_(0), has_cached_network_parameters_(false) {
 }
 
 SourceAddressToken::~SourceAddressToken() {

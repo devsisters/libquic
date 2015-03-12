@@ -15,15 +15,10 @@
 
 class BASE_EXPORT JSONStringValueSerializer : public base::ValueSerializer {
  public:
-  // |json_string| is the string that will be source of the deserialization
-  // or the destination of the serialization.  The caller of the constructor
-  // retains ownership of the string. |json_string| must not be null.
+  // |json_string| is the string that will be the destination of the
+  // serialization.  The caller of the constructor retains ownership of the
+  // string. |json_string| must not be null.
   explicit JSONStringValueSerializer(std::string* json_string);
-
-  // This version allows initialization with a StringPiece for deserialization
-  // only. Retains a reference to the contents of |json_string|, so the data
-  // must outlive the JSONStringValueSerializer.
-  explicit JSONStringValueSerializer(const base::StringPiece& json_string);
 
   ~JSONStringValueSerializer() override;
 
@@ -36,6 +31,27 @@ class BASE_EXPORT JSONStringValueSerializer : public base::ValueSerializer {
   // output.
   bool SerializeAndOmitBinaryValues(const base::Value& root);
 
+  void set_pretty_print(bool new_value) { pretty_print_ = new_value; }
+  bool pretty_print() { return pretty_print_; }
+
+ private:
+  bool SerializeInternal(const base::Value& root, bool omit_binary_values);
+
+  // Owned by the caller of the constructor.
+  std::string* json_string_;
+  bool pretty_print_;  // If true, serialization will span multiple lines.
+
+  DISALLOW_COPY_AND_ASSIGN(JSONStringValueSerializer);
+};
+
+class BASE_EXPORT JSONStringValueDeserializer : public base::ValueDeserializer {
+ public:
+  // This retains a reference to the contents of |json_string|, so the data
+  // must outlive the JSONStringValueDeserializer.
+  explicit JSONStringValueDeserializer(const base::StringPiece& json_string);
+
+  ~JSONStringValueDeserializer() override;
+
   // Attempt to deserialize the data structure encoded in the string passed
   // in to the constructor into a structure of Value objects.  If the return
   // value is null, and if |error_code| is non-null, |error_code| will
@@ -46,28 +62,17 @@ class BASE_EXPORT JSONStringValueSerializer : public base::ValueSerializer {
   base::Value* Deserialize(int* error_code,
                            std::string* error_message) override;
 
-  void set_pretty_print(bool new_value) { pretty_print_ = new_value; }
-  bool pretty_print() { return pretty_print_; }
-
   void set_allow_trailing_comma(bool new_value) {
     allow_trailing_comma_ = new_value;
   }
 
  private:
-  bool SerializeInternal(const base::Value& root, bool omit_binary_values);
-
-  // String for writing. Owned by the caller of the constructor. Will be null if
-  // the serializer was initialized with a const string.
-  std::string* json_string_;
-  // String for reading. Data is owned by the caller of the constructor. If
-  // |json_string_| is non-null, this is a view onto |json_string_|.
-  base::StringPiece json_string_readonly_;
-  bool pretty_print_;  // If true, serialization will span multiple lines.
+  // Data is owned by the caller of the constructor.
+  base::StringPiece json_string_;
   // If true, deserialization will allow trailing commas.
   bool allow_trailing_comma_;
 
-  DISALLOW_COPY_AND_ASSIGN(JSONStringValueSerializer);
+  DISALLOW_COPY_AND_ASSIGN(JSONStringValueDeserializer);
 };
 
 #endif  // BASE_JSON_JSON_STRING_VALUE_SERIALIZER_H_
-

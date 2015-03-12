@@ -320,7 +320,7 @@ struct hash<std::pair<Type1, Type2> > {
   }
 };
 
-}
+}  // namespace BASE_HASH_NAMESPACE
 
 #undef DEFINE_PAIR_HASH_FUNCTION_START
 #undef DEFINE_PAIR_HASH_FUNCTION_END

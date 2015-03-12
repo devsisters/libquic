@@ -11,7 +11,6 @@
 #include "base/metrics/sparse_histogram.h"
 #include "net/quic/reliable_quic_stream.h"
 
-using std::make_pair;
 using std::min;
 using std::numeric_limits;
 using std::string;
@@ -103,7 +102,7 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   for (size_t i = 0; i < data.Size(); ++i) {
     DVLOG(1) << "Buffering stream data at offset " << byte_offset;
     const iovec& iov = data.iovec()[i];
-    buffered_frames_.insert(make_pair(
+    buffered_frames_.insert(std::make_pair(
         byte_offset, string(static_cast<char*>(iov.iov_base), iov.iov_len)));
     byte_offset += iov.iov_len;
     num_bytes_buffered_ += iov.iov_len;
@@ -195,8 +194,8 @@ int QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
   }
   // We've finished copying.  If we have a partial frame, update it.
   if (frame_offset != 0) {
-    buffered_frames_.insert(
-        make_pair(it->first + frame_offset, it->second.substr(frame_offset)));
+    buffered_frames_.insert(std::make_pair(it->first + frame_offset,
+                                           it->second.substr(frame_offset)));
     buffered_frames_.erase(buffered_frames_.begin());
     RecordBytesConsumed(frame_offset);
   }
@@ -283,7 +282,7 @@ void QuicStreamSequencer::FlushBufferedFrames() {
     } else {
       string new_data = it->second.substr(bytes_consumed);
       buffered_frames_.erase(it);
-      buffered_frames_.insert(make_pair(num_bytes_consumed_, new_data));
+      buffered_frames_.insert(std::make_pair(num_bytes_consumed_, new_data));
       return;
     }
   }

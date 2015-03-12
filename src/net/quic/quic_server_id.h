@@ -39,6 +39,7 @@ class NET_EXPORT_PRIVATE QuicServerId {
   // based on |is_https|.
   std::string ToString() const;
 
+  // Used in Chromium, but not in the server.
   const HostPortPair& host_port_pair() const { return host_port_pair_; }
 
   const std::string& host() const { return host_port_pair_.host(); }

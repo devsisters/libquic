@@ -25,8 +25,6 @@
 #include "net/quic/quic_utils.h"
 
 using base::StringPiece;
-using std::find;
-using std::make_pair;
 using std::map;
 using std::string;
 using std::vector;
@@ -326,7 +324,7 @@ QuicCryptoClientConfig::CachedState* QuicCryptoClientConfig::LookupOrCreate(
   }
 
   CachedState* cached = new CachedState;
-  cached_states_.insert(make_pair(server_id, cached));
+  cached_states_.insert(std::make_pair(server_id, cached));
   bool cache_populated = PopulateFromCanonicalConfig(server_id, cached);
   UMA_HISTOGRAM_BOOLEAN(
       "Net.QuicCryptoClientConfig.PopulatedFromCanonicalConfig",
@@ -551,16 +549,19 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     }
 
     const QuicData& cetv_plaintext = cetv.GetSerialized();
-    scoped_ptr<QuicData> cetv_ciphertext(crypters.encrypter->EncryptPacket(
-        0 /* sequence number */,
-        StringPiece() /* associated data */,
-        cetv_plaintext.AsStringPiece()));
-    if (!cetv_ciphertext.get()) {
+    const size_t encrypted_len =
+        crypters.encrypter->GetCiphertextSize(cetv_plaintext.length());
+    scoped_ptr<char[]> output(new char[encrypted_len]);
+    size_t output_size = 0;
+    if (!crypters.encrypter->EncryptPacket(
+            0 /* sequence number */, StringPiece() /* associated data */,
+            cetv_plaintext.AsStringPiece(), output.get(), &output_size,
+            encrypted_len)) {
       *error_details = "Packet encryption failed";
       return QUIC_ENCRYPTION_FAILURE;
     }
 
-    out->SetStringPiece(kCETV, cetv_ciphertext->AsStringPiece());
+    out->SetStringPiece(kCETV, StringPiece(output.get(), output_size));
     out->MarkDirty();
 
     out->set_minimum_size(orig_min_size);
@@ -843,7 +844,7 @@ void QuicCryptoClientConfig::PreferAesGcm() {
   if (aead.size() <= 1) {
     return;
   }
-  QuicTagVector::iterator pos = find(aead.begin(), aead.end(), kAESG);
+  QuicTagVector::iterator pos = std::find(aead.begin(), aead.end(), kAESG);
   if (pos != aead.end()) {
     aead.erase(pos);
     aead.insert(aead.begin(), kAESG);

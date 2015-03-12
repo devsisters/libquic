@@ -322,7 +322,7 @@ index 2a82aad..f0f5f45 100644
  #include "net/quic/crypto/crypto_protocol.h"
  #include "net/quic/crypto/crypto_utils.h"
  #include "net/quic/crypto/null_encrypter.h"
-@@ -176,10 +178,12 @@ static const int kMaxClientHellos = 3;
+@@ -179,10 +181,12 @@ static const int kMaxClientHellos = 3;
  
  void QuicCryptoClientStream::DoHandshakeLoop(
      const CryptoHandshakeMessage* in) {
@@ -339,7 +339,7 @@ diff --git a/src/net/quic/quic_data_stream.cc b/src/net/quic/quic_data_stream.cc
 index aac58f9..ac2e7d2 100644
 --- a/src/net/quic/quic_data_stream.cc
 +++ b/src/net/quic/quic_data_stream.cc
-@@ -128,9 +128,11 @@ const IPEndPoint& QuicDataStream::GetPeerAddress() {
+@@ -125,9 +125,11 @@ const IPEndPoint& QuicDataStream::GetPeerAddress() {
    return session()->peer_address();
  }
  
@@ -365,7 +365,7 @@ index 865af07..dd18553 100644
  
  using base::StringPiece;
  using base::hash_map;
-@@ -719,10 +721,12 @@ bool QuicSession::HasDataToWrite() const {
+@@ -716,10 +718,12 @@ bool QuicSession::HasDataToWrite() const {
           connection_->HasQueuedData();
  }
  
@@ -392,7 +392,7 @@ index 34fa2f4..425632d 100644
  class VisitorShim;
  
  namespace test {
-@@ -196,8 +198,10 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
+@@ -197,8 +199,10 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
      return goaway_sent_;
    }
  
@@ -407,42 +407,16 @@ diff --git a/src/net/spdy/spdy_framer.cc b/src/net/spdy/spdy_framer.cc
 index 7a926ce..95fa79d 100644
 --- a/src/net/spdy/spdy_framer.cc
 +++ b/src/net/spdy/spdy_framer.cc
-@@ -6,8 +6,10 @@
+@@ -6,7 +6,9 @@
  
  #include "base/lazy_instance.h"
  #include "base/memory/scoped_ptr.h"
 +#if 0
- #include "base/metrics/stats_counters.h"
  #include "base/third_party/valgrind/memcheck.h"
 +#endif
  #include "net/spdy/spdy_frame_builder.h"
  #include "net/spdy/spdy_frame_reader.h"
  #include "net/spdy/spdy_bitmasks.h"
-@@ -3250,9 +3252,11 @@ void SpdyFramer::SerializeNameValueBlock(
-     return;
-   }
- 
-+#if 0
-   base::StatsCounter compressed_frames("spdy.CompressedFrames");
-   base::StatsCounter pre_compress_bytes("spdy.PreCompressSize");
-   base::StatsCounter post_compress_bytes("spdy.PostCompressSize");
-+#endif
- 
-   // Create an output frame.
-   // Since we'll be performing lots of flushes when compressing the data,
-@@ -3291,10 +3295,12 @@ void SpdyFramer::SerializeNameValueBlock(
-   builder->Seek(compressed_size);
-   builder->RewriteLength(*this);
- 
-+#if 0
-   pre_compress_bytes.Add(uncompressed_len);
-   post_compress_bytes.Add(compressed_size);
- 
-   compressed_frames.Increment();
-+#endif
- }
- 
- }  // namespace net
 diff --git a/src/net/spdy/spdy_framer.h b/src/net/spdy/spdy_framer.h
 index bb6e61d..b267a25 100644
 --- a/src/net/spdy/spdy_framer.h

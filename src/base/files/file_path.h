@@ -53,7 +53,7 @@
 // between char[]-based pathnames on POSIX systems and wchar_t[]-based
 // pathnames on Windows.
 //
-// Paths can't contain NULs as a precaution agaist premature truncation.
+// As a precaution against premature truncation, paths can't contain NULs.
 //
 // Because a FilePath object should not be instantiated at the global scope,
 // instead, use a FilePath::CharType[] and initialize it with
@@ -83,9 +83,9 @@
 //    in case it ever comes across such a system.  FilePath needs this support
 //    for Windows UNC paths, anyway.
 //    References:
-//    The Open Group Base Specifications Issue 7, sections 3.266 ("Pathname")
+//    The Open Group Base Specifications Issue 7, sections 3.267 ("Pathname")
 //    and 4.12 ("Pathname Resolution"), available at:
-//    http://www.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_266
+//    http://www.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_267
 //    http://www.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_12
 //
 //  - Windows treats c:\\ the same way it treats \\.  This was intended to

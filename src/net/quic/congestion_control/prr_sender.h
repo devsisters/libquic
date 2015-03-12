@@ -23,8 +23,7 @@ class NET_EXPORT_PRIVATE PrrSender {
   void OnPacketAcked(QuicByteCount acked_bytes);
   QuicTime::Delta TimeUntilSend(QuicByteCount congestion_window,
                                 QuicByteCount bytes_in_flight,
-                                QuicPacketCount slowstart_threshold)
-      const;
+                                QuicByteCount slowstart_threshold) const;
 
  private:
   // Bytes sent and acked since the last loss event.

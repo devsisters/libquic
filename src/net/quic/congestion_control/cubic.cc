@@ -10,7 +10,6 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/time/time.h"
-#include "net/quic/congestion_control/cube_root.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_protocol.h"
 
@@ -39,12 +38,11 @@ const float kBetaLastMax = 0.85f;
 
 }  // namespace
 
-Cubic::Cubic(const QuicClock* clock, QuicConnectionStats* stats)
+Cubic::Cubic(const QuicClock* clock)
     : clock_(clock),
       num_connections_(kDefaultNumConnections),
       epoch_(QuicTime::Zero()),
-      last_update_time_(QuicTime::Zero()),
-      stats_(stats) {
+      last_update_time_(QuicTime::Zero()) {
   Reset();
 }
 
@@ -78,22 +76,6 @@ void Cubic::Reset() {
   origin_point_congestion_window_ = 0;
   time_to_origin_point_ = 0;
   last_target_congestion_window_ = 0;
-}
-
-void Cubic::UpdateCongestionControlStats(QuicPacketCount new_cubic_mode_cwnd,
-                                         QuicPacketCount new_reno_mode_cwnd) {
-  QuicPacketCount highest_new_cwnd = max(new_cubic_mode_cwnd,
-                                         new_reno_mode_cwnd);
-  if (last_congestion_window_ < highest_new_cwnd) {
-    // cwnd will increase to highest_new_cwnd.
-    stats_->cwnd_increase_congestion_avoidance +=
-        highest_new_cwnd - last_congestion_window_;
-    if (new_cubic_mode_cwnd > new_reno_mode_cwnd) {
-      // This cwnd increase is due to cubic mode.
-      stats_->cwnd_increase_cubic_mode +=
-          new_cubic_mode_cwnd - last_congestion_window_;
-    }
-  }
 }
 
 QuicPacketCount Cubic::CongestionWindowAfterPacketLoss(
@@ -136,17 +118,9 @@ QuicPacketCount Cubic::CongestionWindowAfterAck(
       time_to_origin_point_ = 0;
       origin_point_congestion_window_ = current_congestion_window;
     } else {
-      if (FLAGS_quic_use_std_cbrt) {
-        time_to_origin_point_ = static_cast<uint32>(
-            cbrt(kCubeFactor *
-                 (last_max_congestion_window_ - current_congestion_window)));
-      } else {
-        // TODO(rjshade): Remove CubeRoot source when removing
-        // FLAGS_quic_use_std_cbrt.
-        time_to_origin_point_ =
-            CubeRoot::Root(kCubeFactor * (last_max_congestion_window_ -
-                                          current_congestion_window));
-      }
+      time_to_origin_point_ =
+          static_cast<uint32>(cbrt(kCubeFactor * (last_max_congestion_window_ -
+                                                  current_congestion_window)));
       origin_point_congestion_window_ =
           last_max_congestion_window_;
     }
@@ -179,10 +153,6 @@ QuicPacketCount Cubic::CongestionWindowAfterAck(
     acked_packets_count_ -= required_ack_count;
     estimated_tcp_congestion_window_++;
   }
-
-  // Update cubic mode and reno mode stats in QuicConnectionStats.
-  UpdateCongestionControlStats(target_congestion_window,
-                               estimated_tcp_congestion_window_);
 
   // We have a new cubic congestion window.
   last_target_congestion_window_ = target_congestion_window;

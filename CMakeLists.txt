@@ -109,7 +109,6 @@ set(
 	src/net/quic/congestion_control/loss_detection_interface.cc
 	src/net/quic/congestion_control/send_algorithm_interface.cc
 	src/net/quic/congestion_control/cubic.cc
-	src/net/quic/congestion_control/cube_root.cc
 	src/net/quic/congestion_control/tcp_loss_algorithm.cc
 	src/net/quic/congestion_control/prr_sender.cc
 	src/net/quic/congestion_control/tcp_cubic_sender.cc

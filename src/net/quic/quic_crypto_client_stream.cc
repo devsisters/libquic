@@ -89,7 +89,9 @@ QuicCryptoClientStream::QuicCryptoClientStream(
       channel_id_source_callback_run_(false),
       channel_id_source_callback_(nullptr),
       verify_context_(verify_context),
-      proof_verify_callback_(nullptr) {}
+      proof_verify_callback_(nullptr) {
+  DCHECK(!session->connection()->is_server());
+}
 
 QuicCryptoClientStream::~QuicCryptoClientStream() {
   if (channel_id_source_callback_) {
@@ -134,6 +136,7 @@ int QuicCryptoClientStream::num_sent_client_hellos() const {
   return num_client_hellos_;
 }
 
+// Used in Chromium, but not in the server.
 bool QuicCryptoClientStream::WasChannelIDSent() const {
   return channel_id_sent_;
 }

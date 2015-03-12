@@ -88,15 +88,18 @@ bool CryptoSecretBoxer::Unbox(StringPiece ciphertext,
     return false;
   }
   decrypter->SetNoncePrefix(nonce_prefix);
-  scoped_ptr<QuicData> decrypted(
-      decrypter->DecryptPacket(sequence_number, StringPiece(), ciphertext));
-  if (!decrypted.get()) {
+  char plaintext[kMaxPacketSize];
+  size_t plaintext_length = 0;
+  const bool success = decrypter->DecryptPacket(
+      sequence_number, StringPiece() /* associated data */, ciphertext,
+      plaintext, &plaintext_length, kMaxPacketSize);
+  if (!success) {
     return false;
   }
 
-  out_storage->resize(decrypted->length());
-  out_storage->assign(decrypted->data(), decrypted->length());
-  out->set(out_storage->data(), decrypted->length());
+  out_storage->resize(plaintext_length);
+  out_storage->assign(plaintext, plaintext_length);
+  out->set(out_storage->data(), plaintext_length);
   return true;
 }
 

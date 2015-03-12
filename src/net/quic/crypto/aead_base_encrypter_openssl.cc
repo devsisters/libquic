@@ -81,16 +81,12 @@ bool AeadBaseEncrypter::Encrypt(StringPiece nonce,
     return false;
   }
 
-  size_t len;
+  size_t ciphertext_len;
   if (!EVP_AEAD_CTX_seal(
-          ctx_.get(),
-          output,
-          &len,
+          ctx_.get(), output, &ciphertext_len,
           plaintext.size() + auth_tag_size_,
-          reinterpret_cast<const uint8_t*>(nonce.data()),
-          nonce.size(),
-          reinterpret_cast<const uint8_t*>(plaintext.data()),
-          plaintext.size(),
+          reinterpret_cast<const uint8_t*>(nonce.data()), nonce.size(),
+          reinterpret_cast<const uint8_t*>(plaintext.data()), plaintext.size(),
           reinterpret_cast<const uint8_t*>(associated_data.data()),
           associated_data.size())) {
     DLogOpenSslErrors();
@@ -100,27 +96,28 @@ bool AeadBaseEncrypter::Encrypt(StringPiece nonce,
   return true;
 }
 
-QuicData* AeadBaseEncrypter::EncryptPacket(
-    QuicPacketSequenceNumber sequence_number,
-    StringPiece associated_data,
-    StringPiece plaintext) {
+bool AeadBaseEncrypter::EncryptPacket(QuicPacketSequenceNumber sequence_number,
+                                      StringPiece associated_data,
+                                      StringPiece plaintext,
+                                      char* output,
+                                      size_t* output_length,
+                                      size_t max_output_length) {
   size_t ciphertext_size = GetCiphertextSize(plaintext.length());
-  scoped_ptr<char[]> ciphertext(new char[ciphertext_size]);
-
+  if (max_output_length < ciphertext_size) {
+    return false;
+  }
   // TODO(ianswett): Introduce a check to ensure that we don't encrypt with the
   // same sequence number twice.
-  uint8 nonce[sizeof(nonce_prefix_) + sizeof(sequence_number)];
   const size_t nonce_size = nonce_prefix_size_ + sizeof(sequence_number);
-  DCHECK_LE(nonce_size, sizeof(nonce));
-  memcpy(nonce, nonce_prefix_, nonce_prefix_size_);
-  memcpy(nonce + nonce_prefix_size_, &sequence_number, sizeof(sequence_number));
-  if (!Encrypt(StringPiece(reinterpret_cast<char*>(nonce), nonce_size),
-               associated_data, plaintext,
-               reinterpret_cast<unsigned char*>(ciphertext.get()))) {
-    return nullptr;
+  memcpy(output, nonce_prefix_, nonce_prefix_size_);
+  memcpy(output + nonce_prefix_size_, &sequence_number,
+         sizeof(sequence_number));
+  if (!Encrypt(StringPiece(output, nonce_size), associated_data, plaintext,
+               reinterpret_cast<unsigned char*>(output))) {
+    return false;
   }
-
-  return new QuicData(ciphertext.release(), ciphertext_size, true);
+  *output_length = ciphertext_size;
+  return true;
 }
 
 size_t AeadBaseEncrypter::GetKeySize() const { return key_size_; }

@@ -178,4 +178,4 @@ bool MatchVlogPattern(const base::StringPiece& string,
   return false;
 }
 
-}  // namespace
+}  // namespace logging

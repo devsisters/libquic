@@ -85,8 +85,6 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   uint64 stream_bytes_read() const { return stream_bytes_read_; }
   uint64 stream_bytes_written() const { return stream_bytes_written_; }
 
-  QuicVersion version() const;
-
   void set_fin_sent(bool fin_sent) { fin_sent_ = fin_sent; }
   void set_rst_sent(bool rst_sent) { rst_sent_ = rst_sent; }
 
@@ -96,8 +94,9 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   // Adjust our flow control windows according to new offset in |frame|.
   virtual void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame);
 
+  // Used in Chrome.
   int num_frames_received() const;
-
+  int num_early_frames_received() const;
   int num_duplicate_frames_received() const;
 
   QuicFlowController* flow_controller() { return &flow_controller_; }
@@ -115,10 +114,6 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   // Updates the flow controller's send window offset and calls OnCanWrite if
   // it was blocked before.
   void UpdateSendWindowOffset(QuicStreamOffset new_offset);
-
-  // Returns true if the stream is flow control blocked, by the stream flow
-  // control window or the connection flow control window.
-  bool IsFlowControlBlocked();
 
   // Returns true if we have received either a RST or a FIN - either of which
   // gives a definitive number of bytes which the peer has sent. If this is not

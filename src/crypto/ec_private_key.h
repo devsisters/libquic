@@ -42,13 +42,6 @@ class CRYPTO_EXPORT ECPrivateKey {
   // TODO(mattm): Add a curve parameter.
   static ECPrivateKey* Create();
 
-#if defined(USE_NSS)
-  // Creates a new random instance in |slot|. Can return NULL if initialization
-  // fails.  The created key is permanent and is not exportable in plaintext
-  // form.
-  static ECPrivateKey* CreateSensitive(PK11SlotInfo* slot);
-#endif
-
   // Creates a new instance by importing an existing key pair.
   // The key pair is given as an ASN.1-encoded PKCS #8 EncryptedPrivateKeyInfo
   // block and an X.509 SubjectPublicKeyInfo block.
@@ -57,19 +50,6 @@ class CRYPTO_EXPORT ECPrivateKey {
       const std::string& password,
       const std::vector<uint8>& encrypted_private_key_info,
       const std::vector<uint8>& subject_public_key_info);
-
-#if defined(USE_NSS)
-  // Creates a new instance in |slot| by importing an existing key pair.
-  // The key pair is given as an ASN.1-encoded PKCS #8 EncryptedPrivateKeyInfo
-  // block and an X.509 SubjectPublicKeyInfo block.
-  // This can return NULL if initialization fails.  The created key is permanent
-  // and is not exportable in plaintext form.
-  static ECPrivateKey* CreateSensitiveFromEncryptedPrivateKeyInfo(
-      PK11SlotInfo* slot,
-      const std::string& password,
-      const std::vector<uint8>& encrypted_private_key_info,
-      const std::vector<uint8>& subject_public_key_info);
-#endif
 
 #if !defined(USE_OPENSSL)
   // Imports the key pair into |slot| and returns in |public_key| and |key|.
@@ -121,25 +101,6 @@ class CRYPTO_EXPORT ECPrivateKey {
  private:
   // Constructor is private. Use one of the Create*() methods above instead.
   ECPrivateKey();
-
-#if !defined(USE_OPENSSL)
-  // Shared helper for Create() and CreateSensitive().
-  // TODO(cmasone): consider replacing |permanent| and |sensitive| with a
-  //                flags arg created by ORing together some enumerated values.
-  static ECPrivateKey* CreateWithParams(PK11SlotInfo* slot,
-                                        bool permanent,
-                                        bool sensitive);
-
-  // Shared helper for CreateFromEncryptedPrivateKeyInfo() and
-  // CreateSensitiveFromEncryptedPrivateKeyInfo().
-  static ECPrivateKey* CreateFromEncryptedPrivateKeyInfoWithParams(
-      PK11SlotInfo* slot,
-      const std::string& password,
-      const std::vector<uint8>& encrypted_private_key_info,
-      const std::vector<uint8>& subject_public_key_info,
-      bool permanent,
-      bool sensitive);
-#endif
 
 #if defined(USE_OPENSSL)
   EVP_PKEY* key_;

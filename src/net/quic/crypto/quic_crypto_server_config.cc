@@ -452,7 +452,7 @@ bool QuicCryptoServerConfig::SetConfigs(
                     reinterpret_cast<const char *>(config->orbit), kOrbitSize)
                 << " primary_time " << config->primary_time.ToUNIXSeconds()
                 << " priority " << config->priority;
-        new_configs.insert(make_pair(config->id, config));
+        new_configs.insert(std::make_pair(config->id, config));
       }
     }
 
@@ -665,14 +665,15 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
     client_hello_copy.Erase(kCETV);
     client_hello_copy.Erase(kPAD);
 
-    const QuicData& client_hello_serialized = client_hello_copy.GetSerialized();
+    const QuicData& client_hello_copy_serialized =
+        client_hello_copy.GetSerialized();
     string hkdf_input;
     hkdf_input.append(QuicCryptoConfig::kCETVLabel,
                       strlen(QuicCryptoConfig::kCETVLabel) + 1);
     hkdf_input.append(reinterpret_cast<char*>(&connection_id),
                       sizeof(connection_id));
-    hkdf_input.append(client_hello_serialized.data(),
-                      client_hello_serialized.length());
+    hkdf_input.append(client_hello_copy_serialized.data(),
+                      client_hello_copy_serialized.length());
     hkdf_input.append(requested_config->serialized);
 
     CrypterPair crypters;
@@ -684,16 +685,17 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
       return QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED;
     }
 
-    scoped_ptr<QuicData> cetv_plaintext(crypters.decrypter->DecryptPacket(
+    char plaintext[kMaxPacketSize];
+    size_t plaintext_length = 0;
+    const bool success = crypters.decrypter->DecryptPacket(
         0 /* sequence number */, StringPiece() /* associated data */,
-        cetv_ciphertext));
-    if (!cetv_plaintext.get()) {
+        cetv_ciphertext, plaintext, &plaintext_length, kMaxPacketSize);
+    if (!success) {
       *error_details = "CETV decryption failure";
-      return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
+      return QUIC_PACKET_TOO_LARGE;
     }
-
-    scoped_ptr<CryptoHandshakeMessage> cetv(CryptoFramer::ParseMessage(
-        cetv_plaintext->AsStringPiece()));
+    scoped_ptr<CryptoHandshakeMessage> cetv(
+        CryptoFramer::ParseMessage(StringPiece(plaintext, plaintext_length)));
     if (!cetv.get()) {
       *error_details = "CETV parse error";
       return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
@@ -835,7 +837,7 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
     return;
   }
 
-  sort(configs.begin(), configs.end(), ConfigPrimaryTimeLessThan);
+  std::sort(configs.begin(), configs.end(), ConfigPrimaryTimeLessThan);
 
   Config* best_candidate = configs[0].get();
 
@@ -1332,9 +1334,8 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
         return nullptr;
     }
 
-    for (vector<KeyExchange*>::const_iterator i = config->key_exchanges.begin();
-         i != config->key_exchanges.end(); ++i) {
-      if ((*i)->tag() == tag) {
+    for (const KeyExchange* key_exchange : config->key_exchanges) {
+      if (key_exchange->tag() == tag) {
         LOG(WARNING) << "Duplicate key exchange in config: " << tag;
         return nullptr;
       }
@@ -1477,11 +1478,12 @@ HandshakeFailureReason QuicCryptoServerConfig::ParseSourceAddressToken(
   }
 
   if (!FLAGS_quic_use_multiple_address_in_source_tokens) {
-    SourceAddressToken token;
-    if (!token.ParseFromArray(plaintext.data(), plaintext.size())) {
+    SourceAddressToken source_address_token;
+    if (!source_address_token.ParseFromArray(plaintext.data(),
+                                             plaintext.size())) {
       return SOURCE_ADDRESS_TOKEN_PARSE_FAILURE;
     }
-    *(tokens->add_tokens()) = token;
+    *(tokens->add_tokens()) = source_address_token;
     return HANDSHAKE_OK;
   }
 
@@ -1489,11 +1491,12 @@ HandshakeFailureReason QuicCryptoServerConfig::ParseSourceAddressToken(
     // Some clients might still be using the old source token format so
     // attempt to parse that format.
     // TODO(rch): remove this code once the new format is ubiquitous.
-    SourceAddressToken token;
-    if (!token.ParseFromArray(plaintext.data(), plaintext.size())) {
+    SourceAddressToken source_address_token;
+    if (!source_address_token.ParseFromArray(plaintext.data(),
+                                             plaintext.size())) {
       return SOURCE_ADDRESS_TOKEN_PARSE_FAILURE;
     }
-    *tokens->add_tokens() = token;
+    *tokens->add_tokens() = source_address_token;
   }
 
   return HANDSHAKE_OK;

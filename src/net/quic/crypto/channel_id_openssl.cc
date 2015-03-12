@@ -34,9 +34,8 @@ bool ChannelIDVerifier::VerifyRaw(StringPiece key,
     return false;
   }
 
-  crypto::ScopedOpenSSL<EC_GROUP, EC_GROUP_free>::Type p256(
-      EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
-  if (p256.get() == nullptr) {
+  crypto::ScopedEC_GROUP p256(EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+  if (!p256) {
     return false;
   }
 
@@ -57,9 +56,8 @@ bool ChannelIDVerifier::VerifyRaw(StringPiece key,
     return false;
   }
 
-  crypto::ScopedOpenSSL<EC_POINT, EC_POINT_free>::Type point(
-      EC_POINT_new(p256.get()));
-  if (point.get() == nullptr ||
+  crypto::ScopedEC_POINT point(EC_POINT_new(p256.get()));
+  if (!point ||
       !EC_POINT_set_affine_coordinates_GFp(p256.get(), point.get(), x.get(),
                                            y.get(), nullptr)) {
     return false;

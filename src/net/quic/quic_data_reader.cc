@@ -25,41 +25,8 @@ bool QuicDataReader::ReadUInt32(uint32* result) {
   return ReadBytes(result, sizeof(*result));
 }
 
-bool QuicDataReader::ReadUInt48(uint64* result) {
-  uint32 lo;
-  if (!ReadUInt32(&lo)) {
-    return false;
-  }
-
-  uint16 hi;
-  if (!ReadUInt16(&hi)) {
-    return false;
-  }
-
-  *result = hi;
-  *result <<= 32;
-  *result += lo;
-
-  return true;
-}
-
 bool QuicDataReader::ReadUInt64(uint64* result) {
   return ReadBytes(result, sizeof(*result));
-}
-
-bool QuicDataReader::ReadUInt128(uint128* result) {
-  uint64 high_hash;
-  uint64 low_hash;
-
-  if (!ReadUInt64(&low_hash)) {
-    return false;
-  }
-  if (!ReadUInt64(&high_hash)) {
-    return false;
-  }
-
-  *result = uint128(high_hash, low_hash);
-  return true;
 }
 
 bool QuicDataReader::ReadUFloat16(uint64* result) {

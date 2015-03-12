@@ -135,10 +135,6 @@ class NET_EXPORT_PRIVATE QuicDataStream : public ReliableQuicStream {
   // Contains a copy of the decompressed headers until they are consumed
   // via ProcessData or Readv.
   std::string decompressed_headers_;
-  // True if an error was encountered during decompression.
-  bool decompression_failed_;
-  // True if the priority has been read, false otherwise.
-  bool priority_parsed_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicDataStream);
 };

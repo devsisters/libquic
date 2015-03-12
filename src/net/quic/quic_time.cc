@@ -173,6 +173,7 @@ QuicWallTime QuicWallTime::Add(QuicTime::Delta delta) const {
   return QuicWallTime(seconds);
 }
 
+// TODO(ianswett) Test this.
 QuicWallTime QuicWallTime::Subtract(QuicTime::Delta delta) const {
   uint64 seconds = seconds_ - delta.ToSeconds();
   if (seconds > seconds_) {

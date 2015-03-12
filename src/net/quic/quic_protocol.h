@@ -48,15 +48,17 @@ typedef std::map<QuicTag, std::string> QuicTagValueMap;
 // QuicPriority is uint32. Use SpdyPriority when we change the QUIC_VERSION.
 typedef uint32 QuicPriority;
 
-// TODO(rch): Consider Quic specific names for these constants.
 // Default and initial maximum size in bytes of a QUIC packet.
 const QuicByteCount kDefaultMaxPacketSize = 1350;
+// Default initial maximum size in bytes of a QUIC packet for servers.
+const QuicByteCount kDefaultServerMaxPacketSize = 1000;
 // The maximum packet size of any QUIC packet, based on ethernet's max size,
 // minus the IP and UDP headers. IPv6 has a 40 byte header, UPD adds an
 // additional 8 bytes.  This is a total overhead of 48 bytes.  Ethernet's
 // max packet size is 1500 bytes,  1500 - 48 = 1452.
 const QuicByteCount kMaxPacketSize = 1452;
-// Default maximum packet size used in Linux TCP implementations.
+// Default maximum packet size used in the Linux TCP implementation.
+// Used in QUIC for congestion window computations in bytes.
 const QuicByteCount kDefaultTCPMSS = 1460;
 
 // We match SPDY's use of 32 when secure (since we'd compete with SPDY).
@@ -67,11 +69,14 @@ const QuicPacketCount kInitialCongestionWindowInsecure = 20;
 // Minimum size of initial flow control window, for both stream and session.
 const uint32 kMinimumFlowControlSendWindow = 16 * 1024;  // 16 KB
 
-// Minimum size of the CWND, in packets, when doing bandwidth resumption.
+// Minimum and maximum size of the CWND, in packets,
+// when doing bandwidth resumption.
 const QuicPacketCount kMinCongestionWindowForBandwidthResumption = 10;
+const QuicPacketCount kMaxCongestionWindowForBandwidthResumption = 200;
 
-// Maximum size of the CWND, in packets, for TCP congestion control algorithms.
-const QuicPacketCount kMaxTcpCongestionWindow = 200;
+// Maximum number of tracked packets before the connection will be closed.
+// This effectively limits the max CWND to a smaller value than this.
+const QuicPacketCount kMaxTrackedPackets = 5000;
 
 // Default size of the socket receive buffer in bytes.
 const QuicByteCount kDefaultSocketReceiveBuffer = 256 * 1024;
@@ -105,8 +110,6 @@ const size_t kStartOfHashData = 0;
 
 // Limit on the delta between stream IDs.
 const QuicStreamId kMaxStreamIdDelta = 200;
-// Limit on the delta between header IDs.
-const QuicHeaderId kMaxHeaderIdDelta = 200;
 
 // Reserved ID for the crypto stream.
 const QuicStreamId kCryptoStreamId = 1;
@@ -590,6 +593,9 @@ struct NET_EXPORT_PRIVATE QuicPacketPublicHeader {
   QuicVersionVector versions;
 };
 
+// An integer which cannot be a packet sequence number.
+const QuicPacketSequenceNumber kInvalidPacketSequenceNumber = 0;
+
 // Header for Data or FEC packets.
 struct NET_EXPORT_PRIVATE QuicPacketHeader {
   QuicPacketHeader();
@@ -661,11 +667,6 @@ struct NET_EXPORT_PRIVATE QuicStreamFrame {
   bool fin;
   QuicStreamOffset offset;  // Location of this data in the stream.
   IOVector data;
-
-  // TODO(rjshade): Remove with FLAGS_quic_attach_ack_notifiers_to_packets.
-  // If this is set, then when this packet is ACKed the AckNotifier will be
-  // informed.
-  QuicAckNotifier* notifier;
 };
 
 // TODO(ianswett): Re-evaluate the trade-offs of hash_set vs set when framing
@@ -964,7 +965,7 @@ class NET_EXPORT_PRIVATE QuicEncryptedPacket : public QuicData {
 
 class NET_EXPORT_PRIVATE RetransmittableFrames {
  public:
-  RetransmittableFrames();
+  explicit RetransmittableFrames(EncryptionLevel level);
   ~RetransmittableFrames();
 
   // Allocates a local copy of the referenced StringPiece has QuicStreamFrame
@@ -979,14 +980,13 @@ class NET_EXPORT_PRIVATE RetransmittableFrames {
     return has_crypto_handshake_;
   }
 
-  void set_encryption_level(EncryptionLevel level);
   EncryptionLevel encryption_level() const {
     return encryption_level_;
   }
 
  private:
   QuicFrames frames_;
-  EncryptionLevel encryption_level_;
+  const EncryptionLevel encryption_level_;
   IsHandshake has_crypto_handshake_;
   // Data referenced by the StringPiece of a QuicStreamFrame.
   std::vector<std::string*> stream_data_;
@@ -997,14 +997,14 @@ class NET_EXPORT_PRIVATE RetransmittableFrames {
 struct NET_EXPORT_PRIVATE SerializedPacket {
   SerializedPacket(QuicPacketSequenceNumber sequence_number,
                    QuicSequenceNumberLength sequence_number_length,
-                   QuicPacket* packet,
+                   QuicEncryptedPacket* packet,
                    QuicPacketEntropyHash entropy_hash,
                    RetransmittableFrames* retransmittable_frames);
   ~SerializedPacket();
 
   QuicPacketSequenceNumber sequence_number;
   QuicSequenceNumberLength sequence_number_length;
-  QuicPacket* packet;
+  QuicEncryptedPacket* packet;
   QuicPacketEntropyHash entropy_hash;
   RetransmittableFrames* retransmittable_frames;
   bool is_fec_packet;
@@ -1022,13 +1022,13 @@ struct NET_EXPORT_PRIVATE TransmissionInfo {
   TransmissionInfo(RetransmittableFrames* retransmittable_frames,
                    QuicSequenceNumberLength sequence_number_length,
                    TransmissionType transmission_type,
-                   QuicTime sent_time);
+                   QuicTime sent_time,
+                   QuicByteCount bytes_sent,
+                   bool is_fec_packet);
 
   RetransmittableFrames* retransmittable_frames;
   QuicSequenceNumberLength sequence_number_length;
-  // Zero when the packet is serialized, non-zero once it's sent.
   QuicTime sent_time;
-  // Zero when the packet is serialized, non-zero once it's sent.
   QuicByteCount bytes_sent;
   QuicPacketCount nack_count;
   // Reason why this packet was transmitted.

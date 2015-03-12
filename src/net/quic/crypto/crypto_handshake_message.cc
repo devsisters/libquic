@@ -165,11 +165,6 @@ QuicErrorCode CryptoHandshakeMessage::GetNthValue24(QuicTag tag,
   }
 }
 
-QuicErrorCode CryptoHandshakeMessage::GetUint16(QuicTag tag,
-                                                uint16* out) const {
-  return GetPOD(tag, out, sizeof(uint16));
-}
-
 QuicErrorCode CryptoHandshakeMessage::GetUint32(QuicTag tag,
                                                 uint32* out) const {
   return GetPOD(tag, out, sizeof(uint32));
@@ -244,6 +239,7 @@ string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
       case kSFCW:
       case kIRTT:
       case kMSPC:
+      case kSRBF:
       case kSWND:
         // uint32 value
         if (it->second.size() == 4) {

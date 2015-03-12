@@ -23,9 +23,6 @@ class NET_EXPORT_PRIVATE RttStats {
  public:
   RttStats();
 
-  // Returns true if any RTT measurements have been made.
-  bool HasUpdates() const;
-
   // Updates the RTT from an incoming ack which is received |send_delta| after
   // the packet is sent and the peer reports the ack being delayed |ack_delay|.
   void UpdateRtt(QuicTime::Delta send_delta,

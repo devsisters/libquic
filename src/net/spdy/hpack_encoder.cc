@@ -169,14 +169,11 @@ void HpackEncoder::CookieToCrumbs(const Representation& cookie,
     size_t end = cookie.second.find(";", pos);
 
     if (end == StringPiece::npos) {
-      out->push_back(make_pair(
-          cookie.first,
-          cookie.second.substr(pos)));
+      out->push_back(std::make_pair(cookie.first, cookie.second.substr(pos)));
       break;
     }
-    out->push_back(make_pair(
-        cookie.first,
-        cookie.second.substr(pos, end - pos)));
+    out->push_back(
+        std::make_pair(cookie.first, cookie.second.substr(pos, end - pos)));
 
     // Consume next space if present.
     pos = end + 1;
@@ -197,8 +194,8 @@ void HpackEncoder::DecomposeRepresentation(const Representation& header_field,
   size_t end = 0;
   while (end != StringPiece::npos) {
     end = header_field.second.find('\0', pos);
-    out->push_back(make_pair(header_field.first,
-                             header_field.second.substr(pos, end - pos)));
+    out->push_back(std::make_pair(header_field.first,
+                                  header_field.second.substr(pos, end - pos)));
     pos = end + 1;
   }
 }

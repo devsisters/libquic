@@ -1143,6 +1143,9 @@ bool ListValue::Equals(const Value* other) const {
 ValueSerializer::~ValueSerializer() {
 }
 
+ValueDeserializer::~ValueDeserializer() {
+}
+
 std::ostream& operator<<(std::ostream& out, const Value& value) {
   std::string json;
   JSONWriter::WriteWithOptions(&value,

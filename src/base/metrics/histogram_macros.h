@@ -229,4 +229,36 @@
         base::CustomHistogram::FactoryGet(name, custom_ranges, \
             base::HistogramBase::kUmaTargetedHistogramFlag))
 
+// Scoped class which logs its time on this earth as a UMA statistic. This is
+// recommended for when you want a histogram which measures the time it takes
+// for a method to execute. This measures up to 10 seconds.
+#define SCOPED_UMA_HISTOGRAM_TIMER(name) \
+  SCOPED_UMA_HISTOGRAM_TIMER_EXPANDER(name, false, __COUNTER__)
+
+// Similar scoped histogram timer, but this uses UMA_HISTOGRAM_LONG_TIMES_100,
+// which measures up to an hour, and uses 100 buckets. This is more expensive
+// to store, so only use if this often takes >10 seconds.
+#define SCOPED_UMA_HISTOGRAM_LONG_TIMER(name) \
+  SCOPED_UMA_HISTOGRAM_TIMER_EXPANDER(name, true, __COUNTER__)
+
+// This nested macro is necessary to expand __COUNTER__ to an actual value.
+#define SCOPED_UMA_HISTOGRAM_TIMER_EXPANDER(name, is_long, key) \
+  SCOPED_UMA_HISTOGRAM_TIMER_UNIQUE(name, is_long, key)
+
+#define SCOPED_UMA_HISTOGRAM_TIMER_UNIQUE(name, is_long, key) \
+  class ScopedHistogramTimer##key { \
+   public: \
+    ScopedHistogramTimer##key() : constructed_(base::TimeTicks::Now()) {} \
+    ~ScopedHistogramTimer##key() { \
+      base::TimeDelta elapsed = base::TimeTicks::Now() - constructed_; \
+      if (is_long) { \
+        UMA_HISTOGRAM_LONG_TIMES_100(name, elapsed); \
+      } else { \
+        UMA_HISTOGRAM_TIMES(name, elapsed); \
+      } \
+    } \
+   private: \
+    base::TimeTicks constructed_; \
+  } scoped_histogram_timer_##key
+
 #endif  // BASE_METRICS_HISTOGRAM_MACROS_H_

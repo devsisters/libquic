@@ -85,6 +85,7 @@
 #include <stdlib.h>
 
 #include <algorithm>  // For std::swap().
+#include <iosfwd>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -583,6 +584,11 @@ bool operator!=(T* p1, const scoped_ptr<T, D>& p2) {
 template <typename T>
 scoped_ptr<T> make_scoped_ptr(T* ptr) {
   return scoped_ptr<T>(ptr);
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const scoped_ptr<T>& p) {
+  return out << p.get();
 }
 
 #endif  // BASE_MEMORY_SCOPED_PTR_H_

@@ -852,20 +852,6 @@ void SpdyAltSvcIR::Visit(SpdyFrameVisitor* visitor) const {
   return visitor->VisitAltSvc(*this);
 }
 
-SpdyPriorityIR::SpdyPriorityIR(SpdyStreamId stream_id)
-    : SpdyFrameWithStreamIdIR(stream_id) {
-}
-
-SpdyPriorityIR::SpdyPriorityIR(SpdyStreamId stream_id,
-                               SpdyStreamId parent_stream_id,
-                               uint8 weight,
-                               bool exclusive)
-    : SpdyFrameWithStreamIdIR(stream_id),
-      parent_stream_id_(parent_stream_id),
-      weight_(weight),
-      exclusive_(exclusive) {
-}
-
 void SpdyPriorityIR::Visit(SpdyFrameVisitor* visitor) const {
   return visitor->VisitPriority(*this);
 }

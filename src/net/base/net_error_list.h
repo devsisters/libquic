@@ -627,6 +627,9 @@ NET_ERROR(HTTP_1_1_REQUIRED, -365)
 // HTTP_1_1_REQUIRED error code received on HTTP/2 session to proxy.
 NET_ERROR(PROXY_HTTP_1_1_REQUIRED, -366)
 
+// The PAC script terminated fatally and must be reloaded.
+NET_ERROR(PAC_SCRIPT_TERMINATED, -367)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 

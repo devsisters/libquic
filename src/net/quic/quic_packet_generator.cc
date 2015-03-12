@@ -118,11 +118,6 @@ void QuicPacketGenerator::SetShouldSendAck(bool also_send_stop_waiting) {
   SendQueuedFrames(false);
 }
 
-void QuicPacketGenerator::SetShouldSendStopWaiting() {
-  should_send_stop_waiting_ = true;
-  SendQueuedFrames(false);
-}
-
 void QuicPacketGenerator::AddControlFrame(const QuicFrame& frame) {
   queued_control_frames_.push_back(frame);
   SendQueuedFrames(false);
@@ -177,12 +172,8 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(
     ++frames_created;
 
     // We want to track which packet this stream frame ends up in.
-    if (FLAGS_quic_attach_ack_notifiers_to_packets) {
-      if (notifier != nullptr) {
-        ack_notifiers_.push_back(notifier);
-      }
-    } else {
-      frame.stream_frame->notifier = notifier;
+    if (notifier != nullptr) {
+      ack_notifiers_.push_back(notifier);
     }
 
     if (!AddFrame(frame)) {
@@ -405,10 +396,8 @@ void QuicPacketGenerator::SerializeAndSendPacket() {
   DCHECK(serialized_packet.packet);
 
   // There may be AckNotifiers interested in this packet.
-  if (FLAGS_quic_attach_ack_notifiers_to_packets) {
-    serialized_packet.notifiers.swap(ack_notifiers_);
-    ack_notifiers_.clear();
-  }
+  serialized_packet.notifiers.swap(ack_notifiers_);
+  ack_notifiers_.clear();
 
   delegate_->OnSerializedPacket(serialized_packet);
   MaybeSendFecPacketAndCloseGroup(/*force=*/false);
@@ -440,7 +429,7 @@ QuicEncryptedPacket* QuicPacketGenerator::SerializeVersionNegotiationPacket(
 }
 
 SerializedPacket QuicPacketGenerator::ReserializeAllFrames(
-    const QuicFrames& frames,
+    const RetransmittableFrames& frames,
     QuicSequenceNumberLength original_length) {
   return packet_creator_.ReserializeAllFrames(frames, original_length);
 }

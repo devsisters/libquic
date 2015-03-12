@@ -98,7 +98,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
   // Caller must ensure that any open FEC group is closed before calling this
   // method.
   SerializedPacket ReserializeAllFrames(
-      const QuicFrames& frames,
+      const RetransmittableFrames& frames,
       QuicSequenceNumberLength original_length);
 
   // Returns true if there are frames pending to be serialized.
@@ -158,12 +158,6 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
   // that value as a member of SerializedPacket.
   SerializedPacket SerializeFec();
 
-  // Creates a packet with connection close frame. Caller owns the created
-  // packet. Also, sets the entropy hash of the serialized packet to a random
-  // bool and returns that value as a member of SerializedPacket.
-  SerializedPacket SerializeConnectionClose(
-      QuicConnectionCloseFrame* close_frame);
-
   // Creates a version negotiation packet which supports |supported_versions|.
   // Caller owns the created  packet. Also, sets the entropy hash of the
   // serialized packet to a random bool and returns that value as a member of
@@ -182,24 +176,12 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
     return sequence_number_;
   }
 
-  void set_sequence_number(QuicPacketSequenceNumber s) {
-    sequence_number_ = s;
-  }
-
   QuicConnectionIdLength connection_id_length() const {
     return connection_id_length_;
   }
 
   void set_connection_id_length(QuicConnectionIdLength length) {
     connection_id_length_ = length;
-  }
-
-  QuicSequenceNumberLength next_sequence_number_length() const {
-    return next_sequence_number_length_;
-  }
-
-  void set_next_sequence_number_length(QuicSequenceNumberLength length) {
-    next_sequence_number_length_ = length;
   }
 
   QuicByteCount max_packet_length() const {
@@ -232,10 +214,6 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
   friend class test::QuicPacketCreatorPeer;
 
   static bool ShouldRetransmit(const QuicFrame& frame);
-
-  // Updates sequence number and max packet lengths on a packet or FEC group
-  // boundary.
-  void MaybeUpdateLengths();
 
   // Updates lengths and also starts an FEC group if FEC protection is on and
   // there is not already an FEC group open.

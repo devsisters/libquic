@@ -158,22 +158,26 @@ class BASE_EXPORT TimeDelta {
     return TimeDelta(-delta_);
   }
 
-  // Computations with ints, note that we only allow multiplicative operations
-  // with ints, and additive operations with other deltas.
-  TimeDelta operator*(int64 a) const {
+  // Computations with numeric types.
+  template<typename T>
+  TimeDelta operator*(T a) const {
     return TimeDelta(delta_ * a);
   }
-  TimeDelta operator/(int64 a) const {
+  template<typename T>
+  TimeDelta operator/(T a) const {
     return TimeDelta(delta_ / a);
   }
-  TimeDelta& operator*=(int64 a) {
+  template<typename T>
+  TimeDelta& operator*=(T a) {
     delta_ *= a;
     return *this;
   }
-  TimeDelta& operator/=(int64 a) {
+  template<typename T>
+  TimeDelta& operator/=(T a) {
     delta_ /= a;
     return *this;
   }
+
   int64 operator/(TimeDelta a) const {
     return delta_ / a.delta_;
   }
@@ -205,7 +209,6 @@ class BASE_EXPORT TimeDelta {
  private:
   friend class Time;
   friend class TimeTicks;
-  friend TimeDelta operator*(int64 a, TimeDelta td);
 
   // Constructs a delta given the duration in microseconds. This is private
   // to avoid confusion by callers with an integer constructor. Use
@@ -217,8 +220,9 @@ class BASE_EXPORT TimeDelta {
   int64 delta_;
 };
 
-inline TimeDelta operator*(int64 a, TimeDelta td) {
-  return TimeDelta(a * td.delta_);
+template<typename T>
+inline TimeDelta operator*(T a, TimeDelta td) {
+  return td * a;
 }
 
 // For logging use only.
@@ -679,6 +683,12 @@ class BASE_EXPORT TimeTicks {
   int64 ToInternalValue() const {
     return ticks_;
   }
+
+  // Returns |this| snapped to the next tick, given a |tick_phase| and
+  // repeating |tick_interval| in both directions. |this| may be before,
+  // after, or equal to the |tick_phase|.
+  TimeTicks SnappedToNextTick(TimeTicks tick_phase,
+                              TimeDelta tick_interval) const;
 
   TimeTicks& operator=(TimeTicks other) {
     ticks_ = other.ticks_;

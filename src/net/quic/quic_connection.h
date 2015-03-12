@@ -387,9 +387,8 @@ class NET_EXPORT_PRIVATE QuicConnection
   void set_visitor(QuicConnectionVisitorInterface* visitor) {
     visitor_ = visitor;
   }
-  // This method takes ownership of |debug_visitor|.
   void set_debug_visitor(QuicConnectionDebugVisitor* debug_visitor) {
-    debug_visitor_.reset(debug_visitor);
+    debug_visitor_ = debug_visitor;
     packet_generator_.set_debug_delegate(debug_visitor);
     sent_packet_manager_.set_debug_delegate(debug_visitor);
   }
@@ -768,8 +767,10 @@ class NET_EXPORT_PRIVATE QuicConnection
   // An alarm that fires when a ping should be sent.
   scoped_ptr<QuicAlarm> ping_alarm_;
 
+  // Neither visitor is owned by this class.
   QuicConnectionVisitorInterface* visitor_;
-  scoped_ptr<QuicConnectionDebugVisitor> debug_visitor_;
+  QuicConnectionDebugVisitor* debug_visitor_;
+
   QuicPacketGenerator packet_generator_;
 
   // An alarm that fires when an FEC packet should be sent.

@@ -59,9 +59,6 @@ const QuicTag k1CON = TAG('1', 'C', 'O', 'N');   // Emulate a single connection
 const QuicTag kNTLP = TAG('N', 'T', 'L', 'P');   // No tail loss probe
 const QuicTag kNCON = TAG('N', 'C', 'O', 'N');   // N Connection Congestion Ctrl
 const QuicTag kNRTO = TAG('N', 'R', 'T', 'O');   // CWND reduction on loss
-
-// Loss detection algorithm types
-const QuicTag kNACK = TAG('N', 'A', 'C', 'K');   // TCP style nack counting
 const QuicTag kTIME = TAG('T', 'I', 'M', 'E');   // Time based
 
 // Optional support of truncated Connection IDs.  If sent by a peer, the value

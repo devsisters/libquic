@@ -77,52 +77,49 @@ bool AeadBaseDecrypter::SetNoncePrefix(StringPiece nonce_prefix) {
 }
 
 bool AeadBaseDecrypter::Decrypt(StringPiece nonce,
-                                StringPiece associated_data,
-                                StringPiece ciphertext,
+                                const StringPiece& associated_data,
+                                const StringPiece& ciphertext,
                                 uint8* output,
-                                size_t* output_length) {
+                                size_t* output_length,
+                                size_t max_output_length) {
   if (ciphertext.length() < auth_tag_size_ ||
       nonce.size() != nonce_prefix_size_ + sizeof(QuicPacketSequenceNumber)) {
     return false;
   }
 
   if (!EVP_AEAD_CTX_open(
-      ctx_.get(), output, output_length, ciphertext.size(),
-      reinterpret_cast<const uint8_t*>(nonce.data()), nonce.size(),
-      reinterpret_cast<const uint8_t*>(ciphertext.data()), ciphertext.size(),
-      reinterpret_cast<const uint8_t*>(associated_data.data()),
-      associated_data.size())) {
+          ctx_.get(), output, output_length, max_output_length,
+          reinterpret_cast<const uint8_t*>(nonce.data()), nonce.size(),
+          reinterpret_cast<const uint8_t*>(ciphertext.data()),
+          ciphertext.size(),
+          reinterpret_cast<const uint8_t*>(associated_data.data()),
+          associated_data.size())) {
     // Because QuicFramer does trial decryption, decryption errors are expected
     // when encryption level changes. So we don't log decryption errors.
     ClearOpenSslErrors();
     return false;
   }
-
   return true;
 }
 
-QuicData* AeadBaseDecrypter::DecryptPacket(
-    QuicPacketSequenceNumber sequence_number,
-    StringPiece associated_data,
-    StringPiece ciphertext) {
+bool AeadBaseDecrypter::DecryptPacket(QuicPacketSequenceNumber sequence_number,
+                                      const StringPiece& associated_data,
+                                      const StringPiece& ciphertext,
+                                      char* output,
+                                      size_t* output_length,
+                                      size_t max_output_length) {
   if (ciphertext.length() < auth_tag_size_) {
-    return nullptr;
+    return false;
   }
-  size_t plaintext_size = ciphertext.length();
-  scoped_ptr<char[]> plaintext(new char[plaintext_size]);
 
   uint8 nonce[sizeof(nonce_prefix_) + sizeof(sequence_number)];
   const size_t nonce_size = nonce_prefix_size_ + sizeof(sequence_number);
   DCHECK_LE(nonce_size, sizeof(nonce));
   memcpy(nonce, nonce_prefix_, nonce_prefix_size_);
   memcpy(nonce + nonce_prefix_size_, &sequence_number, sizeof(sequence_number));
-  if (!Decrypt(StringPiece(reinterpret_cast<char*>(nonce), nonce_size),
-               associated_data, ciphertext,
-               reinterpret_cast<uint8*>(plaintext.get()),
-               &plaintext_size)) {
-    return nullptr;
-  }
-  return new QuicData(plaintext.release(), plaintext_size, true);
+  return Decrypt(StringPiece(reinterpret_cast<char*>(nonce), nonce_size),
+                 associated_data, ciphertext, reinterpret_cast<uint8*>(output),
+                 output_length, max_output_length);
 }
 
 StringPiece AeadBaseDecrypter::GetKey() const {

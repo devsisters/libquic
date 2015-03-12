@@ -114,9 +114,6 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
   // CreateAckFrame() when the packet is serialized.
   void SetShouldSendAck(bool also_send_stop_waiting);
 
-  // Indicates that a STOP_WAITING frame should be sent.
-  void SetShouldSendStopWaiting();
-
   void AddControlFrame(const QuicFrame& frame);
 
   // Given some data, may consume part or all of it and pass it to the
@@ -159,7 +156,7 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
   // Caller must ensure that any open FEC group is closed before calling this
   // method.
   SerializedPacket ReserializeAllFrames(
-      const QuicFrames& frames,
+      const RetransmittableFrames& frames,
       QuicSequenceNumberLength original_length);
 
   // Update the sequence number length to use in future packets as soon as it

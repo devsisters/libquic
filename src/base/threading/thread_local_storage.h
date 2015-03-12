@@ -136,6 +136,7 @@ class BASE_EXPORT ThreadLocalStorage {
     DISALLOW_COPY_AND_ASSIGN(Slot);
   };
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(ThreadLocalStorage);
 };
 

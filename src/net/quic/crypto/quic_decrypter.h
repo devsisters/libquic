@@ -39,15 +39,20 @@ class NET_EXPORT_PRIVATE QuicDecrypter {
   // packet sequence number, even when retransmitting a lost packet.
   virtual bool SetNoncePrefix(base::StringPiece nonce_prefix) = 0;
 
-  // Returns a newly created QuicData object containing the decrypted
-  // |ciphertext| or nullptr if there is an error. |sequence_number| is
+  // Populates |output| with the decrypted |ciphertext| and populates
+  // |output_length| with the length.  Returns 0 if there is an error.
+  // |output| size is specified by |max_output_length| and must be
+  // at least as large as the ciphertext.  |sequence_number| is
   // appended to the |nonce_prefix| value provided in SetNoncePrefix()
   // to form the nonce.
   // TODO(wtc): add a way for DecryptPacket to report decryption failure due
   // to non-authentic inputs, as opposed to other reasons for failure.
-  virtual QuicData* DecryptPacket(QuicPacketSequenceNumber sequence_number,
-                                  base::StringPiece associated_data,
-                                  base::StringPiece ciphertext) = 0;
+  virtual bool DecryptPacket(QuicPacketSequenceNumber sequence_number,
+                             const base::StringPiece& associated_data,
+                             const base::StringPiece& ciphertext,
+                             char* output,
+                             size_t* output_length,
+                             size_t max_output_length) = 0;
 
   // For use by unit tests only.
   virtual base::StringPiece GetKey() const = 0;

@@ -19,7 +19,7 @@ namespace net {
 
 class NET_EXPORT_PRIVATE Cubic {
  public:
-  Cubic(const QuicClock* clock, QuicConnectionStats* stats);
+  explicit Cubic(const QuicClock* clock);
 
   void SetNumConnections(int num_connections);
 
@@ -48,9 +48,6 @@ class NET_EXPORT_PRIVATE Cubic {
   float Alpha() const;
   float Beta() const;
 
-  // Update congestion control variables in QuicConnectionStats.
-  void UpdateCongestionControlStats(QuicPacketCount new_cubic_mode_cwnd,
-                                    QuicPacketCount new_reno_mode_cwnd);
   const QuicClock* clock_;
 
   // Number of connections to simulate.
@@ -84,9 +81,6 @@ class NET_EXPORT_PRIVATE Cubic {
 
   // Last congestion window in packets computed by cubic function.
   QuicPacketCount last_target_congestion_window_;
-
-  // QuicConnectionStats includes congestion control related stats.
-  QuicConnectionStats* stats_;
 
   DISALLOW_COPY_AND_ASSIGN(Cubic);
 };

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_SAFE_CONVERSIONS_H_
-#define BASE_SAFE_CONVERSIONS_H_
+#ifndef BASE_NUMERICS_SAFE_CONVERSIONS_H_
+#define BASE_NUMERICS_SAFE_CONVERSIONS_H_
 
 #include <limits>
 
@@ -60,5 +60,4 @@ inline Dst saturated_cast(Src value) {
 
 }  // namespace base
 
-#endif  // BASE_SAFE_CONVERSIONS_H_
-
+#endif  // BASE_NUMERICS_SAFE_CONVERSIONS_H_

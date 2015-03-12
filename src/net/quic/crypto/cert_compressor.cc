@@ -195,10 +195,10 @@ vector<CertEntry> MatchCerts(const vector<string>& certs,
 
       uint64 hash = QuicUtils::FNV1a_64_Hash(i->data(), i->size());
       // This assumes that the machine is little-endian.
-      for (size_t i = 0; i < client_cached_cert_hashes.size();
-           i += sizeof(uint64)) {
+      for (size_t j = 0; j < client_cached_cert_hashes.size();
+           j += sizeof(uint64)) {
         uint64 cached_hash;
-        memcpy(&cached_hash, client_cached_cert_hashes.data() + i,
+        memcpy(&cached_hash, client_cached_cert_hashes.data() + j,
                sizeof(uint64));
         if (hash != cached_hash) {
           continue;

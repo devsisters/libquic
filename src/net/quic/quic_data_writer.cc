@@ -16,22 +16,15 @@ using std::numeric_limits;
 
 namespace net {
 
-QuicDataWriter::QuicDataWriter(size_t size)
-    : buffer_(new char[size]),
-      capacity_(size),
-      length_(0) {
+QuicDataWriter::QuicDataWriter(size_t size, char* buffer)
+    : buffer_(buffer), capacity_(size), length_(0) {
 }
 
 QuicDataWriter::~QuicDataWriter() {
-  delete[] buffer_;
 }
 
-char* QuicDataWriter::take() {
-  char* rv = buffer_;
-  buffer_ = nullptr;
-  capacity_ = 0;
-  length_ = 0;
-  return rv;
+char* QuicDataWriter::data() {
+  return buffer_;
 }
 
 bool QuicDataWriter::WriteUInt8(uint8 value) {
@@ -166,37 +159,5 @@ void QuicDataWriter::WritePadding() {
   length_ = capacity_;
 }
 
-bool QuicDataWriter::WriteUInt8ToOffset(uint8 value, size_t offset) {
-  if (offset >= capacity_) {
-    LOG(DFATAL) << "offset: " << offset << " >= capacity: " << capacity_;
-    return false;
-  }
-  size_t latched_length = length_;
-  length_ = offset;
-  bool success = WriteUInt8(value);
-  DCHECK_LE(length_, latched_length);
-  length_ = latched_length;
-  return success;
-}
-
-bool QuicDataWriter::WriteUInt32ToOffset(uint32 value, size_t offset) {
-  DCHECK_LT(offset, capacity_);
-  size_t latched_length = length_;
-  length_ = offset;
-  bool success = WriteUInt32(value);
-  DCHECK_LE(length_, latched_length);
-  length_ = latched_length;
-  return success;
-}
-
-bool QuicDataWriter::WriteUInt48ToOffset(uint64 value, size_t offset) {
-  DCHECK_LT(offset, capacity_);
-  size_t latched_length = length_;
-  length_ = offset;
-  bool success = WriteUInt48(value);
-  DCHECK_LE(length_, latched_length);
-  length_ = latched_length;
-  return success;
-}
 
 }  // namespace net

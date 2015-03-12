@@ -31,12 +31,10 @@ class TcpCubicSenderPeer;
 
 class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
  public:
-  // Reno option and max_tcp_congestion_window are provided for testing.
   TcpCubicSender(const QuicClock* clock,
                  const RttStats* rtt_stats,
                  bool reno,
                  QuicPacketCount initial_tcp_congestion_window,
-                 QuicPacketCount max_tcp_congestion_window,
                  QuicConnectionStats* stats);
   ~TcpCubicSender() override;
 
@@ -57,7 +55,6 @@ class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
                     QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable) override;
   void OnRetransmissionTimeout(bool packets_retransmitted) override;
-  void RevertRetransmissionTimeout() override;
   QuicTime::Delta TimeUntilSend(
       QuicTime now,
       QuicByteCount bytes_in_flight,
@@ -103,7 +100,7 @@ class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
   uint32 num_connections_;
 
   // ACK counter for the Reno implementation.
-  uint64 congestion_window_count_;
+  uint64 num_acked_packets_;
 
   // Track the largest packet that has been sent.
   QuicPacketSequenceNumber largest_sent_sequence_number_;
@@ -117,22 +114,12 @@ class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
   // Congestion window in packets.
   QuicPacketCount congestion_window_;
 
-  // Congestion window before the last RTO.
-  // Must be 0 before or after RTO recovery.
-  QuicPacketCount previous_congestion_window_;
-
   // Slow start congestion window in packets, aka ssthresh.
   QuicPacketCount slowstart_threshold_;
-
-  // Slow start threshold before the last loss event or RTO.
-  QuicPacketCount previous_slowstart_threshold_;
 
   // Whether the last loss event caused us to exit slowstart.
   // Used for stats collection of slowstart_packets_lost
   bool last_cutback_exited_slowstart_;
-
-  // Maximum number of outstanding packets for tcp.
-  QuicPacketCount max_tcp_congestion_window_;
 
   const QuicClock* clock_;
 

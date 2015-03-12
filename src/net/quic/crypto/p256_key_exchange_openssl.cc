@@ -84,14 +84,14 @@ bool P256KeyExchange::CalculateSharedKey(const StringPiece& peer_public_value,
     return false;
   }
 
-  crypto::ScopedOpenSSL<EC_POINT, EC_POINT_free>::Type point(
+  crypto::ScopedEC_POINT point(
       EC_POINT_new(EC_KEY_get0_group(private_key_.get())));
-  if (!point.get() ||
-      !EC_POINT_oct2point( /* also test if point is on curve */
-          EC_KEY_get0_group(private_key_.get()),
-          point.get(),
-          reinterpret_cast<const uint8*>(peer_public_value.data()),
-          peer_public_value.size(), nullptr)) {
+  if (!point ||
+      !EC_POINT_oct2point(/* also test if point is on curve */
+                          EC_KEY_get0_group(private_key_.get()), point.get(),
+                          reinterpret_cast<const uint8*>(
+                              peer_public_value.data()),
+                          peer_public_value.size(), nullptr)) {
     DVLOG(1) << "Can't convert peer public value to curve point.";
     return false;
   }

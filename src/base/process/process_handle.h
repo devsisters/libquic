@@ -40,26 +40,11 @@ BASE_EXPORT ProcessId GetCurrentProcId();
 // Returns the ProcessHandle of the current process.
 BASE_EXPORT ProcessHandle GetCurrentProcessHandle();
 
-
-
 // Returns the unique ID for the specified process. This is functionally the
 // same as Windows' GetProcessId(), but works on versions of Windows before
 // Win XP SP1 as well.
+// DEPRECATED. New code should be using Process::Pid() instead.
 BASE_EXPORT ProcessId GetProcId(ProcessHandle process);
-
-#if defined(OS_WIN)
-enum IntegrityLevel {
-  INTEGRITY_UNKNOWN,
-  LOW_INTEGRITY,
-  MEDIUM_INTEGRITY,
-  HIGH_INTEGRITY,
-};
-// Determine the integrity level of the specified process. Returns false
-// if the system does not support integrity levels (pre-Vista) or in the case
-// of an underlying system failure.
-BASE_EXPORT bool GetProcessIntegrityLevel(ProcessHandle process,
-                                          IntegrityLevel* level);
-#endif
 
 #if defined(OS_POSIX)
 // Returns the path to the executable of the given process.

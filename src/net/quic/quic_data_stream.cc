@@ -26,14 +26,11 @@ QuicPriority kDefaultPriority = 3;
 
 }  // namespace
 
-QuicDataStream::QuicDataStream(QuicStreamId id,
-                               QuicSession* session)
+QuicDataStream::QuicDataStream(QuicStreamId id, QuicSession* session)
     : ReliableQuicStream(id, session),
       visitor_(nullptr),
       headers_decompressed_(false),
-      priority_(kDefaultPriority),
-      decompression_failed_(false),
-      priority_parsed_(false) {
+      priority_(kDefaultPriority) {
   DCHECK_NE(kCryptoStreamId, id);
   // Don't receive any callbacks from the sequencer until headers
   // are complete.

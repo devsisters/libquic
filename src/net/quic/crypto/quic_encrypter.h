@@ -53,9 +53,12 @@ class NET_EXPORT_PRIVATE QuicEncrypter {
   // |plaintext| as well as a MAC over both |plaintext| and |associated_data|,
   // or nullptr if there is an error. |sequence_number| is appended to the
   // |nonce_prefix| value provided in SetNoncePrefix() to form the nonce.
-  virtual QuicData* EncryptPacket(QuicPacketSequenceNumber sequence_number,
-                                  base::StringPiece associated_data,
-                                  base::StringPiece plaintext) = 0;
+  virtual bool EncryptPacket(QuicPacketSequenceNumber sequence_number,
+                             base::StringPiece associated_data,
+                             base::StringPiece plaintext,
+                             char* output,
+                             size_t* output_length,
+                             size_t max_output_length) = 0;
 
   // GetKeySize() and GetNoncePrefixSize() tell the HKDF class how many bytes
   // of key material needs to be derived from the master secret.

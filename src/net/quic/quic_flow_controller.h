@@ -56,12 +56,6 @@ class NET_EXPORT_PRIVATE QuicFlowController {
   // Send a BLOCKED frame if appropriate.
   void MaybeSendBlocked();
 
-  // Disable flow control.
-  void Disable();
-
-  // Returns true if flow control is enabled.
-  bool IsEnabled() const;
-
   // Returns true if flow control send limits have been reached.
   bool IsBlocked() const;
 
@@ -88,9 +82,6 @@ class NET_EXPORT_PRIVATE QuicFlowController {
   // ID of stream this flow controller belongs to. This can be 0 if this is a
   // connection level flow controller.
   QuicStreamId id_;
-
-  // True if flow control is enabled.
-  bool is_enabled_;
 
   // True if this is owned by a server.
   bool is_server_;

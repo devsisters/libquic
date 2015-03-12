@@ -7,7 +7,6 @@
 #include "base/lazy_instance.h"
 #include "base/memory/scoped_ptr.h"
 #if 0
-#include "base/metrics/stats_counters.h"
 #include "base/third_party/valgrind/memcheck.h"
 #endif
 #include "net/spdy/spdy_frame_builder.h"
@@ -156,14 +155,14 @@ bool SpdyFramerVisitorInterface::OnRstStreamFrameData(
 
 SpdyFramer::SpdyFramer(SpdyMajorVersion version)
     : current_frame_buffer_(new char[kControlFrameBufferSize]),
-      enable_compression_(true),
+      expect_continuation_(0),
       visitor_(NULL),
       debug_visitor_(NULL),
       display_protocol_("SPDY"),
       protocol_version_(version),
+      enable_compression_(true),
       syn_frame_processed_(false),
       probable_http_response_(false),
-      expect_continuation_(0),
       end_stream_when_done_(false) {
   DCHECK_GE(protocol_version_, SPDY_MIN_VERSION);
   DCHECK_LE(protocol_version_, SPDY_MAX_VERSION);
@@ -1425,8 +1424,8 @@ size_t SpdyFramer::ProcessControlFrameBeforeHeaderBlock(const char* data,
             priority = priority >> 5;
           }
 
-         // Seek past unused byte; used to be credential slot in SPDY 3.
-         reader.Seek(1);
+          // Seek past unused byte; used to be credential slot in SPDY 3.
+          reader.Seek(1);
 
           DCHECK(reader.IsDoneReading());
           if (debug_visitor_) {
@@ -2971,7 +2970,9 @@ size_t SpdyFramer::GetNumberRequiredContinuationFrames(size_t size) {
   DCHECK_GT(protocol_version(), SPDY3);
   DCHECK_GT(size, kMaxControlFrameSize);
   size_t overflow = size - kMaxControlFrameSize;
-  return overflow / (kMaxControlFrameSize - GetContinuationMinimumSize()) + 1;
+  size_t payload_size = kMaxControlFrameSize - GetContinuationMinimumSize();
+  // This is ceiling(overflow/payload_size) using integer arithmetics.
+  return (overflow - 1) / payload_size + 1;
 }
 
 void SpdyFramer::WritePayloadWithContinuation(SpdyFrameBuilder* builder,
@@ -3248,13 +3249,6 @@ void SpdyFramer::SerializeNameValueBlock(
     LOG(DFATAL) << "Could not obtain compressor.";
     return;
   }
-
-#if 0
-  base::StatsCounter compressed_frames("spdy.CompressedFrames");
-  base::StatsCounter pre_compress_bytes("spdy.PreCompressSize");
-  base::StatsCounter post_compress_bytes("spdy.PostCompressSize");
-#endif
-
   // Create an output frame.
   // Since we'll be performing lots of flushes when compressing the data,
   // zlib's lower bounds may be insufficient.
@@ -3291,13 +3285,6 @@ void SpdyFramer::SerializeNameValueBlock(
   int compressed_size = compressed_max_size - compressor->avail_out;
   builder->Seek(compressed_size);
   builder->RewriteLength(*this);
-
-#if 0
-  pre_compress_bytes.Add(uncompressed_len);
-  post_compress_bytes.Add(compressed_size);
-
-  compressed_frames.Increment();
-#endif
 }
 
 }  // namespace net

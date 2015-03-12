@@ -46,9 +46,12 @@ class NET_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
                base::StringPiece associated_data,
                base::StringPiece plaintext,
                unsigned char* output) override;
-  QuicData* EncryptPacket(QuicPacketSequenceNumber sequence_number,
-                          base::StringPiece associated_data,
-                          base::StringPiece plaintext) override;
+  bool EncryptPacket(QuicPacketSequenceNumber sequence_number,
+                     base::StringPiece associated_data,
+                     base::StringPiece plaintext,
+                     char* output,
+                     size_t* output_length,
+                     size_t max_output_length) override;
   size_t GetKeySize() const override;
   size_t GetNoncePrefixSize() const override;
   size_t GetMaxPlaintextSize(size_t ciphertext_size) const override;

@@ -85,7 +85,6 @@ class NET_EXPORT_PRIVATE CryptoHandshakeMessage {
   QuicErrorCode GetNthValue24(QuicTag tag,
                               unsigned index,
                               base::StringPiece* out) const;
-  QuicErrorCode GetUint16(QuicTag tag, uint16* out) const;
   QuicErrorCode GetUint32(QuicTag tag, uint32* out) const;
   QuicErrorCode GetUint64(QuicTag tag, uint64* out) const;
 

@@ -13,7 +13,6 @@
 #include "net/quic/crypto/crypto_protocol.h"
 #include "net/quic/quic_connection_stats.h"
 
-using std::make_pair;
 using std::max;
 using std::min;
 using std::numeric_limits;
@@ -81,13 +80,13 @@ void QuicReceivedPacketManager::EntropyTracker::RecordPacketEntropyHash(
   if (sequence_number > largest_observed_) {
     for (QuicPacketSequenceNumber i = 0;
          i < (sequence_number - largest_observed_ - 1); ++i) {
-      packets_entropy_.push_back(make_pair(0, false));
+      packets_entropy_.push_back(std::make_pair(0, false));
     }
-    packets_entropy_.push_back(make_pair(entropy_hash, true));
+    packets_entropy_.push_back(std::make_pair(entropy_hash, true));
     largest_observed_ = sequence_number;
   } else {
     packets_entropy_[sequence_number - first_gap_] =
-        make_pair(entropy_hash, true);
+        std::make_pair(entropy_hash, true);
     AdvanceFirstGapAndGarbageCollectEntropyMap();
   }
 

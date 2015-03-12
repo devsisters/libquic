@@ -2,7 +2,7 @@ diff --git a/src/net/quic/quic_sent_packet_manager.cc b/src/net/quic/quic_sent_p
 index c1811cf..b71b8ef 100644
 --- a/src/net/quic/quic_sent_packet_manager.cc
 +++ b/src/net/quic/quic_sent_packet_manager.cc
-@@ -696,7 +696,7 @@ bool QuicSentPacketManager::MaybeRetransmitTailLossProbe() {
+@@ -664,7 +664,7 @@ bool QuicSentPacketManager::MaybeRetransmitTailLossProbe() {
      MarkForRetransmission(sequence_number, TLP_RETRANSMISSION);
      return true;
    }

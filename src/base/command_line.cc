@@ -187,7 +187,7 @@ CommandLine::~CommandLine() {
 // static
 void CommandLine::set_slash_is_not_a_switch() {
   // The last switch prefix should be slash, so adjust the size to skip it.
-  DCHECK(wcscmp(kSwitchPrefixes[arraysize(kSwitchPrefixes) - 1], L"/") == 0);
+  DCHECK_EQ(wcscmp(kSwitchPrefixes[arraysize(kSwitchPrefixes) - 1], L"/"), 0);
   switch_prefix_count = arraysize(kSwitchPrefixes) - 1;
 }
 #endif

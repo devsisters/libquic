@@ -11,7 +11,7 @@
 
 # START #
 {
-    "chromium_revision": "a5b3eb75b80954fdb346d194419cd47f2ad6b9811",
+    "chromium_revision": "b55be9ede35c10a2623c3c348768db92069d7f10",
     "automatic_dependency": [
         {
             "from": "net/quic/quic_connection.cc",
