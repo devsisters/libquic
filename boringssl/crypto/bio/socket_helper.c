@@ -18,15 +18,17 @@
 #include <openssl/err.h>
 
 #include <fcntl.h>
+#include <string.h>
 #include <sys/types.h>
 
 #if !defined(OPENSSL_WINDOWS)
 #include <netdb.h>
 #include <unistd.h>
 #else
+#pragma warning(push, 3)
 #include <WinSock2.h>
 #include <WS2tcpip.h>
-typedef int socklen_t;
+#pragma warning(pop)
 #endif
 
 #include "internal.h"

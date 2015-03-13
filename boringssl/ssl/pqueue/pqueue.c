@@ -56,6 +56,9 @@
 
 #include <openssl/pqueue.h>
 
+#include <assert.h>
+#include <string.h>
+
 #include <openssl/mem.h>
 
 
@@ -102,6 +105,8 @@ void pqueue_free(pqueue_s *pq) {
     return;
   }
 
+  /* The queue must be empty. */
+  assert(pq->items == NULL);
   OPENSSL_free(pq);
 }
 

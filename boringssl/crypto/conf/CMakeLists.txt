@@ -1,10 +1,9 @@
 include_directories(. .. ../../include)
 
 add_library(
-	conf
+  conf
 
-	OBJECT
+  OBJECT
 
-	conf.c
-	conf_error.c
+  conf.c
 )

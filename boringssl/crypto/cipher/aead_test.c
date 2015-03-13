@@ -18,7 +18,9 @@
 #include <string.h>
 
 #include <openssl/aead.h>
+#include <openssl/bio.h>
 #include <openssl/crypto.h>
+#include <openssl/err.h>
 
 /* This program tests an AEAD against a series of test vectors from a file. The
  * test vector file consists of key-value lines where the key and value are
@@ -49,11 +51,14 @@ enum {
   CT,      /* hex encoded ciphertext (not including the authenticator,
               which is next). */
   TAG,     /* hex encoded authenticator. */
+  NO_SEAL, /* non-zero length if seal(IN) is not expected to be CT+TAG,
+              however open(CT+TAG) should still be IN. */
+  FAILS,   /* non-zero length if open(CT+TAG) is expected to fail. */
   NUM_TYPES,
 };
 
-static const char NAMES[6][NUM_TYPES] = {
-    "KEY", "NONCE", "IN", "AD", "CT", "TAG",
+static const char NAMES[8][NUM_TYPES] = {
+  "KEY", "NONCE", "IN", "AD", "CT", "TAG", "NO_SEAL", "FAILS",
 };
 
 static unsigned char hex_digit(char h) {
@@ -69,79 +74,119 @@ static unsigned char hex_digit(char h) {
 }
 
 static int run_test_case(const EVP_AEAD *aead,
-                         unsigned char bufs[NUM_TYPES][BUF_MAX],
+                         uint8_t bufs[NUM_TYPES][BUF_MAX],
                          const unsigned int lengths[NUM_TYPES],
                          unsigned int line_no) {
   EVP_AEAD_CTX ctx;
   size_t ciphertext_len, plaintext_len;
-  unsigned char out[BUF_MAX + EVP_AEAD_MAX_OVERHEAD], out2[BUF_MAX];
+  uint8_t out[BUF_MAX + EVP_AEAD_MAX_OVERHEAD + 1];
+  /* Note: When calling |EVP_AEAD_CTX_open|, the "stateful" AEADs require
+   * |max_out| be at least |in_len| despite the final output always being
+   * smaller by at least tag length. */
+  uint8_t out2[sizeof(out)];
 
-  if (!EVP_AEAD_CTX_init(&ctx, aead, bufs[KEY], lengths[KEY], lengths[TAG],
-                         NULL)) {
+  if (!EVP_AEAD_CTX_init_with_direction(&ctx, aead, bufs[KEY], lengths[KEY],
+                                        lengths[TAG], evp_aead_seal)) {
     fprintf(stderr, "Failed to init AEAD on line %u\n", line_no);
     return 0;
   }
 
-  if (!EVP_AEAD_CTX_seal(&ctx, out, &ciphertext_len, sizeof(out), bufs[NONCE],
-                         lengths[NONCE], bufs[IN], lengths[IN], bufs[AD],
-                         lengths[AD])) {
-    fprintf(stderr, "Failed to run AEAD on line %u\n", line_no);
-    return 0;
-  }
+  if (!lengths[NO_SEAL]) {
+    if (!EVP_AEAD_CTX_seal(&ctx, out, &ciphertext_len, sizeof(out), bufs[NONCE],
+                           lengths[NONCE], bufs[IN], lengths[IN], bufs[AD],
+                           lengths[AD])) {
+      fprintf(stderr, "Failed to run AEAD on line %u\n", line_no);
+      return 0;
+    }
 
-  if (ciphertext_len != lengths[CT] + lengths[TAG]) {
-    fprintf(stderr, "Bad output length on line %u: %u vs %u\n", line_no,
-            (unsigned)ciphertext_len, (unsigned)(lengths[CT] + lengths[TAG]));
-    return 0;
-  }
+    if (ciphertext_len != lengths[CT] + lengths[TAG]) {
+      fprintf(stderr, "Bad output length on line %u: %u vs %u\n", line_no,
+              (unsigned)ciphertext_len, (unsigned)(lengths[CT] + lengths[TAG]));
+      return 0;
+    }
 
-  if (memcmp(out, bufs[CT], lengths[CT]) != 0) {
-    fprintf(stderr, "Bad output on line %u\n", line_no);
-    return 0;
-  }
+    if (memcmp(out, bufs[CT], lengths[CT]) != 0) {
+      fprintf(stderr, "Bad output on line %u\n", line_no);
+      return 0;
+    }
 
-  if (memcmp(out + lengths[CT], bufs[TAG], lengths[TAG]) != 0) {
-    fprintf(stderr, "Bad tag on line %u\n", line_no);
-    return 0;
+    if (memcmp(out + lengths[CT], bufs[TAG], lengths[TAG]) != 0) {
+      fprintf(stderr, "Bad tag on line %u\n", line_no);
+      return 0;
+    }
+  } else {
+    memcpy(out, bufs[CT], lengths[CT]);
+    memcpy(out + lengths[CT], bufs[TAG], lengths[TAG]);
+    ciphertext_len = lengths[CT] + lengths[TAG];
   }
 
   /* The "stateful" AEADs for implementing pre-AEAD cipher suites need to be
    * reset after each operation. */
   EVP_AEAD_CTX_cleanup(&ctx);
-  if (!EVP_AEAD_CTX_init(&ctx, aead, bufs[KEY], lengths[KEY], lengths[TAG],
-                         NULL)) {
+  if (!EVP_AEAD_CTX_init_with_direction(&ctx, aead, bufs[KEY], lengths[KEY],
+                                        lengths[TAG], evp_aead_open)) {
     fprintf(stderr, "Failed to init AEAD on line %u\n", line_no);
     return 0;
   }
 
-  if (!EVP_AEAD_CTX_open(&ctx, out2, &plaintext_len, lengths[IN], bufs[NONCE],
-                         lengths[NONCE], out, ciphertext_len, bufs[AD],
-                         lengths[AD])) {
-    fprintf(stderr, "Failed to decrypt on line %u\n", line_no);
-    return 0;
-  }
+  int ret = EVP_AEAD_CTX_open(&ctx, out2, &plaintext_len, sizeof(out2),
+                              bufs[NONCE], lengths[NONCE], out, ciphertext_len,
+                              bufs[AD], lengths[AD]);
+  if (lengths[FAILS]) {
+    if (ret) {
+      fprintf(stderr, "Decrypted bad data on line %u\n", line_no);
+      return 0;
+    }
+    ERR_clear_error();
+  } else {
+    if (!ret) {
+      fprintf(stderr, "Failed to decrypt on line %u\n", line_no);
+      return 0;
+    }
 
-  if (plaintext_len != lengths[IN]) {
-    fprintf(stderr, "Bad decrypt on line %u: %u\n", line_no,
-            (unsigned)ciphertext_len);
-    return 0;
-  }
+    if (plaintext_len != lengths[IN]) {
+      fprintf(stderr, "Bad decrypt on line %u: %u\n", line_no,
+              (unsigned)ciphertext_len);
+      return 0;
+    }
 
-  /* The "stateful" AEADs for implementing pre-AEAD cipher suites need to be
-   * reset after each operation. */
-  EVP_AEAD_CTX_cleanup(&ctx);
-  if (!EVP_AEAD_CTX_init(&ctx, aead, bufs[KEY], lengths[KEY], lengths[TAG],
-                         NULL)) {
-    fprintf(stderr, "Failed to init AEAD on line %u\n", line_no);
-    return 0;
-  }
+    /* The "stateful" AEADs for implementing pre-AEAD cipher suites need to be
+     * reset after each operation. */
+    EVP_AEAD_CTX_cleanup(&ctx);
+    if (!EVP_AEAD_CTX_init_with_direction(&ctx, aead, bufs[KEY], lengths[KEY],
+                                          lengths[TAG], evp_aead_open)) {
+      fprintf(stderr, "Failed to init AEAD on line %u\n", line_no);
+      return 0;
+    }
 
-  out[0] ^= 0x80;
-  if (EVP_AEAD_CTX_open(&ctx, out2, &plaintext_len, lengths[IN], bufs[NONCE],
-                        lengths[NONCE], out, ciphertext_len, bufs[AD],
-                        lengths[AD])) {
-    fprintf(stderr, "Decrypted bad data on line %u\n", line_no);
-    return 0;
+    /* Garbage at the end isn't ignored. */
+    out[ciphertext_len] = 0;
+    if (EVP_AEAD_CTX_open(&ctx, out2, &plaintext_len, sizeof(out2),
+                          bufs[NONCE], lengths[NONCE], out, ciphertext_len + 1,
+                          bufs[AD], lengths[AD])) {
+      fprintf(stderr, "Decrypted bad data on line %u\n", line_no);
+      return 0;
+    }
+    ERR_clear_error();
+
+    /* The "stateful" AEADs for implementing pre-AEAD cipher suites need to be
+     * reset after each operation. */
+    EVP_AEAD_CTX_cleanup(&ctx);
+    if (!EVP_AEAD_CTX_init_with_direction(&ctx, aead, bufs[KEY], lengths[KEY],
+                                          lengths[TAG], evp_aead_open)) {
+      fprintf(stderr, "Failed to init AEAD on line %u\n", line_no);
+      return 0;
+    }
+
+    /* Verify integrity is checked. */
+    out[0] ^= 0x80;
+    if (EVP_AEAD_CTX_open(&ctx, out2, &plaintext_len, sizeof(out2), bufs[NONCE],
+                          lengths[NONCE], out, ciphertext_len, bufs[AD],
+                          lengths[AD])) {
+      fprintf(stderr, "Decrypted bad data on line %u\n", line_no);
+      return 0;
+    }
+    ERR_clear_error();
   }
 
   EVP_AEAD_CTX_cleanup(&ctx);
@@ -157,6 +202,7 @@ int main(int argc, char **argv) {
   unsigned int lengths[NUM_TYPES];
 
   CRYPTO_library_init();
+  ERR_load_crypto_strings();
 
   if (argc != 3) {
     fprintf(stderr, "%s <aead> <test file.txt>\n", argv[0]);
@@ -169,8 +215,38 @@ int main(int argc, char **argv) {
     aead = EVP_aead_aes_256_gcm();
   } else if (strcmp(argv[1], "chacha20-poly1305") == 0) {
     aead = EVP_aead_chacha20_poly1305();
-  } else if (strcmp(argv[1], "rc4-md5") == 0) {
+  } else if (strcmp(argv[1], "rc4-md5-tls") == 0) {
     aead = EVP_aead_rc4_md5_tls();
+  } else if (strcmp(argv[1], "rc4-sha1-tls") == 0) {
+    aead = EVP_aead_rc4_sha1_tls();
+  } else if (strcmp(argv[1], "aes-128-cbc-sha1-tls") == 0) {
+    aead = EVP_aead_aes_128_cbc_sha1_tls();
+  } else if (strcmp(argv[1], "aes-128-cbc-sha1-tls-implicit-iv") == 0) {
+    aead = EVP_aead_aes_128_cbc_sha1_tls_implicit_iv();
+  } else if (strcmp(argv[1], "aes-128-cbc-sha256-tls") == 0) {
+    aead = EVP_aead_aes_128_cbc_sha256_tls();
+  } else if (strcmp(argv[1], "aes-256-cbc-sha1-tls") == 0) {
+    aead = EVP_aead_aes_256_cbc_sha1_tls();
+  } else if (strcmp(argv[1], "aes-256-cbc-sha1-tls-implicit-iv") == 0) {
+    aead = EVP_aead_aes_256_cbc_sha1_tls_implicit_iv();
+  } else if (strcmp(argv[1], "aes-256-cbc-sha256-tls") == 0) {
+    aead = EVP_aead_aes_256_cbc_sha256_tls();
+  } else if (strcmp(argv[1], "aes-256-cbc-sha384-tls") == 0) {
+    aead = EVP_aead_aes_256_cbc_sha384_tls();
+  } else if (strcmp(argv[1], "des-ede3-cbc-sha1-tls") == 0) {
+    aead = EVP_aead_des_ede3_cbc_sha1_tls();
+  } else if (strcmp(argv[1], "des-ede3-cbc-sha1-tls-implicit-iv") == 0) {
+    aead = EVP_aead_des_ede3_cbc_sha1_tls_implicit_iv();
+  } else if (strcmp(argv[1], "rc4-md5-ssl3") == 0) {
+    aead = EVP_aead_rc4_md5_ssl3();
+  } else if (strcmp(argv[1], "rc4-sha1-ssl3") == 0) {
+    aead = EVP_aead_rc4_sha1_ssl3();
+  } else if (strcmp(argv[1], "aes-128-cbc-sha1-ssl3") == 0) {
+    aead = EVP_aead_aes_128_cbc_sha1_ssl3();
+  } else if (strcmp(argv[1], "aes-256-cbc-sha1-ssl3") == 0) {
+    aead = EVP_aead_aes_256_cbc_sha1_ssl3();
+  } else if (strcmp(argv[1], "des-ede3-cbc-sha1-ssl3") == 0) {
+    aead = EVP_aead_des_ede3_cbc_sha1_ssl3();
   } else if (strcmp(argv[1], "aes-128-key-wrap") == 0) {
     aead = EVP_aead_aes_128_key_wrap();
   } else if (strcmp(argv[1], "aes-256-key-wrap") == 0) {
@@ -218,6 +294,7 @@ int main(int argc, char **argv) {
 
       if (any_values_set) {
         if (!run_test_case(aead, bufs, lengths, line_no)) {
+          BIO_print_errors_fp(stderr);
           return 4;
         }
 

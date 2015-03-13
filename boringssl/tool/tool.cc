@@ -18,43 +18,115 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
+#if defined(OPENSSL_WINDOWS)
+#include <fcntl.h>
+#include <io.h>
+#else
+#include <libgen.h>
+#endif
 
-#if !defined(OPENSSL_WINDOWS)
+
 bool Client(const std::vector<std::string> &args);
 bool Server(const std::vector<std::string> &args);
-#endif
+bool MD5Sum(const std::vector<std::string> &args);
+bool SHA1Sum(const std::vector<std::string> &args);
+bool SHA224Sum(const std::vector<std::string> &args);
+bool SHA256Sum(const std::vector<std::string> &args);
+bool SHA384Sum(const std::vector<std::string> &args);
+bool SHA512Sum(const std::vector<std::string> &args);
 bool DoPKCS12(const std::vector<std::string> &args);
 bool Speed(const std::vector<std::string> &args);
 
+typedef bool (*tool_func_t)(const std::vector<std::string> &args);
+
+struct Tool {
+  char name[16];
+  tool_func_t func;
+};
+
+static const Tool kTools[] = {
+  { "speed", Speed },
+  { "pkcs12", DoPKCS12 },
+  { "client", Client },
+  { "s_client", Client },
+  { "server", Server },
+  { "s_server", Server },
+  { "md5sum", MD5Sum },
+  { "sha1sum", SHA1Sum },
+  { "sha224sum", SHA224Sum },
+  { "sha256sum", SHA256Sum },
+  { "sha384sum", SHA384Sum },
+  { "sha512sum", SHA512Sum },
+  { "", nullptr },
+};
+
 static void usage(const char *name) {
-  printf("Usage: %s [speed|client|server|pkcs12]\n", name);
+  printf("Usage: %s [", name);
+
+  for (size_t i = 0;; i++) {
+    const Tool &tool = kTools[i];
+    if (tool.func == nullptr) {
+      break;
+    }
+    if (i > 0) {
+      printf("|");
+    }
+    printf("%s", tool.name);
+  }
+  printf("]\n");
+}
+
+tool_func_t FindTool(const std::string &name) {
+  for (size_t i = 0;; i++) {
+    const Tool &tool = kTools[i];
+    if (tool.func == nullptr || name == tool.name) {
+      return tool.func;
+    }
+  }
 }
 
 int main(int argc, char **argv) {
-  std::string tool;
-  if (argc >= 2) {
-    tool = argv[1];
+#if defined(OPENSSL_WINDOWS)
+  // Read and write in binary mode. This makes bssl on Windows consistent with
+  // bssl on other platforms, and also makes it consistent with MSYS's commands
+  // like diff(1) and md5sum(1). This is especially important for the digest
+  // commands.
+  if (_setmode(_fileno(stdin), _O_BINARY) == -1) {
+    perror("_setmode(_fileno(stdin), O_BINARY)");
+    return 1;
   }
+  if (_setmode(_fileno(stdout), _O_BINARY) == -1) {
+    perror("_setmode(_fileno(stdout), O_BINARY)");
+    return 1;
+  }
+  if (_setmode(_fileno(stderr), _O_BINARY) == -1) {
+    perror("_setmode(_fileno(stderr), O_BINARY)");
+    return 1;
+  }
+#endif
 
   SSL_library_init();
 
-  std::vector<std::string> args;
-  for (int i = 2; i < argc; i++) {
-    args.push_back(argv[i]);
-  }
-
-  if (tool == "speed") {
-    return !Speed(args);
+  int starting_arg = 1;
+  tool_func_t tool = nullptr;
 #if !defined(OPENSSL_WINDOWS)
-  } else if (tool == "s_client" || tool == "client") {
-    return !Client(args);
-  } else if (tool == "s_server" || tool == "server") {
-    return !Server(args);
+  tool = FindTool(basename(argv[0]));
 #endif
-  } else if (tool == "pkcs12") {
-    return !DoPKCS12(args);
-  } else {
+  if (tool == nullptr) {
+    starting_arg++;
+    if (argc > 1) {
+      tool = FindTool(argv[1]);
+    }
+  }
+  if (tool == nullptr) {
     usage(argv[0]);
     return 1;
   }
+
+  std::vector<std::string> args;
+  for (int i = starting_arg; i < argc; i++) {
+    args.push_back(argv[i]);
+  }
+
+  return !tool(args);
 }

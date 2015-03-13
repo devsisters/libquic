@@ -55,6 +55,8 @@
  *
  */
 
+#include <string.h>
+
 #include <openssl/mem.h>
 #include <openssl/obj.h>
 #include <openssl/stack.h>
@@ -553,8 +555,6 @@ static int tree_prune(X509_POLICY_TREE *tree, X509_POLICY_LEVEL *curr)
 			return 1;
 			}
 		}
-
-	return 1;
 
 	}
 

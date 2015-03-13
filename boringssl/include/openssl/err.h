@@ -142,10 +142,7 @@ extern "C" {
 
 /* Startup and shutdown. */
 
-/* ERR_load_crypto_strings initialises the error string hash with builtin
- * values. If this is not called then the string forms of errors produced by
- * the functions below will contain numeric identifiers rather than
- * human-readable strings. */
+/* ERR_load_crypto_strings does nothing. */
 OPENSSL_EXPORT void ERR_load_crypto_strings(void);
 
 /* ERR_free_strings frees any memory retained by the error system, expect for
@@ -186,9 +183,10 @@ OPENSSL_EXPORT uint32_t ERR_peek_error_line_data(const char **file, int *line,
  * they return the most recent error. */
 OPENSSL_EXPORT uint32_t ERR_peek_last_error(void);
 OPENSSL_EXPORT uint32_t ERR_peek_last_error_line(const char **file, int *line);
-OPENSSL_EXPORT uint32_t
-    ERR_peek_last_error_line_data(const char **file, int *line,
-                                  const char **data, int *flags);
+OPENSSL_EXPORT uint32_t ERR_peek_last_error_line_data(const char **file,
+                                                      int *line,
+                                                      const char **data,
+                                                      int *flags);
 
 /* ERR_error_string generates a human-readable string representing
  * |packed_error|, places it at |buf| (which must be at least
@@ -473,24 +471,10 @@ enum {
 #define ERR_GET_FUNC(packed_error) ((int)(((packed_error) >> 12) & 0xfff))
 #define ERR_GET_REASON(packed_error) ((int)((packed_error) & 0xfff))
 
-/* ERR_STRING_DATA is the type of an lhash node that contains a mapping from a
- * library, function or reason code to a string representation of it. */
-typedef struct err_string_data_st {
-  uint32_t error;
-  const char *string;
-} ERR_STRING_DATA;
-
-/* ERR_load_strings loads an array of ERR_STRING_DATA into the hash table. The
- * array must be terminated by an entry with a NULL string. */
-OPENSSL_EXPORT void ERR_load_strings(const ERR_STRING_DATA *str);
-
 /* ERR_FNS_st is a structure of function pointers that contains the actual
  * implementation of the error queue handling functions. */
 struct ERR_FNS_st {
-  void (*shutdown)(void);
-  ERR_STRING_DATA *(*get_item)(uint32_t packed_error);
-  ERR_STRING_DATA *(*set_item)(const ERR_STRING_DATA *);
-  ERR_STRING_DATA *(*del_item)(uint32_t packed_error);
+  void (*shutdown)(void (*err_state_free_cb)(ERR_STATE*));
 
   /* get_state returns the ERR_STATE for the current thread. This function
    * never returns NULL. */

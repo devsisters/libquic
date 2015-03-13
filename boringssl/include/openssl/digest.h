@@ -237,8 +237,8 @@ OPENSSL_EXPORT void EVP_MD_CTX_clear_flags(EVP_MD_CTX *ctx, uint32_t flags);
 
 /* EVP_MD_CTX_test_flags returns the AND of |flags| and the flags member of
  * |ctx|. */
-OPENSSL_EXPORT uint32_t
-    EVP_MD_CTX_test_flags(const EVP_MD_CTX *ctx, uint32_t flags);
+OPENSSL_EXPORT uint32_t EVP_MD_CTX_test_flags(const EVP_MD_CTX *ctx,
+                                              uint32_t flags);
 
 
 struct evp_md_pctx_ops;
@@ -252,7 +252,8 @@ struct env_md_ctx_st {
    * context. */
   void *md_data;
   /* update is usually copied from |digest->update| but can differ in some
-   * cases, i.e. HMAC. */
+   * cases, i.e. HMAC.
+   * TODO(davidben): Remove this hook once |EVP_PKEY_HMAC| is gone. */
   int (*update)(EVP_MD_CTX *ctx, const void *data, size_t count);
 
   /* pctx is an opaque (at this layer) pointer to additional context that

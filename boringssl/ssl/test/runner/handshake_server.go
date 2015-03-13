@@ -33,6 +33,7 @@ type serverHandshakeState struct {
 	masterSecret    []byte
 	certsFromClient [][]byte
 	cert            *Certificate
+	finishedBytes   []byte
 }
 
 // serverHandshake performs a TLS handshake as a server.
@@ -69,6 +70,15 @@ func (c *Conn) serverHandshake() error {
 			}
 		}
 		if err := hs.sendFinished(); err != nil {
+			return err
+		}
+		// Most retransmits are triggered by a timeout, but the final
+		// leg of the handshake is retransmited upon re-receiving a
+		// Finished.
+		if err := c.simulatePacketLoss(func() {
+			c.writeRecord(recordTypeHandshake, hs.finishedBytes)
+			c.dtlsFlushHandshake()
+		}); err != nil {
 			return err
 		}
 		if err := hs.readFinished(isResume); err != nil {
@@ -110,6 +120,9 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 	config := hs.c.config
 	c := hs.c
 
+	if err := c.simulatePacketLoss(nil); err != nil {
+		return false, err
+	}
 	msg, err := c.readHandshake()
 	if err != nil {
 		return false, err
@@ -136,7 +149,11 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 			return false, errors.New("dtls: short read from Rand: " + err.Error())
 		}
 		c.writeRecord(recordTypeHandshake, helloVerifyRequest.marshal())
+		c.dtlsFlushHandshake()
 
+		if err := c.simulatePacketLoss(nil); err != nil {
+			return false, err
+		}
 		msg, err := c.readHandshake()
 		if err != nil {
 			return false, err
@@ -171,6 +188,11 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 		}
 	}
 	c.clientVersion = hs.clientHello.vers
+
+	// Reject < 1.2 ClientHellos with signature_algorithms.
+	if c.clientVersion < VersionTLS12 && len(hs.clientHello.signatureAndHashes) > 0 {
+		return false, fmt.Errorf("tls: client included signature_algorithms before TLS 1.2")
+	}
 
 	c.vers, ok = config.mutualVersion(hs.clientHello.vers)
 	if !ok {
@@ -444,6 +466,9 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 
 	hs.hello.ticketSupported = hs.clientHello.ticketSupported && !config.SessionTicketsDisabled && c.vers > VersionSSL30
 	hs.hello.cipherSuite = hs.suite.id
+	if config.Bugs.SendCipherSuite != 0 {
+		hs.hello.cipherSuite = config.Bugs.SendCipherSuite
+	}
 	c.extendedMasterSecret = hs.hello.extendedMasterSecret
 
 	// Generate a session ID if we're to save the session.
@@ -465,8 +490,12 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		certMsg := new(certificateMsg)
 		certMsg.certificates = hs.cert.Certificate
 		if !config.Bugs.UnauthenticatedECDH {
-			hs.writeServerHash(certMsg.marshal())
-			c.writeRecord(recordTypeHandshake, certMsg.marshal())
+			certMsgBytes := certMsg.marshal()
+			if config.Bugs.WrongCertificateMessageType {
+				certMsgBytes[0] += 42
+			}
+			hs.writeServerHash(certMsgBytes)
+			c.writeRecord(recordTypeHandshake, certMsgBytes)
 		}
 	}
 
@@ -522,9 +551,13 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	helloDone := new(serverHelloDoneMsg)
 	hs.writeServerHash(helloDone.marshal())
 	c.writeRecord(recordTypeHandshake, helloDone.marshal())
+	c.dtlsFlushHandshake()
 
 	var pub crypto.PublicKey // public key for client auth, if any
 
+	if err := c.simulatePacketLoss(nil); err != nil {
+		return err
+	}
 	msg, err := c.readHandshake()
 	if err != nil {
 		return err
@@ -804,19 +837,28 @@ func (hs *serverHandshakeState) sendFinished() error {
 	finished := new(finishedMsg)
 	finished.verifyData = hs.finishedHash.serverSum(hs.masterSecret)
 	c.serverVerify = append(c.serverVerify[:0], finished.verifyData...)
-	postCCSBytes := finished.marshal()
-	hs.writeServerHash(postCCSBytes)
+	hs.finishedBytes = finished.marshal()
+	hs.writeServerHash(hs.finishedBytes)
+	postCCSBytes := hs.finishedBytes
 
 	if c.config.Bugs.FragmentAcrossChangeCipherSpec {
 		c.writeRecord(recordTypeHandshake, postCCSBytes[:5])
 		postCCSBytes = postCCSBytes[5:]
 	}
+	c.dtlsFlushHandshake()
 
 	if !c.config.Bugs.SkipChangeCipherSpec {
 		c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
 	}
 
-	c.writeRecord(recordTypeHandshake, postCCSBytes)
+	if c.config.Bugs.AppDataAfterChangeCipherSpec != nil {
+		c.writeRecord(recordTypeApplicationData, c.config.Bugs.AppDataAfterChangeCipherSpec)
+	}
+
+	if !c.config.Bugs.SkipFinished {
+		c.writeRecord(recordTypeHandshake, postCCSBytes)
+		c.dtlsFlushHandshake()
+	}
 
 	c.cipherSuite = hs.suite.id
 

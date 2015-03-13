@@ -20,14 +20,17 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var (
-	useValgrind            = flag.Bool("valgrind", false, "If true, run code under valgrind")
-	useGDB                 = flag.Bool("gdb", false, "If true, run BoringSSL code under gdb")
-	flagDebug       *bool  = flag.Bool("debug", false, "Hexdump the contents of the connection")
-	mallocTest      *int64 = flag.Int64("malloc-test", -1, "If non-negative, run each test with each malloc in turn failing from the given number onwards.")
-	mallocTestDebug *bool  = flag.Bool("malloc-test-debug", false, "If true, ask bssl_shim to abort rather than fail a malloc. This can be used with a specific value for --malloc-test to identity the malloc failing that is causing problems.")
+	useValgrind     = flag.Bool("valgrind", false, "If true, run code under valgrind")
+	useGDB          = flag.Bool("gdb", false, "If true, run BoringSSL code under gdb")
+	flagDebug       = flag.Bool("debug", false, "Hexdump the contents of the connection")
+	mallocTest      = flag.Int64("malloc-test", -1, "If non-negative, run each test with each malloc in turn failing from the given number onwards.")
+	mallocTestDebug = flag.Bool("malloc-test-debug", false, "If true, ask bssl_shim to abort rather than fail a malloc. This can be used with a specific value for --malloc-test to identity the malloc failing that is causing problems.")
+	jsonOutput      = flag.String("json-output", "", "The file to output JSON results to.")
+	pipe            = flag.Bool("pipe", false, "If true, print status output suitable for piping into another program.")
 )
 
 const (
@@ -178,6 +181,9 @@ type testCase struct {
 	// replayWrites, if true, configures the underlying transport
 	// to replay every write it makes in DTLS tests.
 	replayWrites bool
+	// damageFirstWrite, if true, configures the underlying transport to
+	// damage the final byte of the first application data write.
+	damageFirstWrite bool
 	// flags, if not empty, contains a list of command-line flags that will
 	// be passed to the shim program.
 	flags []string
@@ -373,11 +379,47 @@ var testCases = []testCase{
 	},
 	{
 		testType: serverTest,
+		name:     "Alert",
+		config: Config{
+			Bugs: ProtocolBugs{
+				SendSpuriousAlert: alertRecordOverflow,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":TLSV1_ALERT_RECORD_OVERFLOW:",
+	},
+	{
+		protocol: dtls,
+		testType: serverTest,
+		name:     "Alert-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				SendSpuriousAlert: alertRecordOverflow,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":TLSV1_ALERT_RECORD_OVERFLOW:",
+	},
+	{
+		testType: serverTest,
 		name:     "FragmentAlert",
 		config: Config{
 			Bugs: ProtocolBugs{
 				FragmentAlert:     true,
-				SendSpuriousAlert: true,
+				SendSpuriousAlert: alertRecordOverflow,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":BAD_ALERT:",
+	},
+	{
+		protocol: dtls,
+		testType: serverTest,
+		name:     "FragmentAlert-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				FragmentAlert:     true,
+				SendSpuriousAlert: alertRecordOverflow,
 			},
 		},
 		shouldFail:    true,
@@ -533,11 +575,11 @@ var testCases = []testCase{
 		expectedError: ":WRONG_CIPHER_RETURNED:",
 	},
 	{
-		name: "RSAServerKeyExchange",
+		name: "RSAEphemeralKey",
 		config: Config{
 			CipherSuites: []uint16{TLS_RSA_WITH_AES_128_CBC_SHA},
 			Bugs: ProtocolBugs{
-				RSAServerKeyExchange: true,
+				RSAEphemeralKey: true,
 			},
 		},
 		shouldFail:    true,
@@ -588,10 +630,252 @@ var testCases = []testCase{
 		shouldFail:         true,
 		expectedLocalError: "dtls: exceeded maximum packet length",
 	},
+	{
+		name: "CertMismatchRSA",
+		config: Config{
+			CipherSuites: []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			Certificates: []Certificate{getECDSACertificate()},
+			Bugs: ProtocolBugs{
+				SendCipherSuite: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":WRONG_CERTIFICATE_TYPE:",
+	},
+	{
+		name: "CertMismatchECDSA",
+		config: Config{
+			CipherSuites: []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+			Certificates: []Certificate{getRSACertificate()},
+			Bugs: ProtocolBugs{
+				SendCipherSuite: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":WRONG_CERTIFICATE_TYPE:",
+	},
+	{
+		name:             "TLSFatalBadPackets",
+		damageFirstWrite: true,
+		shouldFail:       true,
+		expectedError:    ":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:",
+	},
+	{
+		protocol:         dtls,
+		name:             "DTLSIgnoreBadPackets",
+		damageFirstWrite: true,
+	},
+	{
+		protocol:         dtls,
+		name:             "DTLSIgnoreBadPackets-Async",
+		damageFirstWrite: true,
+		flags:            []string{"-async"},
+	},
+	{
+		name: "AppDataAfterChangeCipherSpec",
+		config: Config{
+			Bugs: ProtocolBugs{
+				AppDataAfterChangeCipherSpec: []byte("TEST MESSAGE"),
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":DATA_BETWEEN_CCS_AND_FINISHED:",
+	},
+	{
+		protocol: dtls,
+		name:     "AppDataAfterChangeCipherSpec-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				AppDataAfterChangeCipherSpec: []byte("TEST MESSAGE"),
+			},
+		},
+	},
+	{
+		protocol: dtls,
+		name:     "ReorderHandshakeFragments-Small-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				ReorderHandshakeFragments: true,
+				// Small enough that every handshake message is
+				// fragmented.
+				MaxHandshakeRecordLength: 2,
+			},
+		},
+	},
+	{
+		protocol: dtls,
+		name:     "ReorderHandshakeFragments-Large-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				ReorderHandshakeFragments: true,
+				// Large enough that no handshake message is
+				// fragmented.
+				MaxHandshakeRecordLength: 2048,
+			},
+		},
+	},
+	{
+		protocol: dtls,
+		name:     "MixCompleteMessageWithFragments-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				ReorderHandshakeFragments:       true,
+				MixCompleteMessageWithFragments: true,
+				MaxHandshakeRecordLength:        2,
+			},
+		},
+	},
+	{
+		name: "SendInvalidRecordType",
+		config: Config{
+			Bugs: ProtocolBugs{
+				SendInvalidRecordType: true,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":UNEXPECTED_RECORD:",
+	},
+	{
+		protocol: dtls,
+		name:     "SendInvalidRecordType-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				SendInvalidRecordType: true,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":UNEXPECTED_RECORD:",
+	},
+	{
+		name: "FalseStart-SkipServerSecondLeg",
+		config: Config{
+			CipherSuites: []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+			NextProtos:   []string{"foo"},
+			Bugs: ProtocolBugs{
+				SkipNewSessionTicket: true,
+				SkipChangeCipherSpec: true,
+				SkipFinished:         true,
+				ExpectFalseStart:     true,
+			},
+		},
+		flags: []string{
+			"-false-start",
+			"-advertise-alpn", "\x03foo",
+		},
+		shimWritesFirst: true,
+		shouldFail:      true,
+		expectedError:   ":UNEXPECTED_RECORD:",
+	},
+	{
+		name: "FalseStart-SkipServerSecondLeg-Implicit",
+		config: Config{
+			CipherSuites: []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+			NextProtos:   []string{"foo"},
+			Bugs: ProtocolBugs{
+				SkipNewSessionTicket: true,
+				SkipChangeCipherSpec: true,
+				SkipFinished:         true,
+			},
+		},
+		flags: []string{
+			"-implicit-handshake",
+			"-false-start",
+			"-advertise-alpn", "\x03foo",
+		},
+		shouldFail:    true,
+		expectedError: ":UNEXPECTED_RECORD:",
+	},
+	{
+		testType:           serverTest,
+		name:               "FailEarlyCallback",
+		flags:              []string{"-fail-early-callback"},
+		shouldFail:         true,
+		expectedError:      ":CONNECTION_REJECTED:",
+		expectedLocalError: "remote error: access denied",
+	},
+	{
+		name: "WrongMessageType",
+		config: Config{
+			Bugs: ProtocolBugs{
+				WrongCertificateMessageType: true,
+			},
+		},
+		shouldFail:         true,
+		expectedError:      ":UNEXPECTED_MESSAGE:",
+		expectedLocalError: "remote error: unexpected message",
+	},
+	{
+		protocol: dtls,
+		name:     "WrongMessageType-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				WrongCertificateMessageType: true,
+			},
+		},
+		shouldFail:         true,
+		expectedError:      ":UNEXPECTED_MESSAGE:",
+		expectedLocalError: "remote error: unexpected message",
+	},
+	{
+		protocol: dtls,
+		name:     "FragmentMessageTypeMismatch-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				MaxHandshakeRecordLength:    2,
+				FragmentMessageTypeMismatch: true,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":FRAGMENT_MISMATCH:",
+	},
+	{
+		protocol: dtls,
+		name:     "FragmentMessageLengthMismatch-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				MaxHandshakeRecordLength:      2,
+				FragmentMessageLengthMismatch: true,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":FRAGMENT_MISMATCH:",
+	},
+	{
+		protocol: dtls,
+		name:     "SplitFragmentHeader-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				SplitFragmentHeader: true,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":UNEXPECTED_MESSAGE:",
+	},
+	{
+		protocol: dtls,
+		name:     "SplitFragmentBody-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				SplitFragmentBody: true,
+			},
+		},
+		shouldFail:    true,
+		expectedError: ":UNEXPECTED_MESSAGE:",
+	},
+	{
+		protocol: dtls,
+		name:     "SendEmptyFragments-DTLS",
+		config: Config{
+			Bugs: ProtocolBugs{
+				SendEmptyFragments: true,
+			},
+		},
+	},
 }
 
 func doExchange(test *testCase, config *Config, conn net.Conn, messageLen int, isResume bool) error {
 	var connDebug *recordingConn
+	var connDamage *damageAdaptor
 	if *flagDebug {
 		connDebug = &recordingConn{Conn: conn}
 		conn = connDebug
@@ -601,10 +885,16 @@ func doExchange(test *testCase, config *Config, conn net.Conn, messageLen int, i
 	}
 
 	if test.protocol == dtls {
-		conn = newPacketAdaptor(conn)
+		config.Bugs.PacketAdaptor = newPacketAdaptor(conn)
+		conn = config.Bugs.PacketAdaptor
 		if test.replayWrites {
 			conn = newReplayAdaptor(conn)
 		}
+	}
+
+	if test.damageFirstWrite {
+		connDamage = newDamageAdaptor(conn)
+		conn = connDamage
 	}
 
 	if test.sendPrefix != "" {
@@ -694,6 +984,12 @@ func doExchange(test *testCase, config *Config, conn net.Conn, messageLen int, i
 		panic("renegotiateCiphers without renegotiate")
 	}
 
+	if test.damageFirstWrite {
+		connDamage.setDamage(true)
+		tlsConn.Write([]byte("DAMAGED WRITE"))
+		connDamage.setDamage(false)
+	}
+
 	if messageLen < 0 {
 		if test.protocol == dtls {
 			return fmt.Errorf("messageLen < 0 not supported for DTLS tests")
@@ -703,14 +999,21 @@ func doExchange(test *testCase, config *Config, conn net.Conn, messageLen int, i
 		return err
 	}
 
-	if messageLen == 0 {
-		messageLen = 32
+	var testMessage []byte
+	if config.Bugs.AppDataAfterChangeCipherSpec != nil {
+		// We've already sent a message. Expect the shim to echo it
+		// back.
+		testMessage = config.Bugs.AppDataAfterChangeCipherSpec
+	} else {
+		if messageLen == 0 {
+			messageLen = 32
+		}
+		testMessage = make([]byte, messageLen)
+		for i := range testMessage {
+			testMessage[i] = 0x42
+		}
+		tlsConn.Write(testMessage)
 	}
-	testMessage := make([]byte, messageLen)
-	for i := range testMessage {
-		testMessage[i] = 0x42
-	}
-	tlsConn.Write(testMessage)
 
 	buf := make([]byte, len(testMessage))
 	if test.protocol == dtls {
@@ -758,27 +1061,6 @@ func gdbOf(path string, args ...string) *exec.Cmd {
 	return exec.Command("xterm", xtermArgs...)
 }
 
-func openSocketPair() (shimEnd *os.File, conn net.Conn) {
-	socks, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
-	if err != nil {
-		panic(err)
-	}
-
-	syscall.CloseOnExec(socks[0])
-	syscall.CloseOnExec(socks[1])
-	shimEnd = os.NewFile(uintptr(socks[0]), "shim end")
-	connFile := os.NewFile(uintptr(socks[1]), "our end")
-	conn, err = net.FileConn(connFile)
-	if err != nil {
-		panic(err)
-	}
-	connFile.Close()
-	if err != nil {
-		panic(err)
-	}
-	return shimEnd, conn
-}
-
 type moreMallocsError struct{}
 
 func (moreMallocsError) Error() string {
@@ -787,16 +1069,45 @@ func (moreMallocsError) Error() string {
 
 var errMoreMallocs = moreMallocsError{}
 
+// accept accepts a connection from listener, unless waitChan signals a process
+// exit first.
+func acceptOrWait(listener net.Listener, waitChan chan error) (net.Conn, error) {
+	type connOrError struct {
+		conn net.Conn
+		err  error
+	}
+	connChan := make(chan connOrError, 1)
+	go func() {
+		conn, err := listener.Accept()
+		connChan <- connOrError{conn, err}
+		close(connChan)
+	}()
+	select {
+	case result := <-connChan:
+		return result.conn, result.err
+	case childErr := <-waitChan:
+		waitChan <- childErr
+		return nil, fmt.Errorf("child exited early: %s", childErr)
+	}
+}
+
 func runTest(test *testCase, buildDir string, mallocNumToFail int64) error {
 	if !test.shouldFail && (len(test.expectedError) > 0 || len(test.expectedLocalError) > 0) {
 		panic("Error expected without shouldFail in " + test.name)
 	}
 
-	shimEnd, conn := openSocketPair()
-	shimEndResume, connResume := openSocketPair()
+	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IP{127, 0, 0, 1}})
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if listener != nil {
+			listener.Close()
+		}
+	}()
 
 	shim_path := path.Join(buildDir, "ssl/test/bssl_shim")
-	var flags []string
+	flags := []string{"-port", strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)}
 	if test.testType == serverTest {
 		flags = append(flags, "-server")
 
@@ -837,13 +1148,13 @@ func runTest(test *testCase, buildDir string, mallocNumToFail int64) error {
 	} else {
 		shim = exec.Command(shim_path, flags...)
 	}
-	shim.ExtraFiles = []*os.File{shimEnd, shimEndResume}
 	shim.Stdin = os.Stdin
 	var stdoutBuf, stderrBuf bytes.Buffer
 	shim.Stdout = &stdoutBuf
 	shim.Stderr = &stderrBuf
 	if mallocNumToFail >= 0 {
-		shim.Env = []string{"MALLOC_NUMBER_TO_FAIL=" + strconv.FormatInt(mallocNumToFail, 10)}
+		shim.Env = os.Environ()
+		shim.Env = append(shim.Env, "MALLOC_NUMBER_TO_FAIL="+strconv.FormatInt(mallocNumToFail, 10))
 		if *mallocTestDebug {
 			shim.Env = append(shim.Env, "MALLOC_ABORT_ON_FAIL=1")
 		}
@@ -853,8 +1164,8 @@ func runTest(test *testCase, buildDir string, mallocNumToFail int64) error {
 	if err := shim.Start(); err != nil {
 		panic(err)
 	}
-	shimEnd.Close()
-	shimEndResume.Close()
+	waitChan := make(chan error, 1)
+	go func() { waitChan <- shim.Wait() }()
 
 	config := test.config
 	config.ClientSessionCache = NewLRUClientSessionCache(1)
@@ -863,16 +1174,27 @@ func runTest(test *testCase, buildDir string, mallocNumToFail int64) error {
 		if len(config.Certificates) == 0 {
 			config.Certificates = []Certificate{getRSACertificate()}
 		}
+	} else {
+		// Supply a ServerName to ensure a constant session cache key,
+		// rather than falling back to net.Conn.RemoteAddr.
+		if len(config.ServerName) == 0 {
+			config.ServerName = "test"
+		}
 	}
 
-	err := doExchange(test, &config, conn, test.messageLen,
-		false /* not a resumption */)
-	conn.Close()
+	conn, err := acceptOrWait(listener, waitChan)
+	if err == nil {
+		err = doExchange(test, &config, conn, test.messageLen, false /* not a resumption */)
+		conn.Close()
+	}
 
 	if err == nil && test.resumeSession {
 		var resumeConfig Config
 		if test.resumeConfig != nil {
 			resumeConfig = *test.resumeConfig
+			if len(resumeConfig.ServerName) == 0 {
+				resumeConfig.ServerName = config.ServerName
+			}
 			if len(resumeConfig.Certificates) == 0 {
 				resumeConfig.Certificates = []Certificate{getRSACertificate()}
 			}
@@ -884,12 +1206,20 @@ func runTest(test *testCase, buildDir string, mallocNumToFail int64) error {
 		} else {
 			resumeConfig = config
 		}
-		err = doExchange(test, &resumeConfig, connResume, test.messageLen,
-			true /* resumption */)
+		var connResume net.Conn
+		connResume, err = acceptOrWait(listener, waitChan)
+		if err == nil {
+			err = doExchange(test, &resumeConfig, connResume, test.messageLen, true /* resumption */)
+			connResume.Close()
+		}
 	}
-	connResume.Close()
 
-	childErr := shim.Wait()
+	// Close the listener now. This is to avoid hangs should the shim try to
+	// open more connections than expected.
+	listener.Close()
+	listener = nil
+
+	childErr := <-waitChan
 	if exitError, ok := childErr.(*exec.ExitError); ok {
 		if exitError.Sys().(syscall.WaitStatus).ExitStatus() == 88 {
 			return errMoreMallocs
@@ -998,10 +1328,7 @@ func isTLS12Only(suiteName string) bool {
 }
 
 func isDTLSCipher(suiteName string) bool {
-	// TODO(davidben): AES-GCM exists in DTLS 1.2 but is currently
-	// broken because DTLS is not EVP_AEAD-aware.
-	return !hasComponent(suiteName, "RC4") &&
-		!hasComponent(suiteName, "GCM")
+	return !hasComponent(suiteName, "RC4")
 }
 
 func addCipherSuiteTests() {
@@ -1375,6 +1702,17 @@ func addStateMachineCoverageTests(async, splitHandshake bool, protocol protocol)
 	})
 	testCases = append(testCases, testCase{
 		protocol: protocol,
+		name:     "Basic-Client-Implicit" + suffix,
+		config: Config{
+			Bugs: ProtocolBugs{
+				MaxHandshakeRecordLength: maxHandshakeRecordLength,
+			},
+		},
+		flags:         append(flags, "-implicit-handshake"),
+		resumeSession: true,
+	})
+	testCases = append(testCases, testCase{
+		protocol: protocol,
 		testType: serverTest,
 		name:     "Basic-Server" + suffix,
 		config: Config{
@@ -1396,6 +1734,30 @@ func addStateMachineCoverageTests(async, splitHandshake bool, protocol protocol)
 			},
 		},
 		flags:         flags,
+		resumeSession: true,
+	})
+	testCases = append(testCases, testCase{
+		protocol: protocol,
+		testType: serverTest,
+		name:     "Basic-Server-Implicit" + suffix,
+		config: Config{
+			Bugs: ProtocolBugs{
+				MaxHandshakeRecordLength: maxHandshakeRecordLength,
+			},
+		},
+		flags:         append(flags, "-implicit-handshake"),
+		resumeSession: true,
+	})
+	testCases = append(testCases, testCase{
+		protocol: protocol,
+		testType: serverTest,
+		name:     "Basic-Server-EarlyCallback" + suffix,
+		config: Config{
+			Bugs: ProtocolBugs{
+				MaxHandshakeRecordLength: maxHandshakeRecordLength,
+			},
+		},
+		flags:         append(flags, "-use-early-callback"),
 		resumeSession: true,
 	})
 
@@ -1509,6 +1871,8 @@ func addStateMachineCoverageTests(async, splitHandshake bool, protocol protocol)
 			expectedNextProtoType: npn,
 		})
 
+		// TODO(davidben): Add tests for when False Start doesn't trigger.
+
 		// Client does False Start and negotiates NPN.
 		testCases = append(testCases, testCase{
 			protocol: protocol,
@@ -1547,9 +1911,27 @@ func addStateMachineCoverageTests(async, splitHandshake bool, protocol protocol)
 			resumeSession:   true,
 		})
 
+		// Client does False Start but doesn't explicitly call
+		// SSL_connect.
+		testCases = append(testCases, testCase{
+			protocol: protocol,
+			name:     "FalseStart-Implicit" + suffix,
+			config: Config{
+				CipherSuites: []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+				NextProtos:   []string{"foo"},
+				Bugs: ProtocolBugs{
+					MaxHandshakeRecordLength: maxHandshakeRecordLength,
+				},
+			},
+			flags: append(flags,
+				"-implicit-handshake",
+				"-false-start",
+				"-advertise-alpn", "\x03foo"),
+		})
+
 		// False Start without session tickets.
 		testCases = append(testCases, testCase{
-			name: "FalseStart-SessionTicketsDisabled",
+			name: "FalseStart-SessionTicketsDisabled" + suffix,
 			config: Config{
 				CipherSuites:           []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
 				NextProtos:             []string{"foo"},
@@ -1630,18 +2012,6 @@ func addStateMachineCoverageTests(async, splitHandshake bool, protocol protocol)
 				},
 			},
 			flags: flags,
-		})
-
-		testCases = append(testCases, testCase{
-			testType: serverTest,
-			protocol: protocol,
-			name:     "CookieExchange" + suffix,
-			config: Config{
-				Bugs: ProtocolBugs{
-					MaxHandshakeRecordLength: maxHandshakeRecordLength,
-				},
-			},
-			flags: append(flags, "-cookie-exchange"),
 		})
 	}
 }
@@ -1897,7 +2267,7 @@ func addExtensionTests() {
 	})
 	testCases = append(testCases, testCase{
 		testType: clientTest,
-		name:     "ServerNameExtensionClient",
+		name:     "ServerNameExtensionClientMismatch",
 		config: Config{
 			Bugs: ProtocolBugs{
 				ExpectServerName: "mismatch.com",
@@ -1909,7 +2279,7 @@ func addExtensionTests() {
 	})
 	testCases = append(testCases, testCase{
 		testType: clientTest,
-		name:     "ServerNameExtensionClient",
+		name:     "ServerNameExtensionClientMissing",
 		config: Config{
 			Bugs: ProtocolBugs{
 				ExpectServerName: "missing.com",
@@ -2339,7 +2709,7 @@ func addFastRadioPaddingTests() {
 	})
 	testCases = append(testCases, testCase{
 		protocol: dtls,
-		name:     "FastRadio-Padding",
+		name:     "FastRadio-Padding-DTLS",
 		config: Config{
 			Bugs: ProtocolBugs{
 				RequireFastradioPadding: true,
@@ -2457,6 +2827,102 @@ func addSigningHashTests() {
 	})
 }
 
+// timeouts is the retransmit schedule for BoringSSL. It doubles and
+// caps at 60 seconds. On the 13th timeout, it gives up.
+var timeouts = []time.Duration{
+	1 * time.Second,
+	2 * time.Second,
+	4 * time.Second,
+	8 * time.Second,
+	16 * time.Second,
+	32 * time.Second,
+	60 * time.Second,
+	60 * time.Second,
+	60 * time.Second,
+	60 * time.Second,
+	60 * time.Second,
+	60 * time.Second,
+	60 * time.Second,
+}
+
+func addDTLSRetransmitTests() {
+	// Test that this is indeed the timeout schedule. Stress all
+	// four patterns of handshake.
+	for i := 1; i < len(timeouts); i++ {
+		number := strconv.Itoa(i)
+		testCases = append(testCases, testCase{
+			protocol: dtls,
+			name:     "DTLS-Retransmit-Client-" + number,
+			config: Config{
+				Bugs: ProtocolBugs{
+					TimeoutSchedule: timeouts[:i],
+				},
+			},
+			resumeSession: true,
+			flags:         []string{"-async"},
+		})
+		testCases = append(testCases, testCase{
+			protocol: dtls,
+			testType: serverTest,
+			name:     "DTLS-Retransmit-Server-" + number,
+			config: Config{
+				Bugs: ProtocolBugs{
+					TimeoutSchedule: timeouts[:i],
+				},
+			},
+			resumeSession: true,
+			flags:         []string{"-async"},
+		})
+	}
+
+	// Test that exceeding the timeout schedule hits a read
+	// timeout.
+	testCases = append(testCases, testCase{
+		protocol: dtls,
+		name:     "DTLS-Retransmit-Timeout",
+		config: Config{
+			Bugs: ProtocolBugs{
+				TimeoutSchedule: timeouts,
+			},
+		},
+		resumeSession: true,
+		flags:         []string{"-async"},
+		shouldFail:    true,
+		expectedError: ":READ_TIMEOUT_EXPIRED:",
+	})
+
+	// Test that timeout handling has a fudge factor, due to API
+	// problems.
+	testCases = append(testCases, testCase{
+		protocol: dtls,
+		name:     "DTLS-Retransmit-Fudge",
+		config: Config{
+			Bugs: ProtocolBugs{
+				TimeoutSchedule: []time.Duration{
+					timeouts[0] - 10*time.Millisecond,
+				},
+			},
+		},
+		resumeSession: true,
+		flags:         []string{"-async"},
+	})
+
+	// Test that the final Finished retransmitting isn't
+	// duplicated if the peer badly fragments everything.
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		protocol: dtls,
+		name:     "DTLS-Retransmit-Fragmented",
+		config: Config{
+			Bugs: ProtocolBugs{
+				TimeoutSchedule:          []time.Duration{timeouts[0]},
+				MaxHandshakeRecordLength: 2,
+			},
+		},
+		flags: []string{"-async"},
+	})
+}
+
 func worker(statusChan chan statusMsg, c chan *testCase, buildDir string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -2487,27 +2953,47 @@ type statusMsg struct {
 	err     error
 }
 
-func statusPrinter(doneChan chan struct{}, statusChan chan statusMsg, total int) {
+func statusPrinter(doneChan chan *testOutput, statusChan chan statusMsg, total int) {
 	var started, done, failed, lineLen int
-	defer close(doneChan)
 
+	testOutput := newTestOutput()
 	for msg := range statusChan {
+		if !*pipe {
+			// Erase the previous status line.
+			var erase string
+			for i := 0; i < lineLen; i++ {
+				erase += "\b \b"
+			}
+			fmt.Print(erase)
+		}
+
 		if msg.started {
 			started++
 		} else {
 			done++
+
+			if msg.err != nil {
+				fmt.Printf("FAILED (%s)\n%s\n", msg.test.name, msg.err)
+				failed++
+				testOutput.addResult(msg.test.name, "FAIL")
+			} else {
+				if *pipe {
+					// Print each test instead of a status line.
+					fmt.Printf("PASSED (%s)\n", msg.test.name)
+				}
+				testOutput.addResult(msg.test.name, "PASS")
+			}
 		}
 
-		fmt.Printf("\x1b[%dD\x1b[K", lineLen)
-
-		if msg.err != nil {
-			fmt.Printf("FAILED (%s)\n%s\n", msg.test.name, msg.err)
-			failed++
+		if !*pipe {
+			// Print a new status line.
+			line := fmt.Sprintf("%d/%d/%d/%d", failed, done, started, total)
+			lineLen = len(line)
+			os.Stdout.WriteString(line)
 		}
-		line := fmt.Sprintf("%d/%d/%d/%d", failed, done, started, total)
-		lineLen = len(line)
-		os.Stdout.WriteString(line)
 	}
+
+	doneChan <- testOutput
 }
 
 func main() {
@@ -2532,6 +3018,7 @@ func main() {
 	addDTLSReplayTests()
 	addSigningHashTests()
 	addFastRadioPaddingTests()
+	addDTLSRetransmitTests()
 	for _, async := range []bool{false, true} {
 		for _, splitHandshake := range []bool{false, true} {
 			for _, protocol := range []protocol{tls, dtls} {
@@ -2546,7 +3033,7 @@ func main() {
 
 	statusChan := make(chan statusMsg, numWorkers)
 	testChan := make(chan *testCase, numWorkers)
-	doneChan := make(chan struct{})
+	doneChan := make(chan *testOutput)
 
 	go statusPrinter(doneChan, statusChan, len(testCases))
 
@@ -2564,7 +3051,13 @@ func main() {
 	close(testChan)
 	wg.Wait()
 	close(statusChan)
-	<-doneChan
+	testOutput := <-doneChan
 
 	fmt.Printf("\n")
+
+	if *jsonOutput != "" {
+		if err := testOutput.writeTo(*jsonOutput); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		}
+	}
 }

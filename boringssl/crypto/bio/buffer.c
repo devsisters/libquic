@@ -56,6 +56,8 @@
 
 #include <openssl/bio.h>
 
+#include <string.h>
+
 #include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
@@ -313,8 +315,9 @@ static long buffer_ctrl(BIO *b, int cmd, long num, void *ptr) {
     case BIO_CTRL_WPENDING:
       ret = (long)ctx->obuf_len;
       if (ret == 0) {
-        if (b->next_bio == NULL)
+        if (b->next_bio == NULL) {
           return 0;
+        }
         ret = BIO_ctrl(b->next_bio, cmd, num, ptr);
       }
       break;
@@ -480,7 +483,7 @@ static int buffer_puts(BIO *b, const char *str) {
   return buffer_write(b, str, strlen(str));
 }
 
-static BIO_METHOD methods_buffer = {
+static const BIO_METHOD methods_buffer = {
     BIO_TYPE_BUFFER, "buffer",             buffer_write, buffer_read,
     buffer_puts,     buffer_gets,          buffer_ctrl,  buffer_new,
     buffer_free,     buffer_callback_ctrl,

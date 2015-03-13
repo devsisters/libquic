@@ -64,7 +64,7 @@ extern "C" {
 #endif
 
 
-/* SHA-1. */
+/* The SHA family of hash functions (SHA-1 and SHA-2). */
 
 
 /* SHA_CBLOCK is the block size of SHA-1. */
@@ -224,7 +224,7 @@ struct sha512_state_st {
   uint64_t Nl, Nh;
   union {
     uint64_t d[16];
-    uint8_t p[64];
+    uint8_t p[128];
   } u;
   unsigned int num, md_len;
 };

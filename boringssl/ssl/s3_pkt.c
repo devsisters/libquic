@@ -201,7 +201,10 @@ int ssl3_read_n(SSL *s, int n, int max, int extend) {
     rb->offset = len + align;
   }
 
-  assert(n <= (int)(rb->len - rb->offset));
+  if (n > (int)(rb->len - rb->offset)) {
+    OPENSSL_PUT_ERROR(SSL, ssl3_read_n, ERR_R_INTERNAL_ERROR);
+    return -1;
+  }
 
   if (!s->read_ahead) {
     /* ignore max parameter */
@@ -268,18 +271,14 @@ int ssl3_read_n(SSL *s, int n, int max, int extend) {
 /* used only by ssl3_read_bytes */
 static int ssl3_get_record(SSL *s) {
   int ssl_major, ssl_minor, al;
-  int enc_err, n, i, ret = -1;
+  int n, i, ret = -1;
   SSL3_RECORD *rr;
-  SSL_SESSION *sess;
   uint8_t *p;
-  uint8_t md[EVP_MAX_MD_SIZE];
   short version;
-  unsigned mac_size, orig_len;
   size_t extra;
   unsigned empty_record_count = 0;
 
   rr = &s->s3->rrec;
-  sess = s->session;
 
   if (s->options & SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER) {
     extra = SSL3_RT_MAX_EXTRA;
@@ -377,71 +376,7 @@ again:
   /* decrypt in place in 'rr->input' */
   rr->data = rr->input;
 
-  enc_err = s->enc_method->enc(s, 0);
-  /* enc_err is:
-   *    0: (in non-constant time) if the record is publically invalid.
-   *    1: if the padding is valid
-   *    -1: if the padding is invalid */
-  if (enc_err == 0) {
-    al = SSL_AD_DECRYPTION_FAILED;
-    OPENSSL_PUT_ERROR(SSL, ssl3_get_record, SSL_R_BLOCK_CIPHER_PAD_IS_WRONG);
-    goto f_err;
-  }
-
-  /* |r->length| is now the compressed data plus MAC. */
-  if (sess != NULL && s->enc_read_ctx != NULL &&
-      EVP_MD_CTX_md(s->read_hash) != NULL) {
-    /* s->read_hash != NULL => mac_size != -1 */
-    uint8_t *mac = NULL;
-    uint8_t mac_tmp[EVP_MAX_MD_SIZE];
-    mac_size = EVP_MD_CTX_size(s->read_hash);
-    assert(mac_size <= EVP_MAX_MD_SIZE);
-
-    /* kludge: *_cbc_remove_padding passes padding length in rr->type */
-    orig_len = rr->length + ((unsigned int)rr->type >> 8);
-
-    /* orig_len is the length of the record before any padding was removed.
-     * This is public information, as is the MAC in use, therefore we can
-     * safely process the record in a different amount of time if it's too
-     * short to possibly contain a MAC. */
-    if (orig_len < mac_size ||
-        /* CBC records must have a padding length byte too. */
-        (EVP_CIPHER_CTX_mode(s->enc_read_ctx) == EVP_CIPH_CBC_MODE &&
-         orig_len < mac_size + 1)) {
-      al = SSL_AD_DECODE_ERROR;
-      OPENSSL_PUT_ERROR(SSL, ssl3_get_record, SSL_R_LENGTH_TOO_SHORT);
-      goto f_err;
-    }
-
-    if (EVP_CIPHER_CTX_mode(s->enc_read_ctx) == EVP_CIPH_CBC_MODE) {
-      /* We update the length so that the TLS header bytes can be constructed
-       * correctly but we need to extract the MAC in constant time from within
-       * the record, without leaking the contents of the padding bytes. */
-      mac = mac_tmp;
-      ssl3_cbc_copy_mac(mac_tmp, rr, mac_size, orig_len);
-      rr->length -= mac_size;
-    } else {
-      /* In this case there's no padding, so |orig_len| equals |rec->length|
-       * and we checked that there's enough bytes for |mac_size| above. */
-      rr->length -= mac_size;
-      mac = &rr->data[rr->length];
-    }
-
-    i = s->enc_method->mac(s, md, 0 /* not send */);
-    if (i < 0 || mac == NULL || CRYPTO_memcmp(md, mac, (size_t)mac_size) != 0) {
-      enc_err = -1;
-    }
-    if (rr->length > SSL3_RT_MAX_COMPRESSED_LENGTH + extra + mac_size) {
-      enc_err = -1;
-    }
-  }
-
-  if (enc_err < 0) {
-    /* A separate 'decryption_failed' alert was introduced with TLS 1.0, SSL
-     * 3.0 only has 'bad_record_mac'.  But unless a decryption failure is
-     * directly visible from the ciphertext anyway, we should not reveal which
-     * kind of error occured – this might become visible to an attacker (e.g.
-     * via a logfile) */
+  if (!s->enc_method->enc(s, 0)) {
     al = SSL_AD_BAD_RECORD_MAC;
     OPENSSL_PUT_ERROR(SSL, ssl3_get_record,
                       SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC);
@@ -495,7 +430,7 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, int len) {
   tot = s->s3->wnum;
   s->s3->wnum = 0;
 
-  if (SSL_in_init(s) && !s->in_handshake) {
+  if (!s->in_handshake && SSL_in_init(s) && !SSL_in_false_start(s)) {
     i = s->handshake_func(s);
     if (i < 0) {
       return i;
@@ -570,13 +505,12 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, int len) {
 static int do_ssl3_write(SSL *s, int type, const uint8_t *buf, unsigned int len,
                          char fragment, char is_fragment) {
   uint8_t *p, *plen;
-  int i, mac_size;
+  int i;
   int prefix_len = 0;
   int eivlen = 0;
   long align = 0;
   SSL3_RECORD *wr;
   SSL3_BUFFER *wb = &(s->s3->wbuf);
-  SSL_SESSION *sess;
 
   /* first check if there is a SSL3_BUFFER still being written out. This will
    * happen with non blocking IO */
@@ -602,17 +536,6 @@ static int do_ssl3_write(SSL *s, int type, const uint8_t *buf, unsigned int len,
   }
 
   wr = &s->s3->wrec;
-  sess = s->session;
-
-  if (sess == NULL || s->enc_write_ctx == NULL ||
-      EVP_MD_CTX_md(s->write_hash) == NULL) {
-    mac_size = 0;
-  } else {
-    mac_size = EVP_MD_CTX_size(s->write_hash);
-    if (mac_size < 0) {
-      goto err;
-    }
-  }
 
   if (fragment) {
     /* countermeasure against known-IV weakness in CBC ciphersuites (see
@@ -667,15 +590,9 @@ static int do_ssl3_write(SSL *s, int type, const uint8_t *buf, unsigned int len,
   plen = p;
   p += 2;
 
-  /* Explicit IV length, block ciphers appropriate version flag */
-  if (s->enc_write_ctx && SSL_USE_EXPLICIT_IV(s) &&
-      EVP_CIPHER_CTX_mode(s->enc_write_ctx) == EVP_CIPH_CBC_MODE) {
-    eivlen = EVP_CIPHER_CTX_iv_length(s->enc_write_ctx);
-    if (eivlen <= 1) {
-      eivlen = 0;
-    }
-  } else if (s->aead_write_ctx != NULL &&
-             s->aead_write_ctx->variable_nonce_included_in_record) {
+  /* Leave room for the variable nonce for AEADs which specify it explicitly. */
+  if (s->aead_write_ctx != NULL &&
+      s->aead_write_ctx->variable_nonce_included_in_record) {
     eivlen = s->aead_write_ctx->variable_nonce_len;
   }
 
@@ -692,18 +609,11 @@ static int do_ssl3_write(SSL *s, int type, const uint8_t *buf, unsigned int len,
   /* we should still have the output to wr->data and the input from wr->input.
    * Length should be wr->length. wr->data still points in the wb->buf */
 
-  if (mac_size != 0) {
-    if (s->enc_method->mac(s, &(p[wr->length + eivlen]), 1) < 0) {
-      goto err;
-    }
-    wr->length += mac_size;
-  }
-
   wr->input = p;
   wr->data = p;
   wr->length += eivlen;
 
-  if (s->enc_method->enc(s, 1) < 1) {
+  if (!s->enc_method->enc(s, 1)) {
     goto err;
   }
 
@@ -830,15 +740,10 @@ int ssl3_expect_change_cipher_spec(SSL *s) {
  *             none of our business
  */
 int ssl3_read_bytes(SSL *s, int type, uint8_t *buf, int len, int peek) {
-  int al, i, j, ret;
+  int al, i, ret;
   unsigned int n;
   SSL3_RECORD *rr;
   void (*cb)(const SSL *ssl, int type2, int val) = NULL;
-  uint8_t alert_buffer[2];
-
-  if (s->s3->rbuf.buf == NULL && !ssl3_setup_read_buffer(s)) {
-    return -1;
-  }
 
   if ((type && type != SSL3_RT_APPLICATION_DATA && type != SSL3_RT_HANDSHAKE) ||
       (peek && type != SSL3_RT_APPLICATION_DATA)) {
@@ -869,8 +774,13 @@ int ssl3_read_bytes(SSL *s, int type, uint8_t *buf, int len, int peek) {
 
   /* Now s->s3->handshake_fragment_len == 0 if type == SSL3_RT_HANDSHAKE. */
 
-  if (!s->in_handshake && SSL_in_init(s)) {
-    /* type == SSL3_RT_APPLICATION_DATA */
+  /* This may require multiple iterations. False Start will cause
+   * |s->handshake_func| to signal success one step early, but the handshake
+   * must be completely finished before other modes are accepted.
+   *
+   * TODO(davidben): Move this check up to a higher level. */
+  while (!s->in_handshake && SSL_in_init(s)) {
+    assert(type == SSL3_RT_APPLICATION_DATA);
     i = s->handshake_func(s);
     if (i < 0) {
       return i;
@@ -879,6 +789,11 @@ int ssl3_read_bytes(SSL *s, int type, uint8_t *buf, int len, int peek) {
       OPENSSL_PUT_ERROR(SSL, ssl3_read_bytes, SSL_R_SSL_HANDSHAKE_FAILURE);
       return -1;
     }
+  }
+
+  if (s->s3->rbuf.buf == NULL && !ssl3_setup_read_buffer(s)) {
+    /* TODO(davidben): Is this redundant with the calls in the handshake? */
+    return -1;
   }
 
 start:
@@ -930,7 +845,9 @@ start:
     /* make sure that we are not getting application data when we are doing a
      * handshake for the first time */
     if (SSL_in_init(s) && type == SSL3_RT_APPLICATION_DATA &&
-        s->enc_read_ctx == NULL) {
+        s->aead_read_ctx == NULL) {
+      /* TODO(davidben): Is this check redundant with the handshake_func
+       * check? */
       al = SSL_AD_UNEXPECTED_MESSAGE;
       OPENSSL_PUT_ERROR(SSL, ssl3_read_bytes, SSL_R_APP_DATA_IN_HANDSHAKE);
       goto f_err;
@@ -981,17 +898,6 @@ start:
     if (s->s3->handshake_fragment_len < size) {
       goto start; /* fragment was too small */
     }
-  } else if (rr->type == SSL3_RT_ALERT) {
-    /* Note that this will still allow multiple alerts to be processed in the
-     * same record */
-    if (rr->length < sizeof(alert_buffer)) {
-      al = SSL_AD_DECODE_ERROR;
-      OPENSSL_PUT_ERROR(SSL, ssl3_read_bytes, SSL_R_BAD_ALERT);
-      goto f_err;
-    }
-    memcpy(alert_buffer, &rr->data[rr->off], sizeof(alert_buffer));
-    rr->off += sizeof(alert_buffer);
-    rr->length -= sizeof(alert_buffer);
   }
 
   /* s->s3->handshake_fragment_len == 4  iff  rr->type == SSL3_RT_HANDSHAKE;
@@ -1034,14 +940,23 @@ start:
     goto start;
   }
 
+  /* If an alert record, process one alert out of the record. Note that we allow
+   * a single record to contain multiple alerts. */
   if (rr->type == SSL3_RT_ALERT) {
-    const uint8_t alert_level = alert_buffer[0];
-    const uint8_t alert_descr = alert_buffer[1];
+    /* Alerts may not be fragmented. */
+    if (rr->length < 2) {
+      al = SSL_AD_DECODE_ERROR;
+      OPENSSL_PUT_ERROR(SSL, ssl3_read_bytes, SSL_R_BAD_ALERT);
+      goto f_err;
+    }
 
     if (s->msg_callback) {
-      s->msg_callback(0, s->version, SSL3_RT_ALERT, alert_buffer, 2, s,
+      s->msg_callback(0, s->version, SSL3_RT_ALERT, &rr->data[rr->off], 2, s,
                       s->msg_callback_arg);
     }
+    const uint8_t alert_level = rr->data[rr->off++];
+    const uint8_t alert_descr = rr->data[rr->off++];
+    rr->length -= 2;
 
     if (s->info_callback != NULL) {
       cb = s->info_callback;
@@ -1050,12 +965,11 @@ start:
     }
 
     if (cb != NULL) {
-      j = (alert_level << 8) | alert_descr;
-      cb(s, SSL_CB_READ_ALERT, j);
+      uint16_t alert = (alert_level << 8) | alert_descr;
+      cb(s, SSL_CB_READ_ALERT, alert);
     }
 
-    if (alert_level == 1) {
-      /* warning */
+    if (alert_level == SSL3_AL_WARNING) {
       s->s3->warn_alert = alert_descr;
       if (alert_descr == SSL_AD_CLOSE_NOTIFY) {
         s->shutdown |= SSL_RECEIVED_SHUTDOWN;
@@ -1074,8 +988,7 @@ start:
         OPENSSL_PUT_ERROR(SSL, ssl3_read_bytes, SSL_R_NO_RENEGOTIATION);
         goto f_err;
       }
-    } else if (alert_level == 2) {
-      /* fatal */
+    } else if (alert_level == SSL3_AL_FATAL) {
       char tmp[16];
 
       s->rwstate = SSL_NOTHING;
@@ -1161,50 +1074,12 @@ start:
     goto start;
   }
 
-  switch (rr->type) {
-    default:
-      /* TLS up to v1.1 just ignores unknown message types. TLS v1.2 gives an
-       * unexpected message alert. */
-      if (s->version >= TLS1_VERSION && s->version <= TLS1_1_VERSION) {
-        rr->length = 0;
-        goto start;
-      }
-      al = SSL_AD_UNEXPECTED_MESSAGE;
-      OPENSSL_PUT_ERROR(SSL, ssl3_read_bytes, SSL_R_UNEXPECTED_RECORD);
-      goto f_err;
+  /* We already handled these. */
+  assert(rr->type != SSL3_RT_CHANGE_CIPHER_SPEC && rr->type != SSL3_RT_ALERT &&
+         rr->type != SSL3_RT_HANDSHAKE);
 
-    case SSL3_RT_CHANGE_CIPHER_SPEC:
-    case SSL3_RT_ALERT:
-    case SSL3_RT_HANDSHAKE:
-      /* we already handled all of these, with the possible exception of
-       * SSL3_RT_HANDSHAKE when s->in_handshake is set, but that should not
-       * happen when type != rr->type */
-      al = SSL_AD_UNEXPECTED_MESSAGE;
-      OPENSSL_PUT_ERROR(SSL, ssl3_read_bytes, ERR_R_INTERNAL_ERROR);
-      goto f_err;
-
-    case SSL3_RT_APPLICATION_DATA:
-      /* At this point we were expecting handshake data but have application
-       * data. If the library was running inside ssl3_read() (i.e.
-       * |in_read_app_data| is set) and it makes sense to read application data
-       * at this point (session renegotiation not yet started), we will indulge
-       * it. */
-      if (s->s3->in_read_app_data && s->s3->total_renegotiations != 0 &&
-          (((s->state & SSL_ST_CONNECT) &&
-            s->state >= SSL3_ST_CW_CLNT_HELLO_A &&
-            s->state <= SSL3_ST_CR_SRVR_HELLO_A) ||
-           ((s->state & SSL_ST_ACCEPT) &&
-            s->state <= SSL3_ST_SW_HELLO_REQ_A &&
-            s->state >= SSL3_ST_SR_CLNT_HELLO_A))) {
-        s->s3->in_read_app_data = 2;
-        return -1;
-      } else {
-        al = SSL_AD_UNEXPECTED_MESSAGE;
-        OPENSSL_PUT_ERROR(SSL, ssl3_read_bytes, SSL_R_UNEXPECTED_RECORD);
-        goto f_err;
-      }
-  }
-  /* not reached */
+  al = SSL_AD_UNEXPECTED_MESSAGE;
+  OPENSSL_PUT_ERROR(SSL, ssl3_read_bytes, SSL_R_UNEXPECTED_RECORD);
 
 f_err:
   ssl3_send_alert(s, SSL3_AL_FATAL, al);

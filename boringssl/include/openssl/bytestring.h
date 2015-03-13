@@ -47,7 +47,7 @@ OPENSSL_EXPORT void CBS_init(CBS *cbs, const uint8_t *data, size_t len);
  * otherwise. */
 OPENSSL_EXPORT int CBS_skip(CBS *cbs, size_t len);
 
-/* CBS_data returns a pointer to the contains of |cbs|. */
+/* CBS_data returns a pointer to the contents of |cbs|. */
 OPENSSL_EXPORT const uint8_t *CBS_data(const CBS *cbs);
 
 /* CBS_len returns the number of bytes remaining in |cbs|. */
@@ -134,7 +134,7 @@ OPENSSL_EXPORT int CBS_get_u24_length_prefixed(CBS *cbs, CBS *out);
  * element must match |tag_value|. It returns one on success and zero
  * on error.
  *
- * Tag numbers greater than 31 are not supported. */
+ * Tag numbers greater than 30 are not supported (i.e. short form only). */
 OPENSSL_EXPORT int CBS_get_asn1(CBS *cbs, CBS *out, unsigned tag_value);
 
 /* CBS_get_asn1_element acts like |CBS_get_asn1| but |out| will include the
@@ -155,7 +155,7 @@ OPENSSL_EXPORT int CBS_peek_asn1_tag(const CBS *cbs, unsigned tag_value);
  * header. Each of |out|, |out_tag|, and |out_header_len| may be NULL to ignore
  * the value.
  *
- * Tag numbers greater than 31 are not supported. */
+ * Tag numbers greater than 30 are not supported (i.e. short form only). */
 OPENSSL_EXPORT int CBS_get_any_asn1_element(CBS *cbs, CBS *out,
                                             unsigned *out_tag,
                                             size_t *out_header_len);
@@ -287,7 +287,9 @@ OPENSSL_EXPORT int CBB_add_u24_length_prefixed(CBB *cbb, CBB *out_contents);
 
 /* CBB_add_asn sets |*out_contents| to a |CBB| into which the contents of an
  * ASN.1 object can be written. The |tag| argument will be used as the tag for
- * the object. It returns one on success or zero on error. */
+ * the object. Passing in |tag| number 31 will return in an error since only
+ * single octet identifiers are supported. It returns one on success or zero
+ * on error. */
 OPENSSL_EXPORT int CBB_add_asn1(CBB *cbb, CBB *out_contents, uint8_t tag);
 
 /* CBB_add_bytes appends |len| bytes from |data| to |cbb|. It returns one on
@@ -316,6 +318,7 @@ OPENSSL_EXPORT int CBB_add_u24(CBB *cbb, uint32_t value);
  * and writes |value| in its contents. It returns one on success and zero on
  * error. */
 OPENSSL_EXPORT int CBB_add_asn1_uint64(CBB *cbb, uint64_t value);
+
 
 #if defined(__cplusplus)
 }  /* extern C */

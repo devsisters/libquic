@@ -67,6 +67,8 @@
 
 #include <openssl/ec_key.h>
 
+#include <string.h>
+
 #include <openssl/ec.h>
 #include <openssl/engine.h>
 #include <openssl/err.h>
@@ -168,33 +170,25 @@ EC_KEY *EC_KEY_copy(EC_KEY *dest, const EC_KEY *src) {
     OPENSSL_PUT_ERROR(EC, EC_KEY_copy, ERR_R_PASSED_NULL_PARAMETER);
     return NULL;
   }
-  /* copy the parameters */
+  /* Copy the parameters. */
   if (src->group) {
     /* TODO(fork): duplicating the group seems wasteful. */
-    const EC_METHOD *meth = src->group->meth;
-    /* clear the old group */
     if (dest->group) {
       EC_GROUP_free(dest->group);
     }
-    dest->group = ec_group_new(meth);
+    dest->group = EC_GROUP_dup(src->group);
     if (dest->group == NULL) {
-      return NULL;
-    }
-    if (!EC_GROUP_copy(dest->group, src->group)) {
       return NULL;
     }
   }
 
-  /*  copy the public key */
+  /* Copy the public key. */
   if (src->pub_key && src->group) {
     if (dest->pub_key) {
       EC_POINT_free(dest->pub_key);
     }
-    dest->pub_key = EC_POINT_new(src->group);
+    dest->pub_key = EC_POINT_dup(src->pub_key, src->group);
     if (dest->pub_key == NULL) {
-      return NULL;
-    }
-    if (!EC_POINT_copy(dest->pub_key, src->pub_key)) {
       return NULL;
     }
   }
@@ -369,10 +363,12 @@ int EC_KEY_check_key(const EC_KEY *eckey) {
   ok = 1;
 
 err:
-  if (ctx != NULL)
+  if (ctx != NULL) {
     BN_CTX_free(ctx);
-  if (point != NULL)
+  }
+  if (point != NULL) {
     EC_POINT_free(point);
+  }
   return ok;
 }
 
@@ -423,10 +419,12 @@ int EC_KEY_set_public_key_affine_coordinates(EC_KEY *key, BIGNUM *x,
   ok = 1;
 
 err:
-  if (ctx)
+  if (ctx) {
     BN_CTX_free(ctx);
-  if (point)
+  }
+  if (point) {
     EC_POINT_free(point);
+  }
   return ok;
 }
 
@@ -487,14 +485,18 @@ int EC_KEY_generate_key(EC_KEY *eckey) {
   ok = 1;
 
 err:
-  if (order)
+  if (order) {
     BN_free(order);
-  if (pub_key != NULL && eckey->pub_key == NULL)
+  }
+  if (pub_key != NULL && eckey->pub_key == NULL) {
     EC_POINT_free(pub_key);
-  if (priv_key != NULL && eckey->priv_key == NULL)
+  }
+  if (priv_key != NULL && eckey->priv_key == NULL) {
     BN_free(priv_key);
-  if (ctx != NULL)
+  }
+  if (ctx != NULL) {
     BN_CTX_free(ctx);
+  }
   return ok;
 }
 

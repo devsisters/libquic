@@ -21,6 +21,7 @@
 struct TestConfig {
   TestConfig();
 
+  int port;
   bool is_server;
   bool is_dtls;
   bool resume;
@@ -42,7 +43,6 @@ struct TestConfig {
   bool no_tls11;
   bool no_tls1;
   bool no_ssl3;
-  bool cookie_exchange;
   std::string expected_channel_id;
   std::string send_channel_id;
   bool shim_writes_first;
@@ -67,6 +67,9 @@ struct TestConfig {
   int min_version;
   int max_version;
   int mtu;
+  bool implicit_handshake;
+  bool use_early_callback;
+  bool fail_early_callback;
 };
 
 bool ParseConfig(int argc, char **argv, TestConfig *out_config);

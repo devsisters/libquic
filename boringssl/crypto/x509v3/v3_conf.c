@@ -56,8 +56,9 @@
 
 /* extension creation utilities */
 
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 
 #include <openssl/conf.h>
 #include <openssl/err.h>
@@ -430,7 +431,7 @@ static STACK_OF(CONF_VALUE) *nconf_get_section(void *db, char *section)
 	return NCONF_get_section(db, section);
 	}
 
-static X509V3_CONF_METHOD nconf_method = {
+static const X509V3_CONF_METHOD nconf_method = {
 nconf_get_string,
 nconf_get_section,
 NULL,
@@ -485,7 +486,7 @@ static STACK_OF(CONF_VALUE) *conf_lhash_get_section(void *db, char *section)
 	return CONF_get_section(db, section);
 	}
 
-static X509V3_CONF_METHOD conf_lhash_method = {
+static const X509V3_CONF_METHOD conf_lhash_method = {
 conf_lhash_get_string,
 conf_lhash_get_section,
 NULL,

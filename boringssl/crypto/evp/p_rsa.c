@@ -55,6 +55,8 @@
 
 #include <openssl/evp.h>
 
+#include <string.h>
+
 #include <openssl/bn.h>
 #include <openssl/buf.h>
 #include <openssl/digest.h>
@@ -495,8 +497,9 @@ static int pkey_rsa_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
 
   if (!rctx->pub_exp) {
     rctx->pub_exp = BN_new();
-    if (!rctx->pub_exp || !BN_set_word(rctx->pub_exp, RSA_F4))
+    if (!rctx->pub_exp || !BN_set_word(rctx->pub_exp, RSA_F4)) {
       return 0;
+    }
   }
   rsa = RSA_new();
   if (!rsa) {

@@ -57,6 +57,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <string.h>
 
 #include <openssl/asn1.h>
 #include <openssl/bn.h>
@@ -122,23 +123,28 @@ static int pkcs12_key_gen_raw(const uint8_t *pass_raw, size_t pass_raw_len,
   Ai = OPENSSL_malloc(u);
   B = OPENSSL_malloc(v + 1);
   Slen = v * ((salt_len + v - 1) / v);
-  if (pass_raw_len)
+  if (pass_raw_len) {
     Plen = v * ((pass_raw_len + v - 1) / v);
-  else
+  } else {
     Plen = 0;
+  }
   Ilen = Slen + Plen;
   I = OPENSSL_malloc(Ilen);
   Ij = BN_new();
   Bpl1 = BN_new();
-  if (!D || !Ai || !B || !I || !Ij || !Bpl1)
+  if (!D || !Ai || !B || !I || !Ij || !Bpl1) {
     goto err;
-  for (i = 0; i < v; i++)
+  }
+  for (i = 0; i < v; i++) {
     D[i] = id;
+  }
   p = I;
-  for (i = 0; i < Slen; i++)
+  for (i = 0; i < Slen; i++) {
     *p++ = salt[i % salt_len];
-  for (i = 0; i < Plen; i++)
+  }
+  for (i = 0; i < Plen; i++) {
     *p++ = pass_raw[i % pass_raw_len];
+  }
   for (;;) {
     if (!EVP_DigestInit_ex(&ctx, md_type, NULL) ||
         !EVP_DigestUpdate(&ctx, D, v) ||
@@ -160,31 +166,33 @@ static int pkcs12_key_gen_raw(const uint8_t *pass_raw, size_t pass_raw_len,
     }
     out_len -= u;
     out += u;
-    for (j = 0; j < v; j++)
+    for (j = 0; j < v; j++) {
       B[j] = Ai[j % u];
+    }
     /* Work out B + 1 first then can use B as tmp space */
-    if (!BN_bin2bn(B, v, Bpl1))
+    if (!BN_bin2bn(B, v, Bpl1) ||
+        !BN_add_word(Bpl1, 1)) {
       goto err;
-    if (!BN_add_word(Bpl1, 1))
-      goto err;
+    }
     for (j = 0; j < Ilen; j += v) {
-      if (!BN_bin2bn(I + j, v, Ij))
+      if (!BN_bin2bn(I + j, v, Ij) ||
+          !BN_add(Ij, Ij, Bpl1) ||
+          !BN_bn2bin(Ij, B)) {
         goto err;
-      if (!BN_add(Ij, Ij, Bpl1))
-        goto err;
-      if (!BN_bn2bin(Ij, B))
-        goto err;
+      }
       Ijlen = BN_num_bytes(Ij);
       /* If more than 2^(v*8) - 1 cut off MSB */
       if (Ijlen > v) {
-        if (!BN_bn2bin(Ij, B))
+        if (!BN_bn2bin(Ij, B)) {
           goto err;
+        }
         memcpy(I + j, B + 1, v);
         /* If less than v bytes pad with zeroes */
       } else if (Ijlen < v) {
         memset(I + j, 0, v - Ijlen);
-        if (!BN_bn2bin(Ij, I + j + v - Ijlen))
+        if (!BN_bn2bin(Ij, I + j + v - Ijlen)) {
           goto err;
+        }
       } else if (!BN_bn2bin(Ij, I + j)) {
         goto err;
       }
@@ -426,7 +434,7 @@ PKCS8_PRIV_KEY_INFO *PKCS8_decrypt(X509_SIG *pkcs8, const char *pass,
       pass_len = strlen(pass);
     }
     if (!ascii_to_ucs2(pass, pass_len, &pass_raw, &pass_raw_len)) {
-      OPENSSL_PUT_ERROR(PKCS8, pkcs12_key_gen_asc, PKCS8_R_DECODE_ERROR);
+      OPENSSL_PUT_ERROR(PKCS8, PKCS8_decrypt, PKCS8_R_DECODE_ERROR);
       return NULL;
     }
   }
@@ -490,7 +498,7 @@ X509_SIG *PKCS8_encrypt(int pbe_nid, const EVP_CIPHER *cipher, const char *pass,
       pass_len = strlen(pass);
     }
     if (!ascii_to_ucs2(pass, pass_len, &pass_raw, &pass_raw_len)) {
-      OPENSSL_PUT_ERROR(PKCS8, pkcs12_key_gen_asc, PKCS8_R_DECODE_ERROR);
+      OPENSSL_PUT_ERROR(PKCS8, PKCS8_encrypt, PKCS8_R_DECODE_ERROR);
       return NULL;
     }
   }
@@ -546,8 +554,9 @@ EVP_PKEY *EVP_PKCS82PKEY(PKCS8_PRIV_KEY_INFO *p8) {
   ASN1_OBJECT *algoid;
   char obj_tmp[80];
 
-  if (!PKCS8_pkey_get0(&algoid, NULL, NULL, NULL, p8))
+  if (!PKCS8_pkey_get0(&algoid, NULL, NULL, NULL, p8)) {
     return NULL;
+  }
 
   pkey = EVP_PKEY_new();
   if (pkey == NULL) {
@@ -698,7 +707,8 @@ static int PKCS12_handle_content_info(CBS *content_info, unsigned depth,
   if (!CBS_get_asn1(content_info, &content_type, CBS_ASN1_OBJECT) ||
       !CBS_get_asn1(content_info, &wrapped_contents,
                         CBS_ASN1_CONTEXT_SPECIFIC | CBS_ASN1_CONSTRUCTED | 0)) {
-    OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_BAD_PKCS12_DATA);
+    OPENSSL_PUT_ERROR(PKCS8, PKCS12_handle_content_info,
+                      PKCS8_R_BAD_PKCS12_DATA);
     goto err;
   }
 
@@ -883,27 +893,28 @@ int PKCS12_get_key_and_certs(EVP_PKEY **out_key, STACK_OF(X509) *out_certs,
   if (!CBS_get_asn1(&in, &pfx, CBS_ASN1_SEQUENCE) ||
       CBS_len(&in) != 0 ||
       !CBS_get_asn1_uint64(&pfx, &version)) {
-    OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_BAD_PKCS12_DATA);
+    OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs, PKCS8_R_BAD_PKCS12_DATA);
     goto err;
   }
 
   if (version < 3) {
-    OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_BAD_PKCS12_VERSION);
+    OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs,
+                      PKCS8_R_BAD_PKCS12_VERSION);
     goto err;
   }
 
   if (!CBS_get_asn1(&pfx, &authsafe, CBS_ASN1_SEQUENCE)) {
-    OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_BAD_PKCS12_DATA);
+    OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs, PKCS8_R_BAD_PKCS12_DATA);
     goto err;
   }
 
   if (CBS_len(&pfx) == 0) {
-    OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_MISSING_MAC);
+    OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs, PKCS8_R_MISSING_MAC);
     goto err;
   }
 
   if (!CBS_get_asn1(&pfx, &mac_data, CBS_ASN1_SEQUENCE)) {
-    OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_BAD_PKCS12_DATA);
+    OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs, PKCS8_R_BAD_PKCS12_DATA);
     goto err;
   }
 
@@ -912,7 +923,7 @@ int PKCS12_get_key_and_certs(EVP_PKEY **out_key, STACK_OF(X509) *out_certs,
   if (!CBS_get_asn1(&authsafe, &content_type, CBS_ASN1_OBJECT) ||
       !CBS_get_asn1(&authsafe, &wrapped_authsafes,
                         CBS_ASN1_CONTEXT_SPECIFIC | CBS_ASN1_CONSTRUCTED | 0)) {
-    OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_BAD_PKCS12_DATA);
+    OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs, PKCS8_R_BAD_PKCS12_DATA);
     goto err;
   }
 
@@ -920,13 +931,13 @@ int PKCS12_get_key_and_certs(EVP_PKEY **out_key, STACK_OF(X509) *out_certs,
    * latter indicates that it's signed by a public key, which isn't
    * supported. */
   if (OBJ_cbs2nid(&content_type) != NID_pkcs7_data) {
-    OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse,
+    OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs,
                       PKCS8_R_PKCS12_PUBLIC_KEY_INTEGRITY_NOT_SUPPORTED);
     goto err;
   }
 
   if (!CBS_get_asn1(&wrapped_authsafes, &authsafes, CBS_ASN1_OCTETSTRING)) {
-    OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_BAD_PKCS12_DATA);
+    OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs, PKCS8_R_BAD_PKCS12_DATA);
     goto err;
   }
 
@@ -934,7 +945,7 @@ int PKCS12_get_key_and_certs(EVP_PKEY **out_key, STACK_OF(X509) *out_certs,
   ctx.out_certs = out_certs;
   if (!ascii_to_ucs2(password, strlen(password), &ctx.password,
                      &ctx.password_len)) {
-    OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_DECODE_ERROR);
+    OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs, PKCS8_R_DECODE_ERROR);
     goto err;
   }
 
@@ -953,7 +964,7 @@ int PKCS12_get_key_and_certs(EVP_PKEY **out_key, STACK_OF(X509) *out_certs,
         !CBS_get_asn1(&hash_type_seq, &hash_oid, CBS_ASN1_OBJECT) ||
         !CBS_get_asn1(&mac, &expected_mac, CBS_ASN1_OCTETSTRING) ||
         !CBS_get_asn1(&mac_data, &salt, CBS_ASN1_OCTETSTRING)) {
-      OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_BAD_PKCS12_DATA);
+      OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs, PKCS8_R_BAD_PKCS12_DATA);
       goto err;
     }
 
@@ -962,7 +973,8 @@ int PKCS12_get_key_and_certs(EVP_PKEY **out_key, STACK_OF(X509) *out_certs,
     if (CBS_len(&mac_data) > 0) {
       if (!CBS_get_asn1_uint64(&mac_data, &iterations) ||
           iterations > INT_MAX) {
-        OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_BAD_PKCS12_DATA);
+        OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs,
+                          PKCS8_R_BAD_PKCS12_DATA);
         goto err;
       }
     }
@@ -970,7 +982,7 @@ int PKCS12_get_key_and_certs(EVP_PKEY **out_key, STACK_OF(X509) *out_certs,
     hash_nid = OBJ_cbs2nid(&hash_oid);
     if (hash_nid == NID_undef ||
         (md = EVP_get_digestbynid(hash_nid)) == NULL) {
-      OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_UNKNOWN_HASH);
+      OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs, PKCS8_R_UNKNOWN_HASH);
       goto err;
     }
 
@@ -986,7 +998,8 @@ int PKCS12_get_key_and_certs(EVP_PKEY **out_key, STACK_OF(X509) *out_certs,
     }
 
     if (!CBS_mem_equal(&expected_mac, hmac, hmac_len)) {
-      OPENSSL_PUT_ERROR(PKCS8, PKCS12_parse, PKCS8_R_INCORRECT_PASSWORD);
+      OPENSSL_PUT_ERROR(PKCS8, PKCS12_get_key_and_certs,
+                        PKCS8_R_INCORRECT_PASSWORD);
       goto err;
     }
   }
@@ -1019,7 +1032,7 @@ err:
   return ret;
 }
 
-void PKCS12_PBE_add(){};
+void PKCS12_PBE_add(void) {}
 
 struct pkcs12_st {
   uint8_t *ber_bytes;

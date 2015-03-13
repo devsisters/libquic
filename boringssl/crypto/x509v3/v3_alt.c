@@ -55,6 +55,7 @@
  * Hudson (tjh@cryptsoft.com). */
 
 #include <stdio.h>
+#include <string.h>
 
 #include <openssl/conf.h>
 #include <openssl/err.h>
@@ -582,6 +583,8 @@ static int do_othername(GENERAL_NAME *gen, char *value, X509V3_CTX *ctx)
 		return 0;
 	objlen = p - value;
 	objtmp = OPENSSL_malloc(objlen + 1);
+	if (objtmp == NULL)
+		return 0;
 	strncpy(objtmp, value, objlen);
 	objtmp[objlen] = 0;
 	gen->d.otherName->type_id = OBJ_txt2obj(objtmp, 0);

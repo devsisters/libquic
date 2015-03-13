@@ -1,10 +1,9 @@
 include_directories(. .. ../../include)
 
 add_library(
-	ecdh
+  ecdh
 
-	OBJECT
+  OBJECT
 
-	ecdh.c
-	ecdh_error.c
+  ecdh.c
 )

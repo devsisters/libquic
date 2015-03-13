@@ -1,18 +1,50 @@
 include_directories(. .. ../../include)
 
+add_custom_command(
+  OUTPUT err_data.c
+  COMMAND ${GO_EXECUTABLE} run err_data_generate.go > ${CMAKE_CURRENT_BINARY_DIR}/err_data.c
+  DEPENDS
+  err_data_generate.go
+  asn1.errordata
+  bio.errordata
+  bn.errordata
+  buf.errordata
+  cipher.errordata
+  conf.errordata
+  crypto.errordata
+  dh.errordata
+  digest.errordata
+  dsa.errordata
+  ecdh.errordata
+  ecdsa.errordata
+  ec.errordata
+  engine.errordata
+  evp.errordata
+  hkdf.errordata
+  obj.errordata
+  pem.errordata
+  pkcs8.errordata
+  rsa.errordata
+  ssl.errordata
+  x509.errordata
+  x509v3.errordata
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 add_library(
-	err
+  err
 
-	OBJECT
+  OBJECT
 
-	err.c
-	err_impl.c
+  err.c
+  err_data.c
+  err_impl.c
 )
 
 add_executable(
-	err_test
+  err_test
 
-	err_test.c
+  err_test.c
 )
 
 target_link_libraries(err_test crypto)

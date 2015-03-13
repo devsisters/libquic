@@ -120,7 +120,8 @@ const char *NCONF_get_string(const CONF *conf, const char *section,
  * the start and length of each member, optionally stripping leading and
  * trailing whitespace. This can be used to parse comma separated lists for
  * example. If |list_cb| returns <= 0, then the iteration is halted and that
- * value is returned immediately. Otherwise it returns one. */
+ * value is returned immediately. Otherwise it returns one. Note that |list_cb|
+ * may be called on an empty member. */
 int CONF_parse_list(const char *list, char sep, int remove_whitespace,
                     int (*list_cb)(const char *elem, int len, void *usr),
                     void *arg);
@@ -130,14 +131,14 @@ int CONF_parse_list(const char *list, char sep, int remove_whitespace,
 #endif
 
 #define CONF_F_CONF_parse_list 100
-#define CONF_F_str_copy 101
+#define CONF_F_NCONF_load 101
 #define CONF_F_def_load_bio 102
-#define CONF_F_NCONF_load 103
-#define CONF_R_MISSING_EQUAL_SIGN 100
-#define CONF_R_LIST_CANNOT_BE_NULL 101
-#define CONF_R_NO_CLOSE_BRACE 102
-#define CONF_R_VARIABLE_HAS_NO_VALUE 103
+#define CONF_F_str_copy 103
+#define CONF_R_LIST_CANNOT_BE_NULL 100
+#define CONF_R_MISSING_CLOSE_SQUARE_BRACKET 101
+#define CONF_R_MISSING_EQUAL_SIGN 102
+#define CONF_R_NO_CLOSE_BRACE 103
 #define CONF_R_UNABLE_TO_CREATE_NEW_SECTION 104
-#define CONF_R_MISSING_CLOSE_SQUARE_BRACKET 105
+#define CONF_R_VARIABLE_HAS_NO_VALUE 105
 
 #endif  /* OPENSSL_HEADER_THREAD_H */

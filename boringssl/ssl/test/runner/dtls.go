@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 )
 
@@ -105,7 +106,134 @@ func (c *Conn) dtlsDoReadRecord(want recordType) (recordType, *block, error) {
 	return typ, b, nil
 }
 
+func (c *Conn) makeFragment(header, data []byte, fragOffset, fragLen int) []byte {
+	fragment := make([]byte, 0, 12+fragLen)
+	fragment = append(fragment, header...)
+	fragment = append(fragment, byte(c.sendHandshakeSeq>>8), byte(c.sendHandshakeSeq))
+	fragment = append(fragment, byte(fragOffset>>16), byte(fragOffset>>8), byte(fragOffset))
+	fragment = append(fragment, byte(fragLen>>16), byte(fragLen>>8), byte(fragLen))
+	fragment = append(fragment, data[fragOffset:fragOffset+fragLen]...)
+	return fragment
+}
+
 func (c *Conn) dtlsWriteRecord(typ recordType, data []byte) (n int, err error) {
+	if typ != recordTypeHandshake {
+		// Only handshake messages are fragmented.
+		return c.dtlsWriteRawRecord(typ, data)
+	}
+
+	maxLen := c.config.Bugs.MaxHandshakeRecordLength
+	if maxLen <= 0 {
+		maxLen = 1024
+	}
+
+	// Handshake messages have to be modified to include fragment
+	// offset and length and with the header replicated. Save the
+	// TLS header here.
+	//
+	// TODO(davidben): This assumes that data contains exactly one
+	// handshake message. This is incompatible with
+	// FragmentAcrossChangeCipherSpec. (Which is unfortunate
+	// because OpenSSL's DTLS implementation will probably accept
+	// such fragmentation and could do with a fix + tests.)
+	header := data[:4]
+	data = data[4:]
+
+	isFinished := header[0] == typeFinished
+
+	if c.config.Bugs.SendEmptyFragments {
+		fragment := c.makeFragment(header, data, 0, 0)
+		c.pendingFragments = append(c.pendingFragments, fragment)
+	}
+
+	firstRun := true
+	fragOffset := 0
+	for firstRun || fragOffset < len(data) {
+		firstRun = false
+		fragLen := len(data) - fragOffset
+		if fragLen > maxLen {
+			fragLen = maxLen
+		}
+
+		fragment := c.makeFragment(header, data, fragOffset, fragLen)
+		if c.config.Bugs.FragmentMessageTypeMismatch && fragOffset > 0 {
+			fragment[0]++
+		}
+		if c.config.Bugs.FragmentMessageLengthMismatch && fragOffset > 0 {
+			fragment[3]++
+		}
+
+		// Buffer the fragment for later. They will be sent (and
+		// reordered) on flush.
+		c.pendingFragments = append(c.pendingFragments, fragment)
+		if c.config.Bugs.ReorderHandshakeFragments {
+			// Don't duplicate Finished to avoid the peer
+			// interpreting it as a retransmit request.
+			if !isFinished {
+				c.pendingFragments = append(c.pendingFragments, fragment)
+			}
+
+			if fragLen > (maxLen+1)/2 {
+				// Overlap each fragment by half.
+				fragLen = (maxLen + 1) / 2
+			}
+		}
+		fragOffset += fragLen
+		n += fragLen
+	}
+	if !isFinished && c.config.Bugs.MixCompleteMessageWithFragments {
+		fragment := c.makeFragment(header, data, 0, len(data))
+		c.pendingFragments = append(c.pendingFragments, fragment)
+	}
+
+	// Increment the handshake sequence number for the next
+	// handshake message.
+	c.sendHandshakeSeq++
+	return
+}
+
+func (c *Conn) dtlsFlushHandshake() error {
+	if !c.isDTLS {
+		return nil
+	}
+
+	var fragments [][]byte
+	fragments, c.pendingFragments = c.pendingFragments, fragments
+
+	if c.config.Bugs.ReorderHandshakeFragments {
+		perm := rand.New(rand.NewSource(0)).Perm(len(fragments))
+		tmp := make([][]byte, len(fragments))
+		for i := range tmp {
+			tmp[i] = fragments[perm[i]]
+		}
+		fragments = tmp
+	}
+
+	// Send them all.
+	for _, fragment := range fragments {
+		if c.config.Bugs.SplitFragmentHeader {
+			if _, err := c.dtlsWriteRawRecord(recordTypeHandshake, fragment[:2]); err != nil {
+				return err
+			}
+			fragment = fragment[2:]
+		} else if c.config.Bugs.SplitFragmentBody && len(fragment) > 12 {
+			if _, err := c.dtlsWriteRawRecord(recordTypeHandshake, fragment[:13]); err != nil {
+				return err
+			}
+			fragment = fragment[13:]
+		}
+
+		// TODO(davidben): A real DTLS implementation needs to
+		// retransmit handshake messages. For testing purposes, we don't
+		// actually care.
+		if _, err := c.dtlsWriteRawRecord(recordTypeHandshake, fragment); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Conn) dtlsWriteRawRecord(typ recordType, data []byte) (n int, err error) {
 	recordHeaderLen := dtlsRecordHeaderLen
 	maxLen := c.config.Bugs.MaxHandshakeRecordLength
 	if maxLen <= 0 {
@@ -114,117 +242,57 @@ func (c *Conn) dtlsWriteRecord(typ recordType, data []byte) (n int, err error) {
 
 	b := c.out.newBlock()
 
-	var header []byte
-	if typ == recordTypeHandshake {
-		// Handshake messages have to be modified to include
-		// fragment offset and length and with the header
-		// replicated. Save the header here.
-		//
-		// TODO(davidben): This assumes that data contains
-		// exactly one handshake message. This is incompatible
-		// with FragmentAcrossChangeCipherSpec. (Which is
-		// unfortunate because OpenSSL's DTLS implementation
-		// will probably accept such fragmentation and could
-		// do with a fix + tests.)
-		if len(data) < 4 {
-			// This should not happen.
-			panic(data)
-		}
-		header = data[:4]
-		data = data[4:]
+	explicitIVLen := 0
+	explicitIVIsSeq := false
+
+	if cbc, ok := c.out.cipher.(cbcMode); ok {
+		// Block cipher modes have an explicit IV.
+		explicitIVLen = cbc.BlockSize()
+	} else if _, ok := c.out.cipher.(cipher.AEAD); ok {
+		explicitIVLen = 8
+		// The AES-GCM construction in TLS has an explicit nonce so that
+		// the nonce can be random. However, the nonce is only 8 bytes
+		// which is too small for a secure, random nonce. Therefore we
+		// use the sequence number as the nonce.
+		explicitIVIsSeq = true
+	} else if c.out.cipher != nil {
+		panic("Unknown cipher")
 	}
-
-	firstRun := true
-	for firstRun || len(data) > 0 {
-		firstRun = false
-		m := len(data)
-		var fragment []byte
-		// Handshake messages get fragmented. Other records we
-		// pass-through as is. DTLS should be a packet
-		// interface.
-		if typ == recordTypeHandshake {
-			if m > maxLen {
-				m = maxLen
-			}
-
-			// Standard handshake header.
-			fragment = make([]byte, 0, 12+m)
-			fragment = append(fragment, header...)
-			// message_seq
-			fragment = append(fragment, byte(c.sendHandshakeSeq>>8), byte(c.sendHandshakeSeq))
-			// fragment_offset
-			fragment = append(fragment, byte(n>>16), byte(n>>8), byte(n))
-			// fragment_length
-			fragment = append(fragment, byte(m>>16), byte(m>>8), byte(m))
-			fragment = append(fragment, data[:m]...)
+	b.resize(recordHeaderLen + explicitIVLen + len(data))
+	b.data[0] = byte(typ)
+	vers := c.vers
+	if vers == 0 {
+		// Some TLS servers fail if the record version is greater than
+		// TLS 1.0 for the initial ClientHello.
+		vers = VersionTLS10
+	}
+	vers = versionToWire(vers, c.isDTLS)
+	b.data[1] = byte(vers >> 8)
+	b.data[2] = byte(vers)
+	// DTLS records include an explicit sequence number.
+	copy(b.data[3:11], c.out.seq[0:])
+	b.data[11] = byte(len(data) >> 8)
+	b.data[12] = byte(len(data))
+	if explicitIVLen > 0 {
+		explicitIV := b.data[recordHeaderLen : recordHeaderLen+explicitIVLen]
+		if explicitIVIsSeq {
+			copy(explicitIV, c.out.seq[:])
 		} else {
-			fragment = data[:m]
-		}
-
-		// Send the fragment.
-		explicitIVLen := 0
-		explicitIVIsSeq := false
-
-		if cbc, ok := c.out.cipher.(cbcMode); ok {
-			// Block cipher modes have an explicit IV.
-			explicitIVLen = cbc.BlockSize()
-		} else if _, ok := c.out.cipher.(cipher.AEAD); ok {
-			explicitIVLen = 8
-			// The AES-GCM construction in TLS has an
-			// explicit nonce so that the nonce can be
-			// random. However, the nonce is only 8 bytes
-			// which is too small for a secure, random
-			// nonce. Therefore we use the sequence number
-			// as the nonce.
-			explicitIVIsSeq = true
-		} else if c.out.cipher != nil {
-			panic("Unknown cipher")
-		}
-		b.resize(recordHeaderLen + explicitIVLen + len(fragment))
-		b.data[0] = byte(typ)
-		vers := c.vers
-		if vers == 0 {
-			// Some TLS servers fail if the record version is
-			// greater than TLS 1.0 for the initial ClientHello.
-			vers = VersionTLS10
-		}
-		vers = versionToWire(vers, c.isDTLS)
-		b.data[1] = byte(vers >> 8)
-		b.data[2] = byte(vers)
-		// DTLS records include an explicit sequence number.
-		copy(b.data[3:11], c.out.seq[0:])
-		b.data[11] = byte(len(fragment) >> 8)
-		b.data[12] = byte(len(fragment))
-		if explicitIVLen > 0 {
-			explicitIV := b.data[recordHeaderLen : recordHeaderLen+explicitIVLen]
-			if explicitIVIsSeq {
-				copy(explicitIV, c.out.seq[:])
-			} else {
-				if _, err = io.ReadFull(c.config.rand(), explicitIV); err != nil {
-					break
-				}
+			if _, err = io.ReadFull(c.config.rand(), explicitIV); err != nil {
+				return
 			}
 		}
-		copy(b.data[recordHeaderLen+explicitIVLen:], fragment)
-		c.out.encrypt(b, explicitIVLen)
-
-		// TODO(davidben): A real DTLS implementation needs to
-		// retransmit handshake messages. For testing
-		// purposes, we don't actually care.
-		_, err = c.conn.Write(b.data)
-		if err != nil {
-			break
-		}
-		n += m
-		data = data[m:]
 	}
+	copy(b.data[recordHeaderLen+explicitIVLen:], data)
+	c.out.encrypt(b, explicitIVLen)
+
+	_, err = c.conn.Write(b.data)
+	if err != nil {
+		return
+	}
+	n = len(data)
+
 	c.out.freeBlock(b)
-
-	// Increment the handshake sequence number for the next
-	// handshake message.
-	if typ == recordTypeHandshake {
-		c.sendHandshakeSeq++
-	}
 
 	if typ == recordTypeChangeCipherSpec {
 		err = c.out.changeCipherSpec(c.config)

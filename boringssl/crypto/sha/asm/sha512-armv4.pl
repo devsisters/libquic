@@ -34,16 +34,9 @@
 # terms it's 22.6 cycles per byte, which is disappointing result.
 # Technical writers asserted that 3-way S4 pipeline can sustain
 # multiple NEON instructions per cycle, but dual NEON issue could
-# not be observed, and for NEON-only sequences IPC(*) was found to
-# be limited by 1:-( 0.33 and 0.66 were measured for sequences with
-# ILPs(*) of 1 and 2 respectively. This in turn means that you can
-# even find yourself striving, as I did here, for achieving IPC
-# adequate to one delivered by Cortex A8 [for reference, it's
-# 0.5 for ILP of 1, and 1 for higher ILPs].
-#
-# (*) ILP, instruction-level parallelism, how many instructions
-#     *can* execute at the same time. IPC, instructions per cycle,
-#     indicates how many instructions actually execute.
+# not be observed, see http://www.openssl.org/~appro/Snapdragon-S4.html
+# for further details. On side note Cortex-A15 processes one byte in
+# 16 cycles.
 
 # Byte order [in]dependence. =========================================
 #
@@ -180,7 +173,6 @@ $code.=<<___;
 ___
 }
 $code=<<___;
-#if defined(__arm__)
 #include "arm_arch.h"
 #ifdef __ARMEL__
 # define LO 0
@@ -238,17 +230,20 @@ WORD64(0x3c9ebe0a,0x15c9bebc, 0x431d67c4,0x9c100d4c)
 WORD64(0x4cc5d4be,0xcb3e42b6, 0x597f299c,0xfc657e2a)
 WORD64(0x5fcb6fab,0x3ad6faec, 0x6c44198c,0x4a475817)
 .size	K512,.-K512
+#if __ARM_MAX_ARCH__>=7
 .LOPENSSL_armcap:
 .word	OPENSSL_armcap_P-sha512_block_data_order
 .skip	32-4
+#else
+.skip	32
+#endif
 
 .global	sha512_block_data_order
-.hidden	sha512_block_data_order
 .type	sha512_block_data_order,%function
 sha512_block_data_order:
 	sub	r3,pc,#8		@ sha512_block_data_order
 	add	$len,$inp,$len,lsl#7	@ len to point at the end of inp
-#if __ARM_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7
 	ldr	r12,.LOPENSSL_armcap
 	ldr	r12,[r3,r12]		@ OPENSSL_armcap_P
 	tst	r12,#1
@@ -553,7 +548,8 @@ ___
 }
 
 $code.=<<___;
-#if __ARM_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7
+.arch	armv7-a
 .fpu	neon
 
 .align	4
@@ -586,7 +582,7 @@ $code.=<<___;
 	bne		.Loop_neon
 
 	vldmia	sp!,{d8-d15}		@ epilogue
-	bx	lr
+	ret				@ bx lr
 #endif
 ___
 }
@@ -594,12 +590,14 @@ $code.=<<___;
 .size	sha512_block_data_order,.-sha512_block_data_order
 .asciz	"SHA512 block transform for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
 .align	2
+#if __ARM_MAX_ARCH__>=7
 .comm	OPENSSL_armcap_P,4,4
-
+.hidden	OPENSSL_armcap_P
 #endif
 ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;
 $code =~ s/\bbx\s+lr\b/.word\t0xe12fff1e/gm;	# make it possible to compile with -march=armv4
+$code =~ s/\bret\b/bx	lr/gm;
 print $code;
 close STDOUT; # enforce flush

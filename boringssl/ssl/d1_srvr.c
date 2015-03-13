@@ -127,8 +127,6 @@
 #include "ssl_locl.h"
 
 
-static int dtls1_send_hello_verify_request(SSL *s);
-
 int dtls1_accept(SSL *s) {
   BUF_MEM *buf = NULL;
   void (*cb)(const SSL *ssl, int type, int val) = NULL;
@@ -244,31 +242,8 @@ int dtls1_accept(SSL *s) {
           goto end;
         }
         dtls1_stop_timer(s);
-
-        if (ret == 1 && (SSL_get_options(s) & SSL_OP_COOKIE_EXCHANGE)) {
-          s->state = DTLS1_ST_SW_HELLO_VERIFY_REQUEST_A;
-        } else {
-          s->state = SSL3_ST_SW_SRVR_HELLO_A;
-        }
-
+        s->state = SSL3_ST_SW_SRVR_HELLO_A;
         s->init_num = 0;
-        break;
-
-      case DTLS1_ST_SW_HELLO_VERIFY_REQUEST_A:
-      case DTLS1_ST_SW_HELLO_VERIFY_REQUEST_B:
-        ret = dtls1_send_hello_verify_request(s);
-        if (ret <= 0) {
-          goto end;
-        }
-        s->state = SSL3_ST_SW_FLUSH;
-        s->s3->tmp.next_state = SSL3_ST_SR_CLNT_HELLO_A;
-
-        /* HelloVerifyRequest resets Finished MAC */
-        if (!ssl3_init_finished_mac(s)) {
-          OPENSSL_PUT_ERROR(SSL, dtls1_accept, ERR_R_INTERNAL_ERROR);
-          ret = -1;
-          goto end;
-        }
         break;
 
       case SSL3_ST_SW_SRVR_HELLO_A:
@@ -294,9 +269,7 @@ int dtls1_accept(SSL *s) {
 
       case SSL3_ST_SW_CERT_A:
       case SSL3_ST_SW_CERT_B:
-        /* Check if it is anon DH or normal PSK */
-        if (!(s->s3->tmp.new_cipher->algorithm_auth & SSL_aNULL) &&
-            !(s->s3->tmp.new_cipher->algorithm_mkey & SSL_kPSK)) {
+        if (ssl_cipher_has_server_public_key(s->s3->tmp.new_cipher)) {
           dtls1_start_timer(s);
           ret = ssl3_send_server_certificate(s);
           if (ret <= 0) {
@@ -370,12 +343,7 @@ int dtls1_accept(SSL *s) {
           if (ret <= 0) {
             goto end;
           }
-#ifndef NETSCAPE_HANG_BUG
           s->state = SSL3_ST_SW_SRVR_DONE_A;
-#else
-          s->state = SSL3_ST_SW_FLUSH;
-          s->s3->tmp.next_state = SSL3_ST_SR_CERT_A;
-#endif
           s->init_num = 0;
         }
         break;
@@ -395,12 +363,6 @@ int dtls1_accept(SSL *s) {
       case SSL3_ST_SW_FLUSH:
         s->rwstate = SSL_WRITING;
         if (BIO_flush(s->wbio) <= 0) {
-          /* If the write error was fatal, stop trying */
-          if (!BIO_should_retry(s->wbio)) {
-            s->rwstate = SSL_NOTHING;
-            s->state = s->s3->tmp.next_state;
-          }
-
           ret = -1;
           goto end;
         }
@@ -432,8 +394,6 @@ int dtls1_accept(SSL *s) {
 
       case SSL3_ST_SR_CERT_VRFY_A:
       case SSL3_ST_SR_CERT_VRFY_B:
-        s->d1->change_cipher_spec_ok = 1;
-        /* we should decide if we expected this one */
         ret = ssl3_get_cert_verify(s);
         if (ret <= 0) {
           goto end;
@@ -573,37 +533,4 @@ end:
     cb(s, SSL_CB_ACCEPT_EXIT, ret);
   }
   return ret;
-}
-
-int dtls1_send_hello_verify_request(SSL *s) {
-  uint8_t *msg, *p;
-
-  if (s->state == DTLS1_ST_SW_HELLO_VERIFY_REQUEST_A) {
-    msg = p = ssl_handshake_start(s);
-    /* Always use DTLS 1.0 version: see RFC 6347 */
-    *(p++) = DTLS1_VERSION >> 8;
-    *(p++) = DTLS1_VERSION & 0xFF;
-
-    /* Inform the callback how much space is in the
-     * cookie's buffer. */
-    s->d1->cookie_len = sizeof(s->d1->cookie);
-
-    if (s->ctx->app_gen_cookie_cb == NULL ||
-        s->ctx->app_gen_cookie_cb(s, s->d1->cookie, &(s->d1->cookie_len)) ==
-            0) {
-      OPENSSL_PUT_ERROR(SSL, dtls1_send_hello_verify_request,
-                        ERR_R_INTERNAL_ERROR);
-      return 0;
-    }
-
-    *(p++) = (uint8_t)s->d1->cookie_len;
-    memcpy(p, s->d1->cookie, s->d1->cookie_len);
-    p += s->d1->cookie_len;
-
-    ssl_set_handshake_header(s, DTLS1_MT_HELLO_VERIFY_REQUEST, p - msg);
-    s->state = DTLS1_ST_SW_HELLO_VERIFY_REQUEST_B;
-  }
-
-  /* s->state = DTLS1_ST_SW_HELLO_VERIFY_REQUEST_B */
-  return ssl_do_write(s);
 }

@@ -206,14 +206,6 @@
    *((c)++) = (uint8_t)(((l) >> 8) & 0xff),  \
    *((c)++) = (uint8_t)(((l)) & 0xff))
 
-#define l2n6(l, c)                           \
-  (*((c)++) = (uint8_t)(((l) >> 40) & 0xff), \
-   *((c)++) = (uint8_t)(((l) >> 32) & 0xff), \
-   *((c)++) = (uint8_t)(((l) >> 24) & 0xff), \
-   *((c)++) = (uint8_t)(((l) >> 16) & 0xff), \
-   *((c)++) = (uint8_t)(((l) >> 8) & 0xff),  \
-   *((c)++) = (uint8_t)(((l)) & 0xff))
-
 #define l2n8(l, c)                           \
   (*((c)++) = (uint8_t)(((l) >> 56) & 0xff), \
    *((c)++) = (uint8_t)(((l) >> 48) & 0xff), \
@@ -223,11 +215,6 @@
    *((c)++) = (uint8_t)(((l) >> 16) & 0xff), \
    *((c)++) = (uint8_t)(((l) >> 8) & 0xff),  \
    *((c)++) = (uint8_t)(((l)) & 0xff))
-
-#define n2l6(c, l)                                                         \
-  (l = ((BN_ULLONG)(*((c)++))) << 40, l |= ((BN_ULLONG)(*((c)++))) << 32,  \
-   l |= ((BN_ULLONG)(*((c)++))) << 24, l |= ((BN_ULLONG)(*((c)++))) << 16, \
-   l |= ((BN_ULLONG)(*((c)++))) << 8, l |= ((BN_ULLONG)(*((c)++))))
 
 /* NOTE - c is not incremented as per l2c */
 #define l2cn(l1, l2, c, n)                               \
@@ -363,21 +350,11 @@
  * indicates that the cipher is implemented via an EVP_AEAD. */
 #define SSL_CIPHER_ALGORITHM2_AEAD (1 << 23)
 
-/* SSL_CIPHER_AEAD_FIXED_NONCE_LEN returns the number of bytes of fixed nonce
- * for an SSL_CIPHER* with the SSL_CIPHER_ALGORITHM2_AEAD flag. */
-#define SSL_CIPHER_AEAD_FIXED_NONCE_LEN(ssl_cipher) \
-  (((ssl_cipher->algorithm2 >> 24) & 0xf) * 2)
-
 /* SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD is a flag in
  * SSL_CIPHER.algorithm2 which indicates that the variable part of the nonce is
  * included as a prefix of the record. (AES-GCM, for example, does with with an
  * 8-byte variable nonce.) */
 #define SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD (1<<22)
-
-/* SSL_CIPHER_ALGORITHM2_STATEFUL_AEAD is a flag in SSL_CIPHER.algorithm2 which
- * indicates that the AEAD is stateful and so doesn't take an nonce. This is
- * only true of legacy cipher suites. */
-#define SSL_CIPHER_ALGORITHM2_STATEFUL_AEAD (1<<28)
 
 /* Cipher strength information. */
 #define SSL_MEDIUM 0x00000001L
@@ -418,16 +395,16 @@
  * SSL_aDSS <- DSA_SIGN */
 
 #define PENDING_SESSION -10000
-#define CERTIFICATE_SELECTION_PENDING -10001
 
 /* From RFC4492, used in encoding the curve type in ECParameters */
 #define EXPLICIT_PRIME_CURVE_TYPE 1
 #define EXPLICIT_CHAR2_CURVE_TYPE 2
 #define NAMED_CURVE_TYPE 3
 
-/* Values for the |hash_message| parameter of |s->method->ssl_get_message|. */
-#define SSL_GET_MESSAGE_DONT_HASH_MESSAGE 0
-#define SSL_GET_MESSAGE_HASH_MESSAGE 1
+enum ssl_hash_message_t {
+  ssl_dont_hash_message,
+  ssl_hash_message,
+};
 
 typedef struct cert_pkey_st {
   X509 *x509;
@@ -569,7 +546,8 @@ struct ssl_protocol_method_st {
   int (*ssl_renegotiate)(SSL *s);
   int (*ssl_renegotiate_check)(SSL *s);
   long (*ssl_get_message)(SSL *s, int header_state, int body_state,
-                          int msg_type, long max, int hash_message, int *ok);
+                          int msg_type, long max,
+                          enum ssl_hash_message_t hash_message, int *ok);
   int (*ssl_read_bytes)(SSL *s, int type, uint8_t *buf, int len, int peek);
   int (*ssl_write_bytes)(SSL *s, int type, const void *buf_, int len);
   int (*ssl_dispatch_alert)(SSL *s);
@@ -578,21 +556,26 @@ struct ssl_protocol_method_st {
   int (*ssl_pending)(const SSL *s);
   int (*num_ciphers)(void);
   const SSL_CIPHER *(*get_cipher)(unsigned ncipher);
-  int (*ssl_version)(void);
   long (*ssl_callback_ctrl)(SSL *s, int cb_id, void (*fp)(void));
   long (*ssl_ctx_callback_ctrl)(SSL_CTX *s, int cb_id, void (*fp)(void));
+  /* Handshake header length */
+  unsigned int hhlen;
+  /* Set the handshake header */
+  int (*set_handshake_header)(SSL *s, int type, unsigned long len);
+  /* Write out handshake message */
+  int (*do_write)(SSL *s);
 };
 
 /* This is for the SSLv3/TLSv1.0 differences in crypto/hash stuff It is a bit
  * of a mess of functions, but hell, think of it as an opaque structure. */
 struct ssl3_enc_method {
   int (*enc)(SSL *, int);
-  int (*mac)(SSL *, uint8_t *, int);
+  int (*prf)(SSL *, uint8_t *, size_t, const uint8_t *, size_t, const char *,
+             size_t, const uint8_t *, size_t, const uint8_t *, size_t);
   int (*setup_key_block)(SSL *);
-  int (*generate_master_secret)(SSL *, uint8_t *, uint8_t *, int);
+  int (*generate_master_secret)(SSL *, uint8_t *, const uint8_t *, size_t);
   int (*change_cipher_state)(SSL *, int);
   int (*final_finish_mac)(SSL *, const char *, int, uint8_t *);
-  int finish_mac_length;
   int (*cert_verify_mac)(SSL *, int, uint8_t *);
   const char *client_finished_label;
   int client_finished_label_len;
@@ -603,20 +586,14 @@ struct ssl3_enc_method {
                                 const uint8_t *, size_t, int use_context);
   /* Various flags indicating protocol version requirements */
   unsigned int enc_flags;
-  /* Handshake header length */
-  unsigned int hhlen;
-  /* Set the handshake header */
-  void (*set_handshake_header)(SSL *s, int type, unsigned long len);
-  /* Write out handshake message */
-  int (*do_write)(SSL *s);
 };
 
-#define SSL_HM_HEADER_LENGTH(s) s->enc_method->hhlen
+#define SSL_HM_HEADER_LENGTH(s) s->method->hhlen
 #define ssl_handshake_start(s) \
-  (((uint8_t *)s->init_buf->data) + s->enc_method->hhlen)
+  (((uint8_t *)s->init_buf->data) + s->method->hhlen)
 #define ssl_set_handshake_header(s, htype, len) \
-  s->enc_method->set_handshake_header(s, htype, len)
-#define ssl_do_write(s) s->enc_method->do_write(s)
+  s->method->set_handshake_header(s, htype, len)
+#define ssl_do_write(s) s->method->do_write(s)
 
 /* Values for enc_flags */
 
@@ -643,6 +620,16 @@ struct ssl_aead_ctx_st {
   /* variable_nonce_included_in_record is non-zero if the variable nonce
    * for a record is included as a prefix before the ciphertext. */
   char variable_nonce_included_in_record;
+  /* random_variable_nonce is non-zero if the variable nonce is
+   * randomly generated, rather than derived from the sequence
+   * number. */
+  char random_variable_nonce;
+  /* omit_length_in_ad is non-zero if the length should be omitted in the
+   * AEAD's ad parameter. */
+  char omit_length_in_ad;
+  /* omit_version_in_ad is non-zero if the version should be omitted
+   * in the AEAD's ad parameter. */
+  char omit_version_in_ad;
 };
 
 extern const SSL_CIPHER ssl3_ciphers[];
@@ -681,13 +668,18 @@ void ssl_cipher_preference_list_free(
 struct ssl_cipher_preference_list_st *ssl_cipher_preference_list_from_ciphers(
     STACK_OF(SSL_CIPHER) * ciphers);
 struct ssl_cipher_preference_list_st *ssl_get_cipher_preferences(SSL *s);
-int ssl_cipher_get_evp_aead(const SSL_SESSION *s, const EVP_AEAD **aead);
-int ssl_cipher_get_evp(const SSL_SESSION *s, const EVP_CIPHER **enc,
-                       const EVP_MD **md, int *mac_pkey_type,
-                       int *mac_secret_size);
-int ssl_cipher_get_mac(const SSL_SESSION *s, const EVP_MD **md,
-                       int *mac_pkey_type, int *mac_secret_size);
-int ssl_get_handshake_digest(int i, long *mask, const EVP_MD **md);
+
+/* ssl_cipher_get_evp_aead sets |*out_aead| to point to the correct EVP_AEAD
+* object for |cipher| protocol version |version|. It sets |*out_mac_secret_len|
+* and |*out_fixed_iv_len| to the MAC key length and fixed IV length,
+* respectively. The MAC key length is zero except for legacy block and stream
+* ciphers. It returns 1 on success and 0 on error. */
+int ssl_cipher_get_evp_aead(const EVP_AEAD **out_aead,
+                            size_t *out_mac_secret_len,
+                            size_t *out_fixed_iv_len,
+                            const SSL_CIPHER *cipher, uint16_t version);
+
+int ssl_get_handshake_digest(size_t i, long *mask, const EVP_MD **md);
 int ssl_cipher_get_cert_index(const SSL_CIPHER *c);
 int ssl_cipher_has_server_public_key(const SSL_CIPHER *cipher);
 int ssl_cipher_requires_server_key_exchange(const SSL_CIPHER *cipher);
@@ -728,20 +720,21 @@ int ssl3_send_server_certificate(SSL *s);
 int ssl3_send_new_session_ticket(SSL *s);
 int ssl3_send_cert_status(SSL *s);
 int ssl3_get_finished(SSL *s, int state_a, int state_b);
-int ssl3_setup_key_block(SSL *s);
 int ssl3_send_change_cipher_spec(SSL *s, int state_a, int state_b);
-int ssl3_change_cipher_state(SSL *s, int which);
+int ssl3_prf(SSL *s, uint8_t *out, size_t out_len, const uint8_t *secret,
+             size_t secret_len, const char *label, size_t label_len,
+             const uint8_t *seed1, size_t seed1_len,
+             const uint8_t *seed2, size_t seed2_len);
 void ssl3_cleanup_key_block(SSL *s);
 int ssl3_do_write(SSL *s, int type);
 int ssl3_send_alert(SSL *s, int level, int desc);
-int ssl3_generate_master_secret(SSL *s, uint8_t *out, uint8_t *p, int len);
 int ssl3_get_req_cert_type(SSL *s, uint8_t *p);
 long ssl3_get_message(SSL *s, int header_state, int body_state, int msg_type,
-                      long max, int hash_message, int *ok);
+                      long max, enum ssl_hash_message_t hash_message, int *ok);
 
-/* ssl3_hash_current_message incorporates the current handshake message into
- * the handshake hash. */
-void ssl3_hash_current_message(SSL *s);
+/* ssl3_hash_current_message incorporates the current handshake message into the
+ * handshake hash. It returns one on success and zero on allocation failure. */
+int ssl3_hash_current_message(SSL *s);
 
 /* ssl3_cert_verify_hash writes the CertificateVerify hash into the bytes
  * pointed to by |out| and writes the number of bytes to |*out_len|. |out| must
@@ -763,11 +756,9 @@ int ssl3_read_bytes(SSL *s, int type, uint8_t *buf, int len, int peek);
 int ssl3_write_bytes(SSL *s, int type, const void *buf, int len);
 int ssl3_final_finish_mac(SSL *s, const char *sender, int slen, uint8_t *p);
 int ssl3_cert_verify_mac(SSL *s, int md_nid, uint8_t *p);
-void ssl3_finish_mac(SSL *s, const uint8_t *buf, int len);
-int ssl3_enc(SSL *s, int send_data);
-int n_ssl3_mac(SSL *ssl, uint8_t *md, int send_data);
+int ssl3_finish_mac(SSL *s, const uint8_t *buf, int len);
 void ssl3_free_digest_list(SSL *s);
-unsigned long ssl3_output_cert_chain(SSL *s, CERT_PKEY *cpk);
+int ssl3_output_cert_chain(SSL *s, CERT_PKEY *cpk);
 const SSL_CIPHER *ssl3_choose_cipher(
     SSL *ssl, STACK_OF(SSL_CIPHER) * clnt,
     struct ssl_cipher_preference_list_st *srvr);
@@ -800,7 +791,7 @@ int ssl3_pending(const SSL *s);
 void ssl3_record_sequence_update(uint8_t *seq);
 int ssl3_do_change_cipher_spec(SSL *ssl);
 
-void ssl3_set_handshake_header(SSL *s, int htype, unsigned long len);
+int ssl3_set_handshake_header(SSL *s, int htype, unsigned long len);
 int ssl3_handshake_write(SSL *s);
 
 int dtls1_do_write(SSL *s, int type);
@@ -816,19 +807,18 @@ int dtls1_write_bytes(SSL *s, int type, const void *buf, int len);
 
 int dtls1_send_change_cipher_spec(SSL *s, int a, int b);
 int dtls1_send_finished(SSL *s, int a, int b, const char *sender, int slen);
-unsigned long dtls1_output_cert_chain(SSL *s, CERT_PKEY *cpk);
 int dtls1_read_failed(SSL *s, int code);
 int dtls1_buffer_message(SSL *s, int ccs);
-int dtls1_retransmit_message(SSL *s, unsigned short seq, unsigned long frag_off,
-                             int *found);
 int dtls1_get_queue_priority(unsigned short seq, int is_ccs);
 int dtls1_retransmit_buffered_messages(SSL *s);
 void dtls1_clear_record_buffer(SSL *s);
 void dtls1_get_message_header(uint8_t *data, struct hm_header_st *msg_hdr);
-void dtls1_get_ccs_header(uint8_t *data, struct ccs_header_st *ccs_hdr);
 void dtls1_reset_seq_numbers(SSL *s, int rw);
 int dtls1_check_timeout_num(SSL *s);
 int dtls1_handle_timeout(SSL *s);
+int dtls1_set_handshake_header(SSL *s, int type, unsigned long len);
+int dtls1_handshake_write(SSL *s);
+
 const SSL_CIPHER *dtls1_get_cipher(unsigned int u);
 void dtls1_start_timer(SSL *s);
 void dtls1_stop_timer(SSL *s);
@@ -879,12 +869,22 @@ long dtls1_ctrl(SSL *s, int cmd, long larg, void *parg);
 int dtls1_shutdown(SSL *s);
 
 long dtls1_get_message(SSL *s, int st1, int stn, int mt, long max,
-                       int hash_message, int *ok);
+                       enum ssl_hash_message_t hash_message, int *ok);
 int dtls1_get_record(SSL *s);
 int dtls1_dispatch_alert(SSL *s);
 
 int ssl_init_wbio_buffer(SSL *s, int push);
 void ssl_free_wbio_buffer(SSL *s);
+
+/* tls1_prf computes the TLS PRF function for |s| as described in RFC 5246,
+ * section 5 and RFC 2246 section 5. It writes |out_len| bytes to |out|, using
+ * |secret| as the secret and |label| as the label. |seed1| and |seed2| are
+ * concatenated to form the seed parameter. It returns one on success and zero
+ * on failure. */
+int tls1_prf(SSL *s, uint8_t *out, size_t out_len, const uint8_t *secret,
+             size_t secret_len, const char *label, size_t label_len,
+             const uint8_t *seed1, size_t seed1_len,
+             const uint8_t *seed2, size_t seed2_len);
 
 int tls1_change_cipher_state(SSL *s, int which);
 int tls1_setup_key_block(SSL *s);
@@ -892,8 +892,8 @@ int tls1_enc(SSL *s, int snd);
 int tls1_handshake_digest(SSL *s, uint8_t *out, size_t out_len);
 int tls1_final_finish_mac(SSL *s, const char *str, int slen, uint8_t *p);
 int tls1_cert_verify_mac(SSL *s, int md_nid, uint8_t *p);
-int tls1_mac(SSL *ssl, uint8_t *md, int snd);
-int tls1_generate_master_secret(SSL *s, uint8_t *out, uint8_t *p, int len);
+int tls1_generate_master_secret(SSL *s, uint8_t *out, const uint8_t *premaster,
+                                size_t premaster_len);
 int tls1_export_keying_material(SSL *s, uint8_t *out, size_t olen,
                                 const char *label, size_t llen,
                                 const uint8_t *p, size_t plen, int use_context);
@@ -905,7 +905,7 @@ int ssl_check_srvr_ecc_cert_and_alg(X509 *x, SSL *s);
 
 char ssl_early_callback_init(struct ssl_early_callback_ctx *ctx);
 int tls1_ec_curve_id2nid(uint16_t curve_id);
-uint16_t tls1_ec_nid2curve_id(int nid);
+int tls1_ec_nid2curve_id(uint16_t *out_curve_id, int nid);
 
 /* tls1_check_curve parses ECParameters out of |cbs|, modifying it. It
  * checks the curve is one of our preferences and writes the
@@ -974,7 +974,9 @@ int ssl_ctx_log_master_secret(SSL_CTX *ctx, const uint8_t *client_random,
                               size_t client_random_len, const uint8_t *master,
                               size_t master_len);
 
-int ssl3_can_cutthrough(const SSL *s);
+/* ssl3_can_false_start returns one if |s| is allowed to False Start and zero
+ * otherwise. */
+int ssl3_can_false_start(const SSL *s);
 
 /* ssl3_get_enc_method returns the SSL3_ENC_METHOD corresponding to
  * |version|. */
@@ -999,8 +1001,15 @@ uint16_t ssl3_get_max_client_version(SSL *s);
  * version for |s| and zero otherwise. */
 int ssl3_is_version_enabled(SSL *s, uint16_t version);
 
-EVP_MD_CTX *ssl_replace_hash(EVP_MD_CTX **hash, const EVP_MD *md);
-void ssl_clear_hash_ctx(EVP_MD_CTX **hash);
+/* ssl3_version_from_wire maps |wire_version| to a protocol version. For
+ * SSLv3/TLS, the version is returned as-is. For DTLS, the corresponding TLS
+ * version is used. Note that this mapping is not injective but preserves
+ * comparisons.
+ *
+ * TODO(davidben): To normalize some DTLS-specific code, move away from using
+ * the wire version except at API boundaries. */
+uint16_t ssl3_version_from_wire(SSL *s, uint16_t wire_version);
+
 int ssl_add_serverhello_renegotiate_ext(SSL *s, uint8_t *p, int *len,
                                         int maxlen);
 int ssl_parse_serverhello_renegotiate_ext(SSL *s, CBS *cbs, int *out_alert);
@@ -1023,20 +1032,5 @@ int ssl_add_clienthello_use_srtp_ext(SSL *s, uint8_t *p, int *len, int maxlen);
 int ssl_parse_clienthello_use_srtp_ext(SSL *s, CBS *cbs, int *out_alert);
 int ssl_add_serverhello_use_srtp_ext(SSL *s, uint8_t *p, int *len, int maxlen);
 int ssl_parse_serverhello_use_srtp_ext(SSL *s, CBS *cbs, int *out_alert);
-
-/* s3_cbc.c */
-void ssl3_cbc_copy_mac(uint8_t *out, const SSL3_RECORD *rec, unsigned md_size,
-                       unsigned orig_len);
-int ssl3_cbc_remove_padding(const SSL *s, SSL3_RECORD *rec, unsigned block_size,
-                            unsigned mac_size);
-int tls1_cbc_remove_padding(const SSL *s, SSL3_RECORD *rec, unsigned block_size,
-                            unsigned mac_size);
-char ssl3_cbc_record_digest_supported(const EVP_MD_CTX *ctx);
-int ssl3_cbc_digest_record(const EVP_MD_CTX *ctx, uint8_t *md_out,
-                           size_t *md_out_size, const uint8_t header[13],
-                           const uint8_t *data, size_t data_plus_mac_size,
-                           size_t data_plus_mac_plus_padding_size,
-                           const uint8_t *mac_secret,
-                           unsigned mac_secret_length, char is_sslv3);
 
 #endif

@@ -56,6 +56,8 @@
 
 #include <openssl/stack.h>
 
+#include <string.h>
+
 #include <openssl/mem.h>
 
 /* kMinSize is the number of pointers that will be initially allocated in a new
@@ -357,4 +359,32 @@ stack_cmp_func sk_set_cmp_func(_STACK *sk, stack_cmp_func comp) {
   sk->comp = comp;
 
   return old;
+}
+
+_STACK *sk_deep_copy(const _STACK *sk, void *(*copy_func)(void *),
+                     void (*free_func)(void *)) {
+  _STACK *ret = sk_dup(sk);
+  if (ret == NULL) {
+    return NULL;
+  }
+
+  size_t i;
+  for (i = 0; i < ret->num; i++) {
+    if (ret->data[i] == NULL) {
+      continue;
+    }
+    ret->data[i] = copy_func(ret->data[i]);
+    if (ret->data[i] == NULL) {
+      size_t j;
+      for (j = 0; j < i; j++) {
+        if (ret->data[j] != NULL) {
+          free_func(ret->data[j]);
+        }
+      }
+      sk_free(ret);
+      return NULL;
+    }
+  }
+
+  return ret;
 }

@@ -76,6 +76,9 @@ extern "C" {
 #endif
 
 
+/* Elliptic curve Diffie-Hellman. */
+
+
 /* ECDH_compute_key calculates the shared key between |pub_key| and |priv_key|.
  * If |KDF| is not NULL, then it is called with the bytes of the shared key and
  * the parameter |out|. When |KDF| returns, the value of |*outlen| becomes the
@@ -87,21 +90,14 @@ OPENSSL_EXPORT int ECDH_compute_key(void *out, size_t outlen,
                                     void *(*KDF)(const void *in, size_t inlen,
                                                  void *out, size_t *outlen));
 
-/* ECDH_KDF_X9_62 writes |outlen| bytes to |out| using the KDF from X9.62
- * applied to |Z| and |sinfo| and using the hash |md|. It returns one on
- * success and zero otherwise. */
-OPENSSL_EXPORT int ECDH_KDF_X9_62(uint8_t *out, size_t outlen, const uint8_t *Z,
-                                  size_t Zlen, const uint8_t *sinfo,
-                                  size_t sinfolen, const EVP_MD *md);
-
 
 #if defined(__cplusplus)
 }  /* extern C */
 #endif
 
 #define ECDH_F_ECDH_compute_key 100
-#define ECDH_R_POINT_ARITHMETIC_FAILURE 100
-#define ECDH_R_KDF_FAILED 101
-#define ECDH_R_NO_PRIVATE_VALUE 102
+#define ECDH_R_KDF_FAILED 100
+#define ECDH_R_NO_PRIVATE_VALUE 101
+#define ECDH_R_POINT_ARITHMETIC_FAILURE 102
 
 #endif  /* OPENSSL_HEADER_ECDH_H */

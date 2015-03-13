@@ -1,7 +1,7 @@
 /* ssl/dtls1.h */
-/* 
+/*
  * DTLS implementation written by Nagendra Modadugu
- * (nagendra@cs.stanford.edu) for the OpenSSL project 2005.  
+ * (nagendra@cs.stanford.edu) for the OpenSSL project 2005.
  */
 /* ====================================================================
  * Copyright (c) 1999-2005 The OpenSSL Project.  All rights reserved.
@@ -11,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -55,202 +55,148 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#ifndef HEADER_DTLS1_H
-#define HEADER_DTLS1_H
+#ifndef OPENSSL_HEADER_DTLS1_H
+#define OPENSSL_HEADER_DTLS1_H
 
 #include <openssl/base.h>
 #include <openssl/buf.h>
 #include <openssl/pqueue.h>
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 
-#define DTLS1_VERSION			0xFEFF
-#define DTLS1_2_VERSION			0xFEFD
+#define DTLS1_VERSION 0xFEFF
+#define DTLS1_2_VERSION 0xFEFD
 
 /* lengths of messages */
-#define DTLS1_COOKIE_LENGTH                     256
+#define DTLS1_COOKIE_LENGTH 256
 
-#define DTLS1_RT_HEADER_LENGTH                  13
+#define DTLS1_RT_HEADER_LENGTH 13
 
-#define DTLS1_HM_HEADER_LENGTH                  12
+#define DTLS1_HM_HEADER_LENGTH 12
 
-#define DTLS1_HM_BAD_FRAGMENT                   -2
-#define DTLS1_HM_FRAGMENT_RETRY                 -3
+#define DTLS1_CCS_HEADER_LENGTH 1
 
-#define DTLS1_CCS_HEADER_LENGTH                  1
+#define DTLS1_AL_HEADER_LENGTH 2
 
-#define DTLS1_AL_HEADER_LENGTH                   2
+typedef struct dtls1_bitmap_st {
+  /* map is a bit mask of the last 64 sequence numbers. Bit
+   * |1<<i| corresponds to |max_seq_num - i|. */
+  uint64_t map;
+  /* max_seq_num is the largest sequence number seen so far. It
+   * is a 64-bit value in big-endian encoding. */
+  uint8_t max_seq_num[8];
+} DTLS1_BITMAP;
 
-#ifndef OPENSSL_NO_SSL_INTERN
+/* TODO(davidben): This structure is used for both incoming messages and
+ * outgoing messages. |is_ccs| and |epoch| are only used in the latter and
+ * should be moved elsewhere. */
+struct hm_header_st {
+  uint8_t type;
+  uint32_t msg_len;
+  uint16_t seq;
+  uint32_t frag_off;
+  uint32_t frag_len;
+  int is_ccs;
+  /* epoch, for buffered outgoing messages, is the epoch the message was
+   * originally sent in. */
+  uint16_t epoch;
+};
+
+typedef struct record_pqueue_st {
+  uint16_t epoch;
+  pqueue q;
+} record_pqueue;
+
+/* TODO(davidben): This structure is used for both incoming messages and
+ * outgoing messages. |fragment| and |reassembly| are only used in the former
+ * and should be moved elsewhere. */
+typedef struct hm_fragment_st {
+  struct hm_header_st msg_header;
+  uint8_t *fragment;
+  uint8_t *reassembly;
+} hm_fragment;
+
+typedef struct dtls1_state_st {
+  /* send_cookie is true if we are resending the ClientHello
+   * with a cookie from a HelloVerifyRequest. */
+  unsigned int send_cookie;
+
+  uint8_t cookie[DTLS1_COOKIE_LENGTH];
+  size_t cookie_len;
+
+  /* The current data and handshake epoch.  This is initially undefined, and
+   * starts at zero once the initial handshake is completed. */
+  uint16_t r_epoch;
+  uint16_t w_epoch;
+
+  /* records being received in the current epoch */
+  DTLS1_BITMAP bitmap;
+
+  /* renegotiation starts a new set of sequence numbers */
+  DTLS1_BITMAP next_bitmap;
+
+  /* handshake message numbers */
+  uint16_t handshake_write_seq;
+  uint16_t next_handshake_write_seq;
+
+  uint16_t handshake_read_seq;
+
+  /* save last sequence number for retransmissions */
+  uint8_t last_write_sequence[8];
+
+  /* Received handshake records (processed and unprocessed) */
+  record_pqueue unprocessed_rcds;
+  record_pqueue processed_rcds;
+
+  /* buffered_messages is a priority queue of incoming handshake messages that
+   * have yet to be processed.
+   *
+   * TODO(davidben): This data structure may as well be a ring buffer of fixed
+   * size. */
+  pqueue buffered_messages;
+
+  /* send_messages is a priority queue of outgoing handshake messages sent in
+   * the most recent handshake flight.
+   *
+   * TODO(davidben): This data structure may as well be a STACK_OF(T). */
+  pqueue sent_messages;
+
+  /* Buffered application records.  Only for records between CCS and Finished to
+   * prevent either protocol violation or unnecessary message loss. */
+  record_pqueue buffered_app_data;
+
+  unsigned int mtu; /* max DTLS packet size */
+
+  struct hm_header_st w_msg_hdr;
+
+  /* num_timeouts is the number of times the retransmit timer has fired since
+   * the last time it was reset. */
+  unsigned int num_timeouts;
+
+  /* Indicates when the last handshake msg or heartbeat sent will
+   * timeout. Because of header issues on Windows, this cannot actually be a
+   * struct timeval. */
+  OPENSSL_timeval next_timeout;
+
+  /* Timeout duration */
+  unsigned short timeout_duration;
+
+  unsigned int change_cipher_spec_ok;
+} DTLS1_STATE;
+
+typedef struct dtls1_record_data_st {
+  uint8_t *packet;
+  unsigned int packet_length;
+  SSL3_BUFFER rbuf;
+  SSL3_RECORD rrec;
+} DTLS1_RECORD_DATA;
 
 
-#if defined(OPENSSL_WINDOWS)
-/* Because of Windows header issues, we can't get the normal declaration of
- * timeval. */
-typedef struct OPENSSL_timeval_st {
-	long tv_sec;
-	long tv_usec;
-} OPENSSL_timeval;
-#else
-#include <sys/time.h>
-typedef struct timeval OPENSSL_timeval;
+#ifdef __cplusplus
+}  /* extern C */
 #endif
 
-typedef struct dtls1_bitmap_st
-	{
-	/* map is a bit mask of the last 64 sequence numbers. Bit
-	 * |1<<i| corresponds to |max_seq_num - i|. */
-	uint64_t map;
-	/* max_seq_num is the largest sequence number seen so far. It
-	 * is a 64-bit value in big-endian encoding. */
-	uint8_t max_seq_num[8];
-	} DTLS1_BITMAP;
-
-struct dtls1_retransmit_state
-	{
-	EVP_CIPHER_CTX *enc_write_ctx;	/* cryptographic state */
-	EVP_MD_CTX *write_hash;			/* used for mac generation */
-	SSL_SESSION *session;
-	unsigned short epoch;
-	};
-
-struct hm_header_st
-	{
-	unsigned char type;
-	unsigned long msg_len;
-	unsigned short seq;
-	unsigned long frag_off;
-	unsigned long frag_len;
-	unsigned int is_ccs;
-	struct dtls1_retransmit_state saved_retransmit_state;
-	};
-
-struct ccs_header_st
-	{
-	unsigned char type;
-	unsigned short seq;
-	};
-
-struct dtls1_timeout_st
-	{
-	/* Number of read timeouts so far */
-	unsigned int read_timeouts;
-	
-	/* Number of write timeouts so far */
-	unsigned int write_timeouts;
-	
-	/* Number of alerts received so far */
-	unsigned int num_alerts;
-	};
-
-typedef struct record_pqueue_st
-	{
-	unsigned short epoch;
-	pqueue q;
-	} record_pqueue;
-
-typedef struct hm_fragment_st
-	{
-	struct hm_header_st msg_header;
-	unsigned char *fragment;
-	unsigned char *reassembly;
-	} hm_fragment;
-
-typedef struct dtls1_state_st
-	{
-	/* send_cookie is true if we are resending the ClientHello
-	 * with a cookie from a HelloVerifyRequest. */
-	unsigned int send_cookie;
-
-	uint8_t cookie[DTLS1_COOKIE_LENGTH];
-	size_t cookie_len;
-
-	/* 
-	 * The current data and handshake epoch.  This is initially
-	 * undefined, and starts at zero once the initial handshake is
-	 * completed 
-	 */
-	unsigned short r_epoch;
-	unsigned short w_epoch;
-
-	/* records being received in the current epoch */
-	DTLS1_BITMAP bitmap;
-
-	/* renegotiation starts a new set of sequence numbers */
-	DTLS1_BITMAP next_bitmap;
-
-	/* handshake message numbers */
-	unsigned short handshake_write_seq;
-	unsigned short next_handshake_write_seq;
-
-	unsigned short handshake_read_seq;
-
-	/* save last sequence number for retransmissions */
-	unsigned char last_write_sequence[8];
-
-	/* Received handshake records (processed and unprocessed) */
-	record_pqueue unprocessed_rcds;
-	record_pqueue processed_rcds;
-
-	/* Buffered handshake messages */
-	pqueue buffered_messages;
-
-	/* Buffered (sent) handshake records */
-	pqueue sent_messages;
-
-	/* Buffered application records.
-	 * Only for records between CCS and Finished
-	 * to prevent either protocol violation or
-	 * unnecessary message loss.
-	 */
-	record_pqueue buffered_app_data;
-
-	unsigned int mtu; /* max DTLS packet size */
-
-	struct hm_header_st w_msg_hdr;
-	struct hm_header_st r_msg_hdr;
-
-	struct dtls1_timeout_st timeout;
-
-	/* Indicates when the last handshake msg or heartbeat sent will
-	 * timeout. Because of header issues on Windows, this cannot actually
-	 * be a struct timeval. */
-	OPENSSL_timeval next_timeout;
-
-	/* Timeout duration */
-	unsigned short timeout_duration;
-
-	/* storage for Alert/Handshake protocol data received but not
-	 * yet processed by ssl3_read_bytes: */
-	unsigned char alert_fragment[DTLS1_AL_HEADER_LENGTH];
-	unsigned int alert_fragment_len;
-	unsigned char handshake_fragment[DTLS1_HM_HEADER_LENGTH];
-	unsigned int handshake_fragment_len;
-
-	unsigned int change_cipher_spec_ok;
-	} DTLS1_STATE;
-
-typedef struct dtls1_record_data_st
-	{
-	unsigned char *packet;
-	unsigned int   packet_length;
-	SSL3_BUFFER    rbuf;
-	SSL3_RECORD    rrec;
-	} DTLS1_RECORD_DATA;
-
-#endif
-
-/* Timeout multipliers (timeout slice is defined in apps/timeouts.h */
-#define DTLS1_TMO_READ_COUNT                      2
-#define DTLS1_TMO_WRITE_COUNT                     2
-
-#define DTLS1_TMO_ALERT_COUNT                     12
-
-#ifdef  __cplusplus
-}
-#endif
-#endif
-
+#endif  /* OPENSSL_HEADER_DTLS1_H */

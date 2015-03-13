@@ -25,7 +25,9 @@
 
 #include <openssl/chacha.h>
 
-#if !defined(OPENSSL_WINDOWS) && (defined(OPENSSL_X86_64) || defined(OPENSSL_X86)) && defined(__SSE2__)
+#if defined(ASM_GEN) ||          \
+    !defined(OPENSSL_WINDOWS) && \
+        (defined(OPENSSL_X86_64) || defined(OPENSSL_X86)) && defined(__SSE2__)
 
 #define CHACHA_RNDS 20 /* 8 (high speed), 20 (conservative), 12 (middle) */
 
@@ -38,12 +40,20 @@ typedef unsigned vec __attribute__((vector_size(16)));
  * This implementation supports parallel processing of multiple blocks,
  * including potentially using general-purpose registers. */
 #if __ARM_NEON__
+#include <string.h>
 #include <arm_neon.h>
 #define GPR_TOO 1
 #define VBPI 2
 #define ONE (vec) vsetq_lane_u32(1, vdupq_n_u32(0), 0)
-#define LOAD(m) (vec)(*((vec *)(m)))
-#define STORE(m, r) (*((vec *)(m))) = (r)
+#define LOAD_ALIGNED(m) (vec)(*((vec *)(m)))
+#define LOAD(m) ({ \
+    memcpy(alignment_buffer, m, 16); \
+    LOAD_ALIGNED(alignment_buffer); \
+  })
+#define STORE(m, r) ({ \
+    (*((vec *)(alignment_buffer))) = (r); \
+    memcpy(m, alignment_buffer, 16); \
+  })
 #define ROTV1(x) (vec) vextq_u32((uint32x4_t)x, (uint32x4_t)x, 1)
 #define ROTV2(x) (vec) vextq_u32((uint32x4_t)x, (uint32x4_t)x, 2)
 #define ROTV3(x) (vec) vextq_u32((uint32x4_t)x, (uint32x4_t)x, 3)
@@ -71,6 +81,7 @@ typedef unsigned vec __attribute__((vector_size(16)));
 #endif
 #define ONE (vec) _mm_set_epi32(0, 0, 0, 1)
 #define LOAD(m) (vec) _mm_loadu_si128((__m128i *)(m))
+#define LOAD_ALIGNED(m) (vec) _mm_load_si128((__m128i *)(m))
 #define STORE(m, r) _mm_storeu_si128((__m128i *)(m), (__m128i)(r))
 #define ROTV1(x) (vec) _mm_shuffle_epi32((__m128i)x, _MM_SHUFFLE(0, 3, 2, 1))
 #define ROTV2(x) (vec) _mm_shuffle_epi32((__m128i)x, _MM_SHUFFLE(1, 0, 3, 2))
@@ -148,30 +159,17 @@ void CRYPTO_chacha_20(
 	{
 	unsigned iters, i, *op=(unsigned *)out, *ip=(unsigned *)in, *kp;
 #if defined(__ARM_NEON__)
-	unsigned *np;
+	uint32_t np[2];
+	uint8_t alignment_buffer[16] __attribute__((aligned(16)));
 #endif
 	vec s0, s1, s2, s3;
-#if !defined(__ARM_NEON__) && !defined(__SSE2__)
-	__attribute__ ((aligned (16))) unsigned key[8], nonce[4];
-#endif
 	__attribute__ ((aligned (16))) unsigned chacha_const[] =
 		{0x61707865,0x3320646E,0x79622D32,0x6B206574};
-#if defined(__ARM_NEON__) || defined(__SSE2__)
 	kp = (unsigned *)key;
-#else
-	((vec *)key)[0] = REVV_BE(((vec *)key)[0]);
-	((vec *)key)[1] = REVV_BE(((vec *)key)[1]);
-	nonce[0] = REVW_BE(((unsigned *)nonce)[0]);
-	nonce[1] = REVW_BE(((unsigned *)nonce)[1]);
-	nonce[2] = REVW_BE(((unsigned *)nonce)[2]);
-	nonce[3] = REVW_BE(((unsigned *)nonce)[3]);
-	kp = (unsigned *)key;
-	np = (unsigned *)nonce;
-#endif
 #if defined(__ARM_NEON__)
-	np = (unsigned*) nonce;
+	memcpy(np, nonce, 8);
 #endif
-	s0 = LOAD(chacha_const);
+	s0 = LOAD_ALIGNED(chacha_const);
 	s1 = LOAD(&((vec*)kp)[0]);
 	s2 = LOAD(&((vec*)kp)[1]);
 	s3 = (vec){
@@ -326,4 +324,4 @@ void CRYPTO_chacha_20(
 		}
 	}
 
-#endif /* !OPENSSL_WINDOWS && (OPENSSL_X86_64 || OPENSSL_X86) && SSE2 */
+#endif /* ASM_GEN || !OPENSSL_WINDOWS && (OPENSSL_X86_64 || OPENSSL_X86) && SSE2 */

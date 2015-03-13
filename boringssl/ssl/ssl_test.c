@@ -214,8 +214,12 @@ static void print_cipher_preference_list(
 
 static int test_cipher_rule(CIPHER_TEST *t) {
   int ret = 0;
-  SSL_CTX *ctx = SSL_CTX_new(SSLv23_server_method());
+  SSL_CTX *ctx = SSL_CTX_new(TLS_method());
   size_t i;
+
+  if (ctx == NULL) {
+    goto done;
+  }
 
   if (!SSL_CTX_set_cipher_list(ctx, t->rule)) {
     fprintf(stderr, "Error testing cipher rule '%s'\n", t->rule);
@@ -243,7 +247,9 @@ static int test_cipher_rule(CIPHER_TEST *t) {
 
   ret = 1;
 done:
-  SSL_CTX_free(ctx);
+  if (ctx != NULL) {
+    SSL_CTX_free(ctx);
+  }
   return ret;
 }
 
@@ -257,8 +263,12 @@ static int test_cipher_rules(void) {
 
   for (i = 0; kBadRules[i] != NULL; i++) {
     SSL_CTX *ctx = SSL_CTX_new(SSLv23_server_method());
+    if (ctx == NULL) {
+      return 0;
+    }
     if (SSL_CTX_set_cipher_list(ctx, kBadRules[i])) {
       fprintf(stderr, "Cipher rule '%s' unexpectedly succeeded\n", kBadRules[i]);
+      SSL_CTX_free(ctx);
       return 0;
     }
     ERR_clear_error();
@@ -420,7 +430,8 @@ static int test_ssl_session_asn1(const char *input_b64) {
   return ret;
 }
 
-int test_default_version(uint16_t version, const SSL_METHOD *(*method)(void)) {
+static int test_default_version(uint16_t version,
+                                const SSL_METHOD *(*method)(void)) {
   SSL_CTX *ctx;
   int ret;
 
@@ -432,6 +443,71 @@ int test_default_version(uint16_t version, const SSL_METHOD *(*method)(void)) {
   ret = ctx->min_version == version && ctx->max_version == version;
   SSL_CTX_free(ctx);
   return ret;
+}
+
+static char *cipher_get_rfc_name(uint16_t value) {
+  const SSL_CIPHER *cipher = SSL_get_cipher_by_value(value);
+  if (cipher == NULL) {
+    return NULL;
+  }
+  return SSL_CIPHER_get_rfc_name(cipher);
+}
+
+typedef struct {
+  int id;
+  const char *rfc_name;
+} CIPHER_RFC_NAME_TEST;
+
+static const CIPHER_RFC_NAME_TEST kCipherRFCNameTests[] = {
+  { SSL3_CK_RSA_DES_192_CBC3_SHA, "TLS_RSA_WITH_3DES_EDE_CBC_SHA" },
+  { SSL3_CK_RSA_RC4_128_MD5, "TLS_RSA_WITH_RC4_MD5" },
+  { TLS1_CK_RSA_WITH_AES_128_SHA, "TLS_RSA_WITH_AES_128_CBC_SHA" },
+  { TLS1_CK_ADH_WITH_AES_128_SHA, "TLS_DH_anon_WITH_AES_128_CBC_SHA" },
+  { TLS1_CK_DHE_RSA_WITH_AES_256_SHA, "TLS_DHE_RSA_WITH_AES_256_CBC_SHA" },
+  { TLS1_CK_DHE_RSA_WITH_AES_256_SHA256,
+    "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256" },
+  { TLS1_CK_ECDH_anon_WITH_AES_128_CBC_SHA,
+    "TLS_ECDH_anon_WITH_AES_128_CBC_SHA" },
+  { TLS1_CK_ECDHE_RSA_WITH_AES_128_SHA256,
+    "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256" },
+  { TLS1_CK_ECDHE_RSA_WITH_AES_256_SHA384,
+    "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384" },
+  { TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+    "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" },
+  { TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256" },
+  { TLS1_CK_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+    "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384" },
+  { TLS1_CK_PSK_WITH_RC4_128_SHA, "TLS_PSK_WITH_RC4_SHA" },
+  /* These names are non-standard: */
+  { TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305,
+    "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256" },
+  { TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305,
+    "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256" },
+  { TLS1_CK_ECDHE_PSK_WITH_AES_128_GCM_SHA256,
+    "TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256" },
+};
+
+static int test_cipher_get_rfc_name(void) {
+  size_t i;
+
+  for (i = 0; i < sizeof(kCipherRFCNameTests) / sizeof(kCipherRFCNameTests[0]);
+       i++) {
+    const CIPHER_RFC_NAME_TEST *test = &kCipherRFCNameTests[i];
+    char *rfc_name = cipher_get_rfc_name(test->id & 0xffff);
+    if (rfc_name == NULL) {
+      fprintf(stderr, "cipher_get_rfc_name failed on '%s'\n", test->rfc_name);
+      return 0;
+    }
+    if (strcmp(rfc_name, test->rfc_name) != 0) {
+      fprintf(stderr, "SSL_CIPHER_get_rfc_name: got '%s', wanted '%s'\n",
+              rfc_name, test->rfc_name);
+      OPENSSL_free(rfc_name);
+      return 0;
+    }
+    OPENSSL_free(rfc_name);
+  }
+  return 1;
 }
 
 int main(void) {
@@ -447,7 +523,8 @@ int main(void) {
       !test_default_version(TLS1_2_VERSION, &TLSv1_2_method) ||
       !test_default_version(0, &DTLS_method) ||
       !test_default_version(DTLS1_VERSION, &DTLSv1_method) ||
-      !test_default_version(DTLS1_2_VERSION, &DTLSv1_2_method)) {
+      !test_default_version(DTLS1_2_VERSION, &DTLSv1_2_method) ||
+      !test_cipher_get_rfc_name()) {
     return 1;
   }
 

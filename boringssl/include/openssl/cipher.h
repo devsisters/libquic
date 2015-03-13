@@ -117,8 +117,8 @@ OPENSSL_EXPORT void EVP_CIPHER_CTX_init(EVP_CIPHER_CTX *ctx);
  * |EVP_CIPHER_CTX_init| and returns it, or NULL on allocation failure. */
 OPENSSL_EXPORT EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void);
 
-/* EVP_CIPHER_CTX_cleanup frees any memory referenced by |ctx|. It returns one
- * on success and zero otherwise. */
+/* EVP_CIPHER_CTX_cleanup frees any memory referenced by |ctx|. It returns
+ * one. */
 OPENSSL_EXPORT int EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *ctx);
 
 /* EVP_CIPHER_CTX_free calls |EVP_CIPHER_CTX_cleanup| on |ctx| and then frees
@@ -499,52 +499,62 @@ OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_192_cbc(void);
 }  /* extern C */
 #endif
 
-#define CIPHER_F_EVP_CipherInit_ex 100
-#define CIPHER_F_EVP_EncryptFinal_ex 101
-#define CIPHER_F_EVP_DecryptFinal_ex 102
-#define CIPHER_F_EVP_CIPHER_CTX_ctrl 103
-#define CIPHER_F_aes_init_key 104
-#define CIPHER_F_aesni_init_key 105
-#define CIPHER_F_EVP_CIPHER_CTX_copy 106
-#define CIPHER_F_EVP_AEAD_CTX_open 107
-#define CIPHER_F_EVP_AEAD_CTX_init 108
-#define CIPHER_F_EVP_AEAD_CTX_seal 109
-#define CIPHER_F_aead_aes_gcm_seal 110
-#define CIPHER_F_aead_aes_gcm_open 111
-#define CIPHER_F_aead_aes_gcm_init 112
-#define CIPHER_F_aead_chacha20_poly1305_init 113
-#define CIPHER_F_aead_chacha20_poly1305_open 114
-#define CIPHER_F_aead_chacha20_poly1305_seal 115
-#define CIPHER_F_aead_rc4_md5_tls_init 116
-#define CIPHER_F_aead_rc4_md5_tls_seal 117
-#define CIPHER_F_aead_rc4_md5_tls_open 118
-#define CIPHER_F_aead_aes_key_wrap_seal 119
-#define CIPHER_F_aead_aes_key_wrap_init 120
-#define CIPHER_F_aead_aes_key_wrap_open 121
-#define CIPHER_F_EVP_CIPHER_CTX_set_key_length 122
-#define CIPHER_R_WRAP_MODE_NOT_ALLOWED 100
-#define CIPHER_R_AES_KEY_SETUP_FAILED 101
-#define CIPHER_R_INPUT_NOT_INITIALIZED 102
-#define CIPHER_R_DATA_NOT_MULTIPLE_OF_BLOCK_LENGTH 103
-#define CIPHER_R_INITIALIZATION_ERROR 104
-#define CIPHER_R_CTRL_NOT_IMPLEMENTED 105
-#define CIPHER_R_NO_CIPHER_SET 106
-#define CIPHER_R_BAD_DECRYPT 107
-#define CIPHER_R_WRONG_FINAL_BLOCK_LENGTH 108
-#define CIPHER_R_CTRL_OPERATION_NOT_IMPLEMENTED 109
-#define CIPHER_R_TAG_TOO_LARGE 110
-#define CIPHER_R_BAD_KEY_LENGTH 111
-#define CIPHER_R_BUFFER_TOO_SMALL 112
-#define CIPHER_R_OUTPUT_ALIASES_INPUT 113
-#define CIPHER_R_UNSUPPORTED_KEY_SIZE 114
-#define CIPHER_R_TOO_LARGE 115
-#define CIPHER_R_IV_TOO_LARGE 116
-#define CIPHER_R_INVALID_AD_SIZE 117
-#define CIPHER_R_INVALID_AD 118
-#define CIPHER_R_UNSUPPORTED_TAG_SIZE 119
-#define CIPHER_R_UNSUPPORTED_INPUT_SIZE 120
-#define CIPHER_R_UNSUPPORTED_AD_SIZE 121
-#define CIPHER_R_UNSUPPORTED_NONCE_SIZE 122
-#define CIPHER_R_INVALID_KEY_LENGTH 123
+#define CIPHER_F_EVP_AEAD_CTX_init 100
+#define CIPHER_F_EVP_AEAD_CTX_open 101
+#define CIPHER_F_EVP_AEAD_CTX_seal 102
+#define CIPHER_F_EVP_CIPHER_CTX_copy 103
+#define CIPHER_F_EVP_CIPHER_CTX_ctrl 104
+#define CIPHER_F_EVP_CIPHER_CTX_set_key_length 105
+#define CIPHER_F_EVP_CipherInit_ex 106
+#define CIPHER_F_EVP_DecryptFinal_ex 107
+#define CIPHER_F_EVP_EncryptFinal_ex 108
+#define CIPHER_F_aead_aes_gcm_init 109
+#define CIPHER_F_aead_aes_gcm_open 110
+#define CIPHER_F_aead_aes_gcm_seal 111
+#define CIPHER_F_aead_aes_key_wrap_init 112
+#define CIPHER_F_aead_aes_key_wrap_open 113
+#define CIPHER_F_aead_aes_key_wrap_seal 114
+#define CIPHER_F_aead_chacha20_poly1305_init 115
+#define CIPHER_F_aead_chacha20_poly1305_open 116
+#define CIPHER_F_aead_chacha20_poly1305_seal 117
+#define CIPHER_F_aead_rc4_md5_tls_init 118
+#define CIPHER_F_aead_rc4_md5_tls_open 119
+#define CIPHER_F_aead_rc4_md5_tls_seal 120
+#define CIPHER_F_aead_ssl3_ensure_cipher_init 121
+#define CIPHER_F_aead_ssl3_init 122
+#define CIPHER_F_aead_ssl3_open 123
+#define CIPHER_F_aead_ssl3_seal 124
+#define CIPHER_F_aead_tls_ensure_cipher_init 125
+#define CIPHER_F_aead_tls_init 126
+#define CIPHER_F_aead_tls_open 127
+#define CIPHER_F_aead_tls_seal 128
+#define CIPHER_F_aes_init_key 129
+#define CIPHER_F_aesni_init_key 130
+#define CIPHER_F_EVP_AEAD_CTX_init_with_direction 131
+#define CIPHER_R_AES_KEY_SETUP_FAILED 100
+#define CIPHER_R_BAD_DECRYPT 101
+#define CIPHER_R_BAD_KEY_LENGTH 102
+#define CIPHER_R_BUFFER_TOO_SMALL 103
+#define CIPHER_R_CTRL_NOT_IMPLEMENTED 104
+#define CIPHER_R_CTRL_OPERATION_NOT_IMPLEMENTED 105
+#define CIPHER_R_DATA_NOT_MULTIPLE_OF_BLOCK_LENGTH 106
+#define CIPHER_R_INITIALIZATION_ERROR 107
+#define CIPHER_R_INPUT_NOT_INITIALIZED 108
+#define CIPHER_R_INVALID_AD_SIZE 109
+#define CIPHER_R_INVALID_KEY_LENGTH 110
+#define CIPHER_R_INVALID_NONCE_SIZE 111
+#define CIPHER_R_INVALID_OPERATION 112
+#define CIPHER_R_IV_TOO_LARGE 113
+#define CIPHER_R_NO_CIPHER_SET 114
+#define CIPHER_R_OUTPUT_ALIASES_INPUT 115
+#define CIPHER_R_TAG_TOO_LARGE 116
+#define CIPHER_R_TOO_LARGE 117
+#define CIPHER_R_UNSUPPORTED_AD_SIZE 118
+#define CIPHER_R_UNSUPPORTED_INPUT_SIZE 119
+#define CIPHER_R_UNSUPPORTED_KEY_SIZE 120
+#define CIPHER_R_UNSUPPORTED_NONCE_SIZE 121
+#define CIPHER_R_UNSUPPORTED_TAG_SIZE 122
+#define CIPHER_R_WRONG_FINAL_BLOCK_LENGTH 123
+#define CIPHER_R_NO_DIRECTION_SET 124
 
 #endif  /* OPENSSL_HEADER_CIPHER_H */

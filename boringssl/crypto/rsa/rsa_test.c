@@ -56,6 +56,8 @@
 
 #include <openssl/rsa.h>
 
+#include <string.h>
+
 #include <openssl/bio.h>
 #include <openssl/bn.h>
 #include <openssl/crypto.h>
@@ -413,7 +415,6 @@ int main(int argc, char *argv[]) {
         break;
       default:
         abort();
-        return 1;
     }
 
     if (!RSA_check_key(key)) {
@@ -477,8 +478,9 @@ int main(int argc, char *argv[]) {
       int b;
       unsigned char saved = ctext[n];
       for (b = 0; b < 256; ++b) {
-        if (b == saved)
+        if (b == saved) {
           continue;
+        }
         ctext[n] = b;
         num =
             RSA_private_decrypt(num, ctext, ptext, key, RSA_PKCS1_OAEP_PADDING);

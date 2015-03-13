@@ -19,7 +19,18 @@
 #include <openssl/ssl.h>
 
 
-static int trivial() {
+static void clear_and_free_queue(pqueue q) {
+  for (;;) {
+    pitem *item = pqueue_pop(q);
+    if (item == NULL) {
+      break;
+    }
+    pitem_free(item);
+  }
+  pqueue_free(q);
+}
+
+static int trivial(void) {
   pqueue q = pqueue_new();
   if (q == NULL) {
     return 0;
@@ -37,13 +48,13 @@ static int trivial() {
     return 0;
   }
   pitem_free(item);
-  pqueue_free(q);
+  clear_and_free_queue(q);
   return 1;
 }
 
 #define NUM_ITEMS 10
 
-static int fixed_random() {
+static int fixed_random(void) {
   /* Random order of 10 elements, chosen by
    * random.choice(list(itertools.permutations(range(10)))) */
   int ordering[NUM_ITEMS] = {9, 6, 3, 4, 0, 2, 7, 1, 8, 5};
@@ -101,7 +112,7 @@ static int fixed_random() {
     }
     curr = next;
   }
-  pqueue_free(q);
+  clear_and_free_queue(q);
   return 1;
 }
 

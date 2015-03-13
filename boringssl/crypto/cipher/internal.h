@@ -59,6 +59,7 @@
 
 #include <openssl/base.h>
 
+#include <openssl/aead.h>
 #include <openssl/asn1t.h>
 
 #if defined(__cplusplus)
@@ -97,7 +98,7 @@ struct evp_cipher_st {
   int (*cipher)(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
                 size_t inl);
 
-  int (*cleanup)(EVP_CIPHER_CTX *);
+  void (*cleanup)(EVP_CIPHER_CTX *);
 
   int (*ctrl)(EVP_CIPHER_CTX *, int type, int arg, void *ptr);
 };
@@ -117,6 +118,9 @@ struct evp_aead_st {
 
   int (*init)(struct evp_aead_ctx_st *, const uint8_t *key,
               size_t key_len, size_t tag_len);
+  int (*init_with_direction)(struct evp_aead_ctx_st *, const uint8_t *key,
+			     size_t key_len, size_t tag_len,
+			     enum evp_aead_direction_t dir);
   void (*cleanup)(struct evp_aead_ctx_st *);
 
   int (*seal)(const struct evp_aead_ctx_st *ctx, uint8_t *out,
@@ -129,6 +133,62 @@ struct evp_aead_st {
               size_t nonce_len, const uint8_t *in, size_t in_len,
               const uint8_t *ad, size_t ad_len);
 };
+
+
+/* EVP_tls_cbc_get_padding determines the padding from the decrypted, TLS, CBC
+ * record in |in|. This decrypted record should not include any "decrypted"
+ * explicit IV. It sets |*out_len| to the length with the padding removed or
+ * |in_len| if invalid.
+ *
+ * block_size: the block size of the cipher used to encrypt the record.
+ * returns:
+ *   0: (in non-constant time) if the record is publicly invalid.
+ *   1: if the padding was valid
+ *  -1: otherwise. */
+int EVP_tls_cbc_remove_padding(unsigned *out_len,
+                               const uint8_t *in, unsigned in_len,
+                               unsigned block_size, unsigned mac_size);
+
+/* EVP_tls_cbc_copy_mac copies |md_size| bytes from the end of the first
+ * |in_len| bytes of |in| to |out| in constant time (independent of the concrete
+ * value of |in_len|, which may vary within a 256-byte window). |in| must point
+ * to a buffer of |orig_len| bytes.
+ *
+ * On entry:
+ *   orig_len >= in_len >= md_size
+ *   md_size <= EVP_MAX_MD_SIZE */
+void EVP_tls_cbc_copy_mac(uint8_t *out, unsigned md_size,
+                          const uint8_t *in, unsigned in_len,
+                          unsigned orig_len);
+
+/* EVP_tls_cbc_record_digest_supported returns 1 iff |md| is a hash function
+ * which EVP_tls_cbc_digest_record supports. */
+int EVP_tls_cbc_record_digest_supported(const EVP_MD *md);
+
+/* EVP_tls_cbc_digest_record computes the MAC of a decrypted, padded TLS
+ * record.
+ *
+ *   md: the hash function used in the HMAC.
+ *     EVP_tls_cbc_record_digest_supported must return true for this hash.
+ *   md_out: the digest output. At most EVP_MAX_MD_SIZE bytes will be written.
+ *   md_out_size: the number of output bytes is written here.
+ *   header: the 13-byte, TLS record header.
+ *   data: the record data itself
+ *   data_plus_mac_size: the secret, reported length of the data and MAC
+ *     once the padding has been removed.
+ *   data_plus_mac_plus_padding_size: the public length of the whole
+ *     record, including padding.
+ *
+ * On entry: by virtue of having been through one of the remove_padding
+ * functions, above, we know that data_plus_mac_size is large enough to contain
+ * a padding byte and MAC. (If the padding was invalid, it might contain the
+ * padding too. ) */
+int EVP_tls_cbc_digest_record(const EVP_MD *md, uint8_t *md_out,
+                              size_t *md_out_size, const uint8_t header[13],
+                              const uint8_t *data, size_t data_plus_mac_size,
+                              size_t data_plus_mac_plus_padding_size,
+                              const uint8_t *mac_secret,
+                              unsigned mac_secret_length);
 
 #if defined(__cplusplus)
 } /* extern C */

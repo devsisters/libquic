@@ -16,12 +16,16 @@
 
 #include <openssl/chacha.h>
 
+#include <string.h>
+
 #include <openssl/cpu.h>
+
 
 #if defined(OPENSSL_WINDOWS) || (!defined(OPENSSL_X86_64) && !defined(OPENSSL_X86)) || !defined(__SSE2__)
 
 /* sigma contains the ChaCha constants, which happen to be an ASCII string. */
-static const char sigma[16] = "expand 32-byte k";
+static const uint8_t sigma[16] = { 'e', 'x', 'p', 'a', 'n', 'd', ' ', '3',
+                                   '2', '-', 'b', 'y', 't', 'e', ' ', 'k' };
 
 #define ROTATE(v, n) (((v) << (n)) | ((v) >> (32 - (n))))
 #define XOR(v, w) ((v) ^ (w))
@@ -54,7 +58,7 @@ void CRYPTO_chacha_20_neon(uint8_t *out, const uint8_t *in, size_t in_len,
                            size_t counter);
 #endif
 
-/* chacha_core performs |num_rounds| rounds of ChaCha20 on the input words in
+/* chacha_core performs 20 rounds of ChaCha on the input words in
  * |input| and writes the 64 output bytes to |output|. */
 static void chacha_core(uint8_t output[64], const uint32_t input[16]) {
   uint32_t x[16];
@@ -88,8 +92,7 @@ void CRYPTO_chacha_20(uint8_t *out, const uint8_t *in, size_t in_len,
   size_t todo, i;
 
 #if defined(OPENSSL_ARM) && !defined(OPENSSL_NO_ASM)
-  if (CRYPTO_is_NEON_capable() && ((intptr_t)in & 15) == 0 &&
-      ((intptr_t)out & 15) == 0) {
+  if (CRYPTO_is_NEON_capable()) {
     CRYPTO_chacha_20_neon(out, in, in_len, key, nonce, counter);
     return;
   }

@@ -54,6 +54,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
+#include <string.h>
 #include <time.h>
 
 #include <openssl/asn1.h>
@@ -409,9 +410,6 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 
 	if (!ok) goto end;
 
-	/* We may as well copy down any DSA parameters that are required */
-	X509_get_pubkey_parameters(NULL,ctx->chain);
-
 	/* Check revocation status: we do this after copying parameters
 	 * because they may be needed for CRL signature verification.
 	 */
@@ -440,12 +438,8 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 	/* If we get this far evaluate policies */
 	if (!bad_chain && (ctx->param->flags & X509_V_FLAG_POLICY_CHECK))
 		ok = ctx->check_policy(ctx);
-	if(!ok) goto end;
-	if (0)
-		{
+
 end:
-		X509_get_pubkey_parameters(NULL,ctx->chain);
-		}
 	if (sktmp != NULL) sk_X509_free(sktmp);
 	if (chain_ss != NULL) X509_free(chain_ss);
 	return ok;
@@ -703,23 +697,38 @@ static int check_id_error(X509_STORE_CTX *ctx, int errcode)
 	return ctx->verify_cb(0, ctx);
 	}
 
+static int check_hosts(X509 *x, X509_VERIFY_PARAM_ID *id)
+	{
+	size_t i;
+	size_t n = sk_OPENSSL_STRING_num(id->hosts);
+	char *name;
+
+	for (i = 0; i < n; ++i)
+		{
+		name = sk_OPENSSL_STRING_value(id->hosts, i);
+		if (X509_check_host(x, name, strlen(name), id->hostflags,
+				    &id->peername) > 0)
+			return 1;
+		}
+	return n == 0;
+	}
+
 static int check_id(X509_STORE_CTX *ctx)
 	{
 	X509_VERIFY_PARAM *vpm = ctx->param;
 	X509_VERIFY_PARAM_ID *id = vpm->id;
 	X509 *x = ctx->cert;
-	if (id->host && !X509_check_host(x, id->host, id->hostlen,
-					 id->hostflags))
+	if (id->hosts && check_hosts(x, id) <= 0)
 		{
 		if (!check_id_error(ctx, X509_V_ERR_HOSTNAME_MISMATCH))
 			return 0;
 		}
-	if (id->email && !X509_check_email(x, id->email, id->emaillen, 0))
+	if (id->email && X509_check_email(x, id->email, id->emaillen, 0) <= 0)
 		{
 		if (!check_id_error(ctx, X509_V_ERR_EMAIL_MISMATCH))
 			return 0;
 		}
-	if (id->ip && !X509_check_ip(x, id->ip, id->iplen, 0))
+	if (id->ip && X509_check_ip(x, id->ip, id->iplen, 0) <= 0)
 		{
 		if (!check_id_error(ctx, X509_V_ERR_IP_ADDRESS_MISMATCH))
 			return 0;
@@ -1914,48 +1923,6 @@ ASN1_TIME *X509_time_adj_ex(ASN1_TIME *s,
 								offset_sec);
 		}
 	return ASN1_TIME_adj(s, t, offset_day, offset_sec);
-	}
-
-int X509_get_pubkey_parameters(EVP_PKEY *pkey, STACK_OF(X509) *chain)
-	{
-	EVP_PKEY *ktmp=NULL,*ktmp2;
-	size_t i,j;
-
-	if ((pkey != NULL) && !EVP_PKEY_missing_parameters(pkey)) return 1;
-
-	for (i=0; i<sk_X509_num(chain); i++)
-		{
-		ktmp=X509_get_pubkey(sk_X509_value(chain,i));
-		if (ktmp == NULL)
-			{
-			OPENSSL_PUT_ERROR(X509, X509_get_pubkey_parameters, X509_R_UNABLE_TO_GET_CERTS_PUBLIC_KEY);
-			return 0;
-			}
-		if (!EVP_PKEY_missing_parameters(ktmp))
-			break;
-		else
-			{
-			EVP_PKEY_free(ktmp);
-			ktmp=NULL;
-			}
-		}
-	if (ktmp == NULL)
-		{
-		OPENSSL_PUT_ERROR(X509, X509_get_pubkey_parameters, X509_R_UNABLE_TO_FIND_PARAMETERS_IN_CHAIN);
-		return 0;
-		}
-
-	/* first, populate the other certs */
-	for (j=i-1; j < i; j--)
-		{
-		ktmp2=X509_get_pubkey(sk_X509_value(chain,j));
-		EVP_PKEY_copy_parameters(ktmp2,ktmp);
-		EVP_PKEY_free(ktmp2);
-		}
-	
-	if (pkey != NULL) EVP_PKEY_copy_parameters(pkey,ktmp);
-	EVP_PKEY_free(ktmp);
-	return 1;
 	}
 
 /* Make a delta CRL as the diff between two full CRLs */

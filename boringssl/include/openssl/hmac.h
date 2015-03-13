@@ -94,9 +94,14 @@ OPENSSL_EXPORT void HMAC_CTX_init(HMAC_CTX *ctx);
 OPENSSL_EXPORT void HMAC_CTX_cleanup(HMAC_CTX *ctx);
 
 /* HMAC_Init_ex sets up an initialised |HMAC_CTX| to use |md| as the hash
- * function and |key| as the key. Any of |md| or |key| can be NULL, in which
- * case the previous value will be used. It returns one on success or zero
- * otherwise. */
+ * function and |key| as the key. For a non-initial call, |md| may be NULL, in
+ * which case the previous hash function will be used. If the hash function has
+ * not changed and |key| is NULL, |ctx| reuses the previous key. It returns one
+ * on success or zero otherwise.
+ *
+ * WARNING: NULL and empty keys are ambiguous on non-initial calls. Passing NULL
+ * |key| but repeating the previous |md| reuses the previous key rather than the
+ * empty key. */
 OPENSSL_EXPORT int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, size_t key_len,
                                 const EVP_MD *md, ENGINE *impl);
 
@@ -119,10 +124,10 @@ OPENSSL_EXPORT int HMAC_Final(HMAC_CTX *ctx, uint8_t *out,
  * |ctx|. On entry, |ctx| must have been setup with |HMAC_Init_ex|. */
 OPENSSL_EXPORT size_t HMAC_size(const HMAC_CTX *ctx);
 
-/* HMAC_CTX_copy sets |dest| equal to |src|. On entry, |dest| must have been
+/* HMAC_CTX_copy_ex sets |dest| equal to |src|. On entry, |dest| must have been
  * initialised by calling |HMAC_CTX_init|. It returns one on success and zero
  * on error. */
-OPENSSL_EXPORT int HMAC_CTX_copy(HMAC_CTX *dest, const HMAC_CTX *src);
+OPENSSL_EXPORT int HMAC_CTX_copy_ex(HMAC_CTX *dest, const HMAC_CTX *src);
 
 /* HMAC_CTX_set_flags ORs |flags| into the flags of the underlying digests of
  * |ctx|, which must have been setup by a call to |HMAC_Init_ex|. See
@@ -137,6 +142,11 @@ OPENSSL_EXPORT void HMAC_CTX_set_flags(HMAC_CTX *ctx, unsigned long flags);
 OPENSSL_EXPORT int HMAC_Init(HMAC_CTX *ctx, const void *key, int key_len,
                              const EVP_MD *md);
 
+/* HMAC_CTX_copy calls |HMAC_CTX_init| on |dest| and then sets it equal to
+ * |src|. On entry, |dest| must /not/ be initialised for an operation with
+ * |HMAC_Init_ex|. It returns one on success and zero on error. */
+OPENSSL_EXPORT int HMAC_CTX_copy(HMAC_CTX *dest, const HMAC_CTX *src);
+
 
 /* Private functions */
 
@@ -147,8 +157,6 @@ struct hmac_ctx_st {
   EVP_MD_CTX md_ctx;
   EVP_MD_CTX i_ctx;
   EVP_MD_CTX o_ctx;
-  unsigned int key_length;
-  unsigned char key[HMAC_MAX_MD_CBLOCK];
 } /* HMAC_CTX */;
 
 

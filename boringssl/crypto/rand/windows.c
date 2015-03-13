@@ -18,6 +18,9 @@
 
 #include <limits.h>
 #include <stdlib.h>
+
+#pragma warning(push, 3)
+
 #include <Windows.h>
 
 /* #define needed to link in RtlGenRandom(), a.k.a. SystemFunction036.  See the
@@ -26,6 +29,8 @@
 #define SystemFunction036 NTAPI SystemFunction036
 #include <NTSecAPI.h>
 #undef SystemFunction036
+
+#pragma warning(pop)
 
 
 void RAND_cleanup(void) {
@@ -39,7 +44,6 @@ int RAND_bytes(uint8_t *out, size_t requested) {
     }
     if (RtlGenRandom(out, output_bytes_this_pass) == FALSE) {
       abort();
-      return 0;
     }
     requested -= output_bytes_this_pass;
     out += output_bytes_this_pass;

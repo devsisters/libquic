@@ -185,7 +185,9 @@ int ssl3_send_finished(SSL *s, int a, int b, const char *sender, int slen) {
       s->s3->previous_client_finished_len = n;
     }
 
-    ssl_set_handshake_header(s, SSL3_MT_FINISHED, n);
+    if (!ssl_set_handshake_header(s, SSL3_MT_FINISHED, n)) {
+      return 0;
+    }
     s->state = b;
   }
 
@@ -224,7 +226,7 @@ int ssl3_get_finished(SSL *s, int a, int b) {
 
   message_len =
       s->method->ssl_get_message(s, a, b, SSL3_MT_FINISHED, EVP_MAX_MD_SIZE,
-                                 SSL_GET_MESSAGE_DONT_HASH_MESSAGE, &ok);
+                                 ssl_dont_hash_message, &ok);
 
   if (!ok) {
     return message_len;
@@ -232,7 +234,9 @@ int ssl3_get_finished(SSL *s, int a, int b) {
 
   /* Snapshot the finished hash before incorporating the new message. */
   ssl3_take_mac(s);
-  ssl3_hash_current_message(s);
+  if (!ssl3_hash_current_message(s)) {
+    goto err;
+  }
 
   /* If this occurs, we have missed a message.
    * TODO(davidben): Is this check now redundant with SSL3_FLAGS_EXPECT_CCS? */
@@ -273,6 +277,7 @@ int ssl3_get_finished(SSL *s, int a, int b) {
 
 f_err:
   ssl3_send_alert(s, SSL3_AL_FATAL, al);
+err:
   return 0;
 }
 
@@ -296,7 +301,7 @@ int ssl3_send_change_cipher_spec(SSL *s, int a, int b) {
   return ssl3_do_write(s, SSL3_RT_CHANGE_CIPHER_SPEC);
 }
 
-unsigned long ssl3_output_cert_chain(SSL *s, CERT_PKEY *cpk) {
+int ssl3_output_cert_chain(SSL *s, CERT_PKEY *cpk) {
   uint8_t *p;
   unsigned long l = 3 + SSL_HM_HEADER_LENGTH(s);
 
@@ -308,25 +313,24 @@ unsigned long ssl3_output_cert_chain(SSL *s, CERT_PKEY *cpk) {
   p = ssl_handshake_start(s);
   l2n3(l, p);
   l += 3;
-  ssl_set_handshake_header(s, SSL3_MT_CERTIFICATE, l);
-  return l + SSL_HM_HEADER_LENGTH(s);
+  return ssl_set_handshake_header(s, SSL3_MT_CERTIFICATE, l);
 }
 
 /* Obtain handshake message of message type |msg_type| (any if |msg_type| == -1),
  * maximum acceptable body length |max|. The first four bytes (msg_type and
  * length) are read in state |header_state|, the body is read in state |body_state|. */
 long ssl3_get_message(SSL *s, int header_state, int body_state, int msg_type,
-                      long max, int hash_message, int *ok) {
+                      long max, enum ssl_hash_message_t hash_message, int *ok) {
   uint8_t *p;
   unsigned long l;
   long n;
   int al;
 
   if (s->s3->tmp.reuse_message) {
-    /* A SSL_GET_MESSAGE_DONT_HASH_MESSAGE call cannot be combined with
-     * reuse_message; the SSL_GET_MESSAGE_DONT_HASH_MESSAGE would have to have
-     * been applied to the previous call. */
-    assert(hash_message != SSL_GET_MESSAGE_DONT_HASH_MESSAGE);
+    /* A ssl_dont_hash_message call cannot be combined with reuse_message; the
+     * ssl_dont_hash_message would have to have been applied to the previous
+     * call. */
+    assert(hash_message == ssl_hash_message);
     s->s3->tmp.reuse_message = 0;
     if (msg_type >= 0 && s->s3->tmp.message_type != msg_type) {
       al = SSL_AD_UNEXPECTED_MESSAGE;
@@ -416,8 +420,8 @@ long ssl3_get_message(SSL *s, int header_state, int body_state, int msg_type,
   }
 
   /* Feed this message into MAC computation. */
-  if (hash_message != SSL_GET_MESSAGE_DONT_HASH_MESSAGE) {
-    ssl3_hash_current_message(s);
+  if (hash_message == ssl_hash_message && !ssl3_hash_current_message(s)) {
+    goto err;
   }
   if (s->msg_callback) {
     s->msg_callback(0, s->version, SSL3_RT_HANDSHAKE, s->init_buf->data,
@@ -434,11 +438,12 @@ err:
   return -1;
 }
 
-void ssl3_hash_current_message(SSL *s) {
+int ssl3_hash_current_message(SSL *s) {
   /* The handshake header (different size between DTLS and TLS) is included in
    * the hash. */
   size_t header_len = s->init_msg - (uint8_t *)s->init_buf->data;
-  ssl3_finish_mac(s, (uint8_t *)s->init_buf->data, s->init_num + header_len);
+  return ssl3_finish_mac(s, (uint8_t *)s->init_buf->data,
+                         s->init_num + header_len);
 }
 
 /* ssl3_cert_verify_hash is documented as needing EVP_MAX_MD_SIZE because that

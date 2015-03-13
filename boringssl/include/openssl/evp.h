@@ -135,9 +135,10 @@ OPENSSL_EXPORT int EVP_PKEY_id(const EVP_PKEY *pkey);
  * |EVP_PKEY_RSA2| will be turned into |EVP_PKEY_RSA|. */
 OPENSSL_EXPORT int EVP_PKEY_type(int nid);
 
-/* EVP_PKEY_new_mac_key allocates a fresh |EVP_PKEY| of the given type (e.g.
- * |EVP_PKEY_HMAC|), sets |mac_key| as the MAC key and "generates" a new key,
- * suitable for signing. It returns the fresh |EVP_PKEY|, or NULL on error. */
+/* Deprecated: EVP_PKEY_new_mac_key allocates a fresh |EVP_PKEY| of the given
+ * type (e.g. |EVP_PKEY_HMAC|), sets |mac_key| as the MAC key and "generates" a
+ * new key, suitable for signing. It returns the fresh |EVP_PKEY|, or NULL on
+ * error. Use |HMAC_CTX| directly instead. */
 OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_mac_key(int type, ENGINE *engine,
                                               const uint8_t *mac_key,
                                               size_t mac_key_len);
@@ -174,6 +175,8 @@ OPENSSL_EXPORT struct dh_st *EVP_PKEY_get1_DH(EVP_PKEY *pkey);
 #define EVP_PKEY_DH NID_dhKeyAgreement
 #define EVP_PKEY_DHX NID_dhpublicnumber
 #define EVP_PKEY_EC NID_X9_62_id_ecPublicKey
+
+/* Deprecated: Use |HMAC_CTX| directly instead. */
 #define EVP_PKEY_HMAC NID_hmac
 
 /* EVP_PKEY_assign sets the underlying key of |pkey| to |key|, which must be of
@@ -395,7 +398,7 @@ OPENSSL_EXPORT int EVP_PKEY_print_params(BIO *out, const EVP_PKEY *pkey,
 /* PKCS5_PBKDF2_HMAC computes |iterations| iterations of PBKDF2 of |password|
  * and |salt|, using |digest|, and outputs |key_len| bytes to |out_key|. It
  * returns one on success and zero on error. */
-OPENSSL_EXPORT int PKCS5_PBKDF2_HMAC(const char *password, int password_len,
+OPENSSL_EXPORT int PKCS5_PBKDF2_HMAC(const char *password, size_t password_len,
                                      const uint8_t *salt, size_t salt_len,
                                      unsigned iterations, const EVP_MD *digest,
                                      size_t key_len, uint8_t *out_key);
@@ -403,7 +406,7 @@ OPENSSL_EXPORT int PKCS5_PBKDF2_HMAC(const char *password, int password_len,
 /* PKCS5_PBKDF2_HMAC_SHA1 is the same as PKCS5_PBKDF2_HMAC, but with |digest|
  * fixed to |EVP_sha1|. */
 OPENSSL_EXPORT int PKCS5_PBKDF2_HMAC_SHA1(const char *password,
-                                          int password_len, const uint8_t *salt,
+                                          size_t password_len, const uint8_t *salt,
                                           size_t salt_len, unsigned iterations,
                                           size_t key_len, uint8_t *out_key);
 
@@ -704,18 +707,6 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_get0_rsa_oaep_label(EVP_PKEY_CTX *ctx,
 /* EC specific */
 
 #define EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID		(EVP_PKEY_ALG_CTRL + 1)
-#define EVP_PKEY_CTRL_EC_PARAM_ENC			(EVP_PKEY_ALG_CTRL + 2)
-#define EVP_PKEY_CTRL_EC_ECDH_COFACTOR			(EVP_PKEY_ALG_CTRL + 3)
-#define EVP_PKEY_CTRL_EC_KDF_TYPE			(EVP_PKEY_ALG_CTRL + 4)
-#define EVP_PKEY_CTRL_EC_KDF_MD				(EVP_PKEY_ALG_CTRL + 5)
-#define EVP_PKEY_CTRL_GET_EC_KDF_MD			(EVP_PKEY_ALG_CTRL + 6)
-#define EVP_PKEY_CTRL_EC_KDF_OUTLEN			(EVP_PKEY_ALG_CTRL + 7)
-#define EVP_PKEY_CTRL_GET_EC_KDF_OUTLEN			(EVP_PKEY_ALG_CTRL + 8)
-#define EVP_PKEY_CTRL_EC_KDF_UKM			(EVP_PKEY_ALG_CTRL + 9)
-#define EVP_PKEY_CTRL_GET_EC_KDF_UKM			(EVP_PKEY_ALG_CTRL + 10)
-
-#define EVP_PKEY_ECDH_KDF_NONE 1
-#define EVP_PKEY_ECDH_KDF_X9_62 2
 
 
 /* Private functions */
@@ -771,115 +762,107 @@ struct evp_pkey_st {
 }  /* extern C */
 #endif
 
-#define EVP_F_rsa_item_verify 100
-#define EVP_F_do_sigver_init 101
-#define EVP_F_eckey_priv_decode 102
-#define EVP_F_pkey_ec_sign 103
-#define EVP_F_EVP_PKEY_sign_init 104
-#define EVP_F_d2i_PrivateKey 105
-#define EVP_F_rsa_priv_encode 106
-#define EVP_F_rsa_mgf1_to_md 107
-#define EVP_F_EVP_PKEY_get1_DH 108
-#define EVP_F_EVP_PKEY_sign 109
-#define EVP_F_old_ec_priv_decode 110
-#define EVP_F_EVP_PKEY_get1_RSA 111
-#define EVP_F_pkey_ec_ctrl 112
-#define EVP_F_evp_pkey_ctx_new 113
-#define EVP_F_EVP_PKEY_verify 114
-#define EVP_F_EVP_PKEY_encrypt 115
+#define EVP_F_EVP_DigestSignAlgorithm 100
+#define EVP_F_EVP_DigestVerifyInitFromAlgorithm 101
+#define EVP_F_EVP_PKEY_CTX_ctrl 102
+#define EVP_F_EVP_PKEY_CTX_dup 103
+#define EVP_F_EVP_PKEY_copy_parameters 104
+#define EVP_F_EVP_PKEY_decrypt 105
+#define EVP_F_EVP_PKEY_decrypt_init 106
+#define EVP_F_EVP_PKEY_derive 107
+#define EVP_F_EVP_PKEY_derive_init 108
+#define EVP_F_EVP_PKEY_derive_set_peer 109
+#define EVP_F_EVP_PKEY_encrypt 110
+#define EVP_F_EVP_PKEY_encrypt_init 111
+#define EVP_F_EVP_PKEY_get1_DH 112
+#define EVP_F_EVP_PKEY_get1_DSA 113
+#define EVP_F_EVP_PKEY_get1_EC_KEY 114
+#define EVP_F_EVP_PKEY_get1_RSA 115
 #define EVP_F_EVP_PKEY_keygen 116
-#define EVP_F_eckey_type2param 117
-#define EVP_F_eckey_priv_encode 118
-#define EVP_F_do_EC_KEY_print 119
-#define EVP_F_pkey_ec_keygen 120
-#define EVP_F_EVP_PKEY_encrypt_init 121
-#define EVP_F_pkey_rsa_ctrl 122
-#define EVP_F_rsa_priv_decode 123
-#define EVP_F_rsa_pss_to_ctx 124
-#define EVP_F_EVP_PKEY_get1_EC_KEY 125
-#define EVP_F_EVP_PKEY_verify_init 126
-#define EVP_F_EVP_PKEY_derive_init 127
-#define EVP_F_eckey_param2type 128
-#define EVP_F_eckey_pub_decode 129
-#define EVP_F_d2i_AutoPrivateKey 130
+#define EVP_F_EVP_PKEY_keygen_init 117
+#define EVP_F_EVP_PKEY_new 118
+#define EVP_F_EVP_PKEY_set_type 119
+#define EVP_F_EVP_PKEY_sign 120
+#define EVP_F_EVP_PKEY_sign_init 121
+#define EVP_F_EVP_PKEY_verify 122
+#define EVP_F_EVP_PKEY_verify_init 123
+#define EVP_F_check_padding_md 124
+#define EVP_F_d2i_AutoPrivateKey 125
+#define EVP_F_d2i_PrivateKey 126
+#define EVP_F_do_EC_KEY_print 127
+#define EVP_F_do_rsa_print 128
+#define EVP_F_do_sigver_init 129
+#define EVP_F_eckey_param2type 130
 #define EVP_F_eckey_param_decode 131
-#define EVP_F_EVP_PKEY_new 132
-#define EVP_F_pkey_ec_derive 133
-#define EVP_F_pkey_ec_paramgen 134
-#define EVP_F_EVP_PKEY_CTX_ctrl 135
-#define EVP_F_EVP_PKEY_decrypt_init 136
-#define EVP_F_EVP_PKEY_decrypt 137
-#define EVP_F_EVP_PKEY_copy_parameters 138
-#define EVP_F_EVP_PKEY_set_type 139
-#define EVP_F_EVP_PKEY_derive 140
-#define EVP_F_EVP_PKEY_keygen_init 141
-#define EVP_F_do_rsa_print 142
-#define EVP_F_old_rsa_priv_decode 143
-#define EVP_F_rsa_algor_to_md 144
-#define EVP_F_eckey_pub_encode 145
-#define EVP_F_EVP_PKEY_derive_set_peer 146
-#define EVP_F_pkey_rsa_sign 147
-#define EVP_F_check_padding_md 148
-#define EVP_F_i2d_PublicKey 149
-#define EVP_F_rsa_pub_decode 150
-#define EVP_F_EVP_PKEY_get1_DSA 151
-#define EVP_F_pkey_rsa_encrypt 152
-#define EVP_F_pkey_rsa_decrypt 153
-#define EVP_F_hmac_signctx 154
-#define EVP_F_EVP_DigestVerifyInitFromAlgorithm 155
-#define EVP_F_EVP_DigestSignAlgorithm 156
-#define EVP_F_rsa_digest_verify_init_from_algorithm 157
-#define EVP_F_EVP_PKEY_CTX_dup 158
-#define EVP_R_UNSUPPORTED_PUBLIC_KEY_TYPE 100
-#define EVP_R_UNSUPPORTED_SIGNATURE_TYPE 101
-#define EVP_R_INVALID_DIGEST_TYPE 102
-#define EVP_R_EXPECTING_A_DH_KEY 103
-#define EVP_R_OPERATON_NOT_INITIALIZED 104
-#define EVP_R_MISSING_PARAMETERS 105
-#define EVP_R_NO_DEFAULT_DIGEST 106
-#define EVP_R_UNKNOWN_DIGEST 107
-#define EVP_R_KEYS_NOT_SET 108
-#define EVP_R_X931_UNSUPPORTED 109
-#define EVP_R_DIGEST_DOES_NOT_MATCH 110
-#define EVP_R_DIFFERENT_PARAMETERS 111
-#define EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE 112
-#define EVP_R_DIFFERENT_KEY_TYPES 113
-#define EVP_R_NO_PARAMETERS_SET 114
-#define EVP_R_NO_NID_FOR_CURVE 115
-#define EVP_R_NO_OPERATION_SET 116
-#define EVP_R_UNSUPPORTED_ALGORITHM 117
-#define EVP_R_EXPECTING_AN_DSA_KEY 118
-#define EVP_R_UNKNOWN_MASK_DIGEST 119
-#define EVP_R_INVALID_SALT_LENGTH 120
-#define EVP_R_BUFFER_TOO_SMALL 121
-#define EVP_R_INVALID_PADDING_MODE 122
-#define EVP_R_INVALID_MGF1_MD 123
-#define EVP_R_SHARED_INFO_ERROR 124
-#define EVP_R_INVALID_KEYBITS 125
-#define EVP_R_PEER_KEY_ERROR 126
-#define EVP_R_EXPECTING_A_DSA_KEY 127
-#define EVP_R_UNSUPPORTED_MASK_ALGORITHM 128
-#define EVP_R_EXPECTING_AN_EC_KEY_KEY 129
-#define EVP_R_INVALID_TRAILER 130
-#define EVP_R_INVALID_DIGEST_LENGTH 131
-#define EVP_R_COMMAND_NOT_SUPPORTED 132
-#define EVP_R_EXPLICIT_EC_PARAMETERS_NOT_SUPPORTED 133
-#define EVP_R_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE 134
-#define EVP_R_NO_MDC2_SUPPORT 135
-#define EVP_R_INVALID_CURVE 136
-#define EVP_R_NO_KEY_SET 137
-#define EVP_R_INVALID_PSS_PARAMETERS 138
-#define EVP_R_KDF_PARAMETER_ERROR 139
+#define EVP_F_eckey_priv_decode 132
+#define EVP_F_eckey_priv_encode 133
+#define EVP_F_eckey_pub_decode 134
+#define EVP_F_eckey_pub_encode 135
+#define EVP_F_eckey_type2param 136
+#define EVP_F_evp_pkey_ctx_new 137
+#define EVP_F_hmac_signctx 138
+#define EVP_F_i2d_PublicKey 139
+#define EVP_F_old_ec_priv_decode 140
+#define EVP_F_old_rsa_priv_decode 141
+#define EVP_F_pkey_ec_ctrl 142
+#define EVP_F_pkey_ec_derive 143
+#define EVP_F_pkey_ec_keygen 144
+#define EVP_F_pkey_ec_paramgen 145
+#define EVP_F_pkey_ec_sign 146
+#define EVP_F_pkey_rsa_ctrl 147
+#define EVP_F_pkey_rsa_decrypt 148
+#define EVP_F_pkey_rsa_encrypt 149
+#define EVP_F_pkey_rsa_sign 150
+#define EVP_F_rsa_algor_to_md 151
+#define EVP_F_rsa_digest_verify_init_from_algorithm 152
+#define EVP_F_rsa_mgf1_to_md 153
+#define EVP_F_rsa_priv_decode 154
+#define EVP_F_rsa_priv_encode 155
+#define EVP_F_rsa_pss_to_ctx 156
+#define EVP_F_rsa_pub_decode 157
+#define EVP_R_BUFFER_TOO_SMALL 100
+#define EVP_R_COMMAND_NOT_SUPPORTED 101
+#define EVP_R_CONTEXT_NOT_INITIALISED 102
+#define EVP_R_DECODE_ERROR 103
+#define EVP_R_DIFFERENT_KEY_TYPES 104
+#define EVP_R_DIFFERENT_PARAMETERS 105
+#define EVP_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED 106
+#define EVP_R_EXPECTING_AN_EC_KEY_KEY 107
+#define EVP_R_EXPECTING_AN_RSA_KEY 108
+#define EVP_R_EXPECTING_A_DH_KEY 109
+#define EVP_R_EXPECTING_A_DSA_KEY 110
+#define EVP_R_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE 111
+#define EVP_R_INVALID_CURVE 112
+#define EVP_R_INVALID_DIGEST_LENGTH 113
+#define EVP_R_INVALID_DIGEST_TYPE 114
+#define EVP_R_INVALID_KEYBITS 115
+#define EVP_R_INVALID_MGF1_MD 116
+#define EVP_R_INVALID_OPERATION 117
+#define EVP_R_INVALID_PADDING_MODE 118
+#define EVP_R_INVALID_PSS_PARAMETERS 119
+#define EVP_R_INVALID_PSS_SALTLEN 120
+#define EVP_R_INVALID_SALT_LENGTH 121
+#define EVP_R_INVALID_TRAILER 122
+#define EVP_R_KEYS_NOT_SET 123
+#define EVP_R_MISSING_PARAMETERS 124
+#define EVP_R_NO_DEFAULT_DIGEST 125
+#define EVP_R_NO_KEY_SET 126
+#define EVP_R_NO_MDC2_SUPPORT 127
+#define EVP_R_NO_NID_FOR_CURVE 128
+#define EVP_R_NO_OPERATION_SET 129
+#define EVP_R_NO_PARAMETERS_SET 130
+#define EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE 131
+#define EVP_R_OPERATON_NOT_INITIALIZED 132
+#define EVP_R_UNKNOWN_DIGEST 133
+#define EVP_R_UNKNOWN_MASK_DIGEST 134
+#define EVP_R_UNKNOWN_MESSAGE_DIGEST_ALGORITHM 135
+#define EVP_R_UNKNOWN_PUBLIC_KEY_TYPE 136
+#define EVP_R_UNKNOWN_SIGNATURE_ALGORITHM 137
+#define EVP_R_UNSUPPORTED_ALGORITHM 138
+#define EVP_R_UNSUPPORTED_MASK_ALGORITHM 139
 #define EVP_R_UNSUPPORTED_MASK_PARAMETER 140
-#define EVP_R_EXPECTING_AN_RSA_KEY 141
-#define EVP_R_INVALID_OPERATION 142
-#define EVP_R_DECODE_ERROR 143
-#define EVP_R_INVALID_PSS_SALTLEN 144
-#define EVP_R_UNKNOWN_PUBLIC_KEY_TYPE 145
-#define EVP_R_CONTEXT_NOT_INITIALISED 146
-#define EVP_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED 147
-#define EVP_R_WRONG_PUBLIC_KEY_TYPE 148
-#define EVP_R_UNKNOWN_SIGNATURE_ALGORITHM 149
-#define EVP_R_UNKNOWN_MESSAGE_DIGEST_ALGORITHM 150
+#define EVP_R_UNSUPPORTED_PUBLIC_KEY_TYPE 141
+#define EVP_R_UNSUPPORTED_SIGNATURE_TYPE 142
+#define EVP_R_WRONG_PUBLIC_KEY_TYPE 143
 
 #endif  /* OPENSSL_HEADER_EVP_H */

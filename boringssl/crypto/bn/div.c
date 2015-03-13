@@ -263,7 +263,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
 #ifdef BN_LLONG
       BN_ULLONG t2;
 
-#if defined(BN_LLONG) && defined(BN_DIV2W) && !defined(div_asm)
+#if defined(BN_LLONG) && !defined(div_asm)
       q = (BN_ULONG)(((((BN_ULLONG)n0) << BN_BITS2) | n1) / d0);
 #else
       q = div_asm(n0, n1, d0);
@@ -278,12 +278,14 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
       t2 = (BN_ULLONG)d1 * q;
 
       for (;;) {
-        if (t2 <= ((((BN_ULLONG)rem) << BN_BITS2) | wnump[-2]))
+        if (t2 <= ((((BN_ULLONG)rem) << BN_BITS2) | wnump[-2])) {
           break;
+        }
         q--;
         rem += d0;
-        if (rem < d0)
+        if (rem < d0) {
           break; /* don't let rem overflow */
+        }
         t2 -= d1;
       }
 #else /* !BN_LLONG */
@@ -316,14 +318,17 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
 #endif
 
       for (;;) {
-        if ((t2h < rem) || ((t2h == rem) && (t2l <= wnump[-2])))
+        if ((t2h < rem) || ((t2h == rem) && (t2l <= wnump[-2]))) {
           break;
+        }
         q--;
         rem += d0;
-        if (rem < d0)
+        if (rem < d0) {
           break; /* don't let rem overflow */
-        if (t2l < d1)
+        }
+        if (t2l < d1) {
           t2h--;
+        }
         t2l -= d1;
       }
 #endif /* !BN_LLONG */
@@ -357,7 +362,9 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
      * BN_rshift() will overwrite it.
      */
     int neg = num->neg;
-    BN_rshift(rm, snum, norm_shift);
+    if (!BN_rshift(rm, snum, norm_shift)) {
+      goto err;
+    }
     if (!BN_is_zero(rm)) {
       rm->neg = neg;
     }

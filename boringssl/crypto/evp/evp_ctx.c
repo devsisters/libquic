@@ -57,6 +57,7 @@
 #include <openssl/evp.h>
 
 #include <stdio.h>
+#include <string.h>
 
 #include <openssl/err.h>
 #include <openssl/mem.h>
@@ -69,7 +70,7 @@ extern const EVP_PKEY_METHOD rsa_pkey_meth;
 extern const EVP_PKEY_METHOD hmac_pkey_meth;
 extern const EVP_PKEY_METHOD ec_pkey_meth;
 
-static const EVP_PKEY_METHOD *evp_methods[] = {
+static const EVP_PKEY_METHOD *const evp_methods[] = {
   &rsa_pkey_meth,
   &hmac_pkey_meth,
   &ec_pkey_meth,

@@ -56,6 +56,7 @@
 #include <openssl/rsa.h>
 
 #include <assert.h>
+#include <string.h>
 
 #include <openssl/digest.h>
 #include <openssl/err.h>
@@ -231,6 +232,9 @@ int RSA_message_index_PKCS1_type_2(const uint8_t *from, size_t from_len,
   /* PKCS#1 v1.5 decryption. See "PKCS #1 v2.2: RSA Cryptography
    * Standard", section 7.2.2. */
   if (from_len < RSA_PKCS1_PADDING_SIZE) {
+    /* |from| is zero-padded to the size of the RSA modulus, a public value, so
+     * this can be rejected in non-constant time. */
+    *out_index = 0;
     return 0;
   }
 
@@ -256,8 +260,9 @@ int RSA_message_index_PKCS1_type_2(const uint8_t *from, size_t from_len,
   valid_index &= constant_time_le(2 + 8, zero_index);
 
   /* Skip the zero byte. */
-  *out_index = zero_index + 1;
+  zero_index++;
 
+  *out_index = constant_time_select(valid_index, zero_index, 0);
   return valid_index;
 }
 
@@ -615,8 +620,9 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const uint8_t *mHash,
   if (MSBits) {
     DB[0] &= 0xFF >> (8 - MSBits);
   }
-  for (i = 0; DB[i] == 0 && i < (maskedDBLen - 1); i++)
+  for (i = 0; DB[i] == 0 && i < (maskedDBLen - 1); i++) {
     ;
+  }
   if (DB[i++] != 0x1) {
     OPENSSL_PUT_ERROR(RSA, RSA_verify_PKCS1_PSS_mgf1,
                       RSA_R_SLEN_RECOVERY_FAILED);

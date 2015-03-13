@@ -458,12 +458,6 @@ int dtls1_connect(SSL *s) {
       case SSL3_ST_CW_FLUSH:
         s->rwstate = SSL_WRITING;
         if (BIO_flush(s->wbio) <= 0) {
-          /* If the write error was fatal, stop trying */
-          if (!BIO_should_retry(s->wbio)) {
-            s->rwstate = SSL_NOTHING;
-            s->state = s->s3->tmp.next_state;
-          }
-
           ret = -1;
           goto end;
         }
@@ -490,8 +484,9 @@ int dtls1_connect(SSL *s) {
         ret = 1;
         s->ctx->stats.sess_connect_good++;
 
-        if (cb != NULL)
+        if (cb != NULL) {
           cb(s, SSL_CB_HANDSHAKE_DONE, 1);
+        }
 
         /* done with handshaking */
         s->d1->handshake_read_seq = 0;
@@ -538,7 +533,7 @@ static int dtls1_get_hello_verify(SSL *s) {
       s, DTLS1_ST_CR_HELLO_VERIFY_REQUEST_A, DTLS1_ST_CR_HELLO_VERIFY_REQUEST_B,
       -1,
       /* Use the same maximum size as ssl3_get_server_hello. */
-      20000, SSL_GET_MESSAGE_HASH_MESSAGE, &ok);
+      20000, ssl_hash_message, &ok);
 
   if (!ok) {
     return n;

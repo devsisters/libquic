@@ -160,11 +160,6 @@
 
 #define SSL3_NUM_CIPHERS (sizeof(ssl3_ciphers) / sizeof(SSL_CIPHER))
 
-/* FIXED_NONCE_LEN is a macro that results in the correct value to set the
- * fixed nonce length in SSL_CIPHER.algorithms2. It's the inverse of
- * SSL_CIPHER_AEAD_FIXED_NONCE_LEN. */
-#define FIXED_NONCE_LEN(x) ((x / 2) << 24)
-
 /* list of available SSLv3 ciphers (sorted by id) */
 const SSL_CIPHER ssl3_ciphers[] = {
     /* The RSA ciphers */
@@ -172,8 +167,7 @@ const SSL_CIPHER ssl3_ciphers[] = {
     {
      1, SSL3_TXT_RSA_RC4_128_MD5, SSL3_CK_RSA_RC4_128_MD5, SSL_kRSA, SSL_aRSA,
      SSL_RC4, SSL_MD5, SSL_SSLV3, SSL_MEDIUM,
-     SSL_HANDSHAKE_MAC_DEFAULT | TLS1_PRF | SSL_CIPHER_ALGORITHM2_STATEFUL_AEAD,
-     128, 128,
+     SSL_HANDSHAKE_MAC_DEFAULT | TLS1_PRF, 128, 128,
     },
 
     /* Cipher 05 */
@@ -252,14 +246,14 @@ const SSL_CIPHER ssl3_ciphers[] = {
     {
      1, TLS1_TXT_RSA_WITH_AES_128_SHA256, TLS1_CK_RSA_WITH_AES_128_SHA256,
      SSL_kRSA, SSL_aRSA, SSL_AES128, SSL_SHA256, SSL_TLSV1_2,
-     SSL_HIGH | SSL_FIPS, SSL_HANDSHAKE_MAC_DEFAULT | TLS1_PRF, 128, 128,
+     SSL_HIGH | SSL_FIPS, SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256, 128, 128,
     },
 
     /* Cipher 3D */
     {
      1, TLS1_TXT_RSA_WITH_AES_256_SHA256, TLS1_CK_RSA_WITH_AES_256_SHA256,
      SSL_kRSA, SSL_aRSA, SSL_AES256, SSL_SHA256, SSL_TLSV1_2,
-     SSL_HIGH | SSL_FIPS, SSL_HANDSHAKE_MAC_DEFAULT | TLS1_PRF, 256, 256,
+     SSL_HIGH | SSL_FIPS, SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256, 256, 256,
     },
 
     /* Cipher 67 */
@@ -267,7 +261,7 @@ const SSL_CIPHER ssl3_ciphers[] = {
      1, TLS1_TXT_DHE_RSA_WITH_AES_128_SHA256,
      TLS1_CK_DHE_RSA_WITH_AES_128_SHA256, SSL_kEDH, SSL_aRSA, SSL_AES128,
      SSL_SHA256, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
-     SSL_HANDSHAKE_MAC_DEFAULT | TLS1_PRF, 128, 128,
+     SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256, 128, 128,
     },
 
     /* Cipher 6B */
@@ -275,21 +269,21 @@ const SSL_CIPHER ssl3_ciphers[] = {
      1, TLS1_TXT_DHE_RSA_WITH_AES_256_SHA256,
      TLS1_CK_DHE_RSA_WITH_AES_256_SHA256, SSL_kEDH, SSL_aRSA, SSL_AES256,
      SSL_SHA256, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
-     SSL_HANDSHAKE_MAC_DEFAULT | TLS1_PRF, 256, 256,
+     SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256, 256, 256,
     },
 
     /* Cipher 6C */
     {
      1, TLS1_TXT_ADH_WITH_AES_128_SHA256, TLS1_CK_ADH_WITH_AES_128_SHA256,
      SSL_kEDH, SSL_aNULL, SSL_AES128, SSL_SHA256, SSL_TLSV1_2,
-     SSL_HIGH | SSL_FIPS, SSL_HANDSHAKE_MAC_DEFAULT | TLS1_PRF, 128, 128,
+     SSL_HIGH | SSL_FIPS, SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256, 128, 128,
     },
 
     /* Cipher 6D */
     {
      1, TLS1_TXT_ADH_WITH_AES_256_SHA256, TLS1_CK_ADH_WITH_AES_256_SHA256,
      SSL_kEDH, SSL_aNULL, SSL_AES256, SSL_SHA256, SSL_TLSV1_2,
-     SSL_HIGH | SSL_FIPS, SSL_HANDSHAKE_MAC_DEFAULT | TLS1_PRF, 256, 256,
+     SSL_HIGH | SSL_FIPS, SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256, 256, 256,
     },
 
     /* Cipher 8A */
@@ -322,7 +316,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_RSA_WITH_AES_128_GCM_SHA256, SSL_kRSA, SSL_aRSA, SSL_AES128GCM,
      SSL_AEAD, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
      SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      128, 128,
     },
@@ -333,7 +326,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_RSA_WITH_AES_256_GCM_SHA384, SSL_kRSA, SSL_aRSA, SSL_AES256GCM,
      SSL_AEAD, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
      SSL_HANDSHAKE_MAC_SHA384 | TLS1_PRF_SHA384 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      256, 256,
     },
@@ -344,7 +336,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_DHE_RSA_WITH_AES_128_GCM_SHA256, SSL_kEDH, SSL_aRSA, SSL_AES128GCM,
      SSL_AEAD, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
      SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      128, 128,
     },
@@ -355,7 +346,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_DHE_RSA_WITH_AES_256_GCM_SHA384, SSL_kEDH, SSL_aRSA, SSL_AES256GCM,
      SSL_AEAD, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
      SSL_HANDSHAKE_MAC_SHA384 | TLS1_PRF_SHA384 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      256, 256,
     },
@@ -366,7 +356,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_ADH_WITH_AES_128_GCM_SHA256, SSL_kEDH, SSL_aNULL, SSL_AES128GCM,
      SSL_AEAD, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
      SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      128, 128,
     },
@@ -377,7 +366,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_ADH_WITH_AES_256_GCM_SHA384, SSL_kEDH, SSL_aNULL, SSL_AES256GCM,
      SSL_AEAD, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
      SSL_HANDSHAKE_MAC_SHA384 | TLS1_PRF_SHA384 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      256, 256,
     },
@@ -496,7 +484,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, SSL_kEECDH, SSL_aECDSA,
      SSL_AES128GCM, SSL_AEAD, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
      SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      128, 128,
     },
@@ -507,7 +494,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, SSL_kEECDH, SSL_aECDSA,
      SSL_AES256GCM, SSL_AEAD, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
      SSL_HANDSHAKE_MAC_SHA384 | TLS1_PRF_SHA384 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      256, 256,
     },
@@ -518,7 +504,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, SSL_kEECDH, SSL_aRSA,
      SSL_AES128GCM, SSL_AEAD, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
      SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      128, 128,
     },
@@ -529,7 +514,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_ECDHE_RSA_WITH_AES_256_GCM_SHA384, SSL_kEECDH, SSL_aRSA,
      SSL_AES256GCM, SSL_AEAD, SSL_TLSV1_2, SSL_HIGH | SSL_FIPS,
      SSL_HANDSHAKE_MAC_SHA384 | TLS1_PRF_SHA384 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      256, 256,
     },
@@ -543,7 +527,6 @@ const SSL_CIPHER ssl3_ciphers[] = {
      TLS1_CK_ECDHE_PSK_WITH_AES_128_GCM_SHA256, SSL_kEECDH, SSL_aPSK,
      SSL_AES128GCM, SSL_AEAD, SSL_TLSV1_2, SSL_HIGH,
      SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(4) |
          SSL_CIPHER_ALGORITHM2_VARIABLE_NONCE_INCLUDED_IN_RECORD,
      128, 128,
     },
@@ -552,8 +535,7 @@ const SSL_CIPHER ssl3_ciphers[] = {
      1, TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305,
      TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305, SSL_kEECDH, SSL_aRSA,
      SSL_CHACHA20POLY1305, SSL_AEAD, SSL_TLSV1_2, SSL_HIGH,
-     SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(0),
+     SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD,
      256, 0,
     },
 
@@ -561,8 +543,7 @@ const SSL_CIPHER ssl3_ciphers[] = {
      1, TLS1_TXT_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
      TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305, SSL_kEECDH, SSL_aECDSA,
      SSL_CHACHA20POLY1305, SSL_AEAD, SSL_TLSV1_2, SSL_HIGH,
-     SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(0),
+     SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD,
      256, 0,
     },
 
@@ -570,20 +551,18 @@ const SSL_CIPHER ssl3_ciphers[] = {
      1, TLS1_TXT_DHE_RSA_WITH_CHACHA20_POLY1305,
      TLS1_CK_DHE_RSA_CHACHA20_POLY1305, SSL_kEDH, SSL_aRSA,
      SSL_CHACHA20POLY1305, SSL_AEAD, SSL_TLSV1_2, SSL_HIGH,
-     SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD |
-         FIXED_NONCE_LEN(0),
+     SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256 | SSL_CIPHER_ALGORITHM2_AEAD,
      256, 0,
     },
 };
 
 const SSL3_ENC_METHOD SSLv3_enc_data = {
-    ssl3_enc,
-    n_ssl3_mac,
-    ssl3_setup_key_block,
-    ssl3_generate_master_secret,
-    ssl3_change_cipher_state,
+    tls1_enc,
+    ssl3_prf,
+    tls1_setup_key_block,
+    tls1_generate_master_secret,
+    tls1_change_cipher_state,
     ssl3_final_finish_mac,
-    MD5_DIGEST_LENGTH+SHA_DIGEST_LENGTH,
     ssl3_cert_verify_mac,
     SSL3_MD_CLIENT_FINISHED_CONST, 4,
     SSL3_MD_SERVER_FINISHED_CONST, 4,
@@ -591,9 +570,6 @@ const SSL3_ENC_METHOD SSLv3_enc_data = {
     (int (*)(SSL *, uint8_t *, size_t, const char *, size_t, const uint8_t *,
              size_t, int use_context)) ssl_undefined_function,
     0,
-    SSL3_HM_HEADER_LENGTH,
-    ssl3_set_handshake_header,
-    ssl3_handshake_write,
 };
 
 int ssl3_num_ciphers(void) { return SSL3_NUM_CIPHERS; }
@@ -615,7 +591,7 @@ int ssl3_pending(const SSL *s) {
                                                         : 0;
 }
 
-void ssl3_set_handshake_header(SSL *s, int htype, unsigned long len) {
+int ssl3_set_handshake_header(SSL *s, int htype, unsigned long len) {
   uint8_t *p = (uint8_t *)s->init_buf->data;
   *(p++) = htype;
   l2n3(len, p);
@@ -623,7 +599,7 @@ void ssl3_set_handshake_header(SSL *s, int htype, unsigned long len) {
   s->init_off = 0;
 
   /* Add the message to the handshake hash. */
-  ssl3_finish_mac(s, (uint8_t *)s->init_buf->data, s->init_num);
+  return ssl3_finish_mac(s, (uint8_t *)s->init_buf->data, s->init_num);
 }
 
 int ssl3_handshake_write(SSL *s) { return ssl3_do_write(s, SSL3_RT_HANDSHAKE); }
@@ -875,7 +851,7 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg) {
         int nid;
         for (i = 0; i < clistlen; i++) {
           nid = tls1_ec_curve_id2nid(clist[i]);
-          if (nid != OBJ_undef) {
+          if (nid != NID_undef) {
             cptr[i] = nid;
           } else {
             cptr[i] = TLSEXT_nid_unknown | clist[i];
@@ -986,11 +962,6 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg) {
       }
       memcpy(parg, s->s3->tlsext_channel_id, larg < 64 ? larg : 64);
       return 64;
-
-    case SSL_CTRL_FALLBACK_SCSV:
-      s->fallback_scsv = 1;
-      ret = 1;
-      break;
 
     default:
       break;
@@ -1498,29 +1469,12 @@ int ssl3_write(SSL *s, const void *buf, int len) {
 }
 
 static int ssl3_read_internal(SSL *s, void *buf, int len, int peek) {
-  int ret;
-
   ERR_clear_system_error();
   if (s->s3->renegotiate) {
     ssl3_renegotiate_check(s);
   }
-  s->s3->in_read_app_data = 1;
-  ret = s->method->ssl_read_bytes(s, SSL3_RT_APPLICATION_DATA, buf, len, peek);
-  if (ret == -1 && s->s3->in_read_app_data == 2) {
-    /* ssl3_read_bytes decided to call s->handshake_func, which called
-     * ssl3_read_bytes to read handshake data. However, ssl3_read_bytes
-     * actually found application data and thinks that application data makes
-     * sense here; so disable handshake processing and try to read application
-     * data again. */
-    s->in_handshake++;
-    ret =
-        s->method->ssl_read_bytes(s, SSL3_RT_APPLICATION_DATA, buf, len, peek);
-    s->in_handshake--;
-  } else {
-    s->s3->in_read_app_data = 0;
-  }
 
-  return ret;
+  return s->method->ssl_read_bytes(s, SSL3_RT_APPLICATION_DATA, buf, len, peek);
 }
 
 int ssl3_read(SSL *s, void *buf, int len) {
