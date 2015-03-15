@@ -36,7 +36,7 @@ servers like Apache or nginx.
 
 Currently there is only one experimental language binding:
 
-  * [goquic](https://github.com/devsisters/goquic)
+  * Go binding: [goquic](https://github.com/devsisters/goquic)
 
 
 Getting Started
