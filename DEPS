@@ -1,13 +1,5 @@
 # This file is used to manage the dependencies to this repo.
-#
-# If you want to apply upstream chnages,
-#  1. Clone & Checkout chromium upstream. Update "chromium_revision" var at DEPS
-#  2. Do ./manage.py sync <CHROMIUM_GIT_ROOT>
-#     Then, all necessary files will be updated to new one.
-#  3. Temporarily commit here. Try build (./buildgo.sh), and you"ll find that you may need a additional patch.
-#  4. Do you work, then make a patch by `git diff > new_patch.patch`
-#  5. Add patch at DEPS. Amend previous temp commit.
-#  6. Commit DEPS, new patch, and source changes
+# If you want to apply upstream changes, see README for more details
 
 # START #
 {

@@ -62,8 +62,8 @@ $ cmake ..
 $ make -j
 ```
 
-libquic.a library file will be generated. libssl, libcrypto will be located in
-build/boringssl directory.
+`libquic.a` library file will be generated. `libssl.a`, `libcrypto.a` will be
+located in build/boringssl directory.
 
 ## How to integrate
 
@@ -73,4 +73,22 @@ official Chromium QUIC toy client and server. Golang binding will help too.
   * [QUIC toy client and server](http://www.chromium.org/quic/playing-with-quic)
   * [goquic C++ code](https://github.com/devsisters/goquic/tree/master/src)
 
+## Syncing from Upstream
+
+Great effort has been made to make syncing from upstream Chromium sources as
+effortless as possible. See `DEPS` file for all the dependencies. See
+`manage.py` script for actual syncing.
+
+If you want to apply upstream chnages,
+
+  1. Clone & Checkout chromium upstream. Update "chromium_revision" var at DEPS
+     to your chromium source code revision.
+  2. Do `./manage.py sync <CHROMIUM_GIT_ROOT>`
+     Then, all necessary files will be updated to new one.
+  3. If there is any patch collision, fix it and repeat `step 2`.
+  4. Temporarily commit here. Try build, and you'll find that you may need to
+     add additional patches.
+  5. Do you work, then make a patch by `git diff > new_patch.patch`
+  6. Add patch file to `DEPS`. Amend previous temp commit.
+  7. Commit `DEPS`, new patch, and source changes
 
