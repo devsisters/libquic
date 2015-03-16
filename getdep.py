@@ -5,6 +5,7 @@
 # (net_util.h <-\-> net_util_posix.cc)
 #
 # You may use `exclude` option to leave out unwanted dependency.
+from __future__ import print_function
 
 import os
 import argparse
@@ -36,11 +37,11 @@ class DependencyTree(object):
 
             if self.debug:
                 n = now
-                print "  [ ",
+                print("  [ ", end=" ")
                 while n:
-                    print n, " => ",
+                    print(n, " => ", end=" ")
                     n = wherefrom[n]
-                print " ]"
+                print(" ]")
 
             if now.endswith(".h") and os.path.exists(self.realpath(now[:-1] + 'cc')):
                 enq(now[:-1] + 'cc', now)
@@ -74,7 +75,7 @@ class DependencyTree(object):
 
         results.sort()
 
-        print N, M
+        print(N, M)
         return results
 
     def realpath(self, path):
@@ -106,7 +107,7 @@ def main():
     depmap = tree.get_dependencies(args.target)
 
     if args.dot:
-        print """\
+        print("""\
 digraph "source tree" {
     overlap=scale;
     size="8,10";
@@ -114,11 +115,11 @@ digraph "source tree" {
     fontsize="16";
     fontname="Helvetica";
     clusterrank="local";
-"""
+""")
         for node in depmap.keys():
             if "quic" in node:
                 node1 = node.rstrip(".cc").rstrip(".h")
-                print '    "{0}" [label="{0}", style="filled", color="red"]'.format(node1)
+                print('    "{0}" [label="{0}", style="filled", color="red"]'.format(node1))
 
         vis = set()
         for f, deps in depmap.iteritems():
@@ -128,17 +129,17 @@ digraph "source tree" {
 
                 if (f1, dep1) not in vis:
                     vis.add((f1, dep1))
-                    print "    \"{}\" -> \"{}\"".format(f1, dep1)
-        print "}"
+                    print("    \"{}\" -> \"{}\"".format(f1, dep1))
+        print("}")
 
     if args.cmd:
         dirs = set()
         for node in depmap.keys():
             dirpath = os.path.join("src", os.path.dirname(node))
             if dirpath not in dirs:
-                print "mkdir -p {}".format(dirpath)
+                print("mkdir -p {}".format(dirpath))
                 dirs.add(dirpath)
-            print "cp {} src/{}".format(tree.realpath(node), node)
+            print("cp {} src/{}".format(tree.realpath(node), node))
 
 
 if __name__ == "__main__":

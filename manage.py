@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from __future__ import print_function
+
 import os
 import sys
 import json
@@ -23,7 +25,7 @@ def open_deps(filepath="DEPS"):
 
 
 def run(cmd):
-    print cmd
+    print(cmd)
     r = os.system(cmd)
     if r != 0:
         exit(r)
