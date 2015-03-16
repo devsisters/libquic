@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+# Dependency Tracker for C++ source tree
+# Warning: This program do not understand any preprocessors and macros.
+# And this program cannot track the dependendy if the header's name and source's name are different.
+# (net_util.h <-\-> net_util_posix.cc)
+#
+# You may use `exclude` option to leave out unwanted dependency.
+
 import os
 import argparse
 
@@ -132,10 +139,6 @@ digraph "source tree" {
                 print "mkdir -p {}".format(dirpath)
                 dirs.add(dirpath)
             print "cp {} src/{}".format(tree.realpath(node), node)
-
-
-#    import pprint
-#    pprint.pprint(tree.critical_node(args.target))
 
 
 if __name__ == "__main__":
