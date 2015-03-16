@@ -88,7 +88,7 @@ If you want to apply upstream chnages,
   3. If there is any patch collision, fix it and repeat `step 2`.
   4. Temporarily commit here. Try build, and you'll find that you may need to
      add additional patches.
-  5. Do you work, then make a patch by `git diff > new_patch.patch`
+  5. Do your work, then make a patch by `git diff > new_patch.patch`
   6. Add patch file to `DEPS`. Amend previous temp commit.
   7. Commit `DEPS`, new patch, and source changes
 
