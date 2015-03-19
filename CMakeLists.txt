@@ -2,9 +2,29 @@ cmake_minimum_required (VERSION 2.8.10)
 
 project (libquic)
 
-set(COMMON_C_FLAGS "${COMMON_C_FLAGS} -Wall -g -gdwarf-4")
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+	message(STATUS "Setting build type to 'Debug' as none was specified.")
+	set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
+	# Set the possible values of build type for cmake-gui
+	#set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
+	#	"MinSizeRel" "RelWithDebInfo")
+endif()
+
+set(COMMON_C_FLAGS "${COMMON_C_FLAGS} -Wall")
+
+set(COMMON_DEBUG_FLAGS "-gdwarf-4")
+set(COMMON_RELEASE_FLAGS "")
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_C_FLAGS} -std=gnu++11")
+
+if (CMAKE_BUILD_TYPE STREQUAL Debug)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_DEBUG_FLAGS}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_DEBUG_FLAGS}")
+elseif (CMAKE_BUILD_TYPE STREQUAL Release)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_RELEASE_FLAGS}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_RELEASE_FLAGS}")
+endif()
 
 add_definitions(-DUSE_OPENSSL)
 

@@ -65,6 +65,9 @@ $ make -j
 `libquic.a` library file will be generated. `libssl.a`, `libcrypto.a` will be
 located in build/boringssl directory.
 
+To do release builds run `$ cmake -GNinja -DCMAKE_BUILD_TYPE=Release ..` instead
+of `$ cmake -GNinja ..`.
+
 ## How to integrate
 
 In order to integrate libquic to your code, your best source of documentation is
