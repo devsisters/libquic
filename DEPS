@@ -124,6 +124,8 @@
         {
             "action": "copy",
             "target": [
+                "LICENSE",
+                "AUTHORS",
                 "base/atomicops_internals_portable.*",
                 "base/atomicops_internals_x86_gcc.*",
                 "base/callback_helpers.h",
