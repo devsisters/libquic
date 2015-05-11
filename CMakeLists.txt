@@ -127,11 +127,13 @@ set(
 	src/net/quic/congestion_control/loss_detection_interface.cc
 	src/net/quic/congestion_control/send_algorithm_interface.cc
 	src/net/quic/congestion_control/cubic.cc
+	src/net/quic/congestion_control/cubic_bytes.cc
 	src/net/quic/congestion_control/tcp_loss_algorithm.cc
 	src/net/quic/congestion_control/prr_sender.cc
 	src/net/quic/congestion_control/tcp_cubic_sender.cc
 	src/net/quic/congestion_control/hybrid_slow_start.cc
 	src/net/quic/congestion_control/rtt_stats.cc
+	src/net/quic/congestion_control/tcp_cubic_bytes_sender.cc
 	src/net/quic/quic_config.cc
 	src/net/quic/quic_crypto_server_stream.cc
 	src/net/quic/quic_flags.cc
@@ -325,5 +327,6 @@ add_library(
 
 # XXX(serialx): Not sure if this is safe, since our CFLAGS contaminate boringssl build
 add_subdirectory(boringssl)
+add_subdirectory(protobuf)
 
 #target_link_libraries(test_quic_server quic ssl crypto -pthread ${BASE_ARCH_LIBRARIES})
