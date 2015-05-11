@@ -3,14 +3,17 @@
 
 # START #
 {
-    "chromium_revision": "b55be9ede35c10a2623c3c348768db92069d7f10",
+    "chromium_revision": "16f0a88eea42d7528eaa71533e1c539c0bd45962",
     "automatic_dependency": [
         {
             "from": "net/quic/quic_connection.cc",
             "exclude": [
+                "cached_network_parameters.pb.h",
+                "source_address_token.pb.h",
                 "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
+                "base/profiler/scoped_tracker.h",
                 "base/files/file.h"
             ]
         },
@@ -37,6 +40,8 @@
         {
             "from": "net/quic/quic_session.cc",
             "exclude": [
+                "cached_network_parameters.pb.h",
+                "source_address_token.pb.h",
                 "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
@@ -53,6 +58,8 @@
         {
             "from": "net/quic/quic_client_session_base.cc",
             "exclude": [
+                "cached_network_parameters.pb.h",
+                "source_address_token.pb.h",
                 "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
@@ -74,6 +81,8 @@
         {
             "from": "net/quic/quic_crypto_client_stream.cc",
             "exclude": [
+                "cached_network_parameters.pb.h",
+                "source_address_token.pb.h",
                 "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
@@ -95,6 +104,8 @@
         {
             "from": "net/quic/quic_crypto_server_stream.cc",
             "exclude": [
+                "cached_network_parameters.pb.h",
+                "source_address_token.pb.h",
                 "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
@@ -190,6 +201,12 @@
             ]
         },
         {
+            "action": "copydir",
+            "target": [
+                "third_party/protobuf"
+            ]
+        },
+        {
             "action": "remove",
             "target": [
                 "src/base/os_compat_android.*",
@@ -201,7 +218,6 @@
     ],
     "patches": [
         "patch/basepatch.patch",
-        "patch/patch_remove_scoped_tracker.patch",
         "patch/retrasmitoldestpacket_fatal_fix.patch"
     ],
     "custom_files": [

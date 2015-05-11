@@ -103,6 +103,10 @@ NET_ERROR(BLOCKED_ENROLLMENT_CHECK_PENDING, -24)
 // retry or a redirect, but the upload stream doesn't support that operation.
 NET_ERROR(UPLOAD_STREAM_REWIND_NOT_SUPPORTED, -25)
 
+// The request failed because the URLRequestContext is shutting down, or has
+// been shut down.
+NET_ERROR(CONTEXT_SHUT_DOWN, -26)
+
 // A connection was closed (corresponding to a TCP FIN).
 NET_ERROR(CONNECTION_CLOSED, -100)
 
@@ -339,6 +343,12 @@ NET_ERROR(SSL_CLIENT_AUTH_CERT_BAD_FORMAT, -164)
 // The SSL server requires falling back to a version older than the configured
 // minimum fallback version, and thus fallback failed.
 NET_ERROR(SSL_FALLBACK_BEYOND_MINIMUM_VERSION, -165)
+
+// Resolving a hostname to an IP address list included the IPv4 address
+// "127.0.53.53". This is a special IP address which ICANN has recommended to
+// indicate there was a name collision, and alert admins to a potential
+// problem.
+NET_ERROR(ICANN_NAME_COLLISION, -166)
 
 // Certificate error codes
 //
@@ -629,6 +639,11 @@ NET_ERROR(PROXY_HTTP_1_1_REQUIRED, -366)
 
 // The PAC script terminated fatally and must be reloaded.
 NET_ERROR(PAC_SCRIPT_TERMINATED, -367)
+
+// The certificate offered by the alternative server is not valid for the
+// origin, a violation of HTTP Alternative Services specification Section 2.1,
+// https://tools.ietf.org/id/draft-ietf-httpbis-alt-svc-06.html#host_auth.
+NET_ERROR(ALTERNATIVE_CERT_NOT_VALID_FOR_ORIGIN, -368)
 
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)

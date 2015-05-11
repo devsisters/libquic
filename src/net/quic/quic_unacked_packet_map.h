@@ -43,6 +43,9 @@ class NET_EXPORT_PRIVATE QuicUnackedPacketMap {
   // Marks |sequence_number| as no longer in flight.
   void RemoveFromInFlight(QuicPacketSequenceNumber sequence_number);
 
+  // No longer retransmit data for |stream_id|.
+  void CancelRetransmissionsForStream(QuicStreamId stream_id);
+
   // Returns true if the unacked packet |sequence_number| has retransmittable
   // frames.  This will return false if the packet has been acked, if a
   // previous transmission of this packet was ACK'd, or if this packet has been

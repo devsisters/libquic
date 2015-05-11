@@ -31,7 +31,6 @@ void StatisticsRecorder::Initialize() {
   g_statistics_recorder_.Get();
 }
 
-
 // static
 bool StatisticsRecorder::IsActive() {
   if (lock_ == NULL)

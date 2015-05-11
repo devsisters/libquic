@@ -84,14 +84,15 @@ effortless as possible. See `DEPS` file for all the dependencies. See
 
 If you want to apply upstream chnages,
 
-  1. Clone & Checkout chromium upstream. Update "chromium_revision" var at DEPS
-     to your chromium source code revision.
-  2. Do `./manage.py sync <CHROMIUM_GIT_ROOT>`
+  1. Clone & Checkout chromium upstream.
+  2. Build QUIC server: `cd out/Debug; ninja quic_server`
+  3. Update "chromium_revision" var at DEPS to your chromium source code revision.
+  4. Do `./manage.py sync <CHROMIUM_GIT_ROOT>`
      Then, all necessary files will be updated to new one.
-  3. If there is any patch collision, fix it and repeat `step 2`.
-  4. Temporarily commit here. Try build, and you'll find that you may need to
+  5. If there is any patch collision, fix it and repeat `step 2`.
+  6. Temporarily commit here. Try build, and you'll find that you may need to
      add additional patches.
-  5. Do your work, then make a patch by `git diff > new_patch.patch`
-  6. Add patch file to `DEPS`. Amend previous temp commit.
-  7. Commit `DEPS`, new patch, and source changes
+  7. Do your work, then make a patch by `git diff > new_patch.patch`
+  8. Add patch file to `DEPS`. Amend previous temp commit.
+  9. Commit `DEPS`, new patch, and source changes
 

@@ -69,20 +69,21 @@ const QuicPacketCount kInitialCongestionWindowInsecure = 20;
 // Minimum size of initial flow control window, for both stream and session.
 const uint32 kMinimumFlowControlSendWindow = 16 * 1024;  // 16 KB
 
-// Minimum and maximum size of the CWND, in packets,
-// when doing bandwidth resumption.
+// Minimum size of the CWND, in packets, when doing bandwidth resumption.
 const QuicPacketCount kMinCongestionWindowForBandwidthResumption = 10;
-const QuicPacketCount kMaxCongestionWindowForBandwidthResumption = 200;
 
-// Maximum number of tracked packets before the connection will be closed.
-// This effectively limits the max CWND to a smaller value than this.
-const QuicPacketCount kMaxTrackedPackets = 5000;
+// Maximum size of the CWND, in packets, for TCP congestion control algorithms.
+const QuicPacketCount kMaxTcpCongestionWindow = 200;
 
 // Default size of the socket receive buffer in bytes.
 const QuicByteCount kDefaultSocketReceiveBuffer = 256 * 1024;
 // Minimum size of the socket receive buffer in bytes.
 // Smaller values are ignored.
 const QuicByteCount kMinSocketReceiveBuffer = 16 * 1024;
+
+// Fraction of the receive buffer that can be used for encrypted bytes.
+// Allows a 5% overhead for IP and UDP framing, as well as ack only packets.
+static const float kUsableRecieveBufferFraction = 0.95f;
 
 // Don't allow a client to suggest an RTT shorter than 10ms.
 const uint32 kMinInitialRoundTripTimeUs = 10 * kNumMicrosPerMilli;
@@ -192,6 +193,11 @@ enum IsHandshake {
   NOT_HANDSHAKE,
   IS_HANDSHAKE
 };
+
+enum class Perspective { IS_SERVER, IS_CLIENT };
+
+NET_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                            const Perspective& s);
 
 // Indicates FEC protection level for data being written.
 enum FecProtection {
@@ -312,8 +318,9 @@ enum QuicVersion {
   // Special case to indicate unknown/unsupported QUIC version.
   QUIC_VERSION_UNSUPPORTED = 0,
 
-  QUIC_VERSION_23 = 23,  // Timestamp in the ack frame.
   QUIC_VERSION_24 = 24,  // SPDY/4 header compression.
+  QUIC_VERSION_25 = 25,  // SPDY/4 header keys, and removal of error_details
+                         // from QuicRstStreamFrame
 };
 
 // This vector contains QUIC versions which we currently support.
@@ -323,8 +330,8 @@ enum QuicVersion {
 //
 // IMPORTANT: if you are adding to this list, follow the instructions at
 // http://sites/quic/adding-and-removing-versions
-static const QuicVersion kSupportedQuicVersions[] = {QUIC_VERSION_24,
-                                                     QUIC_VERSION_23};
+static const QuicVersion kSupportedQuicVersions[] = {QUIC_VERSION_25,
+                                                     QUIC_VERSION_24};
 
 typedef std::vector<QuicVersion> QuicVersionVector;
 
@@ -518,6 +525,8 @@ enum QuicErrorCode {
   QUIC_TOO_MANY_OUTSTANDING_RECEIVED_PACKETS = 69,
   // The quic connection job to load server config is cancelled.
   QUIC_CONNECTION_CANCELLED = 70,
+  // Disabled QUIC because of high packet loss rate.
+  QUIC_BAD_PACKET_LOSS_RATE = 71,
 
   // Crypto errors.
 
@@ -549,6 +558,8 @@ enum QuicErrorCode {
   QUIC_CRYPTO_INTERNAL_ERROR = 38,
   // A crypto handshake message specified an unsupported version.
   QUIC_CRYPTO_VERSION_NOT_SUPPORTED = 39,
+  // A crypto handshake message resulted in a stateless reject.
+  QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT = 72,
   // There was no intersection between the crypto primitives supported by the
   // peer and ourselves.
   QUIC_CRYPTO_NO_SUPPORT = 40,
@@ -575,7 +586,7 @@ enum QuicErrorCode {
   QUIC_VERSION_NEGOTIATION_MISMATCH = 55,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 71,
+  QUIC_LAST_ERROR = 73,
 };
 
 struct NET_EXPORT_PRIVATE QuicPacketPublicHeader {
@@ -750,7 +761,9 @@ void NET_EXPORT_PRIVATE InsertMissingPacketsBetween(
 // (Reno and Cubic are the classic example for that).
 enum CongestionControlType {
   kCubic,
+  kCubicBytes,
   kReno,
+  kRenoBytes,
   kBBR,
 };
 
@@ -770,6 +783,7 @@ struct NET_EXPORT_PRIVATE QuicRstStreamFrame {
 
   QuicStreamId stream_id;
   QuicRstStreamErrorCode error_code;
+  // Only used in versions <= QUIC_VERSION_24.
   std::string error_details;
 
   // Used to update flow control windows. On termination of a stream, both
@@ -910,6 +924,7 @@ class NET_EXPORT_PRIVATE QuicData {
 
   const char* data() const { return buffer_; }
   size_t length() const { return length_; }
+  bool owns_buffer() const { return owns_buffer_; }
 
  private:
   const char* buffer_;
@@ -974,6 +989,9 @@ class NET_EXPORT_PRIVATE RetransmittableFrames {
   const QuicFrame& AddStreamFrame(QuicStreamFrame* stream_frame);
   // Takes ownership of the frame inside |frame|.
   const QuicFrame& AddNonStreamFrame(const QuicFrame& frame);
+  // Removes all stream frames associated with |stream_id|.
+  void RemoveFramesForStream(QuicStreamId stream_id);
+
   const QuicFrames& frames() const { return frames_; }
 
   IsHandshake HasCryptoHandshake() const {

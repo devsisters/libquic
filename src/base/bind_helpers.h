@@ -129,7 +129,7 @@
 // Passed() is particularly useful with PostTask() when you are transferring
 // ownership of an argument into a task, but don't necessarily know if the
 // task will always be executed. This can happen if the task is cancellable
-// or if it is posted to a MessageLoopProxy.
+// or if it is posted to a TaskRunner.
 //
 //
 // SIMPLE FUNCTIONS AND UTILITIES.

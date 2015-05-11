@@ -126,6 +126,9 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   // Returns true if the stream has queued data waiting to write.
   bool HasBufferedData() const;
 
+  // Returns the version of QUIC being used for this stream.
+  QuicVersion version() const;
+
  protected:
   // Sends as much of 'data' to the connection as the connection will consume,
   // and then buffers any remaining data in queued_data_.
@@ -176,7 +179,10 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
                 scoped_refptr<ProxyAckNotifierDelegate> delegate_in);
     ~PendingData();
 
+    // Pending data to be written.
     std::string data;
+    // Index of the first byte in data still to be written.
+    size_t offset;
     // Delegate that should be notified when the pending data is acked.
     // Can be nullptr.
     scoped_refptr<ProxyAckNotifierDelegate> delegate;
@@ -227,8 +233,9 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   // FEC policy to be used for this stream.
   FecPolicy fec_policy_;
 
-  // True if the session this stream is running under is a server session.
-  bool is_server_;
+  // Tracks if the session this stream is running under was created by a
+  // server or a client.
+  Perspective perspective_;
 
   QuicFlowController flow_controller_;
 

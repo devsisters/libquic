@@ -45,15 +45,9 @@
 #undef __DEPRECATED
 #endif
 
-#if defined(OS_ANDROID)
-#include <hash_map>
-#include <hash_set>
-#define BASE_HASH_IMPL_NAMESPACE std
-#else
 #include <ext/hash_map>
 #include <ext/hash_set>
 #define BASE_HASH_IMPL_NAMESPACE __gnu_cxx
-#endif
 
 #include <string>
 
@@ -84,7 +78,6 @@ struct hash<T*> {
   }
 };
 
-#if !defined(OS_ANDROID)
 // The GNU C++ library provides identity hash functions for many integral types,
 // but not for |long long|.  This hash function will truncate if |size_t| is
 // narrower than |long long|.  This is probably good enough for what we will
@@ -102,7 +95,6 @@ DEFINE_TRIVIAL_HASH(long long);
 DEFINE_TRIVIAL_HASH(unsigned long long);
 
 #undef DEFINE_TRIVIAL_HASH
-#endif  // !defined(OS_ANDROID)
 
 // Implement string hash functions so that strings of various flavors can
 // be used as keys in STL maps and sets.  The hash algorithm comes from the

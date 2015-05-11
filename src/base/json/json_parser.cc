@@ -4,7 +4,8 @@
 
 #include "base/json/json_parser.h"
 
-#include "base/float_util.h"
+#include <cmath>
+
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_number_conversions.h"
@@ -872,7 +873,7 @@ Value* JSONParser::ConsumeNumber() {
 
   double num_double;
   if (base::StringToDouble(num_string.as_string(), &num_double) &&
-      IsFinite(num_double)) {
+      std::isfinite(num_double)) {
     return new FundamentalValue(num_double);
   }
 

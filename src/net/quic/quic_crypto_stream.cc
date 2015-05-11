@@ -18,7 +18,9 @@ using base::StringPiece;
 
 namespace net {
 
-#define ENDPOINT (session()->is_server() ? "Server: " : " Client: ")
+#define ENDPOINT                                                               \
+  (session()->perspective() == Perspective::IS_SERVER ? "Server: " : "Client:" \
+                                                                     " ")
 
 QuicCryptoStream::QuicCryptoStream(QuicSession* session)
     : ReliableQuicStream(kCryptoStreamId, session),

@@ -67,6 +67,13 @@ def main():
                     srcroot=SRCROOT,
                     target=target,
                     targetpath=os.path.dirname(target)))
+        elif dep["action"] == "copydir":
+            for target in dep["target"]:
+                run("cp -r {chromium}/{target} {srcroot}/{targetpath}/".format(
+                    chromium=chromium_root,
+                    srcroot=SRCROOT,
+                    target=target,
+                    targetpath=os.path.dirname(target)))
         elif dep["action"] == "remove":
             for target in dep["target"]:
                 run("rm -f {0}".format(target))

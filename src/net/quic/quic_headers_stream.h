@@ -38,12 +38,8 @@ class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
   uint32 ProcessRawData(const char* data, uint32 data_len) override;
   QuicPriority EffectivePriority() const override;
 
-  void OnSuccessfulVersionNegotiation(QuicVersion version);
-
  private:
   class SpdyFramerVisitor;
-
-  void InitializeFramer(QuicVersion version);
 
   // The following methods are called by the SimpleVisitor.
 
@@ -76,7 +72,7 @@ class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
   bool fin_;
   size_t frame_len_;
 
-  scoped_ptr<SpdyFramer> spdy_framer_;
+  SpdyFramer spdy_framer_;
   scoped_ptr<SpdyFramerVisitor> spdy_framer_visitor_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicHeadersStream);

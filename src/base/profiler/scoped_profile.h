@@ -30,6 +30,14 @@
       FROM_HERE_WITH_EXPLICIT_FUNCTION(#dispatch_function_name),           \
       ::tracked_objects::ScopedProfile::ENABLED)
 
+// Same as TRACK_RUN_IN_THIS_SCOPED_REGION except that there's an extra param
+// which is concatenated with the function name for better filtering.
+#define TRACK_SCOPED_REGION(category_name, dispatch_function_name)         \
+  ::tracked_objects::ScopedProfile LINE_BASED_VARIABLE_NAME_FOR_PROFILING( \
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(                                    \
+          "[" category_name "]" dispatch_function_name),                   \
+      ::tracked_objects::ScopedProfile::ENABLED)
+
 namespace tracked_objects {
 class Births;
 

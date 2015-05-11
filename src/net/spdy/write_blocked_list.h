@@ -12,11 +12,11 @@
 #include "base/logging.h"
 #include "net/spdy/spdy_protocol.h"
 
-namespace {
-class WriteBlockedListPeer;
-}
-
 namespace net {
+
+namespace test {
+class WriteBlockedListPeer;
+}  // namespace test
 
 const int kHighestPriority = 0;
 const int kLowestPriority = 7;
@@ -164,7 +164,7 @@ class WriteBlockedList {
   bool avoids_inserting_duplicates() const { return use_stream_to_priority_; }
 
  private:
-  friend WriteBlockedListPeer;
+  friend class net::test::WriteBlockedListPeer;
 
   typedef base::hash_map<IdType, SpdyPriority> StreamToPriorityMap;
 

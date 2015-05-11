@@ -52,41 +52,40 @@ QuicPacketGenerator::QuicPacketGenerator(QuicConnectionId connection_id,
 }
 
 QuicPacketGenerator::~QuicPacketGenerator() {
-  for (QuicFrames::iterator it = queued_control_frames_.begin();
-       it != queued_control_frames_.end(); ++it) {
-    switch (it->type) {
+  for (QuicFrame& frame : queued_control_frames_) {
+    switch (frame.type) {
       case PADDING_FRAME:
-        delete it->padding_frame;
+        delete frame.padding_frame;
         break;
       case STREAM_FRAME:
-        delete it->stream_frame;
+        delete frame.stream_frame;
         break;
       case ACK_FRAME:
-        delete it->ack_frame;
+        delete frame.ack_frame;
         break;
       case RST_STREAM_FRAME:
-        delete it->rst_stream_frame;
+        delete frame.rst_stream_frame;
         break;
       case CONNECTION_CLOSE_FRAME:
-        delete it->connection_close_frame;
+        delete frame.connection_close_frame;
         break;
       case GOAWAY_FRAME:
-        delete it->goaway_frame;
+        delete frame.goaway_frame;
         break;
       case WINDOW_UPDATE_FRAME:
-        delete it->window_update_frame;
+        delete frame.window_update_frame;
         break;
       case BLOCKED_FRAME:
-        delete it->blocked_frame;
+        delete frame.blocked_frame;
         break;
       case STOP_WAITING_FRAME:
-        delete it->stop_waiting_frame;
+        delete frame.stop_waiting_frame;
         break;
       case PING_FRAME:
-        delete it->ping_frame;
+        delete frame.ping_frame;
         break;
       case NUM_FRAME_TYPES:
-        DCHECK(false) << "Cannot delete type: " << it->type;
+        DCHECK(false) << "Cannot delete type: " << frame.type;
     }
   }
 }
@@ -164,8 +163,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(
 
   int frames_created = 0;
   while (delegate_->ShouldGeneratePacket(
-      NOT_RETRANSMISSION, HAS_RETRANSMITTABLE_DATA,
-      has_handshake ? IS_HANDSHAKE : NOT_HANDSHAKE)) {
+      HAS_RETRANSMITTABLE_DATA, has_handshake ? IS_HANDSHAKE : NOT_HANDSHAKE)) {
     QuicFrame frame;
     size_t bytes_consumed = packet_creator_.CreateStreamFrame(
         id, data, offset + total_bytes_consumed, fin, &frame);
@@ -235,8 +233,7 @@ bool QuicPacketGenerator::CanSendWithNextPendingFrameAddition() const {
   if (retransmittable == HAS_RETRANSMITTABLE_DATA) {
       DCHECK(!queued_control_frames_.empty());  // These are retransmittable.
   }
-  return delegate_->ShouldGeneratePacket(NOT_RETRANSMISSION, retransmittable,
-                                         NOT_HANDSHAKE);
+  return delegate_->ShouldGeneratePacket(retransmittable, NOT_HANDSHAKE);
 }
 
 void QuicPacketGenerator::SendQueuedFrames(bool flush) {
@@ -282,7 +279,9 @@ void QuicPacketGenerator::MaybeSendFecPacketAndCloseGroup(bool force) {
   }
   // TODO(jri): SerializeFec can return a NULL packet, and this should
   // cause an early return, with a call to delegate_->OnPacketGenerationError.
-  SerializedPacket serialized_fec = packet_creator_.SerializeFec();
+  char buffer[kMaxPacketSize];
+  SerializedPacket serialized_fec =
+      packet_creator_.SerializeFec(buffer, kMaxPacketSize);
   DCHECK(serialized_fec.packet);
   delegate_->OnSerializedPacket(serialized_fec);
   // Turn FEC protection off if creator's protection is on and the creator
@@ -392,7 +391,9 @@ bool QuicPacketGenerator::AddFrame(const QuicFrame& frame) {
 }
 
 void QuicPacketGenerator::SerializeAndSendPacket() {
-  SerializedPacket serialized_packet = packet_creator_.SerializePacket();
+  char buffer[kMaxPacketSize];
+  SerializedPacket serialized_packet =
+      packet_creator_.SerializePacket(buffer, kMaxPacketSize);
   DCHECK(serialized_packet.packet);
 
   // There may be AckNotifiers interested in this packet.
@@ -420,7 +421,7 @@ QuicByteCount QuicPacketGenerator::max_packet_length() const {
 }
 
 void QuicPacketGenerator::set_max_packet_length(QuicByteCount length) {
-  packet_creator_.set_max_packet_length(length);
+  packet_creator_.SetMaxPacketLength(length);
 }
 
 QuicEncryptedPacket* QuicPacketGenerator::SerializeVersionNegotiationPacket(
@@ -430,8 +431,11 @@ QuicEncryptedPacket* QuicPacketGenerator::SerializeVersionNegotiationPacket(
 
 SerializedPacket QuicPacketGenerator::ReserializeAllFrames(
     const RetransmittableFrames& frames,
-    QuicSequenceNumberLength original_length) {
-  return packet_creator_.ReserializeAllFrames(frames, original_length);
+    QuicSequenceNumberLength original_length,
+    char* buffer,
+    size_t buffer_len) {
+  return packet_creator_.ReserializeAllFrames(frames, original_length, buffer,
+                                              buffer_len);
 }
 
 void QuicPacketGenerator::UpdateSequenceNumberLength(
@@ -453,9 +457,13 @@ void QuicPacketGenerator::SetConnectionIdLength(uint32 length) {
   }
 }
 
-
 void QuicPacketGenerator::set_encryption_level(EncryptionLevel level) {
   packet_creator_.set_encryption_level(level);
+}
+
+void QuicPacketGenerator::SetEncrypter(EncryptionLevel level,
+                                       QuicEncrypter* encrypter) {
+  packet_creator_.SetEncrypter(level, encrypter);
 }
 
 }  // namespace net

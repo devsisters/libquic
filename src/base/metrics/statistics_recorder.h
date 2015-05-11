@@ -88,6 +88,7 @@ class BASE_EXPORT StatisticsRecorder {
   friend class HistogramBaseTest;
   friend class HistogramSnapshotManagerTest;
   friend class HistogramTest;
+  friend class JsonPrefStoreTest;
   friend class SparseHistogramTest;
   friend class StatisticsRecorderTest;
   FRIEND_TEST_ALL_PREFIXES(HistogramDeltaSerializationTest,

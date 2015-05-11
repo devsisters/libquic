@@ -5,9 +5,6 @@
 #include "net/quic/reliable_quic_stream.h"
 
 #include "base/logging.h"
-#if 0
-#include "base/profiler/scoped_tracker.h"
-#endif
 #include "net/quic/iovector.h"
 #include "net/quic/quic_flow_controller.h"
 #include "net/quic/quic_session.h"
@@ -19,7 +16,8 @@ using std::string;
 
 namespace net {
 
-#define ENDPOINT (is_server_ ? "Server: " : " Client: ")
+#define ENDPOINT \
+  (perspective_ == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
 namespace {
 
@@ -105,8 +103,9 @@ class ReliableQuicStream::ProxyAckNotifierDelegate
 };
 
 ReliableQuicStream::PendingData::PendingData(
-    string data_in, scoped_refptr<ProxyAckNotifierDelegate> delegate_in)
-    : data(data_in), delegate(delegate_in) {
+    string data_in,
+    scoped_refptr<ProxyAckNotifierDelegate> delegate_in)
+    : data(data_in), offset(0), delegate(delegate_in) {
 }
 
 ReliableQuicStream::PendingData::~PendingData() {
@@ -128,12 +127,13 @@ ReliableQuicStream::ReliableQuicStream(QuicStreamId id, QuicSession* session)
       rst_sent_(false),
       rst_received_(false),
       fec_policy_(FEC_PROTECT_OPTIONAL),
-      is_server_(session_->is_server()),
-      flow_controller_(
-          session_->connection(), id_, is_server_,
-          GetReceivedFlowControlWindow(session),
-          GetInitialStreamFlowControlWindowToSend(session),
-          GetInitialStreamFlowControlWindowToSend(session)),
+      perspective_(session_->perspective()),
+      flow_controller_(session_->connection(),
+                       id_,
+                       perspective_,
+                       GetReceivedFlowControlWindow(session),
+                       GetInitialStreamFlowControlWindowToSend(session),
+                       GetInitialStreamFlowControlWindowToSend(session)),
       connection_flow_controller_(session_->flow_controller()),
       stream_contributes_to_connection_flow_control_(true) {
 }
@@ -226,13 +226,6 @@ void ReliableQuicStream::Reset(QuicRstStreamErrorCode error) {
 }
 
 void ReliableQuicStream::CloseConnection(QuicErrorCode error) {
-#if 0
-  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
-  tracked_objects::ScopedTracker tracking_profile(
-      FROM_HERE_WITH_EXPLICIT_FUNCTION(
-          "422516 ReliableQuicStream::CloseConnection"));
-#endif
-
   session()->connection()->SendConnectionClose(error);
 }
 
@@ -294,9 +287,21 @@ void ReliableQuicStream::OnCanWrite() {
     if (queued_data_.size() == 1 && fin_buffered_) {
       fin = true;
     }
-    struct iovec iov(MakeIovec(pending_data->data));
+    if (pending_data->offset > 0 &&
+        pending_data->offset >= pending_data->data.size()) {
+      // This should be impossible because offset tracks the amount of
+      // pending_data written thus far.
+      LOG(DFATAL) << "Pending offset is beyond available data. offset: "
+                  << pending_data->offset
+                  << " vs: " << pending_data->data.size();
+      return;
+    }
+    size_t remaining_len = pending_data->data.size() - pending_data->offset;
+    struct iovec iov = {
+        const_cast<char*>(pending_data->data.data()) + pending_data->offset,
+        remaining_len};
     QuicConsumedData consumed_data = WritevData(&iov, 1, fin, delegate);
-    if (consumed_data.bytes_consumed == pending_data->data.size() &&
+    if (consumed_data.bytes_consumed == remaining_len &&
         fin == consumed_data.fin_consumed) {
       queued_data_.pop_front();
       if (delegate != nullptr) {
@@ -304,7 +309,7 @@ void ReliableQuicStream::OnCanWrite() {
       }
     } else {
       if (consumed_data.bytes_consumed > 0) {
-        pending_data->data.erase(0, consumed_data.bytes_consumed);
+        pending_data->offset += consumed_data.bytes_consumed;
         if (delegate != nullptr) {
           delegate->WroteData(false);
         }
@@ -425,6 +430,10 @@ void ReliableQuicStream::CloseWriteSide() {
 
 bool ReliableQuicStream::HasBufferedData() const {
   return !queued_data_.empty();
+}
+
+QuicVersion ReliableQuicStream::version() const {
+  return session_->connection()->version();
 }
 
 void ReliableQuicStream::OnClose() {

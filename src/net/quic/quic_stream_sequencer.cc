@@ -6,9 +6,9 @@
 
 #include <algorithm>
 #include <limits>
+#include <utility>
 
 #include "base/logging.h"
-#include "base/metrics/sparse_histogram.h"
 #include "net/quic/reliable_quic_stream.h"
 
 using std::min;

@@ -6,7 +6,6 @@
 #define NET_QUIC_QUIC_PACKET_WRITER_H_
 
 #include "net/base/ip_endpoint.h"
-#include "net/quic/quic_protocol.h"
 
 namespace net {
 

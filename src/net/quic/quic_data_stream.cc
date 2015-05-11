@@ -14,7 +14,9 @@ using std::min;
 
 namespace net {
 
-#define ENDPOINT (session()->is_server() ? "Server: " : " Client: ")
+#define ENDPOINT                                                               \
+  (session()->perspective() == Perspective::IS_SERVER ? "Server: " : "Client:" \
+                                                                     " ")
 
 namespace {
 
@@ -121,16 +123,6 @@ uint32 QuicDataStream::ProcessRawData(const char* data, uint32 data_len) {
   return ProcessData(data, data_len);
 }
 
-const IPEndPoint& QuicDataStream::GetPeerAddress() {
-  return session()->peer_address();
-}
-
-#if 0
-bool QuicDataStream::GetSSLInfo(SSLInfo* ssl_info) {
-  return session()->GetSSLInfo(ssl_info);
-}
-#endif
-
 uint32 QuicDataStream::ProcessHeaderData() {
   if (decompressed_headers_.empty()) {
     return 0;
@@ -152,7 +144,7 @@ void QuicDataStream::OnStreamHeaders(StringPiece headers_data) {
 }
 
 void QuicDataStream::OnStreamHeadersPriority(QuicPriority priority) {
-  DCHECK(session()->connection()->is_server());
+  DCHECK_EQ(Perspective::IS_SERVER, session()->connection()->perspective());
   set_priority(priority);
 }
 

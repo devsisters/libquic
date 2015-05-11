@@ -65,7 +65,7 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
 
     // A deque indexed by sequence number storing the packet's hash and whether
     // a hash was recorded for that sequence number.
-    typedef std::deque<std::pair<QuicPacketEntropyHash, bool> >
+    typedef std::deque<std::pair<QuicPacketEntropyHash, bool>>
         ReceivedEntropyHashes;
 
     // Recomputes first_gap_ and removes packets_entropy_ entries that are no

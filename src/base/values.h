@@ -99,6 +99,8 @@ class BASE_EXPORT Value {
   // Subclasses return their own type directly in their overrides;
   // this works because C++ supports covariant return types.
   virtual Value* DeepCopy() const;
+  // Preferred version of DeepCopy. TODO(estade): remove the above.
+  scoped_ptr<Value> CreateDeepCopy() const;
 
   // Compares if two Value objects have equal contents.
   virtual bool Equals(const Value* other) const;
@@ -368,6 +370,8 @@ class BASE_EXPORT DictionaryValue : public Value {
 
   // Overridden from Value:
   DictionaryValue* DeepCopy() const override;
+  // Preferred version of DeepCopy. TODO(estade): remove the above.
+  scoped_ptr<DictionaryValue> CreateDeepCopy() const;
   bool Equals(const Value* other) const override;
 
  private:
@@ -400,6 +404,8 @@ class BASE_EXPORT ListValue : public Value {
   // Returns true if successful, or false if the index was negative or
   // the value is a null pointer.
   bool Set(size_t index, Value* in_value);
+  // Preferred version of the above. TODO(estade): remove the above.
+  bool Set(size_t index, scoped_ptr<Value> in_value);
 
   // Gets the Value at the given index.  Modifies |out_value| (and returns true)
   // only if the index falls within the current list range.
@@ -445,6 +451,8 @@ class BASE_EXPORT ListValue : public Value {
   iterator Erase(iterator iter, scoped_ptr<Value>* out_value);
 
   // Appends a Value to the end of the list.
+  void Append(scoped_ptr<Value> in_value);
+  // Deprecated version of the above. TODO(estade): remove.
   void Append(Value* in_value);
 
   // Convenience forms of Append.

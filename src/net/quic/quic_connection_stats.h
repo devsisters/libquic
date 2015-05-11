@@ -45,6 +45,9 @@ struct NET_EXPORT_PRIVATE QuicConnectionStats {
   QuicPacketCount packets_spuriously_retransmitted;
   // Number of packets abandoned as lost by the loss detection algorithm.
   QuicPacketCount packets_lost;
+
+  // Number of packets sent in slow start.
+  QuicPacketCount slowstart_packets_sent;
   // Number of packets lost exiting slow start.
   QuicPacketCount slowstart_packets_lost;
 

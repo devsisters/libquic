@@ -358,6 +358,7 @@ template void Pickle::WriteBytesStatic<8>(const void* data);
 inline void Pickle::WriteBytesCommon(const void* data, size_t length) {
   DCHECK_NE(kCapacityReadOnly, capacity_after_header_)
       << "oops: pickle is readonly";
+  MSAN_CHECK_MEM_IS_INITIALIZED(data, length);
   size_t data_len = AlignInt(length, sizeof(uint32));
   DCHECK_GE(data_len, length);
 #ifdef ARCH_CPU_64_BITS

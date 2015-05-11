@@ -90,6 +90,14 @@ void STLDeleteContainerPairSecondPointers(ForwardIterator begin,
   }
 }
 
+// Counts the number of instances of val in a container.
+template <typename Container, typename T>
+typename std::iterator_traits<
+    typename Container::const_iterator>::difference_type
+STLCount(const Container& container, const T& val) {
+  return std::count(container.begin(), container.end(), val);
+}
+
 // To treat a possibly-empty vector as an array, use these functions.
 // If you know the array will never be empty, you can use &*v.begin()
 // directly, but that is undefined behaviour if |v| is empty.
@@ -148,8 +156,7 @@ template <class T>
 void STLDeleteValues(T* container) {
   if (!container)
     return;
-  for (typename T::iterator i(container->begin()); i != container->end(); ++i)
-    delete i->second;
+  STLDeleteContainerPairSecondPointers(container->begin(), container->end());
   container->clear();
 }
 
@@ -194,6 +201,14 @@ class STLValueDeleter {
 template <typename Collection, typename Key>
 bool ContainsKey(const Collection& collection, const Key& key) {
   return collection.find(key) != collection.end();
+}
+
+// Test to see if a collection like a vector contains a particular value.
+// Returns true if the value is in the collection.
+template <typename Collection, typename Value>
+bool ContainsValue(const Collection& collection, const Value& value) {
+  return std::find(collection.begin(), collection.end(), value) !=
+      collection.end();
 }
 
 namespace base {

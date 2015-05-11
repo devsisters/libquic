@@ -110,8 +110,7 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
     return (WriteBytes(&upper, sizeof(upper)) &&
             WriteBytes(&lower, sizeof(lower)));
   }
-  // TODO(hkhalil) Rename to WriteStringPiece16().
-  bool WriteString(const std::string& value);
+  bool WriteStringPiece16(const base::StringPiece& value);
   bool WriteStringPiece32(const base::StringPiece& value);
   bool WriteBytes(const void* data, uint32 data_len);
 

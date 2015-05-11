@@ -5,6 +5,7 @@
 #ifndef NET_QUIC_QUIC_DATA_WRITER_H_
 #define NET_QUIC_QUIC_DATA_WRITER_H_
 
+#include <cstddef>
 #include <string>
 
 #include "base/basictypes.h"

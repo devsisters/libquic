@@ -130,7 +130,7 @@ bool CryptoUtils::DeriveKeys(StringPiece premaster_secret,
 
   crypto::HKDF hkdf(premaster_secret, nonce, hkdf_input, key_bytes,
                     nonce_prefix_bytes, subkey_secret_bytes);
-  if (perspective == SERVER) {
+  if (perspective == Perspective::IS_SERVER) {
     if (!crypters->encrypter->SetKey(hkdf.server_write_key()) ||
         !crypters->encrypter->SetNoncePrefix(hkdf.server_write_iv()) ||
         !crypters->decrypter->SetKey(hkdf.client_write_key()) ||

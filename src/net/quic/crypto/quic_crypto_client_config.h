@@ -6,6 +6,7 @@
 #define NET_QUIC_CRYPTO_QUIC_CRYPTO_CLIENT_CONFIG_H_
 
 #include <map>
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -109,6 +110,20 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
     void set_source_address_token(base::StringPiece token);
 
+    // Adds the connection ID to the queue of server-designated connection-ids.
+    void add_server_designated_connection_id(QuicConnectionId connection_id);
+
+    // If true, the crypto config contains at least one connection ID specified
+    // by the server, and the client should use one of these IDs when initiating
+    // the next connection.
+    bool has_server_designated_connection_id() const;
+
+    // This function should only be called when
+    // has_server_designated_connection_id is true.  Returns the next
+    // connection_id specified by the server and removes it from the
+    // queue of ids.
+    QuicConnectionId GetNextServerDesignatedConnectionId();
+
     // SetProofVerifyDetails takes ownership of |details|.
     void SetProofVerifyDetails(ProofVerifyDetails* details);
 
@@ -144,6 +159,10 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
     // scfg contains the cached, parsed value of |server_config|.
     mutable scoped_ptr<CryptoHandshakeMessage> scfg_;
+
+    // TODO(jokulik): Consider using a hash-set as extra book-keeping to ensure
+    // that no connection-id is added twice.
+    std::queue<QuicConnectionId> server_designated_connection_ids_;
 
     DISALLOW_COPY_AND_ASSIGN(CachedState);
   };
@@ -198,11 +217,13 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
   // ProcessRejection processes a REJ message from a server and updates the
   // cached information about that server. After this, |IsComplete| may return
-  // true for that server's CachedState. If the rejection message contains
-  // state about a future handshake (i.e. an nonce value from the server), then
-  // it will be saved in |out_params|. |now| is used to judge whether the
-  // server config in the rejection message has expired. |is_https| is used to
-  // track reject reason for secure vs insecure QUIC.
+  // true for that server's CachedState. If the rejection message contains state
+  // about a future handshake (i.e. an nonce value from the server), then it
+  // will be saved in |out_params|. |now| is used to judge whether the server
+  // config in the rejection message has expired. |is_https| is used to track
+  // reject reason for secure vs insecure QUIC.  If the rejection message
+  // indicates that the reject is a stateless-reject, returns error code
+  // QUIC_CRYPTO_HANDSHAKE_RECEIVED_STATELESS_REJECT.
   QuicErrorCode ProcessRejection(const CryptoHandshakeMessage& rej,
                                  QuicWallTime now,
                                  CachedState* cached,

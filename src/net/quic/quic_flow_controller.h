@@ -27,7 +27,7 @@ class NET_EXPORT_PRIVATE QuicFlowController {
  public:
   QuicFlowController(QuicConnection* connection,
                      QuicStreamId id,
-                     bool is_server,
+                     Perspective perspective,
                      QuicStreamOffset send_window_offset,
                      QuicStreamOffset receive_window_offset,
                      QuicByteCount max_receive_window);
@@ -83,8 +83,8 @@ class NET_EXPORT_PRIVATE QuicFlowController {
   // connection level flow controller.
   QuicStreamId id_;
 
-  // True if this is owned by a server.
-  bool is_server_;
+  // Tracks if this is owned by a server or a client.
+  Perspective perspective_;
 
   // Track number of bytes received from the peer, which have been consumed
   // locally.

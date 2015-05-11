@@ -23,18 +23,19 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_POSIX)
-
-#if (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && !defined(PRId64)
+#if defined(OS_POSIX) && (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && \
+    !defined(PRId64)
 #error "inttypes.h has already been included before this header file, but "
 #error "without __STDC_FORMAT_MACROS defined."
 #endif
 
-#if !defined(__STDC_FORMAT_MACROS)
+#if defined(OS_POSIX) && !defined(__STDC_FORMAT_MACROS)
 #define __STDC_FORMAT_MACROS
 #endif
 
 #include <inttypes.h>
+
+#if defined(OS_POSIX)
 
 // GCC will concatenate wide and narrow strings correctly, so nothing needs to
 // be done here.
@@ -76,16 +77,8 @@
 
 #else  // OS_WIN
 
-#if !defined(PRId64)
-#define PRId64 "I64d"
-#endif
-
-#if !defined(PRIu64)
-#define PRIu64 "I64u"
-#endif
-
-#if !defined(PRIx64)
-#define PRIx64 "I64x"
+#if !defined(PRId64) || !defined(PRIu64) || !defined(PRIx64)
+#error "inttypes.h provided by win toolchain should define these."
 #endif
 
 #define WidePRId64 L"I64d"

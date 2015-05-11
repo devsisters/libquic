@@ -21,19 +21,23 @@ PacingSender::PacingSender(SendAlgorithmInterface* sender,
 PacingSender::~PacingSender() {}
 
 void PacingSender::SetFromConfig(const QuicConfig& config,
-                                 bool is_server,
-                                 bool using_pacing) {
-  DCHECK(using_pacing);
-  sender_->SetFromConfig(config, is_server, using_pacing);
+                                 Perspective perspective) {
+  sender_->SetFromConfig(config, perspective);
 }
 
 bool PacingSender::ResumeConnectionState(
-    const CachedNetworkParameters& cached_network_params) {
-  return sender_->ResumeConnectionState(cached_network_params);
+    const CachedNetworkParameters& cached_network_params,
+    bool max_bandwidth_resumption) {
+  return sender_->ResumeConnectionState(cached_network_params,
+                                        max_bandwidth_resumption);
 }
 
 void PacingSender::SetNumEmulatedConnections(int num_connections) {
   sender_->SetNumEmulatedConnections(num_connections);
+}
+
+void PacingSender::SetMaxCongestionWindow(QuicByteCount max_congestion_window) {
+  sender_->SetMaxCongestionWindow(max_congestion_window);
 }
 
 void PacingSender::OnCongestionEvent(bool rtt_updated,

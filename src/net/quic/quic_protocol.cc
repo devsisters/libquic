@@ -151,10 +151,10 @@ QuicVersionVector QuicSupportedVersions() {
 
 QuicTag QuicVersionToQuicTag(const QuicVersion version) {
   switch (version) {
-    case QUIC_VERSION_23:
-      return MakeQuicTag('Q', '0', '2', '3');
     case QUIC_VERSION_24:
       return MakeQuicTag('Q', '0', '2', '4');
+    case QUIC_VERSION_25:
+      return MakeQuicTag('Q', '0', '2', '5');
     default:
       // This shold be an ERROR because we should never attempt to convert an
       // invalid QuicVersion to be written to the wire.
@@ -181,8 +181,8 @@ return #x
 
 string QuicVersionToString(const QuicVersion version) {
   switch (version) {
-    RETURN_STRING_LITERAL(QUIC_VERSION_23);
     RETURN_STRING_LITERAL(QUIC_VERSION_24);
+    RETURN_STRING_LITERAL(QUIC_VERSION_25);
     default:
       return "QUIC_VERSION_UNSUPPORTED";
   }
@@ -199,6 +199,15 @@ string QuicVersionVectorToString(const QuicVersionVector& versions) {
   return result;
 }
 
+ostream& operator<<(ostream& os, const Perspective& s) {
+  if (s == Perspective::IS_SERVER) {
+    os << "IS_SERVER";
+  } else {
+    os << "IS_CLIENT";
+  }
+  return os;
+}
+
 ostream& operator<<(ostream& os, const QuicPacketHeader& header) {
   os << "{ connection_id: " << header.public_header.connection_id
      << ", connection_id_length:" << header.public_header.connection_id_length
@@ -209,7 +218,7 @@ ostream& operator<<(ostream& os, const QuicPacketHeader& header) {
   if (header.public_header.version_flag) {
     os << " version: ";
     for (size_t i = 0; i < header.public_header.versions.size(); ++i) {
-      os << header.public_header.versions[0] << " ";
+      os << header.public_header.versions[i] << " ";
     }
   }
   os << ", fec_flag: " << header.fec_flag
@@ -367,7 +376,7 @@ ostream& operator<<(ostream& os, const QuicFrame& frame) {
       break;
     }
     case RST_STREAM_FRAME: {
-      os << "type { " << RST_STREAM_FRAME << " } " << *(frame.rst_stream_frame);
+      os << "type { RST_STREAM_FRAME } " << *(frame.rst_stream_frame);
       break;
     }
     case CONNECTION_CLOSE_FRAME: {
@@ -613,6 +622,18 @@ const QuicFrame& RetransmittableFrames::AddNonStreamFrame(
   DCHECK_NE(frame.type, STREAM_FRAME);
   frames_.push_back(frame);
   return frames_.back();
+}
+
+void RetransmittableFrames::RemoveFramesForStream(QuicStreamId stream_id) {
+  QuicFrames::iterator it = frames_.begin();
+  while (it != frames_.end()) {
+    if (it->type != STREAM_FRAME || it->stream_frame->stream_id != stream_id) {
+      ++it;
+      continue;
+    }
+    delete it->stream_frame;
+    it = frames_.erase(it);
+  }
 }
 
 SerializedPacket::SerializedPacket(

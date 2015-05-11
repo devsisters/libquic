@@ -22,6 +22,7 @@ QuicConnectionStats::QuicConnectionStats()
       bytes_spuriously_retransmitted(0),
       packets_spuriously_retransmitted(0),
       packets_lost(0),
+      slowstart_packets_sent(0),
       slowstart_packets_lost(0),
       packets_revived(0),
       packets_dropped(0),

@@ -79,6 +79,8 @@ class DependencyTree(object):
         return results
 
     def realpath(self, path):
+        if ".pb." in path:
+            path = "out/Debug/gen/protoc_out/" + path
         return os.path.join(self.root, path)
 
     def parse_cc(self, source):

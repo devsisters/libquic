@@ -27,7 +27,7 @@ class BASE_EXPORT ThreadIdNameManager {
   void RegisterThread(PlatformThreadHandle::Handle handle, PlatformThreadId id);
 
   // Set the name for the given id.
-  void SetName(PlatformThreadId id, const char* name);
+  void SetName(PlatformThreadId id, const std::string& name);
 
   // Get the name for the given id.
   const char* GetName(PlatformThreadId id);

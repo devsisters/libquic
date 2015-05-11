@@ -62,7 +62,7 @@ endif()
 
 #add_subdirectory(crypto)
 
-include_directories(src src/third_party/modp_b64 boringssl/include)
+include_directories(src src/third_party/modp_b64 boringssl/include src/third_party/protobuf/src)
 
 set(
 	NET_SOURCES
@@ -93,7 +93,6 @@ set(
 	src/net/quic/crypto/quic_crypto_server_config.cc
 	src/net/quic/crypto/crypto_handshake_message.cc
 	src/net/quic/crypto/p256_key_exchange_openssl.cc
-	src/net/quic/crypto/cached_network_parameters.cc
 	src/net/quic/crypto/cert_compressor.cc
 	src/net/quic/crypto/crypto_secret_boxer.cc
 	src/net/quic/crypto/aes_128_gcm_12_encrypter_openssl.cc
@@ -112,7 +111,6 @@ set(
 	src/net/quic/crypto/crypto_framer.cc
 	src/net/quic/crypto/crypto_handshake.cc
 	src/net/quic/crypto/channel_id.cc
-	src/net/quic/crypto/source_address_token.cc
 	src/net/quic/crypto/strike_register.cc
 	src/net/quic/crypto/aead_base_encrypter_openssl.cc
 	src/net/quic/crypto/crypto_utils.cc
@@ -145,6 +143,8 @@ set(
 	src/net/quic/quic_client_session_base.cc
 	src/net/quic/quic_crypto_client_stream.cc
 	src/net/quic/quic_server_id.cc
+	src/net/quic/proto/cached_network_parameters.pb.cc
+	src/net/quic/proto/source_address_token.pb.cc
 
 	src/net/base/int128.cc
 	src/net/base/io_buffer.cc

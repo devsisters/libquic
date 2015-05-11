@@ -13,10 +13,6 @@ using base::StringPiece;
 
 namespace net {
 
-namespace common_cert_set_0 {
-#include "net/quic/crypto/common_cert_set_0.c"
-}
-
 namespace common_cert_set_1 {
 #include "net/quic/crypto/common_cert_set_1.c"
 }
@@ -37,12 +33,6 @@ struct CertSet {
 
 const CertSet kSets[] = {
   {
-    common_cert_set_0::kNumCerts,
-    common_cert_set_0::kCerts,
-    common_cert_set_0::kLens,
-    common_cert_set_0::kHash,
-  },
-  {
     common_cert_set_1::kNumCerts,
     common_cert_set_1::kCerts,
     common_cert_set_1::kLens,
@@ -51,7 +41,6 @@ const CertSet kSets[] = {
 };
 
 const uint64 kSetHashes[] = {
-  common_cert_set_0::kHash,
   common_cert_set_1::kHash,
 };
 

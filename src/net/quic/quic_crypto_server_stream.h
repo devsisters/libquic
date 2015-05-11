@@ -9,6 +9,7 @@
 
 #include "net/quic/crypto/crypto_handshake.h"
 #include "net/quic/crypto/quic_crypto_server_config.h"
+#include "net/quic/proto/source_address_token.pb.h"
 #include "net/quic/quic_config.h"
 #include "net/quic/quic_crypto_stream.h"
 
@@ -19,7 +20,6 @@ class CryptoHandshakeMessage;
 class QuicCryptoServerConfig;
 class QuicCryptoServerStream;
 class QuicSession;
-class SourceAddressTokens;
 
 namespace test {
 class CryptoTestUtils;
@@ -48,7 +48,8 @@ class NET_EXPORT_PRIVATE ServerHelloNotifier : public
 
 class NET_EXPORT_PRIVATE QuicCryptoServerStream : public QuicCryptoStream {
  public:
-  QuicCryptoServerStream(const QuicCryptoServerConfig& crypto_config,
+  // |crypto_config| must outlive the stream.
+  QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
                          QuicSession* session);
   ~QuicCryptoServerStream() override;
 
@@ -121,7 +122,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStream : public QuicCryptoStream {
       const ValidateClientHelloResultCallback::Result& result);
 
   // crypto_config_ contains crypto parameters for the handshake.
-  const QuicCryptoServerConfig& crypto_config_;
+  const QuicCryptoServerConfig* crypto_config_;
 
   // Pointer to the active callback that will receive the result of
   // the client hello validation request and forward it to

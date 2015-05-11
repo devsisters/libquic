@@ -26,7 +26,8 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "net/base/iovec.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/strings/string_piece.h"
 #include "net/base/ip_endpoint.h"
 #include "net/quic/iovector.h"
 #include "net/quic/quic_ack_notifier.h"
@@ -201,6 +202,14 @@ class NET_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when the version negotiation is successful.
   virtual void OnSuccessfulVersionNegotiation(const QuicVersion& version) {}
+
+  // Called when a CachedNetworkParameters is sent to the client.
+  virtual void OnSendConnectionState(
+      const CachedNetworkParameters& cached_network_params) {}
+
+  // Called when resuming previous connection state.
+  virtual void OnResumeConnectionState(
+      const CachedNetworkParameters& cached_network_params) {}
 };
 
 class NET_EXPORT_PRIVATE QuicConnectionHelperInterface {
@@ -247,7 +256,7 @@ class NET_EXPORT_PRIVATE QuicConnection
                  QuicConnectionHelperInterface* helper,
                  const PacketWriterFactory& writer_factory,
                  bool owns_writer,
-                 bool is_server,
+                 Perspective perspective,
                  bool is_secure,
                  const QuicVersionVector& supported_versions);
   ~QuicConnection() override;
@@ -255,10 +264,15 @@ class NET_EXPORT_PRIVATE QuicConnection
   // Sets connection parameters from the supplied |config|.
   void SetFromConfig(const QuicConfig& config);
 
+  // Called by the session when sending connection state to the client.
+  virtual void OnSendConnectionState(
+      const CachedNetworkParameters& cached_network_params);
+
   // Called by the Session when the client has provided CachedNetworkParameters.
   // Returns true if this changes the initial connection state.
   virtual bool ResumeConnectionState(
-      const CachedNetworkParameters& cached_network_params);
+      const CachedNetworkParameters& cached_network_params,
+      bool max_bandwidth_resumption);
 
   // Sets the number of active streams on the connection for congestion control.
   void SetNumOpenStreams(size_t num_streams);
@@ -316,6 +330,8 @@ class NET_EXPORT_PRIVATE QuicConnection
   // Processes an incoming UDP packet (consisting of a QuicEncryptedPacket) from
   // the peer.  If processing this packet permits a packet to be revived from
   // its FEC group that packet will be revived and processed.
+  // In a client, the packet may be "stray" and have a different connection ID
+  // than that of this connection.
   virtual void ProcessUdpPacket(const IPEndPoint& self_address,
                                 const IPEndPoint& peer_address,
                                 const QuicEncryptedPacket& packet);
@@ -367,8 +383,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   void OnPacketComplete() override;
 
   // QuicPacketGenerator::DelegateInterface
-  bool ShouldGeneratePacket(TransmissionType transmission_type,
-                            HasRetransmittableData retransmittable,
+  bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
   void PopulateAckFrame(QuicAckFrame* ack) override;
   void PopulateStopWaitingFrame(QuicStopWaitingFrame* stop_waiting) override;
@@ -404,7 +419,7 @@ class NET_EXPORT_PRIVATE QuicConnection
 
   // Must only be called on client connections.
   const QuicVersionVector& server_supported_versions() const {
-    DCHECK(!is_server_);
+    DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
     return server_supported_versions_;
   }
 
@@ -461,7 +476,6 @@ class NET_EXPORT_PRIVATE QuicConnection
   // Changes the encrypter used for level |level| to |encrypter|. The function
   // takes ownership of |encrypter|.
   void SetEncrypter(EncryptionLevel level, QuicEncrypter* encrypter);
-  const QuicEncrypter* encrypter(EncryptionLevel level) const;
 
   // SetDefaultEncryptionLevel sets the encryption level that will be applied
   // to new packets.
@@ -487,7 +501,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   const QuicDecrypter* decrypter() const;
   const QuicDecrypter* alternative_decrypter() const;
 
-  bool is_server() const { return is_server_; }
+  Perspective perspective() const { return perspective_; }
 
   // Allow easy overriding of truncated connection IDs.
   void set_can_truncate_connection_ids(bool can) {
@@ -756,8 +770,8 @@ class NET_EXPORT_PRIVATE QuicConnection
   scoped_ptr<QuicAlarm> ack_alarm_;
   // An alarm that fires when a packet needs to be retransmitted.
   scoped_ptr<QuicAlarm> retransmission_alarm_;
-  // An alarm that is scheduled when the sent scheduler requires a
-  // a delay before sending packets and fires when the packet may be sent.
+  // An alarm that is scheduled when the SentPacketManager requires a delay
+  // before sending packets and fires when the packet may be sent.
   scoped_ptr<QuicAlarm> send_alarm_;
   // An alarm that is scheduled when the connection can still write and there
   // may be more data to send.
@@ -804,8 +818,8 @@ class NET_EXPORT_PRIVATE QuicConnection
   // The state of connection in version negotiation finite state machine.
   QuicVersionNegotiationState version_negotiation_state_;
 
-  // Tracks if the connection was created by the server.
-  bool is_server_;
+  // Tracks if the connection was created by the server or the client.
+  Perspective perspective_;
 
   // True by default.  False if we've received or sent an explicit connection
   // close.

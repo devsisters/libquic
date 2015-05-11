@@ -14,7 +14,7 @@
 // See comments for crypto_nacl_win64 in crypto.gyp.
 // Must test for NACL_WIN64 before OS_WIN since former is a subset of latter.
 #include "crypto/scoped_capi_types.h"
-#elif defined(USE_NSS) || \
+#elif defined(USE_NSS_CERTS) || \
     (!defined(USE_OPENSSL) && (defined(OS_WIN) || defined(OS_MACOSX)))
 #include "crypto/scoped_nss_types.h"
 #endif
@@ -61,7 +61,7 @@ class CRYPTO_EXPORT SymmetricKey {
   HCRYPTKEY key() const { return key_.get(); }
 #elif defined(USE_OPENSSL)
   const std::string& key() { return key_; }
-#elif defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
+#elif defined(USE_NSS_CERTS) || defined(OS_WIN) || defined(OS_MACOSX)
   PK11SymKey* key() const { return key_.get(); }
 #endif
 
@@ -88,7 +88,7 @@ class CRYPTO_EXPORT SymmetricKey {
 #elif defined(USE_OPENSSL)
   SymmetricKey() {}
   std::string key_;
-#elif defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
+#elif defined(USE_NSS_CERTS) || defined(OS_WIN) || defined(OS_MACOSX)
   explicit SymmetricKey(PK11SymKey* key);
   ScopedPK11SymKey key_;
 #endif

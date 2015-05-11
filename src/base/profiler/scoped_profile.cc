@@ -20,7 +20,6 @@ ScopedProfile::ScopedProfile(const Location& location, Mode mode)
   if (!birth_)
     return;
 
-  ThreadData::PrepareForStartOfRun(birth_);
   stopwatch_.Start();
 }
 

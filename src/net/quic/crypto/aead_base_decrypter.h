@@ -63,9 +63,9 @@ class NET_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
     unsigned int len;
     union {
       CK_GCM_PARAMS gcm_params;
-#if !defined(USE_NSS)
-      // USE_NSS means we are using system NSS rather than our copy of NSS.
-      // The system NSS <pkcs11n.h> header doesn't define this type yet.
+#if !defined(USE_NSS_CERTS)
+      // USE_NSS_CERTS implies we are using system NSS rather than our copy of
+      // NSS. The system NSS <pkcs11n.h> header doesn't define this type yet.
       CK_NSS_AEAD_PARAMS nss_aead_params;
 #endif
     } data;

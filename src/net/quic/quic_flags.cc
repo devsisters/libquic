@@ -25,19 +25,6 @@ bool FLAGS_quic_use_bbr_congestion_control = false;
 // connection options.
 bool FLAGS_quic_allow_bbr = false;
 
-// If true, enables the QUIC bandwidth resumption experiment (triggered by
-// Chrome/Finch).
-bool FLAGS_quic_enable_bandwidth_resumption_experiment = true;
-
-// If true, QUIC congestion control will be paced.  If false, pacing may be
-// controlled by QUIC connection options in the config or by enabling BBR
-// congestion control.
-bool FLAGS_quic_enable_pacing = true;
-
-// If true, then the source address tokens generated for QUIC connects will
-// store multiple addresses.
-bool FLAGS_quic_use_multiple_address_in_source_tokens = false;
-
 // Time period for which a given connection_id should live in the time-wait
 // state.
 int64 FLAGS_quic_time_wait_list_seconds = 5;
@@ -52,5 +39,9 @@ int64 FLAGS_quic_time_wait_list_seconds = 5;
 // no configured limit.
 int64 FLAGS_quic_time_wait_list_max_connections = 50000;
 
-// Use small QUIC packet sizes by default.
-bool FLAGS_quic_small_default_packet_size = true;
+// If true, use the peer's receive buffer size to set the max CWND used by the
+// send algorithms.
+bool FLAGS_quic_limit_max_cwnd_to_receive_buffer = true;
+
+// Enables server-side support for QUIC stateless rejects.
+bool FLAGS_enable_quic_stateless_reject_support = false;

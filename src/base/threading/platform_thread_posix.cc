@@ -5,30 +5,27 @@
 #include "base/threading/platform_thread.h"
 
 #include <errno.h>
+#include <pthread.h>
 #include <sched.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/safe_strerror_posix.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
 #if 0
 #include "base/tracked_objects.h"
 #endif
 
-#if defined(OS_MACOSX)
-#include <sys/resource.h>
-#include <algorithm>
-#endif
-
 #if defined(OS_LINUX)
-#include <sys/prctl.h>
-#include <sys/resource.h>
 #include <sys/syscall.h>
-#include <sys/time.h>
-#include <unistd.h>
+#elif defined(OS_ANDROID)
+#include <sys/types.h>
 #endif
 
 namespace base {
@@ -44,7 +41,7 @@ struct ThreadParams {
   ThreadParams()
       : delegate(NULL),
         joinable(false),
-        priority(kThreadPriority_Normal),
+        priority(ThreadPriority::NORMAL),
         handle(NULL),
         handle_set(false, false) {
   }
@@ -64,7 +61,7 @@ void* ThreadFunc(void* params) {
   if (!thread_params->joinable)
     base::ThreadRestrictions::SetSingletonAllowed(false);
 
-  if (thread_params->priority != kThreadPriority_Normal) {
+  if (thread_params->priority != ThreadPriority::NORMAL) {
     PlatformThread::SetThreadPriority(PlatformThread::CurrentHandle(),
                                       thread_params->priority);
   }
@@ -206,7 +203,7 @@ bool PlatformThread::Create(size_t stack_size, Delegate* delegate,
                             PlatformThreadHandle* thread_handle) {
   base::ThreadRestrictions::ScopedAllowWait allow_wait;
   return CreateThread(stack_size, true /* joinable thread */,
-                      delegate, thread_handle, kThreadPriority_Normal);
+                      delegate, thread_handle, ThreadPriority::NORMAL);
 }
 
 // static
@@ -224,7 +221,7 @@ bool PlatformThread::CreateNonJoinable(size_t stack_size, Delegate* delegate) {
 
   base::ThreadRestrictions::ScopedAllowWait allow_wait;
   bool result = CreateThread(stack_size, false /* non-joinable thread */,
-                             delegate, &unused, kThreadPriority_Normal);
+                             delegate, &unused, ThreadPriority::NORMAL);
   return result;
 }
 
@@ -236,5 +233,65 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
   base::ThreadRestrictions::AssertIOAllowed();
   CHECK_EQ(0, pthread_join(thread_handle.handle_, NULL));
 }
+
+// Mac has its own Set/GetThreadPriority() implementations.
+#if !defined(OS_MACOSX)
+
+// static
+void PlatformThread::SetThreadPriority(PlatformThreadHandle handle,
+                                       ThreadPriority priority) {
+#if defined(OS_NACL)
+  NOTIMPLEMENTED();
+#else
+  if (internal::SetThreadPriorityForPlatform(handle, priority))
+    return;
+
+  // setpriority(2) should change the whole thread group's (i.e. process)
+  // priority. However, as stated in the bugs section of
+  // http://man7.org/linux/man-pages/man2/getpriority.2.html: "under the current
+  // Linux/NPTL implementation of POSIX threads, the nice value is a per-thread
+  // attribute". Also, 0 is prefered to the current thread id since it is
+  // equivalent but makes sandboxing easier (https://crbug.com/399473).
+  DCHECK_NE(handle.id_, kInvalidThreadId);
+  const int nice_setting = internal::ThreadPriorityToNiceValue(priority);
+  const PlatformThreadId current_id = PlatformThread::CurrentId();
+  if (setpriority(PRIO_PROCESS, handle.id_ == current_id ? 0 : handle.id_,
+                  nice_setting)) {
+    DVPLOG(1) << "Failed to set nice value of thread (" << handle.id_ << ") to "
+              << nice_setting;
+  }
+#endif  // defined(OS_NACL)
+}
+
+// static
+ThreadPriority PlatformThread::GetThreadPriority(PlatformThreadHandle handle) {
+#if defined(OS_NACL)
+  NOTIMPLEMENTED();
+  return ThreadPriority::NORMAL;
+#else
+  // Mirrors SetThreadPriority()'s implementation.
+  ThreadPriority platform_specific_priority;
+  if (internal::GetThreadPriorityForPlatform(handle,
+                                             &platform_specific_priority)) {
+    return platform_specific_priority;
+  }
+
+  DCHECK_NE(handle.id_, kInvalidThreadId);
+  const PlatformThreadId current_id = PlatformThread::CurrentId();
+  // Need to clear errno before calling getpriority():
+  // http://man7.org/linux/man-pages/man2/getpriority.2.html
+  errno = 0;
+  int nice_value =
+      getpriority(PRIO_PROCESS, handle.id_ == current_id ? 0 : handle.id_);
+  if (errno != 0) {
+    DVPLOG(1) << "Failed to get nice value of thread (" << handle.id_ << ")";
+    return ThreadPriority::NORMAL;
+  }
+
+  return internal::NiceValueToThreadPriority(nice_value);
+#endif  // !defined(OS_NACL)
+}
+
+#endif  // !defined(OS_MACOSX)
 
 }  // namespace base

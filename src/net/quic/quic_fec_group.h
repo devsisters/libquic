@@ -9,6 +9,8 @@
 #ifndef NET_QUIC_QUIC_FEC_GROUP_H_
 #define NET_QUIC_QUIC_FEC_GROUP_H_
 
+#include <cstddef>
+
 #include "base/strings/string_piece.h"
 #include "net/quic/quic_protocol.h"
 

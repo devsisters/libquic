@@ -4,7 +4,7 @@
 
 #include "net/quic/congestion_control/rtt_stats.h"
 
-#include <complex>  // std::abs
+#include <cstdlib>  // std::abs
 
 using std::max;
 

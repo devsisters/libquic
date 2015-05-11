@@ -6,10 +6,6 @@
 
 #include <algorithm>
 #include <limits>
-#include <string>
-
-#include "base/basictypes.h"
-#include "base/logging.h"
 
 using base::StringPiece;
 using std::numeric_limits;

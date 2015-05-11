@@ -13,6 +13,8 @@
 
 #include "base/compiler_specific.h"
 #include "base/containers/hash_tables.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/strings/string_piece.h"
 #include "net/base/ip_endpoint.h"
 #include "net/quic/quic_connection.h"
 #include "net/quic/quic_crypto_stream.h"
@@ -28,9 +30,6 @@ namespace net {
 class QuicCryptoStream;
 class QuicFlowController;
 class ReliableQuicStream;
-#if 0
-class SSLInfo;
-#endif
 class VisitorShim;
 
 namespace test {
@@ -191,24 +190,15 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // connection, or in a write-blocked stream.
   bool HasDataToWrite() const;
 
-  bool goaway_received() const {
-    return goaway_received_;
-  }
+  bool goaway_received() const { return goaway_received_; }
 
-  bool goaway_sent() const {
-    return goaway_sent_;
-  }
-
-  #if 0
-  // Gets the SSL connection information.
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) const;
-  #endif
+  bool goaway_sent() const { return goaway_sent_; }
 
   QuicErrorCode error() const { return error_; }
 
-  bool is_server() const { return connection_->is_server(); }
+  Perspective perspective() const { return connection_->perspective(); }
 
-  QuicFlowController* flow_controller() { return flow_controller_.get(); }
+  QuicFlowController* flow_controller() { return &flow_controller_; }
 
   // Returns true if connection is flow controller blocked.
   bool IsConnectionFlowControlBlocked() const;
@@ -217,9 +207,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   bool IsStreamFlowControlBlocked();
 
   // Returns true if this is a secure QUIC session.
-  bool IsSecure() const {
-    return connection()->is_secure();
-  }
+  bool IsSecure() const { return connection()->is_secure(); }
 
   size_t get_max_open_streams() const { return max_open_streams_; }
 
@@ -331,7 +319,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   QuicErrorCode error_;
 
   // Used for session level flow control.
-  scoped_ptr<QuicFlowController> flow_controller_;
+  QuicFlowController flow_controller_;
 
   // Whether a GoAway has been received.
   bool goaway_received_;

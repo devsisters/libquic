@@ -77,15 +77,15 @@ std::vector<int> GetAllErrorCodesForUma() {
 Error FileErrorToNetError(base::File::Error file_error) {
   switch (file_error) {
     case base::File::FILE_OK:
-      return net::OK;
+      return OK;
     case base::File::FILE_ERROR_ACCESS_DENIED:
-      return net::ERR_ACCESS_DENIED;
+      return ERR_ACCESS_DENIED;
     case base::File::FILE_ERROR_INVALID_URL:
-      return net::ERR_INVALID_URL;
+      return ERR_INVALID_URL;
     case base::File::FILE_ERROR_NOT_FOUND:
-      return net::ERR_FILE_NOT_FOUND;
+      return ERR_FILE_NOT_FOUND;
     default:
-      return net::ERR_FAILED;
+      return ERR_FAILED;
   }
 }
 #endif

@@ -6,10 +6,10 @@
 
 #include "base/base64.h"
 #include "crypto/secure_hash.h"
-#include "net/quic/crypto/cached_network_parameters.h"
 #include "net/quic/crypto/crypto_protocol.h"
 #include "net/quic/crypto/crypto_utils.h"
 #include "net/quic/crypto/quic_crypto_server_config.h"
+#include "net/quic/proto/cached_network_parameters.pb.h"
 #include "net/quic/quic_config.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_session.h"
@@ -26,14 +26,14 @@ void ServerHelloNotifier::OnAckNotification(
 }
 
 QuicCryptoServerStream::QuicCryptoServerStream(
-    const QuicCryptoServerConfig& crypto_config,
+    const QuicCryptoServerConfig* crypto_config,
     QuicSession* session)
     : QuicCryptoStream(session),
       crypto_config_(crypto_config),
       validate_client_hello_cb_(nullptr),
       num_handshake_messages_(0),
       num_server_config_update_messages_sent_(0) {
-  DCHECK(session->connection()->is_server());
+  DCHECK_EQ(Perspective::IS_SERVER, session->connection()->perspective());
 }
 
 QuicCryptoServerStream::~QuicCryptoServerStream() {
@@ -72,11 +72,9 @@ void QuicCryptoServerStream::OnHandshakeMessage(
   }
 
   validate_client_hello_cb_ = new ValidateCallback(this);
-  return crypto_config_.ValidateClientHello(
-      message,
-      session()->connection()->peer_address(),
-      session()->connection()->clock(),
-      validate_client_hello_cb_);
+  return crypto_config_->ValidateClientHello(
+      message, session()->connection()->peer_address().address(),
+      session()->connection()->clock(), validate_client_hello_cb_);
 }
 
 void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
@@ -153,10 +151,10 @@ void QuicCryptoServerStream::SendServerConfigUpdate(
   }
 
   CryptoHandshakeMessage server_config_update_message;
-  if (!crypto_config_.BuildServerConfigUpdateMessage(
+  if (!crypto_config_->BuildServerConfigUpdateMessage(
           previous_source_address_tokens_,
-          session()->connection()->self_address(),
-          session()->connection()->peer_address(),
+          session()->connection()->self_address().address(),
+          session()->connection()->peer_address().address(),
           session()->connection()->clock(),
           session()->connection()->random_generator(),
           crypto_negotiated_params_, cached_network_params,
@@ -225,15 +223,14 @@ QuicErrorCode QuicCryptoServerStream::ProcessClientHello(
   }
   previous_source_address_tokens_ = result.info.source_address_tokens;
 
-  return crypto_config_.ProcessClientHello(
-      result, session()->connection()->connection_id(),
-      session()->connection()->self_address(),
-      session()->connection()->peer_address(),
-      session()->connection()->version(),
-      session()->connection()->supported_versions(),
-      session()->connection()->clock(),
-      session()->connection()->random_generator(), &crypto_negotiated_params_,
-      reply, error_details);
+  QuicConnection* connection = session()->connection();
+  return crypto_config_->ProcessClientHello(
+      result, connection->connection_id(), connection->self_address().address(),
+      connection->peer_address(), version(), connection->supported_versions(),
+      /* use_stateless_rejects= */ false,
+      /* server_designated_connection_id= */ 0, connection->clock(),
+      connection->random_generator(), &crypto_negotiated_params_, reply,
+      error_details);
 }
 
 void QuicCryptoServerStream::OverrideQuicConfigDefaults(QuicConfig* config) {

@@ -64,7 +64,8 @@ QuicNegotiableUint32::QuicNegotiableUint32(QuicTag tag,
                                            QuicConfigPresence presence)
     : QuicNegotiableValue(tag, presence),
       max_value_(0),
-      default_value_(0) {
+      default_value_(0),
+      negotiated_value_(0) {
 }
 QuicNegotiableUint32::~QuicNegotiableUint32() {}
 
@@ -352,7 +353,6 @@ QuicConfig::QuicConfig()
     : max_time_before_crypto_handshake_(QuicTime::Delta::Zero()),
       max_idle_time_before_crypto_handshake_(QuicTime::Delta::Zero()),
       max_undecryptable_packets_(0),
-      congestion_feedback_(kCGST, PRESENCE_OPTIONAL),
       connection_options_(kCOPT, PRESENCE_OPTIONAL),
       idle_connection_state_lifetime_seconds_(kICSL, PRESENCE_REQUIRED),
       silent_close_(kSCLS, PRESENCE_OPTIONAL),
@@ -520,13 +520,6 @@ bool QuicConfig::negotiated() const {
 }
 
 void QuicConfig::SetDefaults() {
-  QuicTagVector congestion_feedback;
-  // TODO(alyssar) stop sending this once QUIC_VERSION_23 is sunset.
-  // This field was required until version 22 was removed but by the time
-  // QUIC_VERSION_23 is sunset, no users of QUIC_VERSION_24 should be expecting
-  // it.
-  congestion_feedback.push_back(kQBIC);
-  congestion_feedback_.set(congestion_feedback, kQBIC);
   idle_connection_state_lifetime_seconds_.set(kMaximumIdleTimeoutSecs,
                                               kDefaultIdleTimeoutSecs);
   silent_close_.set(1, 0);
@@ -543,7 +536,6 @@ void QuicConfig::SetDefaults() {
 }
 
 void QuicConfig::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
-  congestion_feedback_.ToHandshakeMessage(out);
   idle_connection_state_lifetime_seconds_.ToHandshakeMessage(out);
   silent_close_.ToHandshakeMessage(out);
   max_streams_per_connection_.ToHandshakeMessage(out);

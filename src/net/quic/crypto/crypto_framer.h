@@ -30,8 +30,7 @@ class NET_EXPORT_PRIVATE CryptoFramerVisitorInterface {
   virtual void OnError(CryptoFramer* framer) = 0;
 
   // Called when a complete handshake message has been parsed.
-  virtual void OnHandshakeMessage(
-      const CryptoHandshakeMessage& message) = 0;
+  virtual void OnHandshakeMessage(const CryptoHandshakeMessage& message) = 0;
 };
 
 // A class for framing the crypto messages that are exchanged in a QUIC

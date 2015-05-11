@@ -4,7 +4,8 @@
 
 #include "net/quic/quic_framer.h"
 
-#include "base/containers/hash_tables.h"
+#include "base/basictypes.h"
+#include "base/logging.h"
 #include "base/stl_util.h"
 #include "net/quic/crypto/crypto_framer.h"
 #include "net/quic/crypto/crypto_handshake_message.h"
@@ -15,6 +16,7 @@
 #include "net/quic/quic_data_writer.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_socket_address_coder.h"
+#include "net/quic/quic_utils.h"
 
 using base::StringPiece;
 using std::map;
@@ -142,9 +144,8 @@ bool QuicFramerVisitorInterface::OnBlockedFrame(const QuicBlockedFrame& frame) {
 
 QuicFramer::QuicFramer(const QuicVersionVector& supported_versions,
                        QuicTime creation_time,
-                       bool is_server)
+                       Perspective perspective)
     : visitor_(nullptr),
-      fec_builder_(nullptr),
       entropy_calculator_(nullptr),
       error_(QUIC_NO_ERROR),
       last_sequence_number_(0),
@@ -153,7 +154,7 @@ QuicFramer::QuicFramer(const QuicVersionVector& supported_versions,
       decrypter_level_(ENCRYPTION_NONE),
       alternative_decrypter_level_(ENCRYPTION_NONE),
       alternative_decrypter_latch_(false),
-      is_server_(is_server),
+      perspective_(perspective),
       validate_flags_(true),
       creation_time_(creation_time),
       last_timestamp_(QuicTime::Delta::Zero()) {
@@ -197,6 +198,12 @@ size_t QuicFramer::GetMinRstStreamFrameSize() {
   return kQuicFrameTypeSize + kQuicMaxStreamIdSize +
       kQuicMaxStreamOffsetSize + kQuicErrorCodeSize +
       kQuicErrorDetailsLengthSize;
+}
+
+// static
+size_t QuicFramer::GetRstStreamFrameSize() {
+  return kQuicFrameTypeSize + kQuicMaxStreamIdSize + kQuicMaxStreamOffsetSize +
+         kQuicErrorCodeSize;
 }
 
 // static
@@ -273,6 +280,18 @@ size_t QuicFramer::GetSerializedFrameLength(
     bool last_frame,
     InFecGroup is_in_fec_group,
     QuicSequenceNumberLength sequence_number_length) {
+  // Prevent a rare crash reported in b/19458523.
+  if (frame.stream_frame == nullptr) {
+    LOG(DFATAL) << "Cannot compute the length of a null frame. "
+                << "type:" << frame.type << "free_bytes:" << free_bytes
+                << " first_frame:" << first_frame
+                << " last_frame:" << last_frame
+                << " is_in_fec:" << is_in_fec_group
+                << " seq num length:" << sequence_number_length;
+    set_error(QUIC_INTERNAL_ERROR);
+    visitor_->OnError(this);
+    return false;
+  }
   if (frame.type == PADDING_FRAME) {
     // PADDING implies end of packet.
     return free_bytes;
@@ -409,11 +428,6 @@ QuicPacket* QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
                      header.public_header.version_flag,
                      header.public_header.sequence_number_length);
 
-  if (fec_builder_) {
-    fec_builder_->OnBuiltFecProtectedPayload(header,
-                                             packet->FecProtectedData());
-  }
-
   return packet;
 }
 
@@ -531,7 +545,7 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
     return true;
   }
 
-  if (is_server_ && public_header.version_flag &&
+  if (perspective_ == Perspective::IS_SERVER && public_header.version_flag &&
       public_header.versions[0] != quic_version_) {
     if (!visitor_->OnProtocolVersionMismatch(public_header.versions[0])) {
       reader_.reset(nullptr);
@@ -540,7 +554,7 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
   }
 
   bool rv;
-  if (!is_server_ && public_header.version_flag) {
+  if (perspective_ == Perspective::IS_CLIENT && public_header.version_flag) {
     rv = ProcessVersionNegotiationPacket(&public_header);
   } else if (public_header.reset_flag) {
     rv = ProcessPublicResetPacket(public_header);
@@ -562,7 +576,7 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
 
 bool QuicFramer::ProcessVersionNegotiationPacket(
     QuicPacketPublicHeader* public_header) {
-  DCHECK(!is_server_);
+  DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
   // Try reading at least once to raise error if the packet is invalid.
   do {
     QuicTag version;
@@ -583,7 +597,7 @@ bool QuicFramer::ProcessDataPacket(const QuicPacketPublicHeader& public_header,
                                    size_t buffer_length) {
   QuicPacketHeader header(public_header);
   if (!ProcessPacketHeader(&header, packet, decrypted_buffer, buffer_length)) {
-    DLOG(WARNING) << "Unable to process data packet header.";
+    DLOG(WARNING) << "Unable to process packet header.  Stopping parsing.";
     return false;
   }
 
@@ -744,8 +758,11 @@ bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
   last_serialized_connection_id_ = header.public_header.connection_id;
 
   if (header.public_header.version_flag) {
-    DCHECK(!is_server_);
-    writer->WriteUInt32(QuicVersionToQuicTag(quic_version_));
+    DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+    QuicTag tag = QuicVersionToQuicTag(quic_version_);
+    writer->WriteUInt32(tag);
+    DVLOG(1) << "version = " << quic_version_ << ", tag = '"
+             << QuicUtils::TagToString(tag) << "'";
   }
 
   if (!AppendPacketSequenceNumber(header.public_header.sequence_number_length,
@@ -910,7 +927,7 @@ bool QuicFramer::ProcessPublicHeader(
 
   // Read the version only if the packet is from the client.
   // version flag from the server means version negotiation packet.
-  if (public_header->version_flag && is_server_) {
+  if (public_header->version_flag && perspective_ == Perspective::IS_SERVER) {
     QuicTag version_tag;
     if (!reader_->ReadUInt32(&version_tag)) {
       set_detailed_error("Unable to read protocol version.");
@@ -1378,58 +1395,58 @@ bool QuicFramer::ProcessAckFrame(uint8 frame_type, QuicAckFrame* ack_frame) {
 }
 
 bool QuicFramer::ProcessTimestampsInAckFrame(QuicAckFrame* ack_frame) {
-  if (!ack_frame->is_truncated) {
-    uint8 num_received_packets;
-    if (!reader_->ReadBytes(&num_received_packets, 1)) {
-      set_detailed_error("Unable to read num received packets.");
+  if (ack_frame->is_truncated) {
+    return true;
+  }
+  uint8 num_received_packets;
+  if (!reader_->ReadBytes(&num_received_packets, 1)) {
+    set_detailed_error("Unable to read num received packets.");
+    return false;
+  }
+
+  if (num_received_packets > 0) {
+    uint8 delta_from_largest_observed;
+    if (!reader_->ReadBytes(&delta_from_largest_observed,
+                            PACKET_1BYTE_SEQUENCE_NUMBER)) {
+      set_detailed_error("Unable to read sequence delta in received packets.");
+      return false;
+    }
+    QuicPacketSequenceNumber seq_num =
+        ack_frame->largest_observed - delta_from_largest_observed;
+
+    // Time delta from the framer creation.
+    uint32 time_delta_us;
+    if (!reader_->ReadBytes(&time_delta_us, sizeof(time_delta_us))) {
+      set_detailed_error("Unable to read time delta in received packets.");
       return false;
     }
 
-    if (num_received_packets > 0) {
-      uint8 delta_from_largest_observed;
+    last_timestamp_ = CalculateTimestampFromWire(time_delta_us);
+
+    ack_frame->received_packet_times.push_back(
+        std::make_pair(seq_num, creation_time_.Add(last_timestamp_)));
+
+    for (uint8 i = 1; i < num_received_packets; ++i) {
       if (!reader_->ReadBytes(&delta_from_largest_observed,
                               PACKET_1BYTE_SEQUENCE_NUMBER)) {
         set_detailed_error(
             "Unable to read sequence delta in received packets.");
         return false;
       }
-      QuicPacketSequenceNumber seq_num = ack_frame->largest_observed -
-          delta_from_largest_observed;
+      seq_num = ack_frame->largest_observed - delta_from_largest_observed;
 
-      // Time delta from the framer creation.
-      uint32 time_delta_us;
-      if (!reader_->ReadBytes(&time_delta_us, sizeof(time_delta_us))) {
-        set_detailed_error("Unable to read time delta in received packets.");
+      // Time delta from the previous timestamp.
+      uint64 incremental_time_delta_us;
+      if (!reader_->ReadUFloat16(&incremental_time_delta_us)) {
+        set_detailed_error(
+            "Unable to read incremental time delta in received packets.");
         return false;
       }
 
-      last_timestamp_ = CalculateTimestampFromWire(time_delta_us);
-
+      last_timestamp_ = last_timestamp_.Add(
+          QuicTime::Delta::FromMicroseconds(incremental_time_delta_us));
       ack_frame->received_packet_times.push_back(
           std::make_pair(seq_num, creation_time_.Add(last_timestamp_)));
-
-      for (uint8 i = 1; i < num_received_packets; ++i) {
-        if (!reader_->ReadBytes(&delta_from_largest_observed,
-                                PACKET_1BYTE_SEQUENCE_NUMBER)) {
-          set_detailed_error(
-              "Unable to read sequence delta in received packets.");
-          return false;
-        }
-        seq_num = ack_frame->largest_observed - delta_from_largest_observed;
-
-        // Time delta from the previous timestamp.
-        uint64 incremental_time_delta_us;
-        if (!reader_->ReadUFloat16(&incremental_time_delta_us)) {
-          set_detailed_error(
-              "Unable to read incremental time delta in received packets.");
-          return false;
-        }
-
-        last_timestamp_ = last_timestamp_.Add(
-            QuicTime::Delta::FromMicroseconds(incremental_time_delta_us));
-        ack_frame->received_packet_times.push_back(
-            std::make_pair(seq_num, creation_time_.Add(last_timestamp_)));
-      }
     }
   }
   return true;
@@ -1478,13 +1495,14 @@ bool QuicFramer::ProcessRstStreamFrame(QuicRstStreamFrame* frame) {
   }
 
   frame->error_code = static_cast<QuicRstStreamErrorCode>(error_code);
-
-  StringPiece error_details;
-  if (!reader_->ReadStringPiece16(&error_details)) {
-    set_detailed_error("Unable to read rst stream error details.");
-    return false;
+  if (quic_version_ <= QUIC_VERSION_24) {
+    StringPiece error_details;
+    if (!reader_->ReadStringPiece16(&error_details)) {
+      set_detailed_error("Unable to read rst stream error details.");
+      return false;
+    }
+    frame->error_details = error_details.as_string();
   }
-  frame->error_details = error_details.as_string();
 
   return true;
 }
@@ -1609,40 +1627,45 @@ void QuicFramer::SetEncrypter(EncryptionLevel level,
   encrypter_[level].reset(encrypter);
 }
 
-const QuicEncrypter* QuicFramer::encrypter(EncryptionLevel level) const {
-  DCHECK_GE(level, 0);
-  DCHECK_LT(level, NUM_ENCRYPTION_LEVELS);
-  DCHECK(encrypter_[level].get() != nullptr);
-  return encrypter_[level].get();
-}
-
 QuicEncryptedPacket* QuicFramer::EncryptPacket(
     EncryptionLevel level,
     QuicPacketSequenceNumber packet_sequence_number,
-    const QuicPacket& packet) {
+    const QuicPacket& packet,
+    char* buffer,
+    size_t buffer_len) {
   DCHECK(encrypter_[level].get() != nullptr);
 
-  // Allocate a large enough buffer for the header and the encrypted data.
   const size_t encrypted_len =
       encrypter_[level]->GetCiphertextSize(packet.Plaintext().length());
   StringPiece header_data = packet.BeforePlaintext();
-  const size_t len = header_data.length() + encrypted_len;
-  // TODO(ianswett): Consider allocating this on the stack in the typical case.
-  char* buffer = new char[len];
+  const size_t total_len = header_data.length() + encrypted_len;
+
+  char* encryption_buffer = buffer;
+  // Allocate a large enough buffer for the header and the encrypted data.
+  const bool is_new_buffer = total_len > buffer_len;
+  if (is_new_buffer) {
+    if (!FLAGS_quic_allow_oversized_packets_for_test) {
+      LOG(DFATAL) << "Buffer of length:" << buffer_len
+                  << " is not large enough to encrypt length " << total_len;
+      return nullptr;
+    }
+    encryption_buffer = new char[total_len];
+  }
   // Copy in the header, because the encrypter only populates the encrypted
   // plaintext content.
-  memcpy(buffer, header_data.data(), header_data.length());
+  memcpy(encryption_buffer, header_data.data(), header_data.length());
   // Encrypt the plaintext into the buffer.
   size_t output_length = 0;
   if (!encrypter_[level]->EncryptPacket(
           packet_sequence_number, packet.AssociatedData(), packet.Plaintext(),
-          buffer + header_data.length(), &output_length, encrypted_len)) {
+          encryption_buffer + header_data.length(), &output_length,
+          encrypted_len)) {
     RaiseError(QUIC_ENCRYPTION_FAILURE);
     return nullptr;
   }
 
-  return new QuicEncryptedPacket(buffer, header_data.length() + output_length,
-                                 true);
+  return new QuicEncryptedPacket(
+      encryption_buffer, header_data.length() + output_length, is_new_buffer);
 }
 
 size_t QuicFramer::GetMaxPlaintextSize(size_t ciphertext_size) {
@@ -1769,8 +1792,11 @@ size_t QuicFramer::ComputeFrameLength(
       // Ping has no payload.
       return kQuicFrameTypeSize;
     case RST_STREAM_FRAME:
-      return GetMinRstStreamFrameSize() +
-          frame.rst_stream_frame->error_details.size();
+      if (quic_version_ <= QUIC_VERSION_24) {
+        return GetMinRstStreamFrameSize() +
+               frame.rst_stream_frame->error_details.size();
+      }
+      return GetRstStreamFrameSize();
     case CONNECTION_CLOSE_FRAME:
       return GetMinConnectionCloseFrameSize() +
           frame.connection_close_frame->error_details.size();
@@ -1893,7 +1919,6 @@ bool QuicFramer::AppendStreamFrame(
   return true;
 }
 
-// static
 void QuicFramer::set_version(const QuicVersion version) {
   DCHECK(IsSupportedVersion(version)) << QuicVersionToString(version);
   quic_version_ = version;
@@ -2044,7 +2069,6 @@ bool QuicFramer::AppendAckFrameAndTypeByte(
 
 bool QuicFramer::AppendTimestampToAckFrame(const QuicAckFrame& frame,
                                            QuicDataWriter* writer) {
-  DCHECK_GE(version(), QUIC_VERSION_23);
   DCHECK_GE(numeric_limits<uint8>::max(), frame.received_packet_times.size());
   // num_received_packets is only 1 byte.
   if (frame.received_packet_times.size() > numeric_limits<uint8>::max()) {
@@ -2140,9 +2164,8 @@ bool QuicFramer::AppendStopWaitingFrame(
   return true;
 }
 
-bool QuicFramer::AppendRstStreamFrame(
-        const QuicRstStreamFrame& frame,
-        QuicDataWriter* writer) {
+bool QuicFramer::AppendRstStreamFrame(const QuicRstStreamFrame& frame,
+                                      QuicDataWriter* writer) {
   if (!writer->WriteUInt32(frame.stream_id)) {
     return false;
   }
@@ -2156,8 +2179,10 @@ bool QuicFramer::AppendRstStreamFrame(
     return false;
   }
 
-  if (!writer->WriteStringPiece16(frame.error_details)) {
-    return false;
+  if (quic_version_ <= QUIC_VERSION_24) {
+    if (!writer->WriteStringPiece16(frame.error_details)) {
+      return false;
+    }
   }
   return true;
 }
@@ -2213,7 +2238,8 @@ bool QuicFramer::AppendBlockedFrame(const QuicBlockedFrame& frame,
 }
 
 bool QuicFramer::RaiseError(QuicErrorCode error) {
-  DVLOG(1) << "Error detail: " << detailed_error_;
+  DVLOG(1) << "Error: " << QuicUtils::ErrorToString(error)
+           << " detail: " << detailed_error_;
   set_error(error);
   visitor_->OnError(this);
   reader_.reset(nullptr);

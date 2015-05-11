@@ -16,7 +16,6 @@
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/quic/congestion_control/send_algorithm_interface.h"
-#include "net/quic/crypto/cached_network_parameters.h"
 #include "net/quic/quic_bandwidth.h"
 #include "net/quic/quic_config.h"
 #include "net/quic/quic_protocol.h"
@@ -37,11 +36,12 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
 
   // SendAlgorithmInterface methods.
   void SetFromConfig(const QuicConfig& config,
-                     bool is_server,
-                     bool using_pacing) override;
+                     Perspective perspective) override;
   bool ResumeConnectionState(
-      const CachedNetworkParameters& cached_network_params) override;
+      const CachedNetworkParameters& cached_network_params,
+      bool max_bandwidth_resumption) override;
   void SetNumEmulatedConnections(int num_connections) override;
+  void SetMaxCongestionWindow(QuicByteCount max_congestion_window) override;
   void OnCongestionEvent(bool rtt_updated,
                          QuicByteCount bytes_in_flight,
                          const CongestionVector& acked_packets,

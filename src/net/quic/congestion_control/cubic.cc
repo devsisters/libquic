@@ -9,9 +9,9 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/time/time.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_protocol.h"
+#include "net/quic/quic_time.h"
 
 using std::max;
 
@@ -121,8 +121,7 @@ QuicPacketCount Cubic::CongestionWindowAfterAck(
       time_to_origin_point_ =
           static_cast<uint32>(cbrt(kCubeFactor * (last_max_congestion_window_ -
                                                   current_congestion_window)));
-      origin_point_congestion_window_ =
-          last_max_congestion_window_;
+      origin_point_congestion_window_ = last_max_congestion_window_;
     }
   }
   // Change the time unit from microseconds to 2^10 fractions per second. Take
@@ -130,7 +129,7 @@ QuicPacketCount Cubic::CongestionWindowAfterAck(
   // divide operator.
   int64 elapsed_time =
       (current_time.Add(delay_min).Subtract(epoch_).ToMicroseconds() << 10) /
-      base::Time::kMicrosecondsPerSecond;
+      kNumMicrosPerSecond;
 
   int64 offset = time_to_origin_point_ - elapsed_time;
   QuicPacketCount delta_congestion_window = (kCubeCongestionWindowScale

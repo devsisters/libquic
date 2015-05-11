@@ -98,22 +98,22 @@ index ad01828..dde18a9 100644
  namespace base {
  
 diff --git a/src/base/threading/platform_thread_linux.cc b/src/base/threading/platform_thread_linux.cc
-index d97a3f4..480bf05 100644
+index 9f74374..046cc99 100644
 --- a/src/base/threading/platform_thread_linux.cc
 +++ b/src/base/threading/platform_thread_linux.cc
-@@ -13,7 +13,9 @@
- #include "base/safe_strerror_posix.h"
+@@ -11,7 +11,9 @@
+ #include "base/logging.h"
+ #include "base/threading/platform_thread_internal_posix.h"
  #include "base/threading/thread_id_name_manager.h"
- #include "base/threading/thread_restrictions.h"
 +#if 0
  #include "base/tracked_objects.h"
 +#endif
  
  #if !defined(OS_NACL)
- #include <sys/prctl.h>
-@@ -50,7 +52,9 @@ int ThreadNiceValue(ThreadPriority priority) {
+ #include <pthread.h>
+@@ -72,7 +74,9 @@ bool GetThreadPriorityForPlatform(PlatformThreadHandle handle,
  // static
- void PlatformThread::SetName(const char* name) {
+ void PlatformThread::SetName(const std::string& name) {
    ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
 +#if 0
    tracked_objects::ThreadData::InitializeThreadContext(name);
@@ -122,7 +122,7 @@ index d97a3f4..480bf05 100644
  #if !defined(OS_NACL)
    // On linux we can get the thread names to show up in the debugger by setting
 diff --git a/src/base/threading/platform_thread_mac.mm b/src/base/threading/platform_thread_mac.mm
-index 147e625..6ce6c77 100644
+index a9c347a..df76e71 100644
 --- a/src/base/threading/platform_thread_mac.mm
 +++ b/src/base/threading/platform_thread_mac.mm
 @@ -16,7 +16,9 @@
@@ -137,7 +137,7 @@ index 147e625..6ce6c77 100644
  
 @@ -44,7 +46,9 @@ void InitThreading() {
  // static
- void PlatformThread::SetName(const char* name) {
+ void PlatformThread::SetName(const std::string& name) {
    ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
 +#if 0
    tracked_objects::ThreadData::InitializeThreadContext(name);
@@ -146,19 +146,19 @@ index 147e625..6ce6c77 100644
    // Mac OS X does not expose the length limit of the name, so
    // hardcode it.
 diff --git a/src/base/threading/platform_thread_posix.cc b/src/base/threading/platform_thread_posix.cc
-index 42b416d..9e37cf7 100644
+index 3dbdc98..70cab8a 100644
 --- a/src/base/threading/platform_thread_posix.cc
 +++ b/src/base/threading/platform_thread_posix.cc
-@@ -14,7 +14,9 @@
- #include "base/synchronization/waitable_event.h"
+@@ -18,7 +18,9 @@
+ #include "base/threading/platform_thread_internal_posix.h"
  #include "base/threading/thread_id_name_manager.h"
  #include "base/threading/thread_restrictions.h"
 +#if 0
  #include "base/tracked_objects.h"
 +#endif
  
- #if defined(OS_MACOSX)
- #include <sys/resource.h>
+ #if defined(OS_LINUX)
+ #include <sys/syscall.h>
 diff --git a/src/net/base/host_port_pair.cc b/src/net/base/host_port_pair.cc
 index 1550c36..7ab6086 100644
 --- a/src/net/base/host_port_pair.cc
@@ -213,7 +213,7 @@ index a4e5761..fbe405d 100644
    // Creates a HostPortPair from an IPEndPoint.
    static HostPortPair FromIPEndPoint(const IPEndPoint& ipe);
 diff --git a/src/net/base/net_errors.cc b/src/net/base/net_errors.cc
-index 55cdebb..91f64ab 100644
+index 425cb91..d43f440 100644
 --- a/src/net/base/net_errors.cc
 +++ b/src/net/base/net_errors.cc
 @@ -73,6 +73,7 @@ std::vector<int> GetAllErrorCodesForUma() {
@@ -225,7 +225,7 @@ index 55cdebb..91f64ab 100644
    switch (file_error) {
      case base::File::FILE_OK:
 @@ -87,5 +88,6 @@ Error FileErrorToNetError(base::File::Error file_error) {
-       return net::ERR_FAILED;
+       return ERR_FAILED;
    }
  }
 +#endif
@@ -257,7 +257,7 @@ index 64343f1..4794edb 100644
  }  // namespace net
  
 diff --git a/src/net/quic/crypto/crypto_utils.cc b/src/net/quic/crypto/crypto_utils.cc
-index c595775..35a5b78 100644
+index 0916474..e3e7155 100644
 --- a/src/net/quic/crypto/crypto_utils.cc
 +++ b/src/net/quic/crypto/crypto_utils.cc
 @@ -12,7 +12,9 @@
@@ -308,8 +308,35 @@ index c595775..35a5b78 100644
  
  // static
  bool CryptoUtils::DeriveKeys(StringPiece premaster_secret,
+diff --git a/src/net/quic/quic_connection.cc b/src/net/quic/quic_connection.cc
+index 08fc902..ab28883 100644
+--- a/src/net/quic/quic_connection.cc
++++ b/src/net/quic/quic_connection.cc
+@@ -17,7 +17,9 @@
+ #include "base/debug/stack_trace.h"
+ #include "base/format_macros.h"
+ #include "base/logging.h"
++#if 0
+ #include "base/profiler/scoped_tracker.h"
++#endif
+ #include "base/stl_util.h"
+ #include "base/strings/stringprintf.h"
+ #include "net/base/net_errors.h"
+@@ -1203,10 +1205,12 @@ void QuicConnection::ProcessUdpPacket(const IPEndPoint& self_address,
+   if (!connected_) {
+     return;
+   }
++#if 0
+   // TODO(rtenneti): Remove ScopedTracker below once crbug.com/462789 is fixed.
+   tracked_objects::ScopedTracker tracking_profile(
+       FROM_HERE_WITH_EXPLICIT_FUNCTION(
+           "462789 QuicConnection::ProcessUdpPacket"));
++#endif
+   if (debug_visitor_ != nullptr) {
+     debug_visitor_->OnPacketReceived(self_address, peer_address, packet);
+   }
 diff --git a/src/net/quic/quic_crypto_client_stream.cc b/src/net/quic/quic_crypto_client_stream.cc
-index 2a82aad..f0f5f45 100644
+index 28a6db8..e063402 100644
 --- a/src/net/quic/quic_crypto_client_stream.cc
 +++ b/src/net/quic/quic_crypto_client_stream.cc
 @@ -5,7 +5,9 @@
@@ -322,37 +349,21 @@ index 2a82aad..f0f5f45 100644
  #include "net/quic/crypto/crypto_protocol.h"
  #include "net/quic/crypto/crypto_utils.h"
  #include "net/quic/crypto/null_encrypter.h"
-@@ -179,10 +181,12 @@ static const int kMaxClientHellos = 3;
- 
- void QuicCryptoClientStream::DoHandshakeLoop(
-     const CryptoHandshakeMessage* in) {
+@@ -335,10 +337,12 @@ void QuicCryptoClientStream::DoSendCHLO(
+ void QuicCryptoClientStream::DoReceiveREJ(
+     const CryptoHandshakeMessage* in,
+     QuicCryptoClientConfig::CachedState* cached) {
 +#if 0
-   // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+   // TODO(rtenneti): Remove ScopedTracker below once crbug.com/422516 is fixed.
    tracked_objects::ScopedTracker tracking_profile(
        FROM_HERE_WITH_EXPLICIT_FUNCTION(
-           "422516 QuicCryptoClientStream::DoHandshakeLoop"));
+           "422516 QuicCryptoClientStream::DoReceiveREJ"));
 +#endif
  
-   QuicCryptoClientConfig::CachedState* cached =
-       crypto_config_->LookupOrCreate(server_id_);
-diff --git a/src/net/quic/quic_data_stream.cc b/src/net/quic/quic_data_stream.cc
-index aac58f9..ac2e7d2 100644
---- a/src/net/quic/quic_data_stream.cc
-+++ b/src/net/quic/quic_data_stream.cc
-@@ -125,9 +125,11 @@ const IPEndPoint& QuicDataStream::GetPeerAddress() {
-   return session()->peer_address();
- }
- 
-+#if 0
- bool QuicDataStream::GetSSLInfo(SSLInfo* ssl_info) {
-   return session()->GetSSLInfo(ssl_info);
- }
-+#endif
- 
- uint32 QuicDataStream::ProcessHeaderData() {
-   if (decompressed_headers_.empty()) {
+   // We sent a dummy CHLO because we didn't have enough information to
+   // perform a handshake, or we sent a full hello that the server
 diff --git a/src/net/quic/quic_session.cc b/src/net/quic/quic_session.cc
-index 865af07..dd18553 100644
+index 0be72eb..7689c4b 100644
 --- a/src/net/quic/quic_session.cc
 +++ b/src/net/quic/quic_session.cc
 @@ -9,7 +9,9 @@
@@ -365,46 +376,8 @@ index 865af07..dd18553 100644
  
  using base::StringPiece;
  using base::hash_map;
-@@ -716,10 +718,12 @@ bool QuicSession::HasDataToWrite() const {
-          connection_->HasQueuedData();
- }
- 
-+#if 0
- bool QuicSession::GetSSLInfo(SSLInfo* ssl_info) const {
-   NOTIMPLEMENTED();
-   return false;
- }
-+#endif
- 
- void QuicSession::PostProcessAfterData() {
-   STLDeleteElements(&closed_streams_);
-diff --git a/src/net/quic/quic_session.h b/src/net/quic/quic_session.h
-index 34fa2f4..425632d 100644
---- a/src/net/quic/quic_session.h
-+++ b/src/net/quic/quic_session.h
-@@ -28,7 +28,9 @@ namespace net {
- class QuicCryptoStream;
- class QuicFlowController;
- class ReliableQuicStream;
-+#if 0
- class SSLInfo;
-+#endif
- class VisitorShim;
- 
- namespace test {
-@@ -197,8 +199,10 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
-     return goaway_sent_;
-   }
- 
-+  #if 0
-   // Gets the SSL connection information.
-   virtual bool GetSSLInfo(SSLInfo* ssl_info) const;
-+  #endif
- 
-   QuicErrorCode error() const { return error_; }
- 
 diff --git a/src/net/spdy/spdy_framer.cc b/src/net/spdy/spdy_framer.cc
-index 7a926ce..95fa79d 100644
+index ea5eaa5..89ceb77 100644
 --- a/src/net/spdy/spdy_framer.cc
 +++ b/src/net/spdy/spdy_framer.cc
 @@ -6,7 +6,9 @@
@@ -418,7 +391,7 @@ index 7a926ce..95fa79d 100644
  #include "net/spdy/spdy_frame_reader.h"
  #include "net/spdy/spdy_bitmasks.h"
 diff --git a/src/net/spdy/spdy_framer.h b/src/net/spdy/spdy_framer.h
-index bb6e61d..b267a25 100644
+index 55c3fa7..2a39bc9 100644
 --- a/src/net/spdy/spdy_framer.h
 +++ b/src/net/spdy/spdy_framer.h
 @@ -20,7 +20,9 @@

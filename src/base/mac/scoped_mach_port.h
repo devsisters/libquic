@@ -20,7 +20,7 @@ struct BASE_EXPORT SendRightTraits {
     return MACH_PORT_NULL;
   }
 
-  static void Free(mach_port_t port);
+  BASE_EXPORT static void Free(mach_port_t port);
 };
 
 struct BASE_EXPORT ReceiveRightTraits {
@@ -28,7 +28,7 @@ struct BASE_EXPORT ReceiveRightTraits {
     return MACH_PORT_NULL;
   }
 
-  static void Free(mach_port_t port);
+  BASE_EXPORT static void Free(mach_port_t port);
 };
 
 struct PortSetTraits {
@@ -36,7 +36,7 @@ struct PortSetTraits {
     return MACH_PORT_NULL;
   }
 
-  static void Free(mach_port_t port);
+  BASE_EXPORT static void Free(mach_port_t port);
 };
 
 }  // namespace internal

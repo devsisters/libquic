@@ -8,7 +8,9 @@ using std::string;
 
 namespace net {
 
-QuicServerId::QuicServerId() {}
+QuicServerId::QuicServerId()
+    : is_https_(false), privacy_mode_(PRIVACY_MODE_DISABLED) {
+}
 
 QuicServerId::QuicServerId(const HostPortPair& host_port_pair,
                            bool is_https,

@@ -44,7 +44,7 @@ void InitThreading() {
 }
 
 // static
-void PlatformThread::SetName(const char* name) {
+void PlatformThread::SetName(const std::string& name) {
   ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
 #if 0
   tracked_objects::ThreadData::InitializeThreadContext(name);
@@ -53,7 +53,7 @@ void PlatformThread::SetName(const char* name) {
   // Mac OS X does not expose the length limit of the name, so
   // hardcode it.
   const int kMaxNameLength = 63;
-  std::string shortened_name = std::string(name).substr(0, kMaxNameLength);
+  std::string shortened_name = name.substr(0, kMaxNameLength);
   // pthread_setname() fails (harmlessly) in the sandbox, ignore when it does.
   // See http://crbug.com/47058
   pthread_setname_np(shortened_name.c_str());
@@ -165,16 +165,22 @@ void PlatformThread::SetThreadPriority(PlatformThreadHandle handle,
   mach_port_t mach_thread_id = pthread_mach_thread_np(handle.handle_);
 
   switch (priority) {
-    case kThreadPriority_Normal:
+    case ThreadPriority::NORMAL:
       SetPriorityNormal(mach_thread_id);
       break;
-    case kThreadPriority_RealtimeAudio:
+    case ThreadPriority::REALTIME_AUDIO:
       SetPriorityRealtimeAudio(mach_thread_id);
       break;
     default:
       NOTREACHED() << "Unknown priority.";
       break;
   }
+}
+
+// static
+ThreadPriority PlatformThread::GetThreadPriority(PlatformThreadHandle handle) {
+  NOTIMPLEMENTED();
+  return ThreadPriority::NORMAL;
 }
 
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {

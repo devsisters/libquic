@@ -251,7 +251,6 @@ string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
         break;
       case kKEXS:
       case kAEAD:
-      case kCGST:
       case kCOPT:
       case kPDMD:
       case kVER:

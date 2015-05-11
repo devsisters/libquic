@@ -341,8 +341,6 @@ class NET_EXPORT_PRIVATE QuicConfig {
   // Maximum number of undecryptable packets stored before CHLO/SHLO.
   size_t max_undecryptable_packets_;
 
-  // Congestion control feedback type.
-  QuicNegotiableTag congestion_feedback_;
   // Connection options.
   QuicFixedTagVector connection_options_;
   // Idle connection state lifetime

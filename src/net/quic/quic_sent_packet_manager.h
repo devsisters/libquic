@@ -16,7 +16,6 @@
 #include "net/quic/congestion_control/loss_detection_interface.h"
 #include "net/quic/congestion_control/rtt_stats.h"
 #include "net/quic/congestion_control/send_algorithm_interface.h"
-#include "net/quic/crypto/cached_network_parameters.h"
 #include "net/quic/quic_ack_notifier_manager.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_sustained_bandwidth_recorder.h"
@@ -93,7 +92,7 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
         QuicSequenceNumberLength sequence_number_length;
   };
 
-  QuicSentPacketManager(bool is_server,
+  QuicSentPacketManager(Perspective perspective,
                         const QuicClock* clock,
                         QuicConnectionStats* stats,
                         CongestionControlType congestion_control_type,
@@ -106,7 +105,8 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   // Pass the CachedNetworkParameters to the send algorithm.
   // Returns true if this changes the initial connection state.
   bool ResumeConnectionState(
-      const CachedNetworkParameters& cached_network_params);
+      const CachedNetworkParameters& cached_network_params,
+      bool max_bandwidth_resumption);
 
   void SetNumOpenStreams(size_t num_streams);
 
@@ -214,6 +214,9 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Called by the connection every time it receives a serialized packet.
   void OnSerializedPacket(const SerializedPacket& serialized_packet);
+
+  // No longer retransmit data for |stream_id|.
+  void CancelRetransmissionsForStream(QuicStreamId stream_id);
 
   // Enables pacing if it has not already been enabled.
   void EnablePacing();
@@ -352,8 +355,8 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   // Pending retransmissions which have not been packetized and sent yet.
   PendingRetransmissionMap pending_retransmissions_;
 
-  // Tracks if the connection was created by the server.
-  bool is_server_;
+  // Tracks if the connection was created by the server or the client.
+  Perspective perspective_;
 
   // An AckNotifier can register to be informed when ACKs have been received for
   // all packets that a given block of data was sent in. The AckNotifierManager

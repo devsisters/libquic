@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "base/strings/string_util.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/third_party/icu/icu_utf.h"
 
 namespace base {
@@ -193,7 +192,6 @@ void SplitStringDontTrim(const string16& str,
 void SplitStringDontTrim(const std::string& str,
                          char c,
                          std::vector<std::string>* r) {
-  DCHECK(IsStringUTF8(str));
 #if CHAR_MIN < 0
   DCHECK_GE(c, 0);
 #endif

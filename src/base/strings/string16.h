@@ -94,7 +94,7 @@ struct string16_char_traits {
     return c16memchr(s, a, n);
   }
 
-  static char_type* move(char_type* s1, const char_type* s2, int_type n) {
+  static char_type* move(char_type* s1, const char_type* s2, size_t n) {
     return c16memmove(s1, s2, n);
   }
 

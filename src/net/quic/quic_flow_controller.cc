@@ -11,17 +11,18 @@
 
 namespace net {
 
-#define ENDPOINT (is_server_ ? "Server: " : " Client: ")
+#define ENDPOINT \
+  (perspective_ == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
 QuicFlowController::QuicFlowController(QuicConnection* connection,
                                        QuicStreamId id,
-                                       bool is_server,
+                                       Perspective perspective,
                                        QuicStreamOffset send_window_offset,
                                        QuicStreamOffset receive_window_offset,
                                        QuicByteCount max_receive_window)
     : connection_(connection),
       id_(id),
-      is_server_(is_server),
+      perspective_(perspective),
       bytes_consumed_(0),
       highest_received_byte_offset_(0),
       bytes_sent_(0),

@@ -26,7 +26,7 @@ void DLogOpenSslErrors() {
 #ifdef NDEBUG
   ClearOpenSslErrors();
 #else
-  while (unsigned long error = ERR_get_error()) {
+  while (uint32_t error = ERR_get_error()) {
     char buf[120];
     ERR_error_string_n(error, buf, arraysize(buf));
     DLOG(ERROR) << "OpenSSL error: " << buf;

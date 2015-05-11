@@ -24,11 +24,6 @@ struct QuicCryptoNegotiatedParameters;
 
 class NET_EXPORT_PRIVATE CryptoUtils {
  public:
-  enum Perspective {
-    SERVER,
-    CLIENT,
-  };
-
   // Generates the connection nonce. The nonce is formed as:
   //   <4 bytes> current time
   //   <8 bytes> |orbit| (or random if |orbit| is empty)

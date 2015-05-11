@@ -4,12 +4,12 @@
 
 #include "base/time/time.h"
 
+#include <cmath>
 #include <ios>
 #include <limits>
 #include <ostream>
 #include <sstream>
 
-#include "base/float_util.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
@@ -97,6 +97,36 @@ int64 TimeDelta::InMicroseconds() const {
   return delta_;
 }
 
+namespace time_internal {
+
+int64 SaturatedAdd(TimeDelta delta, int64 value) {
+  CheckedNumeric<int64> rv(delta.delta_);
+  rv += value;
+  return FromCheckedNumeric(rv);
+}
+
+int64 SaturatedSub(TimeDelta delta, int64 value) {
+  CheckedNumeric<int64> rv(delta.delta_);
+  rv -= value;
+  return FromCheckedNumeric(rv);
+}
+
+int64 FromCheckedNumeric(const CheckedNumeric<int64> value) {
+  if (value.IsValid())
+    return value.ValueUnsafe();
+
+  // We could return max/min but we don't really expose what the maximum delta
+  // is. Instead, return max/(-max), which is something that clients can reason
+  // about.
+  // TODO(rvargas) crbug.com/332611: don't use internal values.
+  int64 limit = std::numeric_limits<int64>::max();
+  if (value.validity() == internal::RANGE_UNDERFLOW)
+    limit = -limit;
+  return value.ValueOrDefault(limit);
+}
+
+}  // namespace time_internal
+
 std::ostream& operator<<(std::ostream& os, TimeDelta time_delta) {
   return os << time_delta.InSecondsF() << "s";
 }
@@ -134,7 +164,7 @@ time_t Time::ToTimeT() const {
 
 // static
 Time Time::FromDoubleT(double dt) {
-  if (dt == 0 || IsNaN(dt))
+  if (dt == 0 || std::isnan(dt))
     return Time();  // Preserve 0 so we can tell it doesn't exist.
   if (dt == std::numeric_limits<double>::infinity())
     return Max();
@@ -278,15 +308,12 @@ TimeTicks TimeTicks::SnappedToNextTick(TimeTicks tick_phase,
                                        TimeDelta tick_interval) const {
   // |interval_offset| is the offset from |this| to the next multiple of
   // |tick_interval| after |tick_phase|, possibly negative if in the past.
-  TimeDelta interval_offset = TimeDelta::FromInternalValue(
-      (tick_phase - *this).ToInternalValue() % tick_interval.ToInternalValue());
+  TimeDelta interval_offset = (tick_phase - *this) % tick_interval;
   // If |this| is exactly on the interval (i.e. offset==0), don't adjust.
   // Otherwise, if |tick_phase| was in the past, adjust forward to the next
   // tick after |this|.
-  if (interval_offset.ToInternalValue() != 0 && tick_phase < *this) {
+  if (!interval_offset.is_zero() && tick_phase < *this)
     interval_offset += tick_interval;
-  }
-
   return *this + interval_offset;
 }
 
