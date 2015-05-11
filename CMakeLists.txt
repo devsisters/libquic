@@ -212,6 +212,7 @@ set(
 	src/base/rand_util_posix.cc
 	src/base/threading/thread_id_name_manager.cc
 	src/base/threading/platform_thread_posix.cc
+	src/base/threading/platform_thread_internal_posix.cc
 	src/base/threading/thread_restrictions.cc
 	src/base/threading/thread_local_storage_posix.cc
 	src/base/threading/thread_local_storage.cc
