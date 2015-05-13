@@ -26,8 +26,7 @@ elseif (CMAKE_BUILD_TYPE STREQUAL Release)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_RELEASE_FLAGS}")
 endif()
 
-#add_definitions(-DUSE_OPENSSL)
-add_definitions(-DUSE_NSS_CERTS)
+add_definitions(-DUSE_OPENSSL)
 
 if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
 	set(ARCH "amd64")
@@ -63,7 +62,7 @@ endif()
 
 #add_subdirectory(crypto)
 
-include_directories(src src/third_party/modp_b64 boringssl/include src/third_party/protobuf/src /usr/include/nss/ /usr/include/nspr/)
+include_directories(src src/third_party/modp_b64 boringssl/include src/third_party/protobuf/src)
 
 set(
 	NET_SOURCES
@@ -93,18 +92,18 @@ set(
 	src/net/quic/quic_ack_notifier.cc
 	src/net/quic/crypto/quic_crypto_server_config.cc
 	src/net/quic/crypto/crypto_handshake_message.cc
-	src/net/quic/crypto/p256_key_exchange_nss.cc
+	src/net/quic/crypto/p256_key_exchange_openssl.cc
 	src/net/quic/crypto/cert_compressor.cc
 	src/net/quic/crypto/crypto_secret_boxer.cc
-	src/net/quic/crypto/aes_128_gcm_12_encrypter_nss.cc
+	src/net/quic/crypto/aes_128_gcm_12_encrypter_openssl.cc
 	src/net/quic/crypto/curve25519_key_exchange.cc
-	src/net/quic/crypto/chacha20_poly1305_encrypter_nss.cc
-	src/net/quic/crypto/chacha20_poly1305_decrypter_nss.cc
+	src/net/quic/crypto/chacha20_poly1305_encrypter_openssl.cc
+	src/net/quic/crypto/chacha20_poly1305_decrypter_openssl.cc
 	src/net/quic/crypto/quic_decrypter.cc
-	src/net/quic/crypto/channel_id_nss.cc
+	src/net/quic/crypto/channel_id_openssl.cc
 	src/net/quic/crypto/null_decrypter.cc
 	src/net/quic/crypto/crypto_server_config_protobuf.cc
-	src/net/quic/crypto/aead_base_decrypter_nss.cc
+	src/net/quic/crypto/aead_base_decrypter_openssl.cc
 	src/net/quic/crypto/scoped_evp_aead_ctx.cc
 	src/net/quic/crypto/quic_random.cc
 	src/net/quic/crypto/common_cert_set.cc
@@ -113,10 +112,10 @@ set(
 	src/net/quic/crypto/crypto_handshake.cc
 	src/net/quic/crypto/channel_id.cc
 	src/net/quic/crypto/strike_register.cc
-	src/net/quic/crypto/aead_base_encrypter_nss.cc
+	src/net/quic/crypto/aead_base_encrypter_openssl.cc
 	src/net/quic/crypto/crypto_utils.cc
 	src/net/quic/crypto/local_strike_register_client.cc
-	src/net/quic/crypto/aes_128_gcm_12_decrypter_nss.cc
+	src/net/quic/crypto/aes_128_gcm_12_decrypter_openssl.cc
 	src/net/quic/crypto/quic_encrypter.cc
 	src/net/quic/crypto/quic_crypto_client_config.cc
 	src/net/quic/quic_clock.cc
@@ -285,20 +284,13 @@ set(
 	src/crypto/curve25519-donna.c
 	src/crypto/hkdf.cc
 	src/crypto/hmac.cc
-	src/crypto/nss_util.cc
+	src/crypto/openssl_util.cc
 	src/crypto/curve25519.cc
-	src/crypto/hmac_nss.cc
-	src/crypto/symmetric_key_nss.cc
-	src/crypto/secure_hash_default.cc
+	src/crypto/hmac_openssl.cc
+	src/crypto/symmetric_key_openssl.cc
+	src/crypto/secure_hash_openssl.cc
 	src/crypto/random.cc
 	src/crypto/secure_util.cc
-	src/crypto/ghash.cc
-	src/crypto/ec_private_key_nss.cc
-
-	src/crypto/third_party/nss/pk11akey.cc
-	src/crypto/third_party/nss/rsawrapr.c
-	src/crypto/third_party/nss/secsign.cc
-	src/crypto/third_party/nss/sha512.cc
 )
 
 add_library(
@@ -331,11 +323,11 @@ add_library(
 #add_executable(
 #	test_quic_server
 #
-#	main.cc
+#	custom/main.cc
 #)
 
 # XXX(serialx): Not sure if this is safe, since our CFLAGS contaminate boringssl build
-#add_subdirectory(boringssl)
+add_subdirectory(boringssl)
 add_subdirectory(protobuf)
 
-#target_link_libraries(test_quic_server quic nss3 nssutil3 ssl3 nspr4 -pthread ${BASE_ARCH_LIBRARIES})
+#target_link_libraries(test_quic_server quic ssl crypto -pthread ${BASE_ARCH_LIBRARIES})
