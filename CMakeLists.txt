@@ -63,7 +63,7 @@ endif()
 
 #add_subdirectory(crypto)
 
-include_directories(src src/third_party/modp_b64 boringssl/include src/third_party/protobuf/src)
+include_directories(src src/third_party/modp_b64 boringssl/include src/third_party/protobuf/src /usr/include/nss/ /usr/include/nspr/)
 
 set(
 	NET_SOURCES
