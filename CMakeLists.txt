@@ -338,4 +338,4 @@ add_library(
 #add_subdirectory(boringssl)
 add_subdirectory(protobuf)
 
-target_link_libraries(test_quic_server quic nss3 nssutil3 ssl3 nspr4 -pthread ${BASE_ARCH_LIBRARIES})
+#target_link_libraries(test_quic_server quic nss3 nssutil3 ssl3 nspr4 -pthread ${BASE_ARCH_LIBRARIES})
