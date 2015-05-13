@@ -123,13 +123,30 @@
                 "net/base/host_port_pair.h",
                 "base/profiler/scoped_tracker.h"
             ]
+        },
+        {
+            "from": "crypto/nss_util.cc",
+            "exclude": [
+                "base/debug/debugger.h",
+                "base/sequence_checker.h",
+                "base/files/file.h",
+                "base/tracked_objects.h",
+                "base/third_party/valgrind/memcheck.h",
+                "base/metrics/stats_counters.h",
+                "base/cpu.h",
+                "base/profiler/scoped_tracker.h",
+                "base/base_paths_android.h",
+                "base/base_paths_win.h",
+                "base/message_loop/message_loop.h"
+            ]
         }
     ],
     "manual_dependency": [
         {
             "action": "makedir",
             "target": [
-                "base/third_party/superfasthash/"
+                "base/third_party/superfasthash/",
+                "crypto/third_party/nss/"
             ]
         },
         {
@@ -170,24 +187,41 @@
                 "net/base/host_port_pair.cc",
                 "net/quic/crypto/chacha20_poly1305_decrypter.h",
                 "net/quic/crypto/chacha20_poly1305_decrypter_openssl.cc",
+                "net/quic/crypto/chacha20_poly1305_decrypter_nss.cc",
                 "net/quic/crypto/chacha20_poly1305_encrypter.h",
                 "net/quic/crypto/chacha20_poly1305_encrypter_openssl.cc",
+                "net/quic/crypto/chacha20_poly1305_encrypter_nss.cc",
                 "net/quic/crypto/aes_128_gcm_12_decrypter.h",
                 "net/quic/crypto/aes_128_gcm_12_decrypter_openssl.cc",
+                "net/quic/crypto/aes_128_gcm_12_decrypter_nss.cc",
                 "net/quic/crypto/aes_128_gcm_12_encrypter.h",
                 "net/quic/crypto/aes_128_gcm_12_encrypter_openssl.cc",
+                "net/quic/crypto/aes_128_gcm_12_encrypter_nss.cc",
                 "net/quic/crypto/aead_base_decrypter.h",
                 "net/quic/crypto/aead_base_decrypter_openssl.cc",
+                "net/quic/crypto/aead_base_decrypter_nss.cc",
                 "net/quic/crypto/aead_base_encrypter.h",
                 "net/quic/crypto/aead_base_encrypter_openssl.cc",
+                "net/quic/crypto/aead_base_encrypter_nss.cc",
                 "net/quic/crypto/p256_key_exchange_openssl.cc",
+                "net/quic/crypto/p256_key_exchange_nss.cc",
                 "net/quic/crypto/channel_id_openssl.cc",
+                "net/quic/crypto/channel_id_nss.cc",
                 "crypto/hmac_openssl.cc",
+                "crypto/hmac_nss.cc",
                 "crypto/symmetric_key_openssl.cc",
+                "crypto/symmetric_key_nss.cc",
                 "crypto/openssl_util.h",
                 "crypto/openssl_util.cc",
+                "crypto/nss_util.h",
+                "crypto/nss_util_internal.h",
+                "crypto/nss_util.cc",
+                "crypto/ec_private_key_nss.cc",
                 "crypto/secure_hash_openssl.cc",
+                "crypto/secure_hash_default.cc",
                 "crypto/curve25519-donna.c",
+                "crypto/ghash.cc",
+                "crypto/ghash.h",
                 "base/memory/scoped_vector.h",
                 "third_party/modp_b64/modp_b64_data.h",
                 "base/mac/mach_logging.cc",
@@ -197,7 +231,10 @@
                 "base/scoped_generic.h",
                 "base/time/time_mac.cc",
                 "third_party/zlib/*.c",
-                "third_party/zlib/*.h"
+                "third_party/zlib/*.h",
+                "crypto/third_party/nss/*.c",
+                "crypto/third_party/nss/*.cc",
+                "crypto/third_party/nss/*.h"
             ]
         },
         {
@@ -218,6 +255,7 @@
     ],
     "patches": [
         "patch/basepatch.patch",
+        "patch/nss_util.patch",
         "patch/retrasmitoldestpacket_fatal_fix.patch"
     ],
     "custom_files": [
