@@ -218,7 +218,6 @@ set(
 	src/base/threading/thread_local_storage.cc
 	src/base/threading/thread_collision_warner.cc
 	src/base/threading/thread_local_posix.cc
-	src/base/safe_strerror_posix.cc
 	src/base/time/time_posix.cc
 	src/base/time/time.cc
 	src/base/synchronization/waitable_event_posix.cc

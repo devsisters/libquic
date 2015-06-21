@@ -4,7 +4,7 @@
 
 #include "net/quic/crypto/quic_crypto_client_config.h"
 
-#include "base/metrics/histogram.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
@@ -126,6 +126,15 @@ void QuicCryptoClientConfig::CachedState::add_server_designated_connection_id(
 bool QuicCryptoClientConfig::CachedState::has_server_designated_connection_id()
     const {
   return !server_designated_connection_ids_.empty();
+}
+
+void QuicCryptoClientConfig::CachedState::add_server_nonce(
+    const string& server_nonce) {
+  server_nonces_.push(server_nonce);
+}
+
+bool QuicCryptoClientConfig::CachedState::has_server_nonce() const {
+  return !server_nonces_.empty();
 }
 
 QuicCryptoClientConfig::CachedState::ServerConfigState
@@ -323,6 +332,17 @@ QuicCryptoClientConfig::CachedState::GetNextServerDesignatedConnectionId() {
   const QuicConnectionId next_id = server_designated_connection_ids_.front();
   server_designated_connection_ids_.pop();
   return next_id;
+}
+
+string QuicCryptoClientConfig::CachedState::GetNextServerNonce() {
+  if (server_nonces_.empty()) {
+    LOG(DFATAL)
+        << "Attempting to consume a server nonce that was never designated.";
+    return "";
+  }
+  const string server_nonce = server_nonces_.front();
+  server_nonces_.pop();
+  return server_nonce;
 }
 
 void QuicCryptoClientConfig::SetDefaults() {
@@ -727,7 +747,10 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
       return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
     }
     cached->add_server_designated_connection_id(connection_id);
-    return QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT;
+    if (!nonce.empty()) {
+      cached->add_server_nonce(nonce.as_string());
+    }
+    return QUIC_NO_ERROR;
   }
 
   return QUIC_NO_ERROR;
@@ -881,7 +904,7 @@ bool QuicCryptoClientConfig::PopulateFromCanonicalConfig(
   DCHECK(server_state->IsEmpty());
   size_t i = 0;
   for (; i < canonical_suffixes_.size(); ++i) {
-    if (EndsWith(server_id.host(), canonical_suffixes_[i], false)) {
+    if (base::EndsWith(server_id.host(), canonical_suffixes_[i], false)) {
       break;
     }
   }

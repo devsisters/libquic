@@ -45,8 +45,8 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
     return;
   }
 
-  QuicStreamOffset byte_offset = frame.offset;
-  size_t data_len = frame.data.TotalBufferSize();
+  const QuicStreamOffset byte_offset = frame.offset;
+  const size_t data_len = frame.data.length();
   if (data_len == 0 && !frame.fin) {
     // Stream frames must have data or a fin flag.
     stream_->CloseConnectionWithDetails(QUIC_INVALID_STREAM_FRAME,
@@ -61,23 +61,17 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
     }
   }
 
-  IOVector data;
-  data.AppendIovec(frame.data.iovec(), frame.data.Size());
-
   if (byte_offset > num_bytes_consumed_) {
     ++num_early_frames_received_;
   }
 
   // If the frame has arrived in-order then we can process it immediately, only
   // buffering if the stream is unable to process it.
+  size_t bytes_consumed = 0;
   if (!blocked_ && byte_offset == num_bytes_consumed_) {
     DVLOG(1) << "Processing byte offset " << byte_offset;
-    size_t bytes_consumed = 0;
-    for (size_t i = 0; i < data.Size(); ++i) {
-      bytes_consumed += stream_->ProcessRawData(
-          static_cast<char*>(data.iovec()[i].iov_base),
-          data.iovec()[i].iov_len);
-    }
+    bytes_consumed =
+        stream_->ProcessRawData(frame.data.data(), frame.data.length());
     num_bytes_consumed_ += bytes_consumed;
     stream_->AddBytesConsumed(bytes_consumed);
 
@@ -90,24 +84,18 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
     } else if (bytes_consumed == data_len) {
       FlushBufferedFrames();
       return;  // it's safe to ack this frame.
-    } else {
-      // Set ourselves up to buffer what's left.
-      data_len -= bytes_consumed;
-      data.Consume(bytes_consumed);
-      byte_offset += bytes_consumed;
     }
   }
 
   // Buffer any remaining data to be consumed by the stream when ready.
-  for (size_t i = 0; i < data.Size(); ++i) {
+  if (bytes_consumed < data_len) {
     DVLOG(1) << "Buffering stream data at offset " << byte_offset;
-    const iovec& iov = data.iovec()[i];
+    const size_t remaining_length = data_len - bytes_consumed;
     buffered_frames_.insert(std::make_pair(
-        byte_offset, string(static_cast<char*>(iov.iov_base), iov.iov_len)));
-    byte_offset += iov.iov_len;
-    num_bytes_buffered_ += iov.iov_len;
+        byte_offset + bytes_consumed,
+        string(frame.data.data() + bytes_consumed, remaining_length)));
+    num_bytes_buffered_ += remaining_length;
   }
-  return;
 }
 
 void QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
@@ -227,9 +215,9 @@ bool QuicStreamSequencer::FrameOverlapsBufferedData(
   // If there is a buffered frame with a higher starting offset, then we check
   // to see if the new frame runs into the higher frame.
   if (next_frame != buffered_frames_.end() &&
-      (frame.offset + frame.data.TotalBufferSize()) > next_frame->first) {
+      (frame.offset + frame.data.size()) > next_frame->first) {
     DVLOG(1) << "New frame overlaps next frame: " << frame.offset << " + "
-             << frame.data.TotalBufferSize() << " > " << next_frame->first;
+             << frame.data.size() << " > " << next_frame->first;
     return true;
   }
 

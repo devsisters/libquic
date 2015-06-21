@@ -38,11 +38,12 @@ class BASE_EXPORT JSONWriter {
   // TODO(tc): Should we generate json if it would be invalid json (e.g.,
   // |node| is not a DictionaryValue/ListValue or if there are inf/-inf float
   // values)? Return true on success and false on failure.
-  static bool Write(const Value* const node, std::string* json);
+  static bool Write(const Value& node, std::string* json);
 
   // Same as above but with |options| which is a bunch of JSONWriter::Options
   // bitwise ORed together. Return true on success and false on failure.
-  static bool WriteWithOptions(const Value* const node, int options,
+  static bool WriteWithOptions(const Value& node,
+                               int options,
                                std::string* json);
 
  private:
@@ -50,7 +51,7 @@ class BASE_EXPORT JSONWriter {
 
   // Called recursively to build the JSON string. When completed,
   // |json_string_| will contain the JSON.
-  bool BuildJSONString(const Value* const node, size_t depth);
+  bool BuildJSONString(const Value& node, size_t depth);
 
   // Adds space to json_string_ for the indent level.
   void IndentLine(size_t depth);

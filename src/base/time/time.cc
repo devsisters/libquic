@@ -327,6 +327,16 @@ std::ostream& operator<<(std::ostream& os, TimeTicks time_ticks) {
   return os << as_time_delta.InMicroseconds() << " bogo-microseconds";
 }
 
+std::ostream& operator<<(std::ostream& os, ThreadTicks thread_ticks) {
+  const TimeDelta as_time_delta = thread_ticks - ThreadTicks();
+  return os << as_time_delta.InMicroseconds() << " bogo-thread-microseconds";
+}
+
+std::ostream& operator<<(std::ostream& os, TraceTicks trace_ticks) {
+  const TimeDelta as_time_delta = trace_ticks - TraceTicks();
+  return os << as_time_delta.InMicroseconds() << " bogo-trace-microseconds";
+}
+
 // Time::Exploded -------------------------------------------------------------
 
 inline bool is_in_range(int value, int lo, int hi) {

@@ -209,6 +209,11 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStream : public QuicCryptoStream {
   std::string verify_error_details_;
   scoped_ptr<ProofVerifyDetails> verify_details_;
 
+  // True if the server responded to a previous CHLO with a stateless
+  // reject.  Used for book-keeping between the STATE_RECV_REJ,
+  // STATE_VERIFY_PROOF*, and subsequent STATE_SEND_CHLO state.
+  bool stateless_reject_received_;
+
   DISALLOW_COPY_AND_ASSIGN(QuicCryptoClientStream);
 };
 

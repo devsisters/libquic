@@ -4,22 +4,6 @@
 
 #include "net/base/net_errors.h"
 
-#include "base/basictypes.h"
-#include "base/metrics/histogram.h"
-#include "base/strings/stringize_macros.h"
-
-namespace {
-
-// Get all valid error codes into an array as positive numbers, for use in the
-// |GetAllErrorCodesForUma| function below.
-#define NET_ERROR(label, value) -(value),
-const int kAllErrorCodes[] = {
-#include "net/base/net_error_list.h"
-};
-#undef NET_ERROR
-
-}  // namespace
-
 namespace net {
 
 const char kErrorDomain[] = "net";
@@ -66,11 +50,6 @@ bool IsClientCertificateError(int error) {
     default:
       return false;
   }
-}
-
-std::vector<int> GetAllErrorCodesForUma() {
-  return base::CustomHistogram::ArrayToCustomRanges(
-      kAllErrorCodes, arraysize(kAllErrorCodes));
 }
 
 #if 0

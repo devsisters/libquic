@@ -18,14 +18,15 @@
 namespace net {
 
 HostPortPair::HostPortPair() : port_(0) {}
-HostPortPair::HostPortPair(const std::string& in_host, uint16 in_port)
-    : host_(in_host), port_(in_port) {}
+HostPortPair::HostPortPair(const std::string& in_host, uint16_t in_port)
+    : host_(in_host), port_(in_port) {
+}
 
 #if 0
 // static
 HostPortPair HostPortPair::FromURL(const GURL& url) {
   return HostPortPair(url.HostNoBrackets(),
-                      static_cast<uint16>(url.EffectiveIntPort()));
+                      static_cast<uint16_t>(url.EffectiveIntPort()));
 }
 #endif
 
@@ -46,7 +47,7 @@ HostPortPair HostPortPair::FromString(const std::string& str) {
     return HostPortPair();
   HostPortPair host_port_pair;
   host_port_pair.set_host(key_port[0]);
-  host_port_pair.set_port(static_cast<uint16>(port));
+  host_port_pair.set_port(static_cast<uint16_t>(port));
   return host_port_pair;
 }
 

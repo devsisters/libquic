@@ -39,9 +39,18 @@ int64 FLAGS_quic_time_wait_list_seconds = 5;
 // no configured limit.
 int64 FLAGS_quic_time_wait_list_max_connections = 50000;
 
-// If true, use the peer's receive buffer size to set the max CWND used by the
-// send algorithms.
-bool FLAGS_quic_limit_max_cwnd_to_receive_buffer = true;
-
 // Enables server-side support for QUIC stateless rejects.
 bool FLAGS_enable_quic_stateless_reject_support = false;
+
+// If true, flow controller may grow the receive window size if necessary.
+bool FLAGS_quic_auto_tune_receive_window = true;
+
+// If true, stop processing quic data as soon as the connection is
+// closed rather than processing a full packet.
+bool FLAGS_quic_stop_early_2 = true;
+
+// Don't ack acks in QUIC, even when there is a recent missing packet.
+bool FLAGS_quic_dont_ack_acks = true;
+
+// Enables sending of FEC packet only when FEC alarm goes off.
+bool FLAGS_quic_send_fec_packet_only_on_fec_alarm = true;

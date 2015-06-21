@@ -5,6 +5,7 @@
 #include "base/rand_util.h"
 
 #include <math.h>
+#include <stdint.h>
 
 #include <algorithm>
 #include <limits>
@@ -37,7 +38,7 @@ double BitsToOpenEndedUnitInterval(uint64 bits) {
 
   COMPILE_ASSERT(std::numeric_limits<double>::radix == 2, otherwise_use_scalbn);
   static const int kBits = std::numeric_limits<double>::digits;
-  uint64 random_bits = bits & ((GG_UINT64_C(1) << kBits) - 1);
+  uint64 random_bits = bits & ((UINT64_C(1) << kBits) - 1);
   double result = ldexp(static_cast<double>(random_bits), -1 * kBits);
   DCHECK_GE(result, 0.0);
   DCHECK_LT(result, 1.0);

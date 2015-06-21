@@ -17,7 +17,6 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/port.h"
 #include "build/build_config.h"
 
 #if defined(OS_ANDROID)
@@ -81,26 +80,27 @@ void SysTimeToTimeStruct(SysTime t, struct tm* timestruct, bool is_local) {
 }
 #endif  // OS_ANDROID
 
-// Helper function to get results from clock_gettime() as TimeTicks object.
-// Minimum requirement is MONOTONIC_CLOCK to be supported on the system.
-// FreeBSD 6 has CLOCK_MONOTONIC but defines _POSIX_MONOTONIC_CLOCK to -1.
+int64 ConvertTimespecToMicros(const struct timespec& ts) {
+  base::CheckedNumeric<int64> result(ts.tv_sec);
+  result *= base::Time::kMicrosecondsPerSecond;
+  result += (ts.tv_nsec / base::Time::kNanosecondsPerMicrosecond);
+  return result.ValueOrDie();
+}
+
+// Helper function to get results from clock_gettime() and convert to a
+// microsecond timebase. Minimum requirement is MONOTONIC_CLOCK to be supported
+// on the system. FreeBSD 6 has CLOCK_MONOTONIC but defines
+// _POSIX_MONOTONIC_CLOCK to -1.
 #if (defined(OS_POSIX) &&                                               \
      defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
     defined(OS_BSD) || defined(OS_ANDROID)
-base::TimeTicks ClockNow(clockid_t clk_id) {
-  uint64_t absolute_micro;
-
+int64 ClockNow(clockid_t clk_id) {
   struct timespec ts;
   if (clock_gettime(clk_id, &ts) != 0) {
     NOTREACHED() << "clock_gettime(" << clk_id << ") failed.";
-    return base::TimeTicks();
+    return 0;
   }
-
-  absolute_micro =
-      (static_cast<int64>(ts.tv_sec) * base::Time::kMicrosecondsPerSecond) +
-      (static_cast<int64>(ts.tv_nsec / base::Time::kNanosecondsPerMicrosecond));
-
-  return base::TimeTicks::FromInternalValue(absolute_micro);
+  return ConvertTimespecToMicros(ts);
 }
 #else  // _POSIX_MONOTONIC_CLOCK
 #error No usable tick clock function on this platform.
@@ -137,7 +137,7 @@ struct timespec TimeDelta::ToTimeSpec() const {
 //   => Thu Jan 01 00:00:00 UTC 1970
 //   irb(main):011:0> Time.at(-11644473600).getutc()
 //   => Mon Jan 01 00:00:00 UTC 1601
-static const int64 kWindowsEpochDeltaSeconds = GG_INT64_C(11644473600);
+static const int64 kWindowsEpochDeltaSeconds = INT64_C(11644473600);
 
 // static
 const int64 Time::kWindowsEpochDeltaMicroseconds =
@@ -310,7 +310,7 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
 // TimeTicks ------------------------------------------------------------------
 // static
 TimeTicks TimeTicks::Now() {
-  return ClockNow(CLOCK_MONOTONIC);
+  return TimeTicks(ClockNow(CLOCK_MONOTONIC));
 }
 
 // static
@@ -319,40 +319,33 @@ bool TimeTicks::IsHighResolution() {
 }
 
 // static
-TimeTicks TimeTicks::ThreadNow() {
+ThreadTicks ThreadTicks::Now() {
 #if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     defined(OS_ANDROID)
-  return ClockNow(CLOCK_THREAD_CPUTIME_ID);
+  return ThreadTicks(ClockNow(CLOCK_THREAD_CPUTIME_ID));
 #else
   NOTREACHED();
-  return TimeTicks();
+  return ThreadTicks();
 #endif
 }
 
 // Use the Chrome OS specific system-wide clock.
 #if defined(OS_CHROMEOS)
 // static
-TimeTicks TimeTicks::NowFromSystemTraceTime() {
-  uint64_t absolute_micro;
-
+TraceTicks TraceTicks::Now() {
   struct timespec ts;
   if (clock_gettime(kClockSystemTrace, &ts) != 0) {
     // NB: fall-back for a chrome os build running on linux
-    return Now();
+    return TraceTicks(ClockNow(CLOCK_MONOTONIC));
   }
-
-  absolute_micro =
-      (static_cast<int64>(ts.tv_sec) * Time::kMicrosecondsPerSecond) +
-      (static_cast<int64>(ts.tv_nsec) / Time::kNanosecondsPerMicrosecond);
-
-  return TimeTicks(absolute_micro);
+  return TraceTicks(ConvertTimespecToMicros(ts));
 }
 
 #else  // !defined(OS_CHROMEOS)
 
 // static
-TimeTicks TimeTicks::NowFromSystemTraceTime() {
-  return Now();
+TraceTicks TraceTicks::Now() {
+  return TraceTicks(ClockNow(CLOCK_MONOTONIC));
 }
 
 #endif  // defined(OS_CHROMEOS)

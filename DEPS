@@ -3,7 +3,7 @@
 
 # START #
 {
-    "chromium_revision": "16f0a88eea42d7528eaa71533e1c539c0bd45962",
+    "chromium_revision": "394674f77ff069853d0df59918e23bd13ef3861f",
     "automatic_dependency": [
         {
             "from": "net/quic/quic_connection.cc",

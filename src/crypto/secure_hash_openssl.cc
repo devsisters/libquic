@@ -40,14 +40,14 @@ class SecureHashSHA256OpenSSL : public SecureHash {
     SHA256_Final(result.safe_buffer(), &ctx_);
   }
 
-  bool Serialize(Pickle* pickle) override;
-  bool Deserialize(PickleIterator* data_iterator) override;
+  bool Serialize(base::Pickle* pickle) override;
+  bool Deserialize(base::PickleIterator* data_iterator) override;
 
  private:
   SHA256_CTX ctx_;
 };
 
-bool SecureHashSHA256OpenSSL::Serialize(Pickle* pickle) {
+bool SecureHashSHA256OpenSSL::Serialize(base::Pickle* pickle) {
   if (!pickle)
     return false;
 
@@ -60,7 +60,7 @@ bool SecureHashSHA256OpenSSL::Serialize(Pickle* pickle) {
   return true;
 }
 
-bool SecureHashSHA256OpenSSL::Deserialize(PickleIterator* data_iterator) {
+bool SecureHashSHA256OpenSSL::Deserialize(base::PickleIterator* data_iterator) {
   if (!data_iterator)
     return false;
 

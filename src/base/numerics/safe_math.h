@@ -66,6 +66,13 @@ class CheckedNumeric {
                   "Argument must be numeric.");
   }
 
+  // This is not an explicit constructor because we want a seamless conversion
+  // from StrictNumeric types.
+  template <typename Src>
+  CheckedNumeric(StrictNumeric<Src> value)
+      : state_(static_cast<Src>(value)) {
+  }
+
   // IsValid() is the public API to test if a CheckedNumeric is currently valid.
   bool IsValid() const { return validity() == RANGE_VALID; }
 

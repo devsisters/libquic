@@ -5,7 +5,7 @@
 #include "net/quic/quic_data_stream.h"
 
 #include "base/logging.h"
-#include "net/quic/quic_session.h"
+#include "net/quic/quic_spdy_session.h"
 #include "net/quic/quic_utils.h"
 #include "net/quic/quic_write_blocked_list.h"
 
@@ -28,8 +28,9 @@ QuicPriority kDefaultPriority = 3;
 
 }  // namespace
 
-QuicDataStream::QuicDataStream(QuicStreamId id, QuicSession* session)
-    : ReliableQuicStream(id, session),
+QuicDataStream::QuicDataStream(QuicStreamId id, QuicSpdySession* spdy_session)
+    : ReliableQuicStream(id, spdy_session),
+      spdy_session_(spdy_session),
       visitor_(nullptr),
       headers_decompressed_(false),
       priority_(kDefaultPriority) {
@@ -46,7 +47,7 @@ size_t QuicDataStream::WriteHeaders(
     const SpdyHeaderBlock& header_block,
     bool fin,
     QuicAckNotifier::DelegateInterface* ack_notifier_delegate) {
-  size_t bytes_written = session()->WriteHeaders(
+  size_t bytes_written = spdy_session_->WriteHeaders(
       id(), header_block, fin, priority_, ack_notifier_delegate);
   if (fin) {
     // TODO(rch): Add test to ensure fin_sent_ is set whenever a fin is sent.
@@ -151,7 +152,7 @@ void QuicDataStream::OnStreamHeadersPriority(QuicPriority priority) {
 void QuicDataStream::OnStreamHeadersComplete(bool fin, size_t frame_len) {
   headers_decompressed_ = true;
   if (fin) {
-    sequencer()->OnStreamFrame(QuicStreamFrame(id(), fin, 0, IOVector()));
+    sequencer()->OnStreamFrame(QuicStreamFrame(id(), fin, 0, StringPiece()));
   }
   ProcessHeaderData();
   if (FinishedReadingHeaders()) {

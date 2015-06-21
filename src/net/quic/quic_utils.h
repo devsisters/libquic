@@ -9,6 +9,7 @@
 
 #include <string>
 
+#include "base/strings/string_piece.h"
 #include "net/base/int128.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
@@ -100,11 +101,13 @@ class NET_EXPORT_PRIVATE QuicUtils {
   DISALLOW_COPY_AND_ASSIGN(QuicUtils);
 };
 
-// Utility function that returns an IOVector object wrapped around |str|.
-inline IOVector MakeIOVector(base::StringPiece str) {
-  IOVector iov;
-  iov.Append(const_cast<char*>(str.data()), str.size());
-  return iov;
+// Utility function that returns an QuicIOVector object wrapped around |str|.
+// |str|'s data is stored in |iov|.
+inline QuicIOVector MakeIOVector(base::StringPiece str, struct iovec* iov) {
+  iov->iov_base = const_cast<char*>(str.data());
+  iov->iov_len = static_cast<size_t>(str.size());
+  QuicIOVector quic_iov(iov, 1, str.size());
+  return quic_iov;
 }
 
 }  // namespace net

@@ -22,6 +22,7 @@
 
 #include "base/base_export.h"
 #include "base/strings/string16.h"
+#include "base/strings/string_piece.h"
 #include "build/build_config.h"
 
 namespace base {
@@ -40,6 +41,7 @@ class BASE_EXPORT CommandLine {
   typedef StringType::value_type CharType;
   typedef std::vector<StringType> StringVector;
   typedef std::map<std::string, StringType> SwitchMap;
+  typedef std::map<base::StringPiece, const StringType*> StringPieceSwitchMap;
 
   // A constructor for CommandLines that only carry switches and arguments.
   enum NoProgram { NO_PROGRAM };
@@ -51,6 +53,10 @@ class BASE_EXPORT CommandLine {
   // Construct a new command line from an argument list.
   CommandLine(int argc, const CharType* const* argv);
   explicit CommandLine(const StringVector& argv);
+
+  // Override copy and assign to ensure |switches_by_stringpiece_| is valid.
+  CommandLine(const CommandLine& other);
+  CommandLine& operator=(const CommandLine& other);
 
   ~CommandLine();
 
@@ -142,17 +148,19 @@ class BASE_EXPORT CommandLine {
   void SetProgram(const FilePath& program);
 
   // Returns true if this command line contains the given switch.
-  // Switch names should only be lowercase.
-  // The second override provides an optimized version to avoid inlining the
-  // codegen for the string allocation.
-  bool HasSwitch(const std::string& switch_string) const;
+  // Switch names must be lowercase.
+  // The second override provides an optimized version to avoid inlining codegen
+  // at every callsite to find the length of the constant and construct a
+  // StringPiece.
+  bool HasSwitch(const base::StringPiece& switch_string) const;
   bool HasSwitch(const char switch_constant[]) const;
 
   // Returns the value associated with the given switch. If the switch has no
   // value or isn't present, this method returns the empty string.
-  std::string GetSwitchValueASCII(const std::string& switch_string) const;
-  FilePath GetSwitchValuePath(const std::string& switch_string) const;
-  StringType GetSwitchValueNative(const std::string& switch_string) const;
+  // Switch names must be lowercase.
+  std::string GetSwitchValueASCII(const base::StringPiece& switch_string) const;
+  FilePath GetSwitchValuePath(const base::StringPiece& switch_string) const;
+  StringType GetSwitchValueNative(const base::StringPiece& switch_string) const;
 
   // Get a copy of all switches, along with their values.
   const SwitchMap& GetSwitches() const { return switches_; }
@@ -214,6 +222,11 @@ class BASE_EXPORT CommandLine {
   // also quotes parts with '%' in them.
   StringType GetArgumentsStringInternal(bool quote_placeholders) const;
 
+  // Reconstruct |switches_by_stringpiece| to be a mirror of |switches|.
+  // |switches_by_stringpiece| only contains pointers to objects owned by
+  // |switches|.
+  void ResetStringPieces();
+
   // The singleton CommandLine representing the current process's command line.
   static CommandLine* current_process_commandline_;
 
@@ -222,6 +235,12 @@ class BASE_EXPORT CommandLine {
 
   // Parsed-out switch keys and values.
   SwitchMap switches_;
+
+  // A mirror of |switches_| with only references to the actual strings.
+  // The StringPiece internally holds a pointer to a key in |switches_| while
+  // the mapped_type points to a value in |switches_|.
+  // Used for allocation-free lookups.
+  StringPieceSwitchMap switches_by_stringpiece_;
 
   // The index after the program and switches, any arguments start here.
   size_t begin_args_;

@@ -700,8 +700,12 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 #define DCHECK_IMPLIES(val1, val2) DCHECK(!(val1) || (val2))
 
 #if !DCHECK_IS_ON() && defined(OS_CHROMEOS)
-#define NOTREACHED() LOG(ERROR) << "NOTREACHED() hit in " << \
-    __FUNCTION__ << ". "
+// Implement logging of NOTREACHED() as a dedicated function to get function
+// call overhead down to a minimum.
+void LogErrorNotReached(const char* file, int line);
+#define NOTREACHED()                                       \
+  true ? ::logging::LogErrorNotReached(__FILE__, __LINE__) \
+       : EAT_STREAM_PARAMETERS
 #else
 #define NOTREACHED() DCHECK(false)
 #endif

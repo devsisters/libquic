@@ -9,11 +9,10 @@
 #include "base/metrics/histogram_base.h"
 #include "base/memory/scoped_ptr.h"
 
-class Pickle;
-class PickleIterator;
-
 namespace base {
 
+class Pickle;
+class PickleIterator;
 class SampleCountIterator;
 
 // HistogramSamples is a container storing all samples of a histogram.

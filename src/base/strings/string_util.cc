@@ -21,6 +21,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
+#include "base/strings/string_split.h"
 #include "base/strings/utf_string_conversion_utils.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/third_party/icu/icu_utf.h"
@@ -193,29 +194,33 @@ bool RemoveChars(const std::string& input,
   return ReplaceChars(input, remove_chars.as_string(), std::string(), output);
 }
 
-template<typename STR>
-TrimPositions TrimStringT(const STR& input,
-                          const STR& trim_chars,
+template<typename Str>
+TrimPositions TrimStringT(const Str& input,
+                          BasicStringPiece<Str> trim_chars,
                           TrimPositions positions,
-                          STR* output) {
-  // Find the edges of leading/trailing whitespace as desired.
+                          Str* output) {
+  // Find the edges of leading/trailing whitespace as desired. Need to use
+  // a StringPiece version of input to be able to call find* on it with the
+  // StringPiece version of trim_chars (normally the trim_chars will be a
+  // constant so avoid making a copy).
+  BasicStringPiece<Str> input_piece(input);
   const size_t last_char = input.length() - 1;
   const size_t first_good_char = (positions & TRIM_LEADING) ?
-      input.find_first_not_of(trim_chars) : 0;
+      input_piece.find_first_not_of(trim_chars) : 0;
   const size_t last_good_char = (positions & TRIM_TRAILING) ?
-      input.find_last_not_of(trim_chars) : last_char;
+      input_piece.find_last_not_of(trim_chars) : last_char;
 
-  // When the string was all whitespace, report that we stripped off whitespace
-  // from whichever position the caller was interested in.  For empty input, we
-  // stripped no whitespace, but we still need to clear |output|.
+  // When the string was all trimmed, report that we stripped off characters
+  // from whichever position the caller was interested in. For empty input, we
+  // stripped no characters, but we still need to clear |output|.
   if (input.empty() ||
-      (first_good_char == STR::npos) || (last_good_char == STR::npos)) {
+      (first_good_char == Str::npos) || (last_good_char == Str::npos)) {
     bool input_was_empty = input.empty();  // in case output == &input
     output->clear();
     return input_was_empty ? TRIM_NONE : positions;
   }
 
-  // Trim the whitespace.
+  // Trim.
   *output =
       input.substr(first_good_char, last_good_char - first_good_char + 1);
 
@@ -226,17 +231,38 @@ TrimPositions TrimStringT(const STR& input,
 }
 
 bool TrimString(const string16& input,
-                const base::StringPiece16& trim_chars,
+                base::StringPiece16 trim_chars,
                 string16* output) {
-  return TrimStringT(input, trim_chars.as_string(), TRIM_ALL, output) !=
-      TRIM_NONE;
+  return TrimStringT(input, trim_chars, TRIM_ALL, output) != TRIM_NONE;
 }
 
 bool TrimString(const std::string& input,
-                const base::StringPiece& trim_chars,
+                base::StringPiece trim_chars,
                 std::string* output) {
-  return TrimStringT(input, trim_chars.as_string(), TRIM_ALL, output) !=
-      TRIM_NONE;
+  return TrimStringT(input, trim_chars, TRIM_ALL, output) != TRIM_NONE;
+}
+
+template<typename Str>
+BasicStringPiece<Str> TrimStringPieceT(BasicStringPiece<Str> input,
+                                       BasicStringPiece<Str> trim_chars,
+                                       TrimPositions positions) {
+  size_t begin = (positions & TRIM_LEADING) ?
+      input.find_first_not_of(trim_chars) : 0;
+  size_t end = (positions & TRIM_TRAILING) ?
+      input.find_last_not_of(trim_chars) + 1 : input.size();
+  return input.substr(begin, end - begin);
+}
+
+StringPiece16 TrimString(StringPiece16 input,
+                         const base::StringPiece16& trim_chars,
+                         TrimPositions positions) {
+  return TrimStringPieceT(input, trim_chars, positions);
+}
+
+StringPiece TrimString(StringPiece input,
+                       const base::StringPiece& trim_chars,
+                       TrimPositions positions) {
+  return TrimStringPieceT(input, trim_chars, positions);
 }
 
 void TruncateUTF8ToByteSize(const std::string& input,
@@ -278,14 +304,13 @@ void TruncateUTF8ToByteSize(const std::string& input,
 TrimPositions TrimWhitespace(const string16& input,
                              TrimPositions positions,
                              string16* output) {
-  return TrimStringT(input, base::string16(kWhitespaceUTF16), positions,
-                     output);
+  return TrimStringT(input, StringPiece16(kWhitespaceUTF16), positions, output);
 }
 
 TrimPositions TrimWhitespaceASCII(const std::string& input,
                                   TrimPositions positions,
                                   std::string* output) {
-  return TrimStringT(input, std::string(kWhitespaceASCII), positions, output);
+  return TrimStringT(input, StringPiece(kWhitespaceASCII), positions, output);
 }
 
 // This function is only for backward-compatibility.
@@ -420,14 +445,12 @@ bool IsStringUTF8(const StringPiece& str) {
   return true;
 }
 
-}  // namespace base
-
 template<typename Iter>
 static inline bool DoLowerCaseEqualsASCII(Iter a_begin,
                                           Iter a_end,
                                           const char* b) {
   for (Iter it = a_begin; it != a_end; ++it, ++b) {
-    if (!*b || base::ToLowerASCII(*it) != *b)
+    if (!*b || ToLowerASCII(*it) != *b)
       return false;
   }
   return *b == 0;
@@ -460,66 +483,141 @@ bool LowerCaseEqualsASCII(const char* a_begin,
   return DoLowerCaseEqualsASCII(a_begin, a_end, b);
 }
 
+bool LowerCaseEqualsASCII(const char* a_begin,
+                          const char* a_end,
+                          const char* b_begin,
+                          const char* b_end) {
+  while (a_begin != a_end && b_begin != b_end &&
+         ToLowerASCII(*a_begin) == *b_begin) {
+    a_begin++;
+    b_begin++;
+  }
+  return a_begin == a_end && b_begin == b_end;
+}
+
 bool LowerCaseEqualsASCII(const char16* a_begin,
                           const char16* a_end,
                           const char* b) {
   return DoLowerCaseEqualsASCII(a_begin, a_end, b);
 }
 
-bool EqualsASCII(const string16& a, const base::StringPiece& b) {
+bool EqualsASCII(const string16& a, const StringPiece& b) {
   if (a.length() != b.length())
     return false;
   return std::equal(b.begin(), b.end(), a.begin());
 }
 
-bool StartsWithASCII(const std::string& str,
-                     const std::string& search,
-                     bool case_sensitive) {
-  if (case_sensitive)
-    return str.compare(0, search.length(), search) == 0;
-  else
-    return base::strncasecmp(str.c_str(), search.c_str(), search.length()) == 0;
-}
+template<typename Str>
+bool StartsWithT(BasicStringPiece<Str> str,
+                 BasicStringPiece<Str> search_for,
+                 CompareCase case_sensitivity) {
+  if (search_for.size() > str.size())
+    return false;
 
-template <typename STR>
-bool StartsWithT(const STR& str, const STR& search, bool case_sensitive) {
-  if (case_sensitive) {
-    return str.compare(0, search.length(), search) == 0;
-  } else {
-    if (search.size() > str.size())
+  BasicStringPiece<Str> source = str.substr(0, search_for.size());
+
+  switch (case_sensitivity) {
+    case CompareCase::SENSITIVE:
+      return source == search_for;
+
+    case CompareCase::INSENSITIVE_ASCII:
+      return std::equal(
+          search_for.begin(), search_for.end(),
+          source.begin(),
+          base::CaseInsensitiveCompareASCII<typename Str::value_type>());
+
+    default:
+      NOTREACHED();
       return false;
-    return std::equal(search.begin(), search.end(), str.begin(),
-                      base::CaseInsensitiveCompare<typename STR::value_type>());
   }
 }
 
-bool StartsWith(const string16& str, const string16& search,
+bool StartsWith(StringPiece str,
+                StringPiece search_for,
+                CompareCase case_sensitivity) {
+  return StartsWithT<std::string>(str, search_for, case_sensitivity);
+}
+
+bool StartsWith(StringPiece16 str,
+                StringPiece16 search_for,
+                CompareCase case_sensitivity) {
+  return StartsWithT<string16>(str, search_for, case_sensitivity);
+}
+
+bool StartsWith(const string16& str,
+                const string16& search,
                 bool case_sensitive) {
-  return StartsWithT(str, search, case_sensitive);
+  if (!case_sensitive) {
+    // This function was originally written using the current locale functions
+    // for case-insensitive comparisons. Emulate this behavior until callers
+    // can be converted either to use the case-insensitive ASCII one (most
+    // callers) or ICU functions in base_i18n.
+    if (search.size() > str.size())
+      return false;
+    return std::equal(search.begin(), search.end(), str.begin(),
+                      CaseInsensitiveCompare<char16>());
+  }
+  return StartsWith(StringPiece16(str), StringPiece16(search),
+                    CompareCase::SENSITIVE);
 }
 
-template <typename STR>
-bool EndsWithT(const STR& str, const STR& search, bool case_sensitive) {
-  size_t str_length = str.length();
-  size_t search_length = search.length();
-  if (search_length > str_length)
+template <typename Str>
+bool EndsWithT(BasicStringPiece<Str> str,
+               BasicStringPiece<Str> search_for,
+               CompareCase case_sensitivity) {
+  if (search_for.size() > str.size())
     return false;
-  if (case_sensitive)
-    return str.compare(str_length - search_length, search_length, search) == 0;
-  return std::equal(search.begin(), search.end(),
-                    str.begin() + (str_length - search_length),
-                    base::CaseInsensitiveCompare<typename STR::value_type>());
+
+  BasicStringPiece<Str> source = str.substr(str.size() - search_for.size(),
+                                            search_for.size());
+
+  switch (case_sensitivity) {
+    case CompareCase::SENSITIVE:
+      return source == search_for;
+
+    case CompareCase::INSENSITIVE_ASCII:
+      return std::equal(
+          source.begin(), source.end(),
+          search_for.begin(),
+          base::CaseInsensitiveCompareASCII<typename Str::value_type>());
+
+    default:
+      NOTREACHED();
+      return false;
+  }
 }
 
-bool EndsWith(const std::string& str, const std::string& search,
-              bool case_sensitive) {
-  return EndsWithT(str, search, case_sensitive);
+bool EndsWith(StringPiece str,
+              StringPiece search_for,
+              CompareCase case_sensitivity) {
+  return EndsWithT<std::string>(str, search_for, case_sensitivity);
 }
 
-bool EndsWith(const string16& str, const string16& search,
-              bool case_sensitive) {
-  return EndsWithT(str, search, case_sensitive);
+bool EndsWith(StringPiece16 str,
+              StringPiece16 search_for,
+                          CompareCase case_sensitivity) {
+  return EndsWithT<string16>(str, search_for, case_sensitivity);
 }
+
+bool EndsWith(const string16& str,
+              const string16& search,
+              bool case_sensitive) {
+  if (!case_sensitive) {
+    // This function was originally written using the current locale functions
+    // for case-insensitive comparisons. Emulate this behavior until callers
+    // can be converted either to use the case-insensitive ASCII one (most
+    // callers) or ICU functions in base_i18n.
+    if (search.size() > str.size())
+      return false;
+    return std::equal(search.begin(), search.end(),
+                      str.begin() + (str.size() - search.size()),
+                      CaseInsensitiveCompare<char16>());
+  }
+  return EndsWith(StringPiece16(str), StringPiece16(search),
+                    CompareCase::SENSITIVE);
+}
+
+}  // namespace base
 
 static const char* const kByteStringsUnlocalized[] = {
   " B",
@@ -684,44 +782,28 @@ void ReplaceSubstringsAfterOffset(std::string* str,
                                  true);  // replace all instances
 }
 
-
-template<typename STR>
-static size_t TokenizeT(const STR& str,
-                        const STR& delimiters,
-                        std::vector<STR>* tokens) {
-  tokens->clear();
-
-  size_t start = str.find_first_not_of(delimiters);
-  while (start != STR::npos) {
-    size_t end = str.find_first_of(delimiters, start + 1);
-    if (end == STR::npos) {
-      tokens->push_back(str.substr(start));
-      break;
-    } else {
-      tokens->push_back(str.substr(start, end - start));
-      start = str.find_first_not_of(delimiters, end + 1);
-    }
-  }
-
+size_t Tokenize(const base::string16& str,
+                const base::string16& delimiters,
+                std::vector<base::string16>* tokens) {
+  *tokens = base::SplitString(
+      str, delimiters, base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   return tokens->size();
-}
-
-size_t Tokenize(const string16& str,
-                const string16& delimiters,
-                std::vector<string16>* tokens) {
-  return TokenizeT(str, delimiters, tokens);
 }
 
 size_t Tokenize(const std::string& str,
                 const std::string& delimiters,
                 std::vector<std::string>* tokens) {
-  return TokenizeT(str, delimiters, tokens);
+  *tokens = base::SplitString(
+      str, delimiters, base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  return tokens->size();
 }
 
 size_t Tokenize(const base::StringPiece& str,
                 const base::StringPiece& delimiters,
                 std::vector<base::StringPiece>* tokens) {
-  return TokenizeT(str, delimiters, tokens);
+  *tokens = base::SplitStringPiece(
+      str, delimiters, base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  return tokens->size();
 }
 
 template<typename STR>

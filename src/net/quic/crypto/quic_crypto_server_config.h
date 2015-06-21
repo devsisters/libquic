@@ -215,8 +215,8 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // ProcessClientHello processes |client_hello| and decides whether to accept
   // or reject the connection. If the connection is to be accepted, |out| is
   // set to the contents of the ServerHello, |out_params| is completed and
-  // QUIC_NO_ERROR is returned. Otherwise |out| is set to be a REJ message and
-  // an error code is returned.
+  // QUIC_NO_ERROR is returned. Otherwise |out| is set to be a REJ or SREJ
+  // message and QUIC_NO_ERROR is returned.
   //
   // validate_chlo_result: Output from the asynchronous call to
   //     ValidateClientHello.  Contains the client hello message and

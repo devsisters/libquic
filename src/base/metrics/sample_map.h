@@ -56,6 +56,8 @@ class BASE_EXPORT_PRIVATE SampleMapIterator : public SampleCountIterator {
            HistogramBase::Count* count) const override;
 
  private:
+  void SkipEmptyBuckets();
+
   SampleToCountMap::const_iterator iter_;
   const SampleToCountMap::const_iterator end_;
 };

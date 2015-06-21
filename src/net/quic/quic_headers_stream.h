@@ -14,13 +14,15 @@
 
 namespace net {
 
+class QuicSpdySession;
+
 // Headers in QUIC are sent as SPDY SYN_STREAM or SYN_REPLY frames
 // over a reserved reliable stream with the id 2.  Each endpoint (client
 // and server) will allocate an instance of QuicHeadersStream to send
 // and receive headers.
 class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
  public:
-  explicit QuicHeadersStream(QuicSession* session);
+  explicit QuicHeadersStream(QuicSpdySession* session);
   ~QuicHeadersStream() override;
 
   // Writes |headers| for |stream_id| in a SYN_STREAM or SYN_REPLY
@@ -66,6 +68,8 @@ class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
 
   // Returns true if the session is still connected.
   bool IsConnected();
+
+  QuicSpdySession* spdy_session_;
 
   // Data about the stream whose headers are being processed.
   QuicStreamId stream_id_;

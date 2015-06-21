@@ -73,7 +73,10 @@ namespace net {
 class NET_EXPORT IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
  public:
   IOBuffer();
+
+  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
   explicit IOBuffer(int buffer_size);
+  explicit IOBuffer(size_t buffer_size);
 
   char* data() { return data_; }
 
@@ -95,15 +98,20 @@ class NET_EXPORT IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
 // argument to IO functions. Please keep using IOBuffer* for API declarations.
 class NET_EXPORT IOBufferWithSize : public IOBuffer {
  public:
+  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
   explicit IOBufferWithSize(int size);
+  explicit IOBufferWithSize(size_t size);
 
   int size() const { return size_; }
 
  protected:
+  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
+  IOBufferWithSize(char* data, int size);
+
   // Purpose of this constructor is to give a subclass access to the base class
   // constructor IOBuffer(char*) thus allowing subclass to use underlying
   // memory it does not own.
-  IOBufferWithSize(char* data, int size);
+  IOBufferWithSize(char* data, size_t size);
   ~IOBufferWithSize() override;
 
   int size_;
@@ -143,7 +151,9 @@ class NET_EXPORT StringIOBuffer : public IOBuffer {
 //
 class NET_EXPORT DrainableIOBuffer : public IOBuffer {
  public:
+  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
   DrainableIOBuffer(IOBuffer* base, int size);
+  DrainableIOBuffer(IOBuffer* base, size_t size);
 
   // DidConsume() changes the |data_| pointer so that |data_| always points
   // to the first unconsumed byte.
@@ -215,7 +225,7 @@ class NET_EXPORT PickledIOBuffer : public IOBuffer {
  public:
   PickledIOBuffer();
 
-  Pickle* pickle() { return &pickle_; }
+  base::Pickle* pickle() { return &pickle_; }
 
   // Signals that we are done writing to the pickle and we can use it for a
   // write-style IO operation.
@@ -224,7 +234,7 @@ class NET_EXPORT PickledIOBuffer : public IOBuffer {
  private:
   ~PickledIOBuffer() override;
 
-  Pickle pickle_;
+  base::Pickle pickle_;
 };
 
 // This class allows the creation of a temporary IOBuffer that doesn't really

@@ -6,6 +6,8 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "net/quic/crypto/aes_128_gcm_12_decrypter.h"
+#include "net/quic/crypto/aes_128_gcm_12_encrypter.h"
 #include "net/quic/crypto/crypto_protocol.h"
 #include "net/quic/crypto/quic_decrypter.h"
 #include "net/quic/crypto/quic_encrypter.h"
@@ -41,7 +43,7 @@ void CryptoSecretBoxer::SetKey(StringPiece key) {
 }
 
 string CryptoSecretBoxer::Box(QuicRandom* rand, StringPiece plaintext) const {
-  scoped_ptr<QuicEncrypter> encrypter(QuicEncrypter::Create(kAESG));
+  scoped_ptr<Aes128Gcm12Encrypter> encrypter(new Aes128Gcm12Encrypter());
   if (!encrypter->SetKey(key_)) {
     DLOG(DFATAL) << "CryptoSecretBoxer's encrypter->SetKey failed.";
     return string();
@@ -82,7 +84,7 @@ bool CryptoSecretBoxer::Unbox(StringPiece ciphertext,
   memcpy(&sequence_number, nonce.data() + nonce_prefix.size(),
          sizeof(sequence_number));
 
-  scoped_ptr<QuicDecrypter> decrypter(QuicDecrypter::Create(kAESG));
+  scoped_ptr<Aes128Gcm12Decrypter> decrypter(new Aes128Gcm12Decrypter());
   if (!decrypter->SetKey(key_)) {
     DLOG(DFATAL) << "CryptoSecretBoxer's decrypter->SetKey failed.";
     return false;

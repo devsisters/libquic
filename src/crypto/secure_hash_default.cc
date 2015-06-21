@@ -35,14 +35,14 @@ class SecureHashSHA256NSS : public SecureHash {
                static_cast<unsigned int>(len));
   }
 
-  bool Serialize(Pickle* pickle) override;
-  bool Deserialize(PickleIterator* data_iterator) override;
+  bool Serialize(base::Pickle* pickle) override;
+  bool Deserialize(base::PickleIterator* data_iterator) override;
 
  private:
   SHA256Context ctx_;
 };
 
-bool SecureHashSHA256NSS::Serialize(Pickle* pickle) {
+bool SecureHashSHA256NSS::Serialize(base::Pickle* pickle) {
   if (!pickle)
     return false;
 
@@ -55,7 +55,7 @@ bool SecureHashSHA256NSS::Serialize(Pickle* pickle) {
   return true;
 }
 
-bool SecureHashSHA256NSS::Deserialize(PickleIterator* data_iterator) {
+bool SecureHashSHA256NSS::Deserialize(base::PickleIterator* data_iterator) {
   int version;
   if (!data_iterator->ReadInt(&version))
     return false;

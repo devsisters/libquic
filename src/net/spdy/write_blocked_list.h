@@ -28,8 +28,7 @@ class WriteBlockedList {
   typedef std::deque<IdType> BlockedList;
   typedef typename BlockedList::iterator iterator;
 
-  explicit WriteBlockedList(bool use_stream_to_priority_map)
-      : use_stream_to_priority_(use_stream_to_priority_map) {}
+  WriteBlockedList() {}
 
   static SpdyPriority ClampPriority(SpdyPriority priority) {
     if (priority < kHighestPriority) {
@@ -58,9 +57,7 @@ class WriteBlockedList {
     DCHECK(!write_blocked_lists_[priority].empty());
     IdType stream_id = write_blocked_lists_[priority].front();
     write_blocked_lists_[priority].pop_front();
-    if (use_stream_to_priority_) {
-      stream_to_priority_.erase(stream_id);
-    }
+    stream_to_priority_.erase(stream_id);
     return stream_id;
   }
 
@@ -88,44 +85,38 @@ class WriteBlockedList {
     DVLOG(2) << "Adding stream " << stream_id << " at priority "
              << static_cast<int>(priority);
     bool should_insert_stream = true;
-    if (use_stream_to_priority_) {
-      typename StreamToPriorityMap::iterator iter =
-          stream_to_priority_.find(stream_id);
-      if (iter != stream_to_priority_.end()) {
-        DVLOG(1) << "Stream " << stream_id << " already in write blocked list.";
-        if (iter->second == priority) {
-          // The stream is already in the write blocked list for the priority.
-          should_insert_stream = false;
-        } else {
-          // The stream is in a write blocked list for a different priority.
-          bool removed =
-              RemoveStreamFromWriteBlockedList(stream_id, iter->second);
-          DCHECK(removed);
-        }
+    typename StreamToPriorityMap::iterator iter =
+        stream_to_priority_.find(stream_id);
+    if (iter != stream_to_priority_.end()) {
+      DVLOG(1) << "Stream " << stream_id << " already in write blocked list.";
+      if (iter->second == priority) {
+        // The stream is already in the write blocked list for the priority.
+        should_insert_stream = false;
+      } else {
+        // The stream is in a write blocked list for a different priority.
+        bool removed =
+            RemoveStreamFromWriteBlockedList(stream_id, iter->second);
+        DCHECK(removed);
       }
-      if (should_insert_stream) {
-        stream_to_priority_[stream_id] = priority;
-        write_blocked_lists_[priority].push_back(stream_id);
-      }
-    } else {
+    }
+    if (should_insert_stream) {
+      stream_to_priority_[stream_id] = priority;
       write_blocked_lists_[priority].push_back(stream_id);
     }
   }
 
   bool RemoveStreamFromWriteBlockedList(IdType stream_id,
                                         SpdyPriority priority) {
-    if (use_stream_to_priority_) {
-      typename StreamToPriorityMap::iterator iter =
-          stream_to_priority_.find(stream_id);
-      if (iter == stream_to_priority_.end()) {
-        // The stream is not present in the write blocked list.
-        return false;
-      } else if (iter->second == priority) {
-        stream_to_priority_.erase(iter);
-      } else {
-        // The stream is not present at the specified priority level.
-        return false;
-      }
+    typename StreamToPriorityMap::iterator iter =
+        stream_to_priority_.find(stream_id);
+    if (iter == stream_to_priority_.end()) {
+      // The stream is not present in the write blocked list.
+      return false;
+    } else if (iter->second == priority) {
+      stream_to_priority_.erase(iter);
+    } else {
+      // The stream is not present at the specified priority level.
+      return false;
     }
     // We shouldn't really add a stream_id to a list multiple times,
     // but under some conditions it does happen. Doing a check in PushBack
@@ -161,8 +152,6 @@ class WriteBlockedList {
     return num_blocked_streams;
   }
 
-  bool avoids_inserting_duplicates() const { return use_stream_to_priority_; }
-
  private:
   friend class net::test::WriteBlockedListPeer;
 
@@ -170,7 +159,6 @@ class WriteBlockedList {
 
   BlockedList write_blocked_lists_[kLowestPriority + 1];
   StreamToPriorityMap stream_to_priority_;
-  bool use_stream_to_priority_;
 };
 
 }  // namespace net
