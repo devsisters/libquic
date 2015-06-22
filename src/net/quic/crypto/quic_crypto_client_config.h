@@ -124,6 +124,18 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     // queue of ids.
     QuicConnectionId GetNextServerDesignatedConnectionId();
 
+    // Adds the servernonce to the queue of server nonces.
+    void add_server_nonce(const std::string& server_nonce);
+
+    // If true, the crypto config contains at least one server nonce, and the
+    // client should use one of these nonces.
+    bool has_server_nonce() const;
+
+    // This function should only be called when has_server_nonce is true.
+    // Returns the next connection_id specified by the server and removes it
+    // from the queue of ids.
+    std::string GetNextServerNonce();
+
     // SetProofVerifyDetails takes ownership of |details|.
     void SetProofVerifyDetails(ProofVerifyDetails* details);
 
@@ -161,8 +173,10 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     mutable scoped_ptr<CryptoHandshakeMessage> scfg_;
 
     // TODO(jokulik): Consider using a hash-set as extra book-keeping to ensure
-    // that no connection-id is added twice.
+    // that no connection-id is added twice.  Also, consider keeping the server
+    // nonces and connection_ids together in one queue.
     std::queue<QuicConnectionId> server_designated_connection_ids_;
+    std::queue<std::string> server_nonces_;
 
     DISALLOW_COPY_AND_ASSIGN(CachedState);
   };
@@ -221,9 +235,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // about a future handshake (i.e. an nonce value from the server), then it
   // will be saved in |out_params|. |now| is used to judge whether the server
   // config in the rejection message has expired. |is_https| is used to track
-  // reject reason for secure vs insecure QUIC.  If the rejection message
-  // indicates that the reject is a stateless-reject, returns error code
-  // QUIC_CRYPTO_HANDSHAKE_RECEIVED_STATELESS_REJECT.
+  // reject reason for secure vs insecure QUIC.
   QuicErrorCode ProcessRejection(const CryptoHandshakeMessage& rej,
                                  QuicWallTime now,
                                  CachedState* cached,

@@ -43,22 +43,22 @@ class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
                                 size_t expected_bucket_count) const override;
   void Add(Sample value) override;
   void AddSamples(const HistogramSamples& samples) override;
-  bool AddSamplesFromPickle(PickleIterator* iter) override;
+  bool AddSamplesFromPickle(base::PickleIterator* iter) override;
   scoped_ptr<HistogramSamples> SnapshotSamples() const override;
   void WriteHTMLGraph(std::string* output) const override;
   void WriteAscii(std::string* output) const override;
 
  protected:
   // HistogramBase implementation:
-  bool SerializeInfoImpl(Pickle* pickle) const override;
+  bool SerializeInfoImpl(base::Pickle* pickle) const override;
 
  private:
   // Clients should always use FactoryGet to create SparseHistogram.
   explicit SparseHistogram(const std::string& name);
 
   friend BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
-      PickleIterator* iter);
-  static HistogramBase* DeserializeInfoImpl(PickleIterator* iter);
+      base::PickleIterator* iter);
+  static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
   void GetParameters(DictionaryValue* params) const override;
   void GetCountAndBucketData(Count* count,

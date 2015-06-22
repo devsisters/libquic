@@ -83,15 +83,14 @@
 #include "base/metrics/histogram_samples.h"
 #include "base/time/time.h"
 
-class Pickle;
-class PickleIterator;
-
 namespace base {
 
 class BooleanHistogram;
 class CustomHistogram;
 class Histogram;
 class LinearHistogram;
+class Pickle;
+class PickleIterator;
 class SampleVector;
 
 class BASE_EXPORT Histogram : public HistogramBase {
@@ -117,6 +116,20 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                    size_t bucket_count,
                                    int32 flags);
   static HistogramBase* FactoryTimeGet(const std::string& name,
+                                       base::TimeDelta minimum,
+                                       base::TimeDelta maximum,
+                                       size_t bucket_count,
+                                       int32 flags);
+
+  // Overloads of the above two functions that take a const char* |name| param,
+  // to avoid code bloat from the std::string constructor being inlined into
+  // call sites.
+  static HistogramBase* FactoryGet(const char* name,
+                                   Sample minimum,
+                                   Sample maximum,
+                                   size_t bucket_count,
+                                   int32 flags);
+  static HistogramBase* FactoryTimeGet(const char* name,
                                        base::TimeDelta minimum,
                                        base::TimeDelta maximum,
                                        size_t bucket_count,
@@ -170,7 +183,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
   void Add(Sample value) override;
   scoped_ptr<HistogramSamples> SnapshotSamples() const override;
   void AddSamples(const HistogramSamples& samples) override;
-  bool AddSamplesFromPickle(PickleIterator* iter) override;
+  bool AddSamplesFromPickle(base::PickleIterator* iter) override;
   void WriteHTMLGraph(std::string* output) const override;
   void WriteAscii(std::string* output) const override;
 
@@ -185,7 +198,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
   ~Histogram() override;
 
   // HistogramBase implementation:
-  bool SerializeInfoImpl(Pickle* pickle) const override;
+  bool SerializeInfoImpl(base::Pickle* pickle) const override;
 
   // Method to override to skip the display of the i'th bucket if it's empty.
   virtual bool PrintEmptyBucket(size_t index) const;
@@ -210,8 +223,8 @@ class BASE_EXPORT Histogram : public HistogramBase {
   friend class StatisticsRecorderTest;
 
   friend BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
-      PickleIterator* iter);
-  static HistogramBase* DeserializeInfoImpl(PickleIterator* iter);
+      base::PickleIterator* iter);
+  static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
   // Implementation of SnapshotSamples function.
   scoped_ptr<SampleVector> SnapshotSampleVector() const;
@@ -278,6 +291,20 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                                        size_t bucket_count,
                                        int32 flags);
 
+  // Overloads of the above two functions that take a const char* |name| param,
+  // to avoid code bloat from the std::string constructor being inlined into
+  // call sites.
+  static HistogramBase* FactoryGet(const char* name,
+                                   Sample minimum,
+                                   Sample maximum,
+                                   size_t bucket_count,
+                                   int32 flags);
+  static HistogramBase* FactoryTimeGet(const char* name,
+                                       TimeDelta minimum,
+                                       TimeDelta maximum,
+                                       size_t bucket_count,
+                                       int32 flags);
+
   struct DescriptionPair {
     Sample sample;
     const char* description;  // Null means end of a list of pairs.
@@ -321,8 +348,8 @@ class BASE_EXPORT LinearHistogram : public Histogram {
 
  private:
   friend BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
-      PickleIterator* iter);
-  static HistogramBase* DeserializeInfoImpl(PickleIterator* iter);
+      base::PickleIterator* iter);
+  static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
   // For some ranges, we store a printable description of a bucket range.
   // If there is no description, then GetAsciiBucketRange() uses parent class
@@ -340,14 +367,19 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
  public:
   static HistogramBase* FactoryGet(const std::string& name, int32 flags);
 
+  // Overload of the above function that takes a const char* |name| param,
+  // to avoid code bloat from the std::string constructor being inlined into
+  // call sites.
+  static HistogramBase* FactoryGet(const char* name, int32 flags);
+
   HistogramType GetHistogramType() const override;
 
  private:
   BooleanHistogram(const std::string& name, const BucketRanges* ranges);
 
   friend BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
-      PickleIterator* iter);
-  static HistogramBase* DeserializeInfoImpl(PickleIterator* iter);
+      base::PickleIterator* iter);
+  static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
   DISALLOW_COPY_AND_ASSIGN(BooleanHistogram);
 };
@@ -362,6 +394,13 @@ class BASE_EXPORT CustomHistogram : public Histogram {
   // compatibility). The limits can be unordered or contain duplication, but
   // client should not depend on this.
   static HistogramBase* FactoryGet(const std::string& name,
+                                   const std::vector<Sample>& custom_ranges,
+                                   int32 flags);
+
+  // Overload of the above function that takes a const char* |name| param,
+  // to avoid code bloat from the std::string constructor being inlined into
+  // call sites.
+  static HistogramBase* FactoryGet(const char* name,
                                    const std::vector<Sample>& custom_ranges,
                                    int32 flags);
 
@@ -381,14 +420,14 @@ class BASE_EXPORT CustomHistogram : public Histogram {
                   const BucketRanges* ranges);
 
   // HistogramBase implementation:
-  bool SerializeInfoImpl(Pickle* pickle) const override;
+  bool SerializeInfoImpl(base::Pickle* pickle) const override;
 
   double GetBucketSize(Count current, size_t i) const override;
 
  private:
   friend BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
-      PickleIterator* iter);
-  static HistogramBase* DeserializeInfoImpl(PickleIterator* iter);
+      base::PickleIterator* iter);
+  static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
   static bool ValidateCustomRanges(const std::vector<Sample>& custom_ranges);
   static BucketRanges* CreateBucketRangesFromCustomRanges(

@@ -302,10 +302,6 @@ void QuicUnackedPacketMap::RemoveFromInFlight(
 
 void QuicUnackedPacketMap::CancelRetransmissionsForStream(
     QuicStreamId stream_id) {
-  if (stream_id == kCryptoStreamId || stream_id == kHeadersStreamId) {
-    LOG(DFATAL) << "Special streams must always retransmit data: " << stream_id;
-    return;
-  }
   QuicPacketSequenceNumber sequence_number = least_unacked_;
   for (UnackedPacketMap::const_iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++sequence_number) {

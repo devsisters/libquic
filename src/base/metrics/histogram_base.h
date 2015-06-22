@@ -17,15 +17,14 @@
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
 
-class Pickle;
-class PickleIterator;
-
 namespace base {
 
 class DictionaryValue;
 class HistogramBase;
 class HistogramSamples;
 class ListValue;
+class Pickle;
+class PickleIterator;
 
 ////////////////////////////////////////////////////////////////////////////////
 // These enums are used to facilitate deserialization of histograms from other
@@ -45,7 +44,7 @@ std::string HistogramTypeToString(HistogramType type);
 // Create or find existing histogram that matches the pickled info.
 // Returns NULL if the pickled data has problems.
 BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
-    PickleIterator* iter);
+    base::PickleIterator* iter);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -93,7 +92,7 @@ class BASE_EXPORT HistogramBase {
   explicit HistogramBase(const std::string& name);
   virtual ~HistogramBase();
 
-  std::string histogram_name() const { return histogram_name_; }
+  const std::string& histogram_name() const { return histogram_name_; }
 
   // Comapres |name| to the histogram name and triggers a DCHECK if they do not
   // match. This is a helper function used by histogram macros, which results in
@@ -121,12 +120,12 @@ class BASE_EXPORT HistogramBase {
   void AddBoolean(bool value);
 
   virtual void AddSamples(const HistogramSamples& samples) = 0;
-  virtual bool AddSamplesFromPickle(PickleIterator* iter) = 0;
+  virtual bool AddSamplesFromPickle(base::PickleIterator* iter) = 0;
 
   // Serialize the histogram info into |pickle|.
   // Note: This only serializes the construction arguments of the histogram, but
   // does not serialize the samples.
-  bool SerializeInfo(Pickle* pickle) const;
+  bool SerializeInfo(base::Pickle* pickle) const;
 
   // Try to find out data corruption from histogram and the samples.
   // The returned value is a combination of Inconsistency enum.
@@ -147,7 +146,7 @@ class BASE_EXPORT HistogramBase {
 
  protected:
   // Subclasses should implement this function to make SerializeInfo work.
-  virtual bool SerializeInfoImpl(Pickle* pickle) const = 0;
+  virtual bool SerializeInfoImpl(base::Pickle* pickle) const = 0;
 
   // Writes information about the construction parameters in |params|.
   virtual void GetParameters(DictionaryValue* params) const = 0;

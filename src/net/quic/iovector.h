@@ -89,7 +89,7 @@ class NET_EXPORT_PRIVATE IOVector {
   // and write, it always takes char*. Clients that writes will need to cast
   // away the constant of the pointer before appending a block.
   void Append(char* buffer, size_t length) {
-    if (buffer != NULL && length > 0) {
+    if (buffer != nullptr && length > 0) {
       if (iovec_.size() > 0) {
         struct iovec& last = iovec_.back();
         // If the new block is contiguous with the last block, just extend.
@@ -106,7 +106,7 @@ class NET_EXPORT_PRIVATE IOVector {
   // Same as Append, but doesn't do the tail merge optimization.
   // Intended for testing.
   void AppendNoCoalesce(char* buffer, size_t length) {
-    if (buffer != NULL && length > 0) {
+    if (buffer != nullptr && length > 0) {
       struct iovec tmp = {buffer, length};
       iovec_.push_back(tmp);
     }
@@ -127,7 +127,7 @@ class NET_EXPORT_PRIVATE IOVector {
       bytes_to_consume -= iter->iov_len;
     }
     iovec_.erase(iovec_.begin(), iter);
-    if (iovec_.size() > 0 && bytes_to_consume != 0) {
+    if (!iovec_.empty() && bytes_to_consume != 0) {
       iovec_[0].iov_base =
           static_cast<char*>(iovec_[0].iov_base) + bytes_to_consume;
       iovec_[0].iov_len -= bytes_to_consume;
@@ -140,6 +140,41 @@ class NET_EXPORT_PRIVATE IOVector {
     // At this point bytes_to_consume is the number of wanted bytes left over
     // after walking through all the iovec entries.
     return length - bytes_to_consume;
+  }
+
+  // Identical to Consume, but also copies the portion of the buffer being
+  // consumed into |buffer|.  |buffer| must be at least size |length|.  If
+  // the IOVector is less than |length|, the method consumes the entire
+  // IOVector, logs an error and returns the length consumed.
+  size_t ConsumeAndCopy(size_t length, char* buffer) {
+    if (length == 0)
+      return 0;
+
+    size_t bytes_to_consume = length;
+    // First consume all the iovecs which can be consumed completely.
+    std::vector<struct iovec>::iterator iter = iovec_.begin();
+    std::vector<struct iovec>::iterator end = iovec_.end();
+    for (; iter < end && bytes_to_consume >= iter->iov_len; ++iter) {
+      memcpy(buffer, iter->iov_base, iter->iov_len);
+      bytes_to_consume -= iter->iov_len;
+      buffer += iter->iov_len;
+    }
+    iovec_.erase(iovec_.begin(), iter);
+    if (bytes_to_consume == 0) {
+      return length;
+    }
+    if (iovec_.empty()) {
+      LOG_IF(DFATAL, bytes_to_consume > 0) << "Attempting to consume "
+                                           << bytes_to_consume
+                                           << " non-existent bytes.";
+      return length - bytes_to_consume;
+    }
+    // Partially consume the next iovec.
+    memcpy(buffer, iovec_[0].iov_base, bytes_to_consume);
+    iovec_[0].iov_base =
+        static_cast<char*>(iovec_[0].iov_base) + bytes_to_consume;
+    iovec_[0].iov_len -= bytes_to_consume;
+    return length;
   }
 
   // TODO(joechan): If capacity is large, swap out for a blank one.

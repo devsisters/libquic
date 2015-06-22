@@ -364,9 +364,10 @@ template <typename Runnable, typename RunType, typename BoundArgList>
 struct BindState;
 
 template <typename Runnable,
-          typename R, typename... Args,
+          typename R,
+          typename... Args,
           typename... BoundArgs>
-struct BindState<Runnable, R(Args...), TypeList<BoundArgs...>>
+struct BindState<Runnable, R(Args...), TypeList<BoundArgs...>> final
     : public BindStateBase {
  private:
   using StorageType = BindState<Runnable, R(Args...), TypeList<BoundArgs...>>;
@@ -398,14 +399,21 @@ struct BindState<Runnable, R(Args...), TypeList<BoundArgs...>>
   using UnboundRunType = MakeFunctionType<R, UnboundArgs>;
 
   BindState(const Runnable& runnable, const BoundArgs&... bound_args)
-      : runnable_(runnable), ref_(bound_args...), bound_args_(bound_args...) {}
+      : BindStateBase(&Destroy),
+        runnable_(runnable),
+        ref_(bound_args...),
+        bound_args_(bound_args...) {}
 
   RunnableType runnable_;
   MaybeScopedRefPtr<HasIsMethodTag<Runnable>::value, BoundArgs...> ref_;
   Tuple<BoundArgs...> bound_args_;
 
  private:
-  ~BindState() override {}
+  ~BindState() {}
+
+  static void Destroy(BindStateBase* self) {
+    delete static_cast<BindState*>(self);
+  }
 };
 
 }  // namespace internal

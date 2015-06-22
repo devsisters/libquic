@@ -78,13 +78,6 @@ class NET_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
 #endif  // !defined(USE_OPENSSL)
 
  private:
-  bool Decrypt(base::StringPiece nonce,
-               const base::StringPiece& associated_data,
-               const base::StringPiece& ciphertext,
-               uint8* output,
-               size_t* output_length,
-               size_t max_output_length);
-
 #if defined(USE_OPENSSL)
   const EVP_AEAD* const aead_alg_;
 #else

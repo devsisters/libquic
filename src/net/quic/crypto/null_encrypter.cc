@@ -21,19 +21,6 @@ bool NullEncrypter::SetNoncePrefix(StringPiece nonce_prefix) {
   return nonce_prefix.empty();
 }
 
-bool NullEncrypter::Encrypt(
-    StringPiece /*nonce*/,
-    StringPiece associated_data,
-    StringPiece plaintext,
-    unsigned char* output) {
-  string buffer = associated_data.as_string();
-  plaintext.AppendToString(&buffer);
-  uint128 hash = QuicUtils::FNV1a_128_Hash(buffer.data(), buffer.length());
-  QuicUtils::SerializeUint128Short(hash, output);
-  memcpy(output + GetHashLength(), plaintext.data(), plaintext.size());
-  return true;
-}
-
 bool NullEncrypter::EncryptPacket(QuicPacketSequenceNumber /*sequence_number*/,
                                   StringPiece associated_data,
                                   StringPiece plaintext,
@@ -44,8 +31,12 @@ bool NullEncrypter::EncryptPacket(QuicPacketSequenceNumber /*sequence_number*/,
   if (max_output_length < len) {
     return false;
   }
-  Encrypt(StringPiece(), associated_data, plaintext,
-          reinterpret_cast<unsigned char*>(output));
+  uint128 hash = QuicUtils::FNV1a_128_Hash_Two(
+      associated_data.data(), associated_data.size(), plaintext.data(),
+      plaintext.size());
+  QuicUtils::SerializeUint128Short(hash,
+                                   reinterpret_cast<unsigned char*>(output));
+  memcpy(output + GetHashLength(), plaintext.data(), plaintext.length());
   *output_length = len;
   return true;
 }

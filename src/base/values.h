@@ -64,7 +64,7 @@ class BASE_EXPORT Value {
 
   virtual ~Value();
 
-  static Value* CreateNullValue();
+  static scoped_ptr<Value> CreateNullValue();
 
   // Returns the type of the value stored by the current Value object.
   // Each type will be implemented by only one subclass of Value, so it's
@@ -338,7 +338,7 @@ class BASE_EXPORT DictionaryValue : public Value {
 
   // Makes a copy of |this| but doesn't include empty dictionaries and lists in
   // the copy.  This never returns NULL, even if |this| itself is empty.
-  DictionaryValue* DeepCopyWithoutEmptyChildren() const;
+  scoped_ptr<DictionaryValue> DeepCopyWithoutEmptyChildren() const;
 
   // Merge |dictionary| into this dictionary. This is done recursively, i.e. any
   // sub-dictionaries will be merged as well. In case of key collisions, the
@@ -493,6 +493,9 @@ class BASE_EXPORT ListValue : public Value {
   bool GetAsList(const ListValue** out_value) const override;
   ListValue* DeepCopy() const override;
   bool Equals(const Value* other) const override;
+
+  // Preferred version of DeepCopy. TODO(estade): remove DeepCopy.
+  scoped_ptr<ListValue> CreateDeepCopy() const;
 
  private:
   ValueVector list_;

@@ -39,16 +39,6 @@ class NET_EXPORT_PRIVATE QuicEncrypter {
   // packet sequence number, even when retransmitting a lost packet.
   virtual bool SetNoncePrefix(base::StringPiece nonce_prefix) = 0;
 
-  // Encrypt encrypts |plaintext| and writes the ciphertext, plus a MAC over
-  // both |associated_data| and |plaintext| to |output|, using |nonce| as the
-  // nonce. |nonce| must be |8+GetNoncePrefixSize()| bytes long and |output|
-  // must point to a buffer that is at least
-  // |GetCiphertextSize(plaintext.size()| bytes long.
-  virtual bool Encrypt(base::StringPiece nonce,
-                       base::StringPiece associated_data,
-                       base::StringPiece plaintext,
-                       unsigned char* output) = 0;
-
   // Returns a newly created QuicData object containing the encrypted
   // |plaintext| as well as a MAC over both |plaintext| and |associated_data|,
   // or nullptr if there is an error. |sequence_number| is appended to the

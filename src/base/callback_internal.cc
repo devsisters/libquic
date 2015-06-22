@@ -9,6 +9,15 @@
 namespace base {
 namespace internal {
 
+void BindStateBase::AddRef() {
+  AtomicRefCountInc(&ref_count_);
+}
+
+void BindStateBase::Release() {
+  if (!AtomicRefCountDec(&ref_count_))
+    destructor_(this);
+}
+
 CallbackBase::CallbackBase(const CallbackBase& c) = default;
 CallbackBase& CallbackBase::operator=(const CallbackBase& c) = default;
 
@@ -27,7 +36,7 @@ bool CallbackBase::Equals(const CallbackBase& other) const {
 CallbackBase::CallbackBase(BindStateBase* bind_state)
     : bind_state_(bind_state),
       polymorphic_invoke_(NULL) {
-  DCHECK(!bind_state_.get() || bind_state_->HasOneRef());
+  DCHECK(!bind_state_.get() || bind_state_->ref_count_ == 1);
 }
 
 CallbackBase::~CallbackBase() {

@@ -62,4 +62,4 @@ class BASE_EXPORT ScopedProfile {
 
 }  // namespace tracked_objects
 
-#endif   // BASE_PROFILER_SCOPED_PROFILE_H_
+#endif  // BASE_PROFILER_SCOPED_PROFILE_H_

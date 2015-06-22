@@ -14,7 +14,6 @@
 #include <limits>
 #include <map>
 #include <string>
-#include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -23,6 +22,7 @@
 #include "base/strings/string_piece.h"
 #include "base/sys_byteorder.h"
 #include "net/base/net_export.h"
+#include "net/spdy/spdy_alt_svc_wire_format.h"
 #include "net/spdy/spdy_bitmasks.h"
 
 namespace net {
@@ -35,9 +35,8 @@ enum SpdyMajorVersion {
   SPDY2 = 2,
   SPDY_MIN_VERSION = SPDY2,
   SPDY3 = 3,
-  SPDY4 = 4,
-  HTTP2 = SPDY4,
-  SPDY_MAX_VERSION = SPDY4
+  HTTP2 = 4,
+  SPDY_MAX_VERSION = HTTP2
 };
 
 // A SPDY stream id is a 31 bit entity.
@@ -614,8 +613,7 @@ class NET_EXPORT_PRIVATE SpdyFrameWithNameValueBlockIR
     // Deep copy.
     name_value_block_ = name_value_block;
   }
-  void SetHeader(const base::StringPiece& name,
-                 const base::StringPiece& value) {
+  void SetHeader(base::StringPiece name, base::StringPiece value) {
     name_value_block_[name.as_string()] = value.as_string();
   }
   SpdyNameValueBlock* mutable_name_value_block() {
@@ -636,7 +634,7 @@ class NET_EXPORT_PRIVATE SpdyDataIR
     : public NON_EXPORTED_BASE(SpdyFrameWithFinIR) {
  public:
   // Performs deep copy on data.
-  SpdyDataIR(SpdyStreamId stream_id, const base::StringPiece& data);
+  SpdyDataIR(SpdyStreamId stream_id, base::StringPiece data);
 
   // Use in conjunction with SetDataShallow() for shallow-copy on data.
   explicit SpdyDataIR(SpdyStreamId stream_id);
@@ -658,13 +656,13 @@ class NET_EXPORT_PRIVATE SpdyDataIR
   }
 
   // Deep-copy of data (keep private copy).
-  void SetDataDeep(const base::StringPiece& data) {
+  void SetDataDeep(base::StringPiece data) {
     data_store_.reset(new std::string(data.data(), data.length()));
     data_ = *(data_store_.get());
   }
 
   // Shallow-copy of data (do not keep private copy).
-  void SetDataShallow(const base::StringPiece& data) {
+  void SetDataShallow(base::StringPiece data) {
     data_store_.reset();
     data_ = data;
   }
@@ -814,8 +812,9 @@ class NET_EXPORT_PRIVATE SpdyPingIR : public SpdyFrameIR {
 
 class NET_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
  public:
-  SpdyGoAwayIR(SpdyStreamId last_good_stream_id, SpdyGoAwayStatus status,
-               const base::StringPiece& description);
+  SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
+               SpdyGoAwayStatus status,
+               base::StringPiece description);
   ~SpdyGoAwayIR() override;
   SpdyStreamId last_good_stream_id() const { return last_good_stream_id_; }
   void set_last_good_stream_id(SpdyStreamId last_good_stream_id) {
@@ -844,11 +843,7 @@ class NET_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
 class NET_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithNameValueBlockIR {
  public:
   explicit SpdyHeadersIR(SpdyStreamId stream_id)
-      : SpdyFrameWithNameValueBlockIR(stream_id),
-        has_priority_(false),
-        priority_(0),
-        padded_(false),
-        padding_payload_len_(0) {}
+      : SpdyFrameWithNameValueBlockIR(stream_id) {}
 
   void Visit(SpdyFrameVisitor* visitor) const override;
 
@@ -856,7 +851,10 @@ class NET_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithNameValueBlockIR {
   void set_has_priority(bool has_priority) { has_priority_ = has_priority; }
   uint32 priority() const { return priority_; }
   void set_priority(SpdyPriority priority) { priority_ = priority; }
-
+  SpdyStreamId parent_stream_id() const { return parent_stream_id_; }
+  void set_parent_stream_id(SpdyStreamId id) { parent_stream_id_ = id; }
+  bool exclusive() const { return exclusive_; }
+  void set_exclusive(bool exclusive) { exclusive_ = exclusive; }
   bool padded() const { return padded_; }
   int padding_payload_len() const { return padding_payload_len_; }
   void set_padding_len(int padding_len) {
@@ -868,12 +866,13 @@ class NET_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithNameValueBlockIR {
   }
 
  private:
-  bool has_priority_;
+  bool has_priority_ = false;
   // 31-bit priority.
-  uint32 priority_;
-
-  bool padded_;
-  int padding_payload_len_;
+  uint32 priority_ = 0;
+  SpdyStreamId parent_stream_id_ = 0;
+  bool exclusive_ = false;
+  bool padded_ = false;
+  int padding_payload_len_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyHeadersIR);
 };
@@ -964,31 +963,23 @@ class NET_EXPORT_PRIVATE SpdyContinuationIR
 class NET_EXPORT_PRIVATE SpdyAltSvcIR : public SpdyFrameWithStreamIdIR {
  public:
   explicit SpdyAltSvcIR(SpdyStreamId stream_id);
+  ~SpdyAltSvcIR() override;
 
-  uint32 max_age() const { return max_age_; }
-  uint16 port() const { return port_; }
-  SpdyProtocolId protocol_id() const {
-    return protocol_id_;
-  }
-  std::string host() const { return host_; }
   std::string origin() const { return origin_; }
-
-  void set_max_age(uint32 max_age) { max_age_ = max_age; }
-  void set_port(uint16 port) { port_ = port; }
-  void set_protocol_id(SpdyProtocolId protocol_id) {
-    protocol_id_ = protocol_id;
+  const SpdyAltSvcWireFormat::AlternativeServiceVector& altsvc_vector() const {
+    return altsvc_vector_;
   }
-  void set_host(std::string host) { host_ = host; }
-  void set_origin(std::string origin) { origin_ = origin; }
+
+  void set_origin(const std::string origin) { origin_ = origin; }
+  void add_altsvc(const SpdyAltSvcWireFormat::AlternativeService& altsvc) {
+    altsvc_vector_.push_back(altsvc);
+  }
 
   void Visit(SpdyFrameVisitor* visitor) const override;
 
  private:
-  uint32 max_age_;
-  uint16 port_;
-  SpdyProtocolId protocol_id_;
-  std::string host_;
   std::string origin_;
+  SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector_;
   DISALLOW_COPY_AND_ASSIGN(SpdyAltSvcIR);
 };
 
@@ -999,10 +990,10 @@ class NET_EXPORT_PRIVATE SpdyPriorityIR : public SpdyFrameWithStreamIdIR {
         parent_stream_id_(0),
         weight_(1),
         exclusive_(false) {}
-  explicit SpdyPriorityIR(SpdyStreamId stream_id,
-                          SpdyStreamId parent_stream_id,
-                          uint8 weight,
-                          bool exclusive)
+  SpdyPriorityIR(SpdyStreamId stream_id,
+                 SpdyStreamId parent_stream_id,
+                 uint8 weight,
+                 bool exclusive)
       : SpdyFrameWithStreamIdIR(stream_id),
         parent_stream_id_(parent_stream_id),
         weight_(weight),

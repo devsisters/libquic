@@ -66,10 +66,10 @@ class CRYPTO_EXPORT ECPrivateKey {
       bool sensitive,
       SECKEYPrivateKey** key,
       SECKEYPublicKey** public_key);
+#endif
 
   // Returns a copy of the object.
   ECPrivateKey* Copy() const;
-#endif
 
 #if defined(USE_OPENSSL)
   EVP_PKEY* key() { return key_; }

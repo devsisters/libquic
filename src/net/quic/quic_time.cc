@@ -4,12 +4,14 @@
 
 #include "net/quic/quic_time.h"
 
+#include <stdint.h>
+
 #include "base/logging.h"
 
 namespace net {
 
 // Highest number of microseconds that DateTimeOffset can hold.
-const int64 kQuicInfiniteTimeUs = GG_INT64_C(0x7fffffffffffffff) / 10;
+const int64 kQuicInfiniteTimeUs = INT64_C(0x7fffffffffffffff) / 10;
 
 QuicTime::Delta::Delta(base::TimeDelta delta)
     : delta_(delta) {

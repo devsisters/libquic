@@ -206,9 +206,6 @@ NET_ERROR(SSL_BAD_RECORD_MAC_ALERT, -126)
 // The proxy requested authentication (for tunnel establishment).
 NET_ERROR(PROXY_AUTH_REQUESTED, -127)
 
-// A known TLS strict server didn't offer the renegotiation extension.
-NET_ERROR(SSL_UNSAFE_NEGOTIATION, -128)
-
 // The SSL server attempted to use a weak ephemeral Diffie-Hellman key.
 NET_ERROR(SSL_WEAK_SERVER_EPHEMERAL_DH_KEY, -129)
 
@@ -683,6 +680,10 @@ NET_ERROR(CACHE_CHECKSUM_MISMATCH, -408)
 // Internal error code for the HTTP cache. The cache lock timeout has fired.
 NET_ERROR(CACHE_LOCK_TIMEOUT, -409)
 
+// Received a challenge after the transaction has read some data, and the
+// credentials aren't available.  There isn't a way to get them at that point.
+NET_ERROR(CACHE_AUTH_FAILURE_AFTER_READ, -410)
+
 // The server's response was insecure (e.g. there was a cert error).
 NET_ERROR(INSECURE_RESPONSE, -501)
 
@@ -758,8 +759,7 @@ NET_ERROR(PKCS12_IMPORT_UNSUPPORTED, -709)
 // Key generation failed.
 NET_ERROR(KEY_GENERATION_FAILED, -710)
 
-// Server-bound certificate generation failed.
-NET_ERROR(ORIGIN_BOUND_CERT_GENERATION_FAILED, -711)
+// Error -711 was removed (ORIGIN_BOUND_CERT_GENERATION_FAILED)
 
 // Failure to export private key.
 NET_ERROR(PRIVATE_KEY_EXPORT_FAILED, -712)

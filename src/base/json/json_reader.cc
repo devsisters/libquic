@@ -6,6 +6,7 @@
 
 #include "base/json/json_parser.h"
 #include "base/logging.h"
+#include "base/values.h"
 
 namespace base {
 
@@ -42,34 +43,51 @@ JSONReader::~JSONReader() {
 }
 
 // static
-Value* JSONReader::Read(const StringPiece& json) {
+Value* JSONReader::DeprecatedRead(const StringPiece& json) {
+  return Read(json).release();
+}
+
+// static
+scoped_ptr<Value> JSONReader::Read(const StringPiece& json) {
   internal::JSONParser parser(JSON_PARSE_RFC);
-  return parser.Parse(json);
+  return make_scoped_ptr(parser.Parse(json));
 }
 
 // static
-Value* JSONReader::Read(const StringPiece& json,
-                        int options) {
-  internal::JSONParser parser(options);
-  return parser.Parse(json);
+Value* JSONReader::DeprecatedRead(const StringPiece& json, int options) {
+  return Read(json, options).release();
 }
 
 // static
-Value* JSONReader::ReadAndReturnError(const StringPiece& json,
-                                      int options,
-                                      int* error_code_out,
-                                      std::string* error_msg_out) {
+scoped_ptr<Value> JSONReader::Read(const StringPiece& json, int options) {
   internal::JSONParser parser(options);
-  Value* root = parser.Parse(json);
-  if (root)
-    return root;
+  return make_scoped_ptr(parser.Parse(json));
+}
 
-  if (error_code_out)
-    *error_code_out = parser.error_code();
-  if (error_msg_out)
-    *error_msg_out = parser.GetErrorMessage();
+// static
+Value* JSONReader::DeprecatedReadAndReturnError(const StringPiece& json,
+                                                int options,
+                                                int* error_code_out,
+                                                std::string* error_msg_out) {
+  return ReadAndReturnError(json, options, error_code_out, error_msg_out)
+      .release();
+}
 
-  return NULL;
+// static
+scoped_ptr<Value> JSONReader::ReadAndReturnError(const StringPiece& json,
+                                                 int options,
+                                                 int* error_code_out,
+                                                 std::string* error_msg_out) {
+  internal::JSONParser parser(options);
+  scoped_ptr<Value> root(parser.Parse(json));
+  if (!root) {
+    if (error_code_out)
+      *error_code_out = parser.error_code();
+    if (error_msg_out)
+      *error_msg_out = parser.GetErrorMessage();
+  }
+
+  return root;
 }
 
 // static
@@ -99,8 +117,8 @@ std::string JSONReader::ErrorCodeToString(JsonParseError error_code) {
   }
 }
 
-Value* JSONReader::ReadToValue(const std::string& json) {
-  return parser_->Parse(json);
+scoped_ptr<Value> JSONReader::ReadToValue(const std::string& json) {
+  return make_scoped_ptr(parser_->Parse(json));
 }
 
 JSONReader::JsonParseError JSONReader::error_code() const {

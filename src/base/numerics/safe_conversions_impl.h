@@ -148,10 +148,10 @@ struct DstRangeRelationToSrcRangeImpl<Dst,
                                       NUMERIC_RANGE_NOT_CONTAINED> {
   static RangeConstraint Check(Src value) {
     return std::numeric_limits<Dst>::is_iec559
-               ? GetRangeConstraint(value <= std::numeric_limits<Dst>::max(),
-                                    value >= -std::numeric_limits<Dst>::max())
-               : GetRangeConstraint(value <= std::numeric_limits<Dst>::max(),
-                                    value >= std::numeric_limits<Dst>::min());
+               ? GetRangeConstraint((value < std::numeric_limits<Dst>::max()),
+                                    (value > -std::numeric_limits<Dst>::max()))
+               : GetRangeConstraint((value < std::numeric_limits<Dst>::max()),
+                                    (value > std::numeric_limits<Dst>::min()));
   }
 };
 
@@ -163,7 +163,7 @@ struct DstRangeRelationToSrcRangeImpl<Dst,
                                       INTEGER_REPRESENTATION_UNSIGNED,
                                       NUMERIC_RANGE_NOT_CONTAINED> {
   static RangeConstraint Check(Src value) {
-    return GetRangeConstraint(value <= std::numeric_limits<Dst>::max(), true);
+    return GetRangeConstraint(value < std::numeric_limits<Dst>::max(), true);
   }
 };
 
@@ -178,7 +178,7 @@ struct DstRangeRelationToSrcRangeImpl<Dst,
     return sizeof(Dst) > sizeof(Src)
                ? RANGE_VALID
                : GetRangeConstraint(
-                     value <= static_cast<Src>(std::numeric_limits<Dst>::max()),
+                     value < static_cast<Src>(std::numeric_limits<Dst>::max()),
                      true);
   }
 };
@@ -195,7 +195,7 @@ struct DstRangeRelationToSrcRangeImpl<Dst,
     return (MaxExponent<Dst>::value >= MaxExponent<Src>::value)
                ? GetRangeConstraint(true, value >= static_cast<Src>(0))
                : GetRangeConstraint(
-                     value <= static_cast<Src>(std::numeric_limits<Dst>::max()),
+                     value < static_cast<Src>(std::numeric_limits<Dst>::max()),
                      value >= static_cast<Src>(0));
   }
 };

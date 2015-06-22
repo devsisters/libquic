@@ -12,6 +12,7 @@
 #elif defined(OS_POSIX)
 #include <netinet/in.h>
 #endif
+#include "net/base/net_util.h"
 
 namespace net {
 
@@ -25,9 +26,9 @@ IPEndPoint::IPEndPoint() : port_(0) {}
 
 IPEndPoint::~IPEndPoint() {}
 
-IPEndPoint::IPEndPoint(const IPAddressNumber& address, uint16 port)
-    : address_(address),
-      port_(port) {}
+IPEndPoint::IPEndPoint(const IPAddressNumber& address, uint16_t port)
+    : address_(address), port_(port) {
+}
 
 IPEndPoint::IPEndPoint(const IPEndPoint& endpoint) {
   address_ = endpoint.address_;
@@ -88,9 +89,9 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* sock_addr,
                               socklen_t sock_addr_len) {
   DCHECK(sock_addr);
 
-  const uint8* address;
+  const uint8_t* address;
   size_t address_len;
-  uint16 port;
+  uint16_t port;
   if (!GetIPAddressFromSockAddr(sock_addr, sock_addr_len, &address,
                                 &address_len, &port)) {
     return false;

@@ -104,7 +104,7 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   // Called when we see a frame which could increase the highest offset.
   // Returns true if the highest offset did increase.
   bool MaybeIncreaseHighestReceivedOffset(QuicStreamOffset new_offset);
-  // Called when bytese are sent to the peer.
+  // Called when bytes are sent to the peer.
   void AddBytesSent(QuicByteCount bytes);
   // Called by the stream sequencer as bytes are consumed from the buffer.
   // If our receive window has dropped below the threshold, then send a

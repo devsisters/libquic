@@ -4,6 +4,8 @@
 
 #include "net/quic/quic_framer.h"
 
+#include <stdint.h>
+
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
@@ -31,16 +33,16 @@ namespace {
 
 // Mask to select the lowest 48 bits of a sequence number.
 const QuicPacketSequenceNumber k6ByteSequenceNumberMask =
-    GG_UINT64_C(0x0000FFFFFFFFFFFF);
+    UINT64_C(0x0000FFFFFFFFFFFF);
 const QuicPacketSequenceNumber k4ByteSequenceNumberMask =
-    GG_UINT64_C(0x00000000FFFFFFFF);
+    UINT64_C(0x00000000FFFFFFFF);
 const QuicPacketSequenceNumber k2ByteSequenceNumberMask =
-    GG_UINT64_C(0x000000000000FFFF);
+    UINT64_C(0x000000000000FFFF);
 const QuicPacketSequenceNumber k1ByteSequenceNumberMask =
-    GG_UINT64_C(0x00000000000000FF);
+    UINT64_C(0x00000000000000FF);
 
-const QuicConnectionId k1ByteConnectionIdMask = GG_UINT64_C(0x00000000000000FF);
-const QuicConnectionId k4ByteConnectionIdMask = GG_UINT64_C(0x00000000FFFFFFFF);
+const QuicConnectionId k1ByteConnectionIdMask = UINT64_C(0x00000000000000FF);
+const QuicConnectionId k4ByteConnectionIdMask = UINT64_C(0x00000000FFFFFFFF);
 
 // Number of bits the sequence number length bits are shifted from the right
 // edge of the public header.
@@ -133,15 +135,6 @@ QuicSequenceNumberLength ReadSequenceNumberLength(uint8 flags) {
 
 }  // namespace
 
-bool QuicFramerVisitorInterface::OnWindowUpdateFrame(
-    const QuicWindowUpdateFrame& frame) {
-  return true;
-}
-
-bool QuicFramerVisitorInterface::OnBlockedFrame(const QuicBlockedFrame& frame) {
-  return true;
-}
-
 QuicFramer::QuicFramer(const QuicVersionVector& supported_versions,
                        QuicTime creation_time,
                        Perspective perspective)
@@ -180,7 +173,6 @@ size_t QuicFramer::GetMinStreamFrameSize(QuicStreamId stream_id,
 
 // static
 size_t QuicFramer::GetMinAckFrameSize(
-    QuicSequenceNumberLength sequence_number_length,
     QuicSequenceNumberLength largest_observed_length) {
   return kQuicFrameTypeSize + kQuicEntropyHashSize +
       largest_observed_length + kQuicDeltaTimeLargestObservedSize;
@@ -308,9 +300,9 @@ size_t QuicFramer::GetSerializedFrameLength(
   if (!first_frame) {
     return 0;
   }
-  bool can_truncate = frame.type == ACK_FRAME &&
-      free_bytes >= GetMinAckFrameSize(PACKET_6BYTE_SEQUENCE_NUMBER,
-                                       PACKET_6BYTE_SEQUENCE_NUMBER);
+  bool can_truncate =
+      frame.type == ACK_FRAME &&
+      free_bytes >= GetMinAckFrameSize(PACKET_6BYTE_SEQUENCE_NUMBER);
   if (can_truncate) {
     // Truncate the frame so the packet will not exceed kMaxPacketSize.
     // Note that we may not use every byte of the writer in this case.
@@ -810,7 +802,7 @@ const QuicTime::Delta QuicFramer::CalculateTimestampFromWire(
   //
   // epoch_delta is the delta between epochs. A delta is 4 bytes of
   // microseconds.
-  const uint64 epoch_delta = GG_UINT64_C(1) << 32;
+  const uint64 epoch_delta = UINT64_C(1) << 32;
   uint64 epoch = last_timestamp_.ToMicroseconds() & ~(epoch_delta - 1);
   // Wrapping is safe here because a wrapped value will not be ClosestTo below.
   uint64 prev_epoch = epoch - epoch_delta;
@@ -837,7 +829,7 @@ QuicPacketSequenceNumber QuicFramer::CalculatePacketSequenceNumberFromWire(
   // with, so the correct value is likely the same epoch as the last sequence
   // number or an adjacent epoch.
   const QuicPacketSequenceNumber epoch_delta =
-      GG_UINT64_C(1) << (8 * sequence_number_length);
+      UINT64_C(1) << (8 * sequence_number_length);
   QuicPacketSequenceNumber next_sequence_number = last_sequence_number_ + 1;
   QuicPacketSequenceNumber epoch = last_sequence_number_ & ~(epoch_delta - 1);
   QuicPacketSequenceNumber prev_epoch = epoch - epoch_delta;
@@ -955,7 +947,7 @@ QuicSequenceNumberLength QuicFramer::GetMinSequenceNumberLength(
   } else if (sequence_number < 1 << (PACKET_2BYTE_SEQUENCE_NUMBER * 8)) {
     return PACKET_2BYTE_SEQUENCE_NUMBER;
   } else if (sequence_number <
-             GG_UINT64_C(1) << (PACKET_4BYTE_SEQUENCE_NUMBER * 8)) {
+             UINT64_C(1) << (PACKET_4BYTE_SEQUENCE_NUMBER * 8)) {
     return PACKET_4BYTE_SEQUENCE_NUMBER;
   } else {
     return PACKET_6BYTE_SEQUENCE_NUMBER;
@@ -1279,22 +1271,16 @@ bool QuicFramer::ProcessStreamFrame(uint8 frame_type,
     return false;
   }
 
-  StringPiece frame_data;
   if (has_data_length) {
-    if (!reader_->ReadStringPiece16(&frame_data)) {
+    if (!reader_->ReadStringPiece16(&frame->data)) {
       set_detailed_error("Unable to read frame data.");
       return false;
     }
   } else {
-    if (!reader_->ReadStringPiece(&frame_data, reader_->BytesRemaining())) {
+    if (!reader_->ReadStringPiece(&frame->data, reader_->BytesRemaining())) {
       set_detailed_error("Unable to read frame data.");
       return false;
     }
-  }
-  // Point frame to the right data.
-  frame->data.Clear();
-  if (!frame_data.empty()) {
-    frame->data.Append(const_cast<char*>(frame_data.data()), frame_data.size());
   }
 
   return true;
@@ -1596,16 +1582,15 @@ StringPiece QuicFramer::GetAssociatedDataFromEncryptedPacket(
       - kStartOfHashData);
 }
 
-void QuicFramer::SetDecrypter(QuicDecrypter* decrypter,
-                              EncryptionLevel level) {
+void QuicFramer::SetDecrypter(EncryptionLevel level, QuicDecrypter* decrypter) {
   DCHECK(alternative_decrypter_.get() == nullptr);
   DCHECK_GE(level, decrypter_level_);
   decrypter_.reset(decrypter);
   decrypter_level_ = level;
 }
 
-void QuicFramer::SetAlternativeDecrypter(QuicDecrypter* decrypter,
-                                         EncryptionLevel level,
+void QuicFramer::SetAlternativeDecrypter(EncryptionLevel level,
+                                         QuicDecrypter* decrypter,
                                          bool latch_once_used) {
   alternative_decrypter_.reset(decrypter);
   alternative_decrypter_level_ = level;
@@ -1627,7 +1612,7 @@ void QuicFramer::SetEncrypter(EncryptionLevel level,
   encrypter_[level].reset(encrypter);
 }
 
-QuicEncryptedPacket* QuicFramer::EncryptPacket(
+QuicEncryptedPacket* QuicFramer::EncryptPayload(
     EncryptionLevel level,
     QuicPacketSequenceNumber packet_sequence_number,
     const QuicPacket& packet,
@@ -1742,8 +1727,7 @@ size_t QuicFramer::GetAckFrameSize(
   QuicSequenceNumberLength missing_sequence_number_length =
       GetMinSequenceNumberLength(ack_info.max_delta);
 
-  size_t ack_size = GetMinAckFrameSize(sequence_number_length,
-                                       largest_observed_length);
+  size_t ack_size = GetMinAckFrameSize(largest_observed_length);
   if (!ack_info.nack_ranges.empty()) {
     ack_size += kNumberOfNackRangesSize  + kNumberOfRevivedPacketsSize;
     ack_size += min(ack_info.nack_ranges.size(), kMaxNackRanges) *
@@ -1780,9 +1764,8 @@ size_t QuicFramer::ComputeFrameLength(
     case STREAM_FRAME:
       return GetMinStreamFrameSize(frame.stream_frame->stream_id,
                                    frame.stream_frame->offset,
-                                   last_frame_in_packet,
-                                   is_in_fec_group) +
-          frame.stream_frame->data.TotalBufferSize();
+                                   last_frame_in_packet, is_in_fec_group) +
+             frame.stream_frame->data.length();
     case ACK_FRAME: {
       return GetAckFrameSize(*frame.ack_frame, sequence_number_length);
     }
@@ -1904,15 +1887,14 @@ bool QuicFramer::AppendStreamFrame(
     return false;
   }
   if (!no_stream_frame_length) {
-    if ((frame.data.TotalBufferSize() > numeric_limits<uint16>::max()) ||
-        !writer->WriteUInt16(
-            static_cast<uint16>(frame.data.TotalBufferSize()))) {
+    if ((frame.data.size() > numeric_limits<uint16>::max()) ||
+        !writer->WriteUInt16(static_cast<uint16>(frame.data.size()))) {
       LOG(DFATAL) << "Writing stream frame length failed";
       return false;
     }
   }
 
-  if (!writer->WriteIOVector(frame.data)) {
+  if (!writer->WriteBytes(frame.data.data(), frame.data.size())) {
     LOG(DFATAL) << "Writing frame data failed.";
     return false;
   }
@@ -1935,10 +1917,9 @@ bool QuicFramer::AppendAckFrameAndTypeByte(
   QuicSequenceNumberLength missing_sequence_number_length =
       GetMinSequenceNumberLength(ack_info.max_delta);
   // Determine whether we need to truncate ranges.
-  size_t available_range_bytes = writer->capacity() - writer->length() -
-      kNumberOfRevivedPacketsSize - kNumberOfNackRangesSize -
-      GetMinAckFrameSize(header.public_header.sequence_number_length,
-                         largest_observed_length);
+  size_t available_range_bytes =
+      writer->capacity() - writer->length() - kNumberOfRevivedPacketsSize -
+      kNumberOfNackRangesSize - GetMinAckFrameSize(largest_observed_length);
   size_t max_num_ranges = available_range_bytes /
       (missing_sequence_number_length + PACKET_1BYTE_SEQUENCE_NUMBER);
   max_num_ranges = min(kMaxNackRanges, max_num_ranges);
@@ -2100,7 +2081,7 @@ bool QuicFramer::AppendTimestampToAckFrame(const QuicAckFrame& frame,
   }
 
   // Use the lowest 4 bytes of the time delta from the creation_time_.
-  const uint64 time_epoch_delta_us = GG_UINT64_C(1) << 32;
+  const uint64 time_epoch_delta_us = UINT64_C(1) << 32;
   uint32 time_delta_us =
       static_cast<uint32>(it->second.Subtract(creation_time_).ToMicroseconds()
                           & (time_epoch_delta_us - 1));

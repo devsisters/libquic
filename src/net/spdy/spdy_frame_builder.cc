@@ -168,7 +168,7 @@ bool SpdyFrameBuilder::RewriteLength(const SpdyFramer& framer) {
 
 bool SpdyFrameBuilder::OverwriteLength(const SpdyFramer& framer,
                                        size_t length) {
-  if (version_ < SPDY4) {
+  if (version_ < HTTP2) {
     DCHECK_LE(length,
               SpdyConstants::GetFrameMaximumSize(version_) -
                   framer.GetFrameMinimumSize());
@@ -178,7 +178,7 @@ bool SpdyFrameBuilder::OverwriteLength(const SpdyFramer& framer,
   bool success = false;
   const size_t old_length = length_;
 
-  if (version_ < SPDY4) {
+  if (version_ < HTTP2) {
     FlagsAndLength flags_length = CreateFlagsAndLength(
         0,  // We're not writing over the flags value anyway.
         length);

@@ -10,12 +10,15 @@
 #undef _GNU_SOURCE
 #endif
 
-#include "build/build_config.h"
-#include "base/safe_strerror_posix.h"
+#include "base/posix/safe_strerror.h"
 
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "build/build_config.h"
+
+namespace base {
 
 #define USE_HISTORICAL_STRERRO_R (defined(__GLIBC__) || defined(OS_NACL))
 
@@ -117,3 +120,5 @@ std::string safe_strerror(int err) {
   safe_strerror_r(err, buf, sizeof(buf));
   return std::string(buf);
 }
+
+}  // namespace base

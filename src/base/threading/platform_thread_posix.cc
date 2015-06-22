@@ -13,7 +13,6 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/safe_strerror_posix.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
@@ -231,7 +230,7 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
   // the thread referred to by |thread_handle| may still be running long-lived /
   // blocking tasks.
   base::ThreadRestrictions::AssertIOAllowed();
-  CHECK_EQ(0, pthread_join(thread_handle.handle_, NULL));
+  CHECK_EQ(0, pthread_join(thread_handle.platform_handle(), NULL));
 }
 
 // Mac has its own Set/GetThreadPriority() implementations.
@@ -252,13 +251,13 @@ void PlatformThread::SetThreadPriority(PlatformThreadHandle handle,
   // Linux/NPTL implementation of POSIX threads, the nice value is a per-thread
   // attribute". Also, 0 is prefered to the current thread id since it is
   // equivalent but makes sandboxing easier (https://crbug.com/399473).
-  DCHECK_NE(handle.id_, kInvalidThreadId);
+  DCHECK_NE(handle.id(), kInvalidThreadId);
   const int nice_setting = internal::ThreadPriorityToNiceValue(priority);
   const PlatformThreadId current_id = PlatformThread::CurrentId();
-  if (setpriority(PRIO_PROCESS, handle.id_ == current_id ? 0 : handle.id_,
+  if (setpriority(PRIO_PROCESS, handle.id() == current_id ? 0 : handle.id(),
                   nice_setting)) {
-    DVPLOG(1) << "Failed to set nice value of thread (" << handle.id_ << ") to "
-              << nice_setting;
+    DVPLOG(1) << "Failed to set nice value of thread (" << handle.id()
+              << ") to " << nice_setting;
   }
 #endif  // defined(OS_NACL)
 }
@@ -276,15 +275,15 @@ ThreadPriority PlatformThread::GetThreadPriority(PlatformThreadHandle handle) {
     return platform_specific_priority;
   }
 
-  DCHECK_NE(handle.id_, kInvalidThreadId);
+  DCHECK_NE(handle.id(), kInvalidThreadId);
   const PlatformThreadId current_id = PlatformThread::CurrentId();
   // Need to clear errno before calling getpriority():
   // http://man7.org/linux/man-pages/man2/getpriority.2.html
   errno = 0;
   int nice_value =
-      getpriority(PRIO_PROCESS, handle.id_ == current_id ? 0 : handle.id_);
+      getpriority(PRIO_PROCESS, handle.id() == current_id ? 0 : handle.id());
   if (errno != 0) {
-    DVPLOG(1) << "Failed to get nice value of thread (" << handle.id_ << ")";
+    DVPLOG(1) << "Failed to get nice value of thread (" << handle.id() << ")";
     return ThreadPriority::NORMAL;
   }
 

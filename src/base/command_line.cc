@@ -93,18 +93,6 @@ void AppendSwitchesAndArguments(CommandLine* command_line,
   }
 }
 
-// Lowercase switches for backwards compatiblity *on Windows*.
-#if defined(OS_WIN)
-std::string LowerASCIIOnWindows(const std::string& string) {
-  return StringToLowerASCII(string);
-}
-#elif defined(OS_POSIX)
-const std::string& LowerASCIIOnWindows(const std::string& string) {
-  return string;
-}
-#endif
-
-
 #if defined(OS_WIN)
 // Quote a string as necessary for CommandLineToArgvW compatiblity *on Windows*.
 string16 QuoteForCommandLineToArgvW(const string16& arg,
@@ -180,6 +168,21 @@ CommandLine::CommandLine(const StringVector& argv)
   InitFromArgv(argv);
 }
 
+CommandLine::CommandLine(const CommandLine& other)
+    : argv_(other.argv_),
+      switches_(other.switches_),
+      begin_args_(other.begin_args_) {
+  ResetStringPieces();
+}
+
+CommandLine& CommandLine::operator=(const CommandLine& other) {
+  argv_ = other.argv_;
+  switches_ = other.switches_;
+  begin_args_ = other.begin_args_;
+  ResetStringPieces();
+  return *this;
+}
+
 CommandLine::~CommandLine() {
 }
 
@@ -249,6 +252,7 @@ void CommandLine::InitFromArgv(int argc,
 void CommandLine::InitFromArgv(const StringVector& argv) {
   argv_ = StringVector(1);
   switches_.clear();
+  switches_by_stringpiece_.clear();
   begin_args_ = 1;
   SetProgram(argv.empty() ? FilePath() : FilePath(argv[0]));
   AppendSwitchesAndArguments(this, argv);
@@ -262,17 +266,18 @@ void CommandLine::SetProgram(const FilePath& program) {
   TrimWhitespace(program.value(), TRIM_ALL, &argv_[0]);
 }
 
-bool CommandLine::HasSwitch(const std::string& switch_string) const {
-  DCHECK_EQ(StringToLowerASCII(switch_string), switch_string);
-  return switches_.find(switch_string) != switches_.end();
+bool CommandLine::HasSwitch(const base::StringPiece& switch_string) const {
+  DCHECK_EQ(StringToLowerASCII(switch_string.as_string()), switch_string);
+  return switches_by_stringpiece_.find(switch_string) !=
+         switches_by_stringpiece_.end();
 }
 
-bool CommandLine::HasSwitch(const char string_constant[]) const {
-  return HasSwitch(std::string(string_constant));
+bool CommandLine::HasSwitch(const char switch_constant[]) const {
+  return HasSwitch(base::StringPiece(switch_constant));
 }
 
 std::string CommandLine::GetSwitchValueASCII(
-    const std::string& switch_string) const {
+    const base::StringPiece& switch_string) const {
   StringType value = GetSwitchValueNative(switch_string);
   if (!IsStringASCII(value)) {
     DLOG(WARNING) << "Value of switch (" << switch_string << ") must be ASCII.";
@@ -286,15 +291,16 @@ std::string CommandLine::GetSwitchValueASCII(
 }
 
 FilePath CommandLine::GetSwitchValuePath(
-    const std::string& switch_string) const {
+    const base::StringPiece& switch_string) const {
   return FilePath(GetSwitchValueNative(switch_string));
 }
 
 CommandLine::StringType CommandLine::GetSwitchValueNative(
-    const std::string& switch_string) const {
-  SwitchMap::const_iterator result =
-    switches_.find(LowerASCIIOnWindows(switch_string));
-  return result == switches_.end() ? StringType() : result->second;
+    const base::StringPiece& switch_string) const {
+  DCHECK_EQ(StringToLowerASCII(switch_string.as_string()), switch_string);
+  auto result = switches_by_stringpiece_.find(switch_string);
+  return result == switches_by_stringpiece_.end() ? StringType()
+                                                  : *(result->second);
 }
 
 void CommandLine::AppendSwitch(const std::string& switch_string) {
@@ -308,14 +314,19 @@ void CommandLine::AppendSwitchPath(const std::string& switch_string,
 
 void CommandLine::AppendSwitchNative(const std::string& switch_string,
                                      const CommandLine::StringType& value) {
-  std::string switch_key(LowerASCIIOnWindows(switch_string));
 #if defined(OS_WIN)
+  const std::string switch_key = StringToLowerASCII(switch_string);
   StringType combined_switch_string(ASCIIToUTF16(switch_key));
 #elif defined(OS_POSIX)
-  StringType combined_switch_string(switch_string);
+  const std::string& switch_key = switch_string;
+  StringType combined_switch_string(switch_key);
 #endif
   size_t prefix_length = GetSwitchPrefixLength(combined_switch_string);
-  switches_[switch_key.substr(prefix_length)] = value;
+  auto insertion =
+      switches_.insert(make_pair(switch_key.substr(prefix_length), value));
+  if (!insertion.second)
+    insertion.first->second = value;
+  switches_by_stringpiece_[insertion.first->first] = &(insertion.first->second);
   // Preserve existing switch prefixes in |argv_|; only append one if necessary.
   if (prefix_length == 0)
     combined_switch_string = kSwitchPrefixes[0] + combined_switch_string;
@@ -451,6 +462,12 @@ CommandLine::StringType CommandLine::GetArgumentsStringInternal(
     }
   }
   return params;
+}
+
+void CommandLine::ResetStringPieces() {
+  switches_by_stringpiece_.clear();
+  for (const auto& entry : switches_)
+    switches_by_stringpiece_[entry.first] = &(entry.second);
 }
 
 }  // namespace base

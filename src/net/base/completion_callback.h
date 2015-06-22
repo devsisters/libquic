@@ -14,9 +14,10 @@ namespace net {
 // used to report a byte count or network error code.
 typedef base::Callback<void(int)> CompletionCallback;
 
-// 64bit version of callback specialization that takes a single int64 parameter.
-// Usually this is used to report a file offset, size or network error code.
-typedef base::Callback<void(int64)> Int64CompletionCallback;
+// 64bit version of callback specialization that takes a single int64_t
+// parameter. Usually this is used to report a file offset, size or network
+// error code.
+typedef base::Callback<void(int64_t)> Int64CompletionCallback;
 
 typedef base::CancelableCallback<void(int)> CancelableCompletionCallback;
 

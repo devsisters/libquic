@@ -21,12 +21,13 @@ const char kPrettyPrintLineEnding[] = "\n";
 #endif
 
 // static
-bool JSONWriter::Write(const Value* const node, std::string* json) {
+bool JSONWriter::Write(const Value& node, std::string* json) {
   return WriteWithOptions(node, 0, json);
 }
 
 // static
-bool JSONWriter::WriteWithOptions(const Value* const node, int options,
+bool JSONWriter::WriteWithOptions(const Value& node,
+                                  int options,
                                   std::string* json) {
   json->clear();
   // Is there a better way to estimate the size of the output?
@@ -50,8 +51,8 @@ JSONWriter::JSONWriter(int options, std::string* json)
   DCHECK(json);
 }
 
-bool JSONWriter::BuildJSONString(const Value* const node, size_t depth) {
-  switch (node->GetType()) {
+bool JSONWriter::BuildJSONString(const Value& node, size_t depth) {
+  switch (node.GetType()) {
     case Value::TYPE_NULL: {
       json_string_->append("null");
       return true;
@@ -59,7 +60,7 @@ bool JSONWriter::BuildJSONString(const Value* const node, size_t depth) {
 
     case Value::TYPE_BOOLEAN: {
       bool value;
-      bool result = node->GetAsBoolean(&value);
+      bool result = node.GetAsBoolean(&value);
       DCHECK(result);
       json_string_->append(value ? "true" : "false");
       return result;
@@ -67,7 +68,7 @@ bool JSONWriter::BuildJSONString(const Value* const node, size_t depth) {
 
     case Value::TYPE_INTEGER: {
       int value;
-      bool result = node->GetAsInteger(&value);
+      bool result = node.GetAsInteger(&value);
       DCHECK(result);
       json_string_->append(IntToString(value));
       return result;
@@ -75,7 +76,7 @@ bool JSONWriter::BuildJSONString(const Value* const node, size_t depth) {
 
     case Value::TYPE_DOUBLE: {
       double value;
-      bool result = node->GetAsDouble(&value);
+      bool result = node.GetAsDouble(&value);
       DCHECK(result);
       if (omit_double_type_preservation_ &&
           value <= kint64max &&
@@ -107,7 +108,7 @@ bool JSONWriter::BuildJSONString(const Value* const node, size_t depth) {
 
     case Value::TYPE_STRING: {
       std::string value;
-      bool result = node->GetAsString(&value);
+      bool result = node.GetAsString(&value);
       DCHECK(result);
       EscapeJSONString(value, true, json_string_);
       return result;
@@ -120,7 +121,7 @@ bool JSONWriter::BuildJSONString(const Value* const node, size_t depth) {
 
       const ListValue* list = NULL;
       bool first_value_has_been_output = false;
-      bool result = node->GetAsList(&list);
+      bool result = node.GetAsList(&list);
       DCHECK(result);
       for (ListValue::const_iterator it = list->begin(); it != list->end();
            ++it) {
@@ -134,7 +135,7 @@ bool JSONWriter::BuildJSONString(const Value* const node, size_t depth) {
             json_string_->push_back(' ');
         }
 
-        if (!BuildJSONString(value, depth))
+        if (!BuildJSONString(*value, depth))
           result = false;
 
         first_value_has_been_output = true;
@@ -153,7 +154,7 @@ bool JSONWriter::BuildJSONString(const Value* const node, size_t depth) {
 
       const DictionaryValue* dict = NULL;
       bool first_value_has_been_output = false;
-      bool result = node->GetAsDictionary(&dict);
+      bool result = node.GetAsDictionary(&dict);
       DCHECK(result);
       for (DictionaryValue::Iterator itr(*dict); !itr.IsAtEnd();
            itr.Advance()) {
@@ -176,7 +177,7 @@ bool JSONWriter::BuildJSONString(const Value* const node, size_t depth) {
         if (pretty_print_)
           json_string_->push_back(' ');
 
-        if (!BuildJSONString(&itr.value(), depth + 1U))
+        if (!BuildJSONString(itr.value(), depth + 1U))
           result = false;
 
         first_value_has_been_output = true;

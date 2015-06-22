@@ -1,6 +1,6 @@
-CC=g++
+CC=g++-4.8
 AR=ar
-C=gcc
+C=gcc-4.8
 CFLAGS=-Wall -Isrc -Isrc/third_party/modp_b64 -DUSE_OPENSSL=1 -Iboringssl/include -g -gdwarf-4
 CPPFLAGS=--std=gnu++11
 LDFLAGS=-pthread -Lboringssl/build/crypto -Lboringssl/build/ssl
