@@ -246,10 +246,12 @@ std::string IPAddressToStringWithPort(const IPAddressNumber& addr,
   return IPAddressToStringWithPort(&addr.front(), addr.size(), port);
 }
 
+#if 0
 std::string IPAddressToPackedString(const IPAddressNumber& addr) {
   return std::string(reinterpret_cast<const char *>(&addr.front()),
                      addr.size());
 }
+#endif
 
 bool IsPortValid(int port) {
   return port >= 0 && port <= std::numeric_limits<uint16>::max();
