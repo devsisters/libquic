@@ -28,7 +28,15 @@ def run(cmd):
     print(cmd)
     r = os.system(cmd)
     if r != 0:
+        print("Script '{}' failed with error code {}. Exiting".format(cmd, r))
         exit(r)
+
+
+def force_run(cmd):
+    print(cmd)
+    r = os.system(cmd)
+    if r != 0:
+        print("Script '{}' failed with error code {}. Continuing anyway...".format(cmd, r))
 
 
 def main():
@@ -88,7 +96,7 @@ def main():
         print("Skipping patches...")
     else:
         for patch in deps.get("patches", []):
-            run("patch -p1 < {0}".format(patch))
+            force_run("patch -p1 < {0}".format(patch))
 
     # 4. Copy custom files
     for custom in deps.get("custom_files", []):
