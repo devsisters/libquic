@@ -86,13 +86,22 @@ If you want to apply upstream chnages,
 
   1. Clone & Checkout chromium upstream.
   2. Build QUIC server: `cd out/Debug; ninja quic_server`
-  3. Update "chromium_revision" var at DEPS to your chromium source code revision.
-  4. Do `./manage.py sync <CHROMIUM_GIT_ROOT>`
-     Then, all necessary files will be updated to new one.
-  5. If there is any patch collision, fix it and repeat `step 2`.
-  6. Temporarily commit here. Try build, and you'll find that you may need to
-     add additional patches.
-  7. Do your work, then make a patch by `git diff > new_patch.patch`
-  8. Add patch file to `DEPS`. Amend previous temp commit.
-  9. Commit `DEPS`, new patch, and source changes
+  3. Update "chromium_revision" var at DEPS to your chromium source code
+     revision.
+  4. Do `./manage.py sync --without-patches <CHROMIUM_GIT_ROOT>`
+     All necessary files will be updated to new ones without patches applied.
+  5. Temporarily commit here.
+  6. Do `./manage.py sync <CHROMIUM_GIT_ROOT>`
+     All the patches will be applied. Some patches will be rejected.
+  7. If there is any patch collision, manually apply the rejected patches.
+     Open the `*.rej` files and carefully apply the rejected hunks manually.
+  8. Try build, and you'll find that you may need to add additional
+     modifications to make build successful. There may be added or deleted
+     source files. Update `CMakeLists.txt` accordingly.
+  9. If the build is successful, make a patch by:
+     `git diff src/ > patch/basepatch.patch`
+     (Make sure you don't include `custom/` directory sources to the patch)
+  10. Add patch file to `DEPS` or update existing patch files. Amend previous
+      commit.
+  11. Commit `DEPS`, new patch, and source changes
 
