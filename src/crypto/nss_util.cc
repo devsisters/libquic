@@ -18,6 +18,10 @@
 #include <sys/param.h>
 #endif
 
+#if defined(OS_CHROMEOS)
+#include <dlfcn.h>
+#endif
+
 #include <map>
 #include <vector>
 
@@ -39,7 +43,6 @@
 #if 0
 #include "base/message_loop/message_loop.h"
 #endif
-#include "base/metrics/histogram.h"
 #include "base/native_library.h"
 #include "base/path_service.h"
 #include "base/stl_util.h"
@@ -279,6 +282,38 @@ class ChromeOSUserData {
       SlotReadyCallbackList;
   SlotReadyCallbackList tpm_ready_callback_list_;
 };
+
+class ScopedChapsLoadFixup {
+  public:
+    ScopedChapsLoadFixup();
+    ~ScopedChapsLoadFixup();
+
+  private:
+#if defined(COMPONENT_BUILD)
+    void *chaps_handle_;
+#endif
+};
+
+#if defined(COMPONENT_BUILD)
+
+ScopedChapsLoadFixup::ScopedChapsLoadFixup() {
+  // HACK: libchaps links the system protobuf and there are symbol conflicts
+  // with the bundled copy. Load chaps with RTLD_DEEPBIND to workaround.
+  chaps_handle_ = dlopen(kChapsPath, RTLD_LOCAL | RTLD_NOW | RTLD_DEEPBIND);
+}
+
+ScopedChapsLoadFixup::~ScopedChapsLoadFixup() {
+  // LoadModule() will have taken a 2nd reference.
+  if (chaps_handle_)
+    dlclose(chaps_handle_);
+}
+
+#else
+
+ScopedChapsLoadFixup::ScopedChapsLoadFixup() {}
+ScopedChapsLoadFixup::~ScopedChapsLoadFixup() {}
+
+#endif  // defined(COMPONENT_BUILD)
 #endif  // defined(OS_CHROMEOS)
 
 class NSSInitSingleton {
@@ -382,6 +417,8 @@ class NSSInitSingleton {
     // This tries to load the Chaps module so NSS can talk to the hardware
     // TPM.
     if (!tpm_args->chaps_module) {
+      ScopedChapsLoadFixup chaps_loader;
+
       DVLOG(3) << "Loading chaps...";
       tpm_args->chaps_module = LoadModule(
           kChapsModuleName,
@@ -695,8 +732,6 @@ class NSSInitSingleton {
         initializing_tpm_token_(false),
         chaps_module_(NULL),
         root_(NULL) {
-    base::TimeTicks start_time = base::TimeTicks::Now();
-
     // It's safe to construct on any thread, since LazyInstance will prevent any
     // other threads from accessing until the constructor is done.
 #if 0
@@ -795,14 +830,6 @@ class NSSInitSingleton {
     NSS_SetAlgorithmPolicy(SEC_OID_MD5, 0, NSS_USE_ALG_IN_CERT_SIGNATURE);
     NSS_SetAlgorithmPolicy(SEC_OID_PKCS1_MD5_WITH_RSA_ENCRYPTION,
                            0, NSS_USE_ALG_IN_CERT_SIGNATURE);
-
-    // The UMA bit is conditionally set for this histogram in
-    // components/startup_metric_utils.cc .
-    LOCAL_HISTOGRAM_CUSTOM_TIMES("Startup.SlowStartupNSSInit",
-                                 base::TimeTicks::Now() - start_time,
-                                 base::TimeDelta::FromMilliseconds(10),
-                                 base::TimeDelta::FromHours(1),
-                                 50);
   }
 
   // NOTE(willchan): We don't actually execute this code since we leak NSS to

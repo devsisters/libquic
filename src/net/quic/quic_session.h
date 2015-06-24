@@ -18,8 +18,6 @@
 #include "net/base/ip_endpoint.h"
 #include "net/quic/quic_connection.h"
 #include "net/quic/quic_crypto_stream.h"
-#include "net/quic/quic_data_stream.h"
-#include "net/quic/quic_headers_stream.h"
 #include "net/quic/quic_packet_creator.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_write_blocked_list.h"
@@ -56,9 +54,10 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   };
 
   QuicSession(QuicConnection* connection, const QuicConfig& config);
-  void InitializeSession();
 
   ~QuicSession() override;
+
+  virtual void Initialize();
 
   // QuicConnectionVisitorInterface methods:
   void OnStreamFrames(const std::vector<QuicStreamFrame>& frames) override;
@@ -74,22 +73,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   void OnCongestionWindowChange(QuicTime now) override {}
   bool WillingAndAbleToWrite() const override;
   bool HasPendingHandshake() const override;
-  bool HasOpenDataStreams() const override;
-
-  // Called by the headers stream when headers have been received for a stream.
-  virtual void OnStreamHeaders(QuicStreamId stream_id,
-                               base::StringPiece headers_data);
-  // Called by the headers stream when headers with a priority have been
-  // received for this stream.  This method will only be called for server
-  // streams.
-  virtual void OnStreamHeadersPriority(QuicStreamId stream_id,
-                                       QuicPriority priority);
-  // Called by the headers stream when headers have been completely received
-  // for a stream.  |fin| will be true if the fin flag was set in the headers
-  // frame.
-  virtual void OnStreamHeadersComplete(QuicStreamId stream_id,
-                                       bool fin,
-                                       size_t frame_len);
+  bool HasOpenDynamicStreams() const override;
 
   // Called by streams when they want to write data to the peer.
   // Returns a pair with the number of bytes consumed from data, and a boolean
@@ -103,21 +87,10 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // we have seen ACKs for all packets resulting from this call.
   virtual QuicConsumedData WritevData(
       QuicStreamId id,
-      const IOVector& data,
+      const QuicIOVector& iov,
       QuicStreamOffset offset,
       bool fin,
       FecProtection fec_protection,
-      QuicAckNotifier::DelegateInterface* ack_notifier_delegate);
-
-  // Writes |headers| for the stream |id| to the dedicated headers stream.
-  // If |fin| is true, then no more data will be sent for the stream |id|.
-  // If provided, |ack_notifier_delegate| will be registered to be notified when
-  // we have seen ACKs for all packets resulting from this call.
-  size_t WriteHeaders(
-      QuicStreamId id,
-      const SpdyHeaderBlock& headers,
-      bool fin,
-      QuicPriority priority,
       QuicAckNotifier::DelegateInterface* ack_notifier_delegate);
 
   // Called by streams when they want to close the stream in both directions.
@@ -171,7 +144,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
 
   QuicConnection* connection() { return connection_.get(); }
   const QuicConnection* connection() const { return connection_.get(); }
-  size_t num_active_requests() const { return stream_map_.size(); }
+  size_t num_active_requests() const { return dynamic_stream_map_.size(); }
   const IPEndPoint& peer_address() const {
     return connection_->peer_address();
   }
@@ -211,35 +184,32 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
 
   size_t get_max_open_streams() const { return max_open_streams_; }
 
-  // Used in Chrome.
-  const QuicHeadersStream* headers_stream() { return headers_stream_.get(); }
+  ReliableQuicStream* GetStream(const QuicStreamId stream_id);
 
  protected:
-  typedef base::hash_map<QuicStreamId, QuicDataStream*> DataStreamMap;
+  typedef base::hash_map<QuicStreamId, ReliableQuicStream*> StreamMap;
 
   // Creates a new stream, owned by the caller, to handle a peer-initiated
   // stream.  Returns nullptr and does error handling if the stream can not be
   // created.
-  virtual QuicDataStream* CreateIncomingDataStream(QuicStreamId id) = 0;
+  virtual ReliableQuicStream* CreateIncomingDynamicStream(QuicStreamId id) = 0;
 
   // Create a new stream, owned by the caller, to handle a locally-initiated
   // stream.  Returns nullptr if max streams have already been opened.
-  virtual QuicDataStream* CreateOutgoingDataStream() = 0;
+  virtual ReliableQuicStream* CreateOutgoingDynamicStream() = 0;
 
   // Return the reserved crypto stream.
   virtual QuicCryptoStream* GetCryptoStream() = 0;
 
   // Adds 'stream' to the active stream map.
-  virtual void ActivateStream(QuicDataStream* stream);
+  virtual void ActivateStream(ReliableQuicStream* stream);
 
   // Returns the stream id for a new stream.
   QuicStreamId GetNextStreamId();
 
-  QuicDataStream* GetIncomingDataStream(QuicStreamId stream_id);
+  ReliableQuicStream* GetIncomingDynamicStream(QuicStreamId stream_id);
 
-  QuicDataStream* GetDataStream(const QuicStreamId stream_id);
-
-  ReliableQuicStream* GetStream(const QuicStreamId stream_id);
+  ReliableQuicStream* GetDynamicStream(const QuicStreamId stream_id);
 
   // This is called after every call other than OnConnectionClose from the
   // QuicConnectionVisitor to allow post-processing once the work has been done.
@@ -247,19 +217,22 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // operations are being done on the streams at this time)
   virtual void PostProcessAfterData();
 
-  base::hash_map<QuicStreamId, QuicDataStream*>* streams() {
-    return &stream_map_;
-  }
+  StreamMap& static_streams() { return static_stream_map_; }
+  const StreamMap& static_streams() const { return static_stream_map_; }
 
-  const base::hash_map<QuicStreamId, QuicDataStream*>* streams() const {
-    return &stream_map_;
-  }
+  StreamMap& dynamic_streams() { return dynamic_stream_map_; }
+  const StreamMap& dynamic_streams() const { return dynamic_stream_map_; }
 
-  std::vector<QuicDataStream*>* closed_streams() { return &closed_streams_; }
+  std::vector<ReliableQuicStream*>* closed_streams() {
+    return &closed_streams_;
+  }
 
   void set_max_open_streams(size_t max_open_streams);
 
-  scoped_ptr<QuicHeadersStream> headers_stream_;
+  void set_largest_peer_created_stream_id(
+      QuicStreamId largest_peer_created_stream_id) {
+    largest_peer_created_stream_id_ = largest_peer_created_stream_id;
+  }
 
  private:
   friend class test::QuicSessionPeer;
@@ -284,6 +257,10 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // control window in a negotiated config. Closes the connection if invalid.
   void OnNewSessionFlowControlWindow(QuicStreamOffset new_window);
 
+  // Called in OnConfigNegotiated when auto-tuning is enabled for flow
+  // control receive windows.
+  void EnableAutoTuneReceiveWindow();
+
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
   std::map<QuicStreamId, QuicStreamOffset>
@@ -295,15 +272,19 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // deletions.
   scoped_ptr<VisitorShim> visitor_shim_;
 
-  std::vector<QuicDataStream*> closed_streams_;
+  std::vector<ReliableQuicStream*> closed_streams_;
 
   QuicConfig config_;
 
   // Returns the maximum number of streams this connection can open.
   size_t max_open_streams_;
 
+  // Static streams, such as crypto and header streams. Owned by child classes
+  // that create these streams.
+  StreamMap static_stream_map_;
+
   // Map from StreamId to pointers to streams that are owned by the caller.
-  DataStreamMap stream_map_;
+  StreamMap dynamic_stream_map_;
   QuicStreamId next_stream_id_;
 
   // Set of stream ids that have been "implicitly created" by receipt

@@ -20,7 +20,7 @@ namespace base {
 
 namespace {
 
-class EnvironmentImpl : public base::Environment {
+class EnvironmentImpl : public Environment {
  public:
   bool GetVar(const char* variable_name, std::string* result) override {
     if (GetVarImpl(variable_name, result))
@@ -35,7 +35,7 @@ class EnvironmentImpl : public base::Environment {
     if (first_char >= 'a' && first_char <= 'z')
       alternate_case_var = StringToUpperASCII(std::string(variable_name));
     else if (first_char >= 'A' && first_char <= 'Z')
-      alternate_case_var = base::StringToLowerASCII(std::string(variable_name));
+      alternate_case_var = StringToLowerASCII(std::string(variable_name));
     else
       return false;
     return GetVarImpl(alternate_case_var.c_str(), result);

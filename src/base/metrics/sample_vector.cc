@@ -7,8 +7,6 @@
 #include "base/logging.h"
 #include "base/metrics/bucket_ranges.h"
 
-using std::vector;
-
 namespace base {
 
 typedef HistogramBase::Count Count;
@@ -111,7 +109,7 @@ size_t SampleVector::GetBucketIndex(Sample value) const {
   return mid;
 }
 
-SampleVectorIterator::SampleVectorIterator(const vector<Count>* counts,
+SampleVectorIterator::SampleVectorIterator(const std::vector<Count>* counts,
                                            const BucketRanges* bucket_ranges)
     : counts_(counts),
       bucket_ranges_(bucket_ranges),

@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_SAFE_STRERROR_POSIX_H_
-#define BASE_SAFE_STRERROR_POSIX_H_
+#ifndef BASE_POSIX_SAFE_STRERROR_H_
+#define BASE_POSIX_SAFE_STRERROR_H_
 
 #include <string>
 
 #include "base/base_export.h"
+
+namespace base {
 
 // BEFORE using anything from this file, first look at PLOG and friends in
 // logging.h and use them instead if applicable.
@@ -35,4 +37,6 @@ BASE_EXPORT void safe_strerror_r(int err, char *buf, size_t len);
 // allocate a string.
 BASE_EXPORT std::string safe_strerror(int err);
 
-#endif  // BASE_SAFE_STRERROR_POSIX_H_
+}  // namespace base
+
+#endif  // BASE_POSIX_SAFE_STRERROR_H_

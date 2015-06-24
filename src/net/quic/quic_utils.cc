@@ -5,6 +5,7 @@
 #include "net/quic/quic_utils.h"
 
 #include <ctype.h>
+#include <stdint.h>
 
 #include <algorithm>
 #include <vector>
@@ -12,7 +13,6 @@
 #include "base/basictypes.h"
 #include "base/containers/adapters.h"
 #include "base/logging.h"
-#include "base/port.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -25,8 +25,8 @@ namespace net {
 
 // static
 uint64 QuicUtils::FNV1a_64_Hash(const char* data, int len) {
-  static const uint64 kOffset = GG_UINT64_C(14695981039346656037);
-  static const uint64 kPrime = GG_UINT64_C(1099511628211);
+  static const uint64 kOffset = UINT64_C(14695981039346656037);
+  static const uint64 kPrime = UINT64_C(1099511628211);
 
   const uint8* octets = reinterpret_cast<const uint8*>(data);
 
@@ -53,8 +53,8 @@ uint128 QuicUtils::FNV1a_128_Hash_Two(const char* data1,
   // The two constants are defined as part of the hash algorithm.
   // see http://www.isthe.com/chongo/tech/comp/fnv/
   // 144066263297769815596495629667062367629
-  const uint128 kOffset(GG_UINT64_C(7809847782465536322),
-                        GG_UINT64_C(7113472399480571277));
+  const uint128 kOffset(UINT64_C(7809847782465536322),
+                        UINT64_C(7113472399480571277));
 
   uint128 hash = IncrementalHash(kOffset, data1, len1);
   if (data2 == nullptr) {

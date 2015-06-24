@@ -243,7 +243,6 @@ class NET_EXPORT_PRIVATE QuicFramer {
                                       InFecGroup is_in_fec_group);
   // Size in bytes of all ack frame fields without the missing packets.
   static size_t GetMinAckFrameSize(
-      QuicSequenceNumberLength sequence_number_length,
       QuicSequenceNumberLength largest_observed_length);
   // Size in bytes of a stop waiting frame.
   static size_t GetStopWaitingFrameSize(
@@ -315,7 +314,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // function DCHECKs. This is intended for cases where one knows that future
   // packets will be using the new decrypter and the previous decrypter is now
   // obsolete. |level| indicates the encryption level of the new decrypter.
-  void SetDecrypter(QuicDecrypter* decrypter, EncryptionLevel level);
+  void SetDecrypter(EncryptionLevel level, QuicDecrypter* decrypter);
 
   // SetAlternativeDecrypter sets a decrypter that may be used to decrypt
   // future packets and takes ownership of it. |level| indicates the encryption
@@ -323,8 +322,8 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // that the decrypter is successful it will replace the primary decrypter.
   // Otherwise both decrypters will remain active and the primary decrypter
   // will be the one last used.
-  void SetAlternativeDecrypter(QuicDecrypter* decrypter,
-                               EncryptionLevel level,
+  void SetAlternativeDecrypter(EncryptionLevel level,
+                               QuicDecrypter* decrypter,
                                bool latch_once_used);
 
   const QuicDecrypter* decrypter() const;
@@ -337,11 +336,11 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // Returns a new encrypted packet, owned by the caller.
   // Encrypts into |buffer| if |buffer_len| is long enough, and otherwise
   // constructs a new buffer owned by the EncryptedPacket.
-  QuicEncryptedPacket* EncryptPacket(EncryptionLevel level,
-                                     QuicPacketSequenceNumber sequence_number,
-                                     const QuicPacket& packet,
-                                     char* buffer,
-                                     size_t buffer_len);
+  QuicEncryptedPacket* EncryptPayload(EncryptionLevel level,
+                                      QuicPacketSequenceNumber sequence_number,
+                                      const QuicPacket& packet,
+                                      char* buffer,
+                                      size_t buffer_len);
 
   // Returns the maximum length of plaintext that can be encrypted
   // to ciphertext no larger than |ciphertext_size|.
@@ -518,7 +517,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // successfully decrypts a packet, we should install it as the only
   // decrypter.
   bool alternative_decrypter_latch_;
-  // Encrypters used to encrypt packets via EncryptPacket().
+  // Encrypters used to encrypt packets via EncryptPayload().
   scoped_ptr<QuicEncrypter> encrypter_[NUM_ENCRYPTION_LEVELS];
   // Tracks if the framer is being used by the entity that received the
   // connection or the entity that initiated it.

@@ -37,7 +37,7 @@ bool JSONStringValueSerializer::SerializeInternal(const Value& root,
   if (pretty_print_)
     options |= base::JSONWriter::OPTIONS_PRETTY_PRINT;
 
-  return base::JSONWriter::WriteWithOptions(&root, options, json_string_);
+  return base::JSONWriter::WriteWithOptions(root, options, json_string_);
 }
 
 JSONStringValueDeserializer::JSONStringValueDeserializer(
@@ -50,8 +50,8 @@ JSONStringValueDeserializer::~JSONStringValueDeserializer() {}
 
 Value* JSONStringValueDeserializer::Deserialize(int* error_code,
                                                 std::string* error_str) {
-  return base::JSONReader::ReadAndReturnError(json_string_,
-      allow_trailing_comma_ ? base::JSON_ALLOW_TRAILING_COMMAS :
-          base::JSON_PARSE_RFC,
+  return base::JSONReader::DeprecatedReadAndReturnError(
+      json_string_, allow_trailing_comma_ ? base::JSON_ALLOW_TRAILING_COMMAS
+                                          : base::JSON_PARSE_RFC,
       error_code, error_str);
 }

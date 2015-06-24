@@ -4,6 +4,8 @@
 
 #include "net/quic/quic_socket_address_coder.h"
 
+#include "net/base/sys_addrinfo.h"
+
 using std::string;
 
 namespace net {

@@ -135,7 +135,7 @@ std::string EscapeBytesAsInvalidJSONString(const StringPiece& str,
     dest.push_back('"');
 
   for (StringPiece::const_iterator it = str.begin(); it != str.end(); ++it) {
-    ToUnsigned<StringPiece::value_type>::Unsigned c = *it;
+    unsigned char c = *it;
     if (EscapeSpecialCodePoint(c, &dest))
       continue;
 

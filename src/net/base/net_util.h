@@ -17,6 +17,7 @@
 #include "base/basictypes.h"
 #include "net/base/address_family.h"
 #include "net/base/net_export.h"
+#include "net/base/ip_address_number.h"
 
 namespace url {
 // Component ------------------------------------------------------------------
@@ -67,8 +68,6 @@ namespace net {
 typedef std::vector<unsigned char> IPAddressNumber;
 typedef std::vector<IPAddressNumber> IPAddressList;
 
-static const size_t kIPv4AddressSize = 4;
-static const size_t kIPv6AddressSize = 16;
 #if defined(OS_WIN)
 // Bluetooth address size. Windows Bluetooth is supported via winsock.
 static const size_t kBluetoothAddressSize = 6;

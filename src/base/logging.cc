@@ -59,7 +59,7 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/threading/platform_thread.h"
 #include "base/vlog.h"
 #if defined(OS_POSIX)
-#include "base/safe_strerror_posix.h"
+#include "base/posix/safe_strerror.h"
 #endif
 
 #if defined(OS_ANDROID)
@@ -70,8 +70,8 @@ namespace logging {
 
 namespace {
 
-VlogInfo* g_vlog_info = NULL;
-VlogInfo* g_vlog_info_prev = NULL;
+VlogInfo* g_vlog_info = nullptr;
+VlogInfo* g_vlog_info_prev = nullptr;
 
 const char* const log_severity_names[LOG_NUM_SEVERITIES] = {
   "INFO", "WARNING", "ERROR", "FATAL" };
@@ -82,9 +82,9 @@ const char* log_severity_name(int severity) {
   return "UNKNOWN";
 }
 
-int min_log_level = 0;
+int g_min_log_level = 0;
 
-LoggingDestination logging_destination = LOG_DEFAULT;
+LoggingDestination g_logging_destination = LOG_DEFAULT;
 
 // For LOG_ERROR and above, always print to stderr.
 const int kAlwaysPrintErrorLevel = LOG_ERROR;
@@ -97,25 +97,25 @@ typedef std::wstring PathString;
 #else
 typedef std::string PathString;
 #endif
-PathString* log_file_name = NULL;
+PathString* g_log_file_name = nullptr;
 
-// this file is lazily opened and the handle may be NULL
-FileHandle log_file = NULL;
+// This file is lazily opened and the handle may be nullptr
+FileHandle g_log_file = nullptr;
 
-// what should be prepended to each message?
-bool log_process_id = false;
-bool log_thread_id = false;
-bool log_timestamp = true;
-bool log_tickcount = false;
+// What should be prepended to each message?
+bool g_log_process_id = false;
+bool g_log_thread_id = false;
+bool g_log_timestamp = true;
+bool g_log_tickcount = false;
 
 // Should we pop up fatal debug messages in a dialog?
 bool show_error_dialogs = false;
 
 // An assert handler override specified by the client to be called instead of
 // the debug message dialog and process termination.
-LogAssertHandlerFunction log_assert_handler = NULL;
+LogAssertHandlerFunction log_assert_handler = nullptr;
 // A log message handler that gets notified of every log message we process.
-LogMessageHandlerFunction log_message_handler = NULL;
+LogMessageHandlerFunction log_message_handler = nullptr;
 
 // Helper functions to wrap platform differences.
 
@@ -162,7 +162,7 @@ PathString GetDefaultLogFile() {
 #if defined(OS_WIN)
   // On Windows we use the same path as the exe.
   wchar_t module_name[MAX_PATH];
-  GetModuleFileName(NULL, module_name, MAX_PATH);
+  GetModuleFileName(nullptr, module_name, MAX_PATH);
 
   PathString log_name = module_name;
   PathString::size_type last_backslash = log_name.rfind('\\', log_name.size());
@@ -208,9 +208,9 @@ class LoggingLock {
         std::replace(safe_name.begin(), safe_name.end(), '\\', '/');
         std::wstring t(L"Global\\");
         t.append(safe_name);
-        log_mutex = ::CreateMutex(NULL, FALSE, t.c_str());
+        log_mutex = ::CreateMutex(nullptr, FALSE, t.c_str());
 
-        if (log_mutex == NULL) {
+        if (log_mutex == nullptr) {
 #if DEBUG
           // Keep the error code for debugging
           int error = GetLastError();  // NOLINT
@@ -278,49 +278,49 @@ class LoggingLock {
 // static
 bool LoggingLock::initialized = false;
 // static
-base::internal::LockImpl* LoggingLock::log_lock = NULL;
+base::internal::LockImpl* LoggingLock::log_lock = nullptr;
 // static
 LogLockingState LoggingLock::lock_log_file = LOCK_LOG_FILE;
 
 #if defined(OS_WIN)
 // static
-MutexHandle LoggingLock::log_mutex = NULL;
+MutexHandle LoggingLock::log_mutex = nullptr;
 #elif defined(OS_POSIX)
 pthread_mutex_t LoggingLock::log_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-// Called by logging functions to ensure that debug_file is initialized
+// Called by logging functions to ensure that |g_log_file| is initialized
 // and can be used for writing. Returns false if the file could not be
-// initialized. debug_file will be NULL in this case.
+// initialized. |g_log_file| will be nullptr in this case.
 bool InitializeLogFileHandle() {
-  if (log_file)
+  if (g_log_file)
     return true;
 
-  if (!log_file_name) {
+  if (!g_log_file_name) {
     // Nobody has called InitLogging to specify a debug log file, so here we
     // initialize the log file name to a default.
-    log_file_name = new PathString(GetDefaultLogFile());
+    g_log_file_name = new PathString(GetDefaultLogFile());
   }
 
-  if ((logging_destination & LOG_TO_FILE) != 0) {
+  if ((g_logging_destination & LOG_TO_FILE) != 0) {
 #if defined(OS_WIN)
-    log_file = CreateFile(log_file_name->c_str(), GENERIC_WRITE,
-                          FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                          OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (log_file == INVALID_HANDLE_VALUE || log_file == NULL) {
+    g_log_file = CreateFile(g_log_file_name->c_str(), GENERIC_WRITE,
+                            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                            OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (g_log_file == INVALID_HANDLE_VALUE || g_log_file == nullptr) {
       // try the current directory
-      log_file = CreateFile(L".\\debug.log", GENERIC_WRITE,
-                            FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                            OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-      if (log_file == INVALID_HANDLE_VALUE || log_file == NULL) {
-        log_file = NULL;
+      g_log_file = CreateFile(L".\\debug.log", GENERIC_WRITE,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                              OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+      if (g_log_file == INVALID_HANDLE_VALUE || g_log_file == nullptr) {
+        g_log_file = nullptr;
         return false;
       }
     }
-    SetFilePointer(log_file, 0, 0, FILE_END);
+    SetFilePointer(g_log_file, 0, 0, FILE_END);
 #elif defined(OS_POSIX)
-    log_file = fopen(log_file_name->c_str(), "a");
-    if (log_file == NULL)
+    g_log_file = fopen(g_log_file_name->c_str(), "a");
+    if (g_log_file == nullptr)
       return false;
 #endif
   }
@@ -337,18 +337,18 @@ void CloseFile(FileHandle log) {
 }
 
 void CloseLogFileUnlocked() {
-  if (!log_file)
+  if (!g_log_file)
     return;
 
-  CloseFile(log_file);
-  log_file = NULL;
+  CloseFile(g_log_file);
+  g_log_file = nullptr;
 }
 
 }  // namespace
 
 LoggingSettings::LoggingSettings()
     : logging_dest(LOG_DEFAULT),
-      log_file(NULL),
+      log_file(nullptr),
       lock_log(LOCK_LOG_FILE),
       delete_old(APPEND_TO_OLD_LOG_FILE) {}
 
@@ -358,11 +358,11 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   CHECK_EQ(settings.logging_dest & ~LOG_TO_SYSTEM_DEBUG_LOG, 0);
 #endif
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  // Don't bother initializing g_vlog_info unless we use one of the
+  // Don't bother initializing |g_vlog_info| unless we use one of the
   // vlog switches.
   if (command_line->HasSwitch(switches::kV) ||
       command_line->HasSwitch(switches::kVModule)) {
-    // NOTE: If g_vlog_info has already been initialized, it might be in use
+    // NOTE: If |g_vlog_info| has already been initialized, it might be in use
     // by another thread. Don't delete the old VLogInfo, just create a second
     // one. We keep track of both to avoid memory leak warnings.
     CHECK(!g_vlog_info_prev);
@@ -371,13 +371,13 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
     g_vlog_info =
         new VlogInfo(command_line->GetSwitchValueASCII(switches::kV),
                      command_line->GetSwitchValueASCII(switches::kVModule),
-                     &min_log_level);
+                     &g_min_log_level);
   }
 
-  logging_destination = settings.logging_dest;
+  g_logging_destination = settings.logging_dest;
 
   // ignore file options unless logging to file is set.
-  if ((logging_destination & LOG_TO_FILE) == 0)
+  if ((g_logging_destination & LOG_TO_FILE) == 0)
     return true;
 
   LoggingLock::Init(settings.lock_log, settings.log_file);
@@ -387,21 +387,21 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   // default log file will re-initialize to the new options.
   CloseLogFileUnlocked();
 
-  if (!log_file_name)
-    log_file_name = new PathString();
-  *log_file_name = settings.log_file;
+  if (!g_log_file_name)
+    g_log_file_name = new PathString();
+  *g_log_file_name = settings.log_file;
   if (settings.delete_old == DELETE_OLD_LOG_FILE)
-    DeleteFilePath(*log_file_name);
+    DeleteFilePath(*g_log_file_name);
 
   return InitializeLogFileHandle();
 }
 
 void SetMinLogLevel(int level) {
-  min_log_level = std::min(LOG_FATAL, level);
+  g_min_log_level = std::min(LOG_FATAL, level);
 }
 
 int GetMinLogLevel() {
-  return min_log_level;
+  return g_min_log_level;
 }
 
 int GetVlogVerbosity() {
@@ -410,8 +410,8 @@ int GetVlogVerbosity() {
 
 int GetVlogLevelHelper(const char* file, size_t N) {
   DCHECK_GT(N, 0U);
-  // Note: g_vlog_info may change on a different thread during startup
-  // (but will always be valid or NULL).
+  // Note: |g_vlog_info| may change on a different thread during startup
+  // (but will always be valid or nullptr).
   VlogInfo* vlog_info = g_vlog_info;
   return vlog_info ?
       vlog_info->GetVlogLevel(base::StringPiece(file, N - 1)) :
@@ -420,10 +420,10 @@ int GetVlogLevelHelper(const char* file, size_t N) {
 
 void SetLogItems(bool enable_process_id, bool enable_thread_id,
                  bool enable_timestamp, bool enable_tickcount) {
-  log_process_id = enable_process_id;
-  log_thread_id = enable_thread_id;
-  log_timestamp = enable_timestamp;
-  log_tickcount = enable_tickcount;
+  g_log_process_id = enable_process_id;
+  g_log_thread_id = enable_thread_id;
+  g_log_timestamp = enable_timestamp;
+  g_log_tickcount = enable_tickcount;
 }
 
 void SetShowErrorDialogs(bool enable_dialogs) {
@@ -475,7 +475,7 @@ void DisplayDebugMessageInDialog(const std::string& str) {
   // Message.exe" in the same directory as the application. If it
   // exists, we use it, otherwise, we use a regular message box.
   wchar_t prog_name[MAX_PATH];
-  GetModuleFileNameW(NULL, prog_name, MAX_PATH);
+  GetModuleFileNameW(nullptr, prog_name, MAX_PATH);
   wchar_t* backslash = wcsrchr(prog_name, '\\');
   if (backslash)
     backslash[1] = 0;
@@ -490,20 +490,20 @@ void DisplayDebugMessageInDialog(const std::string& str) {
   startup_info.cb = sizeof(startup_info);
 
   PROCESS_INFORMATION process_info;
-  if (CreateProcessW(prog_name, &cmdline[0], NULL, NULL, false, 0, NULL,
-                     NULL, &startup_info, &process_info)) {
+  if (CreateProcessW(prog_name, &cmdline[0], nullptr, nullptr, false, 0,
+                     nullptr, nullptr, &startup_info, &process_info)) {
     WaitForSingleObject(process_info.hProcess, INFINITE);
     CloseHandle(process_info.hThread);
     CloseHandle(process_info.hProcess);
   } else {
     // debug process broken, let's just do a message box
-    MessageBoxW(NULL, &cmdline[0], L"Fatal error",
+    MessageBoxW(nullptr, &cmdline[0], L"Fatal error",
                 MB_OK | MB_ICONHAND | MB_TOPMOST);
   }
 #else
   // We intentionally don't implement a dialog on other platforms.
   // You can just look at stderr.
-#endif
+#endif  // defined(OS_WIN)
 }
 #endif  // !defined(NDEBUG)
 
@@ -556,7 +556,7 @@ LogMessage::~LogMessage() {
     return;
   }
 
-  if ((logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
+  if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
 #if defined(OS_WIN)
     OutputDebugStringA(str_newline.c_str());
 #elif defined(OS_ANDROID)
@@ -589,7 +589,7 @@ LogMessage::~LogMessage() {
   }
 
   // write to log file
-  if ((logging_destination & LOG_TO_FILE) != 0) {
+  if ((g_logging_destination & LOG_TO_FILE) != 0) {
     // We can have multiple threads and/or processes, so try to prevent them
     // from clobbering each other's writes.
     // If the client app did not call InitLogging, and the lock has not
@@ -597,21 +597,21 @@ LogMessage::~LogMessage() {
     // to do this at the same time, there will be a race condition to create
     // the lock. This is why InitLogging should be called from the main
     // thread at the beginning of execution.
-    LoggingLock::Init(LOCK_LOG_FILE, NULL);
+    LoggingLock::Init(LOCK_LOG_FILE, nullptr);
     LoggingLock logging_lock;
     if (InitializeLogFileHandle()) {
 #if defined(OS_WIN)
-      SetFilePointer(log_file, 0, 0, SEEK_END);
+      SetFilePointer(g_log_file, 0, 0, SEEK_END);
       DWORD num_written;
-      WriteFile(log_file,
+      WriteFile(g_log_file,
                 static_cast<const void*>(str_newline.c_str()),
                 static_cast<DWORD>(str_newline.length()),
                 &num_written,
-                NULL);
+                nullptr);
 #else
       ignore_result(fwrite(
-          str_newline.data(), str_newline.size(), 1, log_file));
-      fflush(log_file);
+          str_newline.data(), str_newline.size(), 1, g_log_file));
+      fflush(g_log_file);
 #endif
     }
   }
@@ -651,12 +651,12 @@ void LogMessage::Init(const char* file, int line) {
   // TODO(darin): It might be nice if the columns were fixed width.
 
   stream_ <<  '[';
-  if (log_process_id)
+  if (g_log_process_id)
     stream_ << CurrentProcessId() << ':';
-  if (log_thread_id)
+  if (g_log_thread_id)
     stream_ << base::PlatformThread::CurrentId() << ':';
-  if (log_timestamp) {
-    time_t t = time(NULL);
+  if (g_log_timestamp) {
+    time_t t = time(nullptr);
     struct tm local_time = {0};
 #ifdef _MSC_VER
     localtime_s(&local_time, &t);
@@ -673,7 +673,7 @@ void LogMessage::Init(const char* file, int line) {
             << std::setw(2) << tm_time->tm_sec
             << ':';
   }
-  if (log_tickcount)
+  if (g_log_tickcount)
     stream_ << TickCount() << ':';
   if (severity_ >= 0)
     stream_ << log_severity_name(severity_);
@@ -707,8 +707,8 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
   const int kErrorMessageBufferSize = 256;
   char msgbuf[kErrorMessageBufferSize];
   DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
-  DWORD len = FormatMessageA(flags, NULL, error_code, 0, msgbuf,
-                             arraysize(msgbuf), NULL);
+  DWORD len = FormatMessageA(flags, nullptr, error_code, 0, msgbuf,
+                             arraysize(msgbuf), nullptr);
   if (len) {
     // Messages returned by system end with line breaks.
     return base::CollapseWhitespaceASCII(msgbuf, true) +
@@ -719,11 +719,11 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
 }
 #elif defined(OS_POSIX)
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
-  return safe_strerror(error_code);
+  return base::safe_strerror(error_code);
 }
 #else
 #error Not implemented
-#endif
+#endif  // defined(OS_WIN)
 
 
 #if defined(OS_WIN)
@@ -754,7 +754,7 @@ ErrnoLogMessage::ErrnoLogMessage(const char* file,
 ErrnoLogMessage::~ErrnoLogMessage() {
   stream() << ": " << SystemErrorCodeToString(err_);
 }
-#endif  // OS_WIN
+#endif  // defined(OS_WIN)
 
 void CloseLogFile() {
   LoggingLock logging_lock;
@@ -762,7 +762,7 @@ void CloseLogFile() {
 }
 
 void RawLog(int level, const char* message) {
-  if (level >= min_log_level) {
+  if (level >= g_min_log_level) {
     size_t bytes_written = 0;
     const size_t message_len = strlen(message);
     int rv;
@@ -797,11 +797,16 @@ void RawLog(int level, const char* message) {
 
 #if defined(OS_WIN)
 std::wstring GetLogFileFullPath() {
-  if (log_file_name)
-    return *log_file_name;
+  if (g_log_file_name)
+    return *g_log_file_name;
   return std::wstring();
 }
 #endif
+
+BASE_EXPORT void LogErrorNotReached(const char* file, int line) {
+  LogMessage(file, line, LOG_ERROR).stream()
+      << "NOTREACHED() hit.";
+}
 
 }  // namespace logging
 

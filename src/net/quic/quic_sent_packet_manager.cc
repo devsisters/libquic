@@ -166,10 +166,8 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     receive_buffer_bytes_ =
         max(kMinSocketReceiveBuffer,
             static_cast<QuicByteCount>(config.ReceivedSocketReceiveBuffer()));
-    if (FLAGS_quic_limit_max_cwnd_to_receive_buffer) {
-      send_algorithm_->SetMaxCongestionWindow(receive_buffer_bytes_ *
-                                              kUsableRecieveBufferFraction);
-    }
+    send_algorithm_->SetMaxCongestionWindow(receive_buffer_bytes_ *
+                                            kUsableRecieveBufferFraction);
   }
   send_algorithm_->SetFromConfig(config, perspective_);
 
@@ -782,11 +780,6 @@ QuicTime::Delta QuicSentPacketManager::TimeUntilSend(
   // send algorithm does not need to be consulted.
   if (pending_timer_transmission_count_ > 0) {
     return QuicTime::Delta::Zero();
-  }
-  if (!FLAGS_quic_limit_max_cwnd_to_receive_buffer &&
-      unacked_packets_.bytes_in_flight() >=
-          kUsableRecieveBufferFraction * receive_buffer_bytes_) {
-    return QuicTime::Delta::Infinite();
   }
   return send_algorithm_->TimeUntilSend(
       now, unacked_packets_.bytes_in_flight(), retransmittable);

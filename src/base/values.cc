@@ -20,46 +20,49 @@ namespace base {
 
 namespace {
 
+scoped_ptr<Value> CopyWithoutEmptyChildren(const Value& node);
+
 // Make a deep copy of |node|, but don't include empty lists or dictionaries
 // in the copy. It's possible for this function to return NULL and it
 // expects |node| to always be non-NULL.
-Value* CopyWithoutEmptyChildren(const Value* node) {
-  DCHECK(node);
-  switch (node->GetType()) {
-    case Value::TYPE_LIST: {
-      const ListValue* list = static_cast<const ListValue*>(node);
-      ListValue* copy = new ListValue;
-      for (ListValue::const_iterator it = list->begin(); it != list->end();
-           ++it) {
-        Value* child_copy = CopyWithoutEmptyChildren(*it);
-        if (child_copy)
-          copy->Append(child_copy);
-      }
-      if (!copy->empty())
-        return copy;
-
-      delete copy;
-      return NULL;
+scoped_ptr<ListValue> CopyListWithoutEmptyChildren(const ListValue& list) {
+  scoped_ptr<ListValue> copy;
+  for (ListValue::const_iterator it = list.begin(); it != list.end(); ++it) {
+    scoped_ptr<Value> child_copy = CopyWithoutEmptyChildren(**it);
+    if (child_copy) {
+      if (!copy)
+        copy.reset(new ListValue);
+      copy->Append(child_copy.Pass());
     }
+  }
+  return copy;
+}
 
-    case Value::TYPE_DICTIONARY: {
-      const DictionaryValue* dict = static_cast<const DictionaryValue*>(node);
-      DictionaryValue* copy = new DictionaryValue;
-      for (DictionaryValue::Iterator it(*dict); !it.IsAtEnd(); it.Advance()) {
-        Value* child_copy = CopyWithoutEmptyChildren(&it.value());
-        if (child_copy)
-          copy->SetWithoutPathExpansion(it.key(), child_copy);
-      }
-      if (!copy->empty())
-        return copy;
-
-      delete copy;
-      return NULL;
+scoped_ptr<DictionaryValue> CopyDictionaryWithoutEmptyChildren(
+    const DictionaryValue& dict) {
+  scoped_ptr<DictionaryValue> copy;
+  for (DictionaryValue::Iterator it(dict); !it.IsAtEnd(); it.Advance()) {
+    scoped_ptr<Value> child_copy = CopyWithoutEmptyChildren(it.value());
+    if (child_copy) {
+      if (!copy)
+        copy.reset(new DictionaryValue);
+      copy->SetWithoutPathExpansion(it.key(), child_copy.Pass());
     }
+  }
+  return copy;
+}
+
+scoped_ptr<Value> CopyWithoutEmptyChildren(const Value& node) {
+  switch (node.GetType()) {
+    case Value::TYPE_LIST:
+      return CopyListWithoutEmptyChildren(static_cast<const ListValue&>(node));
+
+    case Value::TYPE_DICTIONARY:
+      return CopyDictionaryWithoutEmptyChildren(
+          static_cast<const DictionaryValue&>(node));
 
     default:
-      // For everything else, just make a copy.
-      return node->DeepCopy();
+      return node.CreateDeepCopy();
   }
 }
 
@@ -85,8 +88,8 @@ Value::~Value() {
 }
 
 // static
-Value* Value::CreateNullValue() {
-  return new Value(TYPE_NULL);
+scoped_ptr<Value> Value::CreateNullValue() {
+  return make_scoped_ptr(new Value(TYPE_NULL));
 }
 
 bool Value::GetAsBinary(const BinaryValue** out_value) const {
@@ -137,7 +140,7 @@ Value* Value::DeepCopy() const {
   // This method should only be getting called for null Values--all subclasses
   // need to provide their own implementation;.
   DCHECK(IsType(TYPE_NULL));
-  return CreateNullValue();
+  return CreateNullValue().release();
 }
 
 scoped_ptr<Value> Value::CreateDeepCopy() const {
@@ -789,9 +792,12 @@ bool DictionaryValue::RemovePath(const std::string& path,
   return result;
 }
 
-DictionaryValue* DictionaryValue::DeepCopyWithoutEmptyChildren() const {
-  Value* copy = CopyWithoutEmptyChildren(this);
-  return copy ? static_cast<DictionaryValue*>(copy) : new DictionaryValue;
+scoped_ptr<DictionaryValue> DictionaryValue::DeepCopyWithoutEmptyChildren()
+    const {
+  scoped_ptr<DictionaryValue> copy = CopyDictionaryWithoutEmptyChildren(*this);
+  if (!copy)
+    copy.reset(new DictionaryValue);
+  return copy;
 }
 
 void DictionaryValue::MergeDictionary(const DictionaryValue* dictionary) {
@@ -1137,6 +1143,10 @@ ListValue* ListValue::DeepCopy() const {
   return result;
 }
 
+scoped_ptr<ListValue> ListValue::CreateDeepCopy() const {
+  return make_scoped_ptr(DeepCopy());
+}
+
 bool ListValue::Equals(const Value* other) const {
   if (other->GetType() != GetType())
     return false;
@@ -1164,9 +1174,7 @@ ValueDeserializer::~ValueDeserializer() {
 
 std::ostream& operator<<(std::ostream& out, const Value& value) {
   std::string json;
-  JSONWriter::WriteWithOptions(&value,
-                               JSONWriter::OPTIONS_PRETTY_PRINT,
-                               &json);
+  JSONWriter::WriteWithOptions(value, JSONWriter::OPTIONS_PRETTY_PRINT, &json);
   return out << json;
 }
 

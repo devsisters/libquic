@@ -932,7 +932,7 @@ Value* JSONParser::ConsumeLiteral() {
         return NULL;
       }
       NextNChars(kNullLen - 1);
-      return Value::CreateNullValue();
+      return Value::CreateNullValue().release();
     }
     default:
       ReportError(JSONReader::JSON_UNEXPECTED_TOKEN, 1);

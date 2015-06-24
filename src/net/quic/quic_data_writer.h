@@ -10,7 +10,6 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/port.h"
 #include "base/strings/string_piece.h"
 #include "net/base/int128.h"
 #include "net/base/net_export.h"
@@ -49,7 +48,6 @@ class NET_EXPORT_PRIVATE QuicDataWriter {
   // not be represented directly are rounded down.
   bool WriteUFloat16(uint64 value);
   bool WriteStringPiece16(base::StringPiece val);
-  bool WriteIOVector(const IOVector& data);
   bool WriteBytes(const void* data, size_t data_len);
   bool WriteRepeatedByte(uint8 byte, size_t count);
   // Fills the remaining buffer with null characters.

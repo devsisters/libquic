@@ -4,6 +4,7 @@
 
 #include "net/quic/congestion_control/cubic.h"
 
+#include <stdint.h>
 #include <algorithm>
 #include <cmath>
 
@@ -26,7 +27,7 @@ const int kCubeScale = 40;  // 1024*1024^3 (first 1024 is from 0.100^3)
                             // where 0.100 is 100 ms which is the scaling
                             // round trip time.
 const int kCubeCongestionWindowScale = 410;
-const uint64 kCubeFactor = (GG_UINT64_C(1) << kCubeScale) /
+const uint64 kCubeFactor = (UINT64_C(1) << kCubeScale) /
     kCubeCongestionWindowScale;
 
 const uint32 kDefaultNumConnections = 2;

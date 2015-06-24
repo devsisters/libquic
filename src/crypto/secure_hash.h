@@ -8,8 +8,10 @@
 #include "base/basictypes.h"
 #include "crypto/crypto_export.h"
 
+namespace base {
 class Pickle;
 class PickleIterator;
+}
 
 namespace crypto {
 
@@ -30,13 +32,13 @@ class CRYPTO_EXPORT SecureHash {
   // Serialize the context, so it can be restored at a later time.
   // |pickle| will contain the serialized data.
   // Returns whether or not |pickle| was filled.
-  virtual bool Serialize(Pickle* pickle) = 0;
+  virtual bool Serialize(base::Pickle* pickle) = 0;
 
   // Restore the context that was saved earlier.
   // |data_iterator| allows this to be used as part of a larger pickle.
   // |pickle| holds the saved data.
   // Returns success or failure.
-  virtual bool Deserialize(PickleIterator* data_iterator) = 0;
+  virtual bool Deserialize(base::PickleIterator* data_iterator) = 0;
 
  protected:
   SecureHash() {}

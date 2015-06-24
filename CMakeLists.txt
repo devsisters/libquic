@@ -76,6 +76,7 @@ set(
 	src/net/quic/quic_data_writer.cc
 	src/net/quic/quic_data_reader.cc
 	src/net/quic/quic_session.cc
+	src/net/quic/quic_spdy_session.cc
 	src/net/quic/iovector.cc
 	src/net/quic/quic_stream_sequencer.cc
 	src/net/quic/quic_framer.cc
@@ -169,6 +170,7 @@ set(
 	src/net/spdy/hpack_encoder.cc
 	src/net/spdy/spdy_protocol.cc
 	src/net/spdy/hpack_huffman_table.cc
+	src/net/spdy/spdy_alt_svc_wire_format.cc
 )
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -205,6 +207,7 @@ set(
 	${BASE_ARCH_SOURCES}
 
 	src/base/logging.cc
+	src/base/posix/safe_strerror.cc
 	src/base/memory/weak_ptr.cc
 	src/base/memory/singleton.cc
 	src/base/memory/ref_counted.cc
@@ -218,7 +221,6 @@ set(
 	src/base/threading/thread_local_storage.cc
 	src/base/threading/thread_collision_warner.cc
 	src/base/threading/thread_local_posix.cc
-	src/base/safe_strerror_posix.cc
 	src/base/time/time_posix.cc
 	src/base/time/time.cc
 	src/base/synchronization/waitable_event_posix.cc

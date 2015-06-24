@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <stdint.h>
+
 #include "net/quic/crypto/null_decrypter.h"
 #include "net/quic/quic_utils.h"
 #include "net/quic/quic_data_reader.h"
@@ -67,7 +69,7 @@ uint128 NullDecrypter::ComputeHash(const StringPiece& data1,
                                    const StringPiece& data2) const {
   uint128 correct_hash = QuicUtils::FNV1a_128_Hash_Two(
       data1.data(), data1.length(), data2.data(), data2.length());
-  uint128 mask(GG_UINT64_C(0x0), GG_UINT64_C(0xffffffff));
+  uint128 mask(UINT64_C(0x0), UINT64_C(0xffffffff));
   mask <<= 96;
   correct_hash &= ~mask;
   return correct_hash;

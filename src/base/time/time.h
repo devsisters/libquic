@@ -4,25 +4,53 @@
 
 // Time represents an absolute point in coordinated universal time (UTC),
 // internally represented as microseconds (s/1,000,000) since the Windows epoch
-// (1601-01-01 00:00:00 UTC) (See http://crbug.com/14734).  System-dependent
-// clock interface routines are defined in time_PLATFORM.cc.
+// (1601-01-01 00:00:00 UTC). System-dependent clock interface routines are
+// defined in time_PLATFORM.cc. Note that values for Time may skew and jump
+// around as the operating system makes adjustments to synchronize (e.g., with
+// NTP servers). Thus, client code that uses the Time class must account for
+// this.
 //
 // TimeDelta represents a duration of time, internally represented in
 // microseconds.
 //
-// TimeTicks represents an abstract time that is most of the time incrementing
-// for use in measuring time durations. It is internally represented in
-// microseconds.  It can not be converted to a human-readable time, but is
-// guaranteed not to decrease (if the user changes the computer clock,
-// Time::Now() may actually decrease or jump).  But note that TimeTicks may
-// "stand still", for example if the computer suspended.
+// TimeTicks, ThreadTicks, and TraceTicks represent an abstract time that is
+// most of the time incrementing, for use in measuring time durations.
+// Internally, they are represented in microseconds. They can not be converted
+// to a human-readable time, but are guaranteed not to decrease (unlike the Time
+// class). Note that TimeTicks may "stand still" (e.g., if the computer is
+// suspended), and ThreadTicks will "stand still" whenever the thread has been
+// de-scheduled by the operating system.
 //
-// These classes are represented as only a 64-bit value, so they can be
-// efficiently passed by value.
+// All time classes are copyable, assignable, and occupy 64-bits per
+// instance. Thus, they can be efficiently passed by-value (as opposed to
+// by-reference).
 //
 // Definitions of operator<< are provided to make these types work with
 // DCHECK_EQ() and other log macros. For human-readable formatting, see
 // "base/i18n/time_formatting.h".
+//
+// So many choices!  Which time class should you use?  Examples:
+//
+//   Time:        Interpreting the wall-clock time provided by a remote
+//                system. Detecting whether cached resources have
+//                expired. Providing the user with a display of the current date
+//                and time. Determining the amount of time between events across
+//                re-boots of the machine.
+//
+//   TimeTicks:   Tracking the amount of time a task runs. Executing delayed
+//                tasks at the right time. Computing presentation timestamps.
+//                Synchronizing audio and video using TimeTicks as a common
+//                reference clock (lip-sync). Measuring network round-trip
+//                latency.
+//
+//   ThreadTicks: Benchmarking how long the current thread has been doing actual
+//                work.
+//
+//   TraceTicks:  This is only meant to be used by the event tracing
+//                infrastructure, and by outside code modules in special
+//                circumstances.  Please be sure to consult a
+//                base/trace_event/OWNER before committing any new code that
+//                uses this.
 
 #ifndef BASE_TIME_TIME_H_
 #define BASE_TIME_TIME_H_
@@ -639,14 +667,6 @@ BASE_EXPORT std::ostream& operator<<(std::ostream& os, Time time);
 // Represents monotonically non-decreasing clock time.
 class BASE_EXPORT TimeTicks : public time_internal::TimeBase<TimeTicks> {
  public:
-  // We define this even without OS_CHROMEOS for seccomp sandbox testing.
-#if defined(OS_LINUX)
-  // Force definition of the system trace clock; it is a chromeos-only api
-  // at the moment and surfacing it in the right place requires mucking
-  // with glibc et al.
-  static const clockid_t kClockSystemTrace = 11;
-#endif
-
   TimeTicks() : TimeBase(0) {
   }
 
@@ -661,43 +681,6 @@ class BASE_EXPORT TimeTicks : public time_internal::TimeBase<TimeTicks> {
   // high resolution clock works but is deemed inefficient, the low resolution
   // clock will be used instead.
   static bool IsHighResolution();
-
-  // Returns true if ThreadNow() is supported on this system.
-  static bool IsThreadNowSupported() {
-#if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
-    (defined(OS_MACOSX) && !defined(OS_IOS)) || defined(OS_ANDROID)
-    return true;
-#else
-    return false;
-#endif
-  }
-
-  // Returns thread-specific CPU-time on systems that support this feature.
-  // Needs to be guarded with a call to IsThreadNowSupported(). Use this timer
-  // to (approximately) measure how much time the calling thread spent doing
-  // actual work vs. being de-scheduled. May return bogus results if the thread
-  // migrates to another CPU between two calls.
-  //
-  // WARNING: The returned value might NOT have the same origin as Now(). Do not
-  // perform math between TimeTicks values returned by Now() and ThreadNow() and
-  // expect meaningful results.
-  // TODO(miu): Since the timeline of these values is different, the values
-  // should be of a different type.
-  static TimeTicks ThreadNow();
-
-  // Returns the current system trace time or, if not available on this
-  // platform, a high-resolution time value; or a low-resolution time value if
-  // neither are avalable. On systems where a global trace clock is defined,
-  // timestamping TraceEvents's with this value guarantees synchronization
-  // between events collected inside chrome and events collected outside
-  // (e.g. kernel, X server).
-  //
-  // WARNING: The returned value might NOT have the same origin as Now(). Do not
-  // perform math between TimeTicks values returned by Now() and
-  // NowFromSystemTraceTime() and expect meaningful results.
-  // TODO(miu): Since the timeline of these values is different, the values
-  // should be of a different type.
-  static TimeTicks NowFromSystemTraceTime();
 
 #if defined(OS_WIN)
   // Translates an absolute QPC timestamp into a TimeTicks value. The returned
@@ -737,6 +720,90 @@ class BASE_EXPORT TimeTicks : public time_internal::TimeBase<TimeTicks> {
 
 // For logging use only.
 BASE_EXPORT std::ostream& operator<<(std::ostream& os, TimeTicks time_ticks);
+
+// ThreadTicks ----------------------------------------------------------------
+
+// Represents a clock, specific to a particular thread, than runs only while the
+// thread is running.
+class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
+ public:
+  ThreadTicks() : TimeBase(0) {
+  }
+
+  // Returns true if ThreadTicks::Now() is supported on this system.
+  static bool IsSupported() {
+#if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
+    (defined(OS_MACOSX) && !defined(OS_IOS)) || defined(OS_ANDROID)
+    return true;
+#else
+    return false;
+#endif
+  }
+
+  // Returns thread-specific CPU-time on systems that support this feature.
+  // Needs to be guarded with a call to IsSupported(). Use this timer
+  // to (approximately) measure how much time the calling thread spent doing
+  // actual work vs. being de-scheduled. May return bogus results if the thread
+  // migrates to another CPU between two calls.
+  static ThreadTicks Now();
+
+ private:
+  friend class time_internal::TimeBase<ThreadTicks>;
+
+  // Please use Now() to create a new object. This is for internal use
+  // and testing.
+  explicit ThreadTicks(int64 us) : TimeBase(us) {
+  }
+};
+
+// For logging use only.
+BASE_EXPORT std::ostream& operator<<(std::ostream& os, ThreadTicks time_ticks);
+
+// TraceTicks ----------------------------------------------------------------
+
+// Represents high-resolution system trace clock time.
+class BASE_EXPORT TraceTicks : public time_internal::TimeBase<TraceTicks> {
+ public:
+  // We define this even without OS_CHROMEOS for seccomp sandbox testing.
+#if defined(OS_LINUX)
+  // Force definition of the system trace clock; it is a chromeos-only api
+  // at the moment and surfacing it in the right place requires mucking
+  // with glibc et al.
+  static const clockid_t kClockSystemTrace = 11;
+#endif
+
+  TraceTicks() : TimeBase(0) {
+  }
+
+  // Returns the current system trace time or, if not available on this
+  // platform, a high-resolution time value; or a low-resolution time value if
+  // neither are avalable. On systems where a global trace clock is defined,
+  // timestamping TraceEvents's with this value guarantees synchronization
+  // between events collected inside chrome and events collected outside
+  // (e.g. kernel, X server).
+  //
+  // On some platforms, the clock source used for tracing can vary depending on
+  // hardware and/or kernel support.  Do not make any assumptions without
+  // consulting the documentation for this functionality in the time_win.cc,
+  // time_posix.cc, etc. files.
+  //
+  // NOTE: This is only meant to be used by the event tracing infrastructure,
+  // and by outside code modules in special circumstances.  Please be sure to
+  // consult a base/trace_event/OWNER before committing any new code that uses
+  // this.
+  static TraceTicks Now();
+
+ private:
+  friend class time_internal::TimeBase<TraceTicks>;
+
+  // Please use Now() to create a new object. This is for internal use
+  // and testing.
+  explicit TraceTicks(int64 us) : TimeBase(us) {
+  }
+};
+
+// For logging use only.
+BASE_EXPORT std::ostream& operator<<(std::ostream& os, TraceTicks time_ticks);
 
 }  // namespace base
 
