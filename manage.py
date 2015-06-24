@@ -33,7 +33,12 @@ def run(cmd):
 
 def main():
     deps = open_deps()
-    chromium_root = os.path.abspath(sys.argv[2])
+    without_patches = False
+    if sys.argv[2] == "--without-patches":
+        without_patches = True
+        chromium_root = os.path.abspath(sys.argv[3])
+    else:
+        chromium_root = os.path.abspath(sys.argv[2])
 
     # 1. Clean old files
     run("rm -rf src/* obj/* boringssl/build")
@@ -79,8 +84,11 @@ def main():
                 run("rm -f {0}".format(target))
 
     # 3. Apply patch
-    for patch in deps.get("patches", []):
-        run("patch -p1 < {0}".format(patch))
+    if without_patches:
+        print("Skipping patches...")
+    else:
+        for patch in deps.get("patches", []):
+            run("patch -p1 < {0}".format(patch))
 
     # 4. Copy custom files
     for custom in deps.get("custom_files", []):
