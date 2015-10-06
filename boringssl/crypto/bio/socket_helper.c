@@ -11,29 +11,22 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
-
-#define _POSIX_SOURCE
-
+#define _POSIX_C_SOURCE 200112L
 #include <openssl/bio.h>
 #include <openssl/err.h>
-
 #include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>
-
 #if !defined(OPENSSL_WINDOWS)
 #include <netdb.h>
 #include <unistd.h>
 #else
 #pragma warning(push, 3)
-#include <WinSock2.h>
-#include <WS2tcpip.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #pragma warning(pop)
 #endif
-
 #include "internal.h"
-
-
 int bio_ip_and_port_to_socket_and_addr(int *out_sock,
                                        struct sockaddr_storage *out_addr,
                                        socklen_t *out_addr_length,
@@ -41,22 +34,17 @@ int bio_ip_and_port_to_socket_and_addr(int *out_sock,
                                        const char *port_str) {
   struct addrinfo hint, *result, *cur;
   int ret;
-
   *out_sock = -1;
-
   memset(&hint, 0, sizeof(hint));
   hint.ai_family = AF_UNSPEC;
   hint.ai_socktype = SOCK_STREAM;
-
   ret = getaddrinfo(hostname, port_str, &hint, &result);
   if (ret != 0) {
     OPENSSL_PUT_ERROR(SYS, getaddrinfo, 0);
-    ERR_add_error_data(2, gai_strerror(ret));
+    ERR_add_error_data(1, gai_strerror(ret));
     return 0;
   }
-
   ret = 0;
-
   for (cur = result; cur; cur = cur->ai_next) {
     if (cur->ai_addrlen > sizeof(struct sockaddr_storage)) {
       continue;
@@ -64,26 +52,21 @@ int bio_ip_and_port_to_socket_and_addr(int *out_sock,
     memset(out_addr, 0, sizeof(struct sockaddr_storage));
     memcpy(out_addr, cur->ai_addr, cur->ai_addrlen);
     *out_addr_length = cur->ai_addrlen;
-
     *out_sock = socket(cur->ai_family, cur->ai_socktype, cur->ai_protocol);
     if (*out_sock < 0) {
       OPENSSL_PUT_SYSTEM_ERROR(socket);
       goto out;
     }
-
     ret = 1;
     break;
   }
-
 out:
   freeaddrinfo(result);
   return ret;
 }
-
 int bio_socket_nbio(int sock, int on) {
 #if defined(OPENSSL_WINDOWS)
   u_long arg = on;
-
   return 0 == ioctlsocket(sock, FIONBIO, &arg);
 #else
   int flags = fcntl(sock, F_GETFL, 0);
@@ -98,13 +81,10 @@ int bio_socket_nbio(int sock, int on) {
   return fcntl(sock, F_SETFL, flags) == 0;
 #endif
 }
-
 void bio_clear_socket_error(void) {}
-
 int bio_sock_error(int sock) {
   int error;
   socklen_t error_size = sizeof(error);
-
   if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (char *)&error, &error_size) < 0) {
     return 1;
   }
