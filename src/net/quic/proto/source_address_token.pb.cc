@@ -56,7 +56,7 @@ struct StaticDescriptorInitializer_source_5faddress_5ftoken_2eproto {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int SourceAddressToken::kIpFieldNumber;
 const int SourceAddressToken::kTimestampFieldNumber;
 const int SourceAddressToken::kCachedNetworkParametersFieldNumber;
@@ -308,7 +308,7 @@ void SourceAddressToken::Swap(SourceAddressToken* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int SourceAddressTokens::kTokensFieldNumber;
 #endif  // !_MSC_VER
 

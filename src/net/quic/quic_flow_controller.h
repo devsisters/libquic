@@ -78,6 +78,9 @@ class NET_EXPORT_PRIVATE QuicFlowController {
     auto_tune_receive_window_ = enable;
   }
 
+  // Should only be called before any data is received.
+  void UpdateReceiveWindowSize(QuicStreamOffset size);
+
   bool auto_tune_receive_window() { return auto_tune_receive_window_; }
 
  private:

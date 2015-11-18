@@ -69,7 +69,7 @@ BIGNUM *BN_new(void) {
   BIGNUM *bn = OPENSSL_malloc(sizeof(BIGNUM));
 
   if (bn == NULL) {
-    OPENSSL_PUT_ERROR(BN, BN_new, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(BN, ERR_R_MALLOC_FAILURE);
     return NULL;
   }
 
@@ -88,7 +88,7 @@ void BN_free(BIGNUM *bn) {
     return;
   }
 
-  if (bn->d != NULL && (bn->flags & BN_FLG_STATIC_DATA) == 0) {
+  if ((bn->flags & BN_FLG_STATIC_DATA) == 0) {
     OPENSSL_free(bn->d);
   }
 
@@ -279,41 +279,43 @@ void BN_set_negative(BIGNUM *bn, int sign) {
   }
 }
 
-BIGNUM *bn_wexpand(BIGNUM *bn, unsigned words) {
+BIGNUM *bn_wexpand(BIGNUM *bn, size_t words) {
   BN_ULONG *a;
 
-  if (words <= (unsigned) bn->dmax) {
+  if (words <= (size_t)bn->dmax) {
     return bn;
   }
 
   if (words > (INT_MAX / (4 * BN_BITS2))) {
-    OPENSSL_PUT_ERROR(BN, bn_wexpand, BN_R_BIGNUM_TOO_LONG);
+    OPENSSL_PUT_ERROR(BN, BN_R_BIGNUM_TOO_LONG);
     return NULL;
   }
 
   if (bn->flags & BN_FLG_STATIC_DATA) {
-    OPENSSL_PUT_ERROR(BN, bn_wexpand, BN_R_EXPAND_ON_STATIC_BIGNUM_DATA);
+    OPENSSL_PUT_ERROR(BN, BN_R_EXPAND_ON_STATIC_BIGNUM_DATA);
     return NULL;
   }
 
   a = (BN_ULONG *)OPENSSL_malloc(sizeof(BN_ULONG) * words);
   if (a == NULL) {
-    OPENSSL_PUT_ERROR(BN, bn_wexpand, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(BN, ERR_R_MALLOC_FAILURE);
     return NULL;
   }
 
   memcpy(a, bn->d, sizeof(BN_ULONG) * bn->top);
 
-  if (bn->d) {
-    OPENSSL_free(bn->d);
-  }
+  OPENSSL_free(bn->d);
   bn->d = a;
-  bn->dmax = words;
+  bn->dmax = (int)words;
 
   return bn;
 }
 
-BIGNUM *bn_expand(BIGNUM *bn, unsigned bits) {
+BIGNUM *bn_expand(BIGNUM *bn, size_t bits) {
+  if (bits + BN_BITS2 - 1 < bits) {
+    OPENSSL_PUT_ERROR(BN, BN_R_BIGNUM_TOO_LONG);
+    return NULL;
+  }
   return bn_wexpand(bn, (bits+BN_BITS2-1)/BN_BITS2);
 }
 

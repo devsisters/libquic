@@ -12,7 +12,7 @@ namespace base {
 
 namespace {
 
-base::LazyInstance<base::ThreadLocalPointer<ThreadTaskRunnerHandle> >
+base::LazyInstance<base::ThreadLocalPointer<ThreadTaskRunnerHandle> >::Leaky
     lazy_tls_ptr = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace

@@ -123,6 +123,17 @@
 #define RSAZ_ENABLED
 
 #include "rsaz_exp.h"
+
+void bn_mul_mont_gather5(BN_ULONG *rp, const BN_ULONG *ap, const void *table,
+                         const BN_ULONG *np, const BN_ULONG *n0, int num,
+                         int power);
+void bn_scatter5(const BN_ULONG *inp, size_t num, void *table, size_t power);
+void bn_gather5(BN_ULONG *out, size_t num, void *table, size_t power);
+void bn_power5(BN_ULONG *rp, const BN_ULONG *ap, const void *table,
+               const BN_ULONG *np, const BN_ULONG *n0, int num, int power);
+int bn_from_montgomery(BN_ULONG *rp, const BN_ULONG *ap,
+                       const BN_ULONG *not_used, const BN_ULONG *np,
+                       const BN_ULONG *n0, int num);
 #endif
 
 int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
@@ -131,7 +142,7 @@ int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
 
   if ((p->flags & BN_FLG_CONSTTIME) != 0) {
     /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
-    OPENSSL_PUT_ERROR(BN, BN_exp, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    OPENSSL_PUT_ERROR(BN, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
     return 0;
   }
 
@@ -172,12 +183,13 @@ int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
       }
     }
   }
+
+  if (r != rr && !BN_copy(r, rr)) {
+    goto err;
+  }
   ret = 1;
 
 err:
-  if (r != rr) {
-    BN_copy(r, rr);
-  }
   BN_CTX_end(ctx);
   return ret;
 }
@@ -273,10 +285,10 @@ static int BN_div_recp(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
     goto err;
   }
 
-  if (BN_ucmp(m, &(recp->N)) < 0) {
+  if (BN_ucmp(m, &recp->N) < 0) {
     BN_zero(d);
     if (!BN_copy(r, m)) {
-      return 0;
+      goto err;
     }
     BN_CTX_end(ctx);
     return 1;
@@ -332,7 +344,7 @@ static int BN_div_recp(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
   j = 0;
   while (BN_ucmp(r, &(recp->N)) >= 0) {
     if (j++ > 2) {
-      OPENSSL_PUT_ERROR(BN, BN_div_recp, BN_R_BAD_RECIPROCAL);
+      OPENSSL_PUT_ERROR(BN, BN_R_BAD_RECIPROCAL);
       goto err;
     }
     if (!BN_usub(r, r, &(recp->N))) {
@@ -426,7 +438,7 @@ static int mod_exp_recp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
 
   if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0) {
     /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
-    OPENSSL_PUT_ERROR(BN, mod_exp_recp, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    OPENSSL_PUT_ERROR(BN, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
     return 0;
   }
 
@@ -601,21 +613,21 @@ int BN_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
 }
 
 int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
-                    const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *in_mont) {
+                    const BIGNUM *m, BN_CTX *ctx, const BN_MONT_CTX *mont) {
   int i, j, bits, ret = 0, wstart, window;
   int start = 1;
   BIGNUM *d, *r;
   const BIGNUM *aa;
   /* Table of variables obtained from 'ctx' */
   BIGNUM *val[TABLE_SIZE];
-  BN_MONT_CTX *mont = NULL;
+  BN_MONT_CTX *new_mont = NULL;
 
   if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0) {
-    return BN_mod_exp_mont_consttime(rr, a, p, m, ctx, in_mont);
+    return BN_mod_exp_mont_consttime(rr, a, p, m, ctx, mont);
   }
 
   if (!BN_is_odd(m)) {
-    OPENSSL_PUT_ERROR(BN, BN_mod_exp_mont, BN_R_CALLED_WITH_EVEN_MODULUS);
+    OPENSSL_PUT_ERROR(BN, BN_R_CALLED_WITH_EVEN_MODULUS);
     return 0;
   }
   bits = BN_num_bits(p);
@@ -632,18 +644,13 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     goto err;
   }
 
-  /* If this is not done, things will break in the montgomery part */
-
-  if (in_mont != NULL) {
-    mont = in_mont;
-  } else {
-    mont = BN_MONT_CTX_new();
-    if (mont == NULL) {
+  /* Allocate a montgomery context if it was not supplied by the caller. */
+  if (mont == NULL) {
+    new_mont = BN_MONT_CTX_new();
+    if (new_mont == NULL || !BN_MONT_CTX_set(new_mont, m, ctx)) {
       goto err;
     }
-    if (!BN_MONT_CTX_set(mont, m, ctx)) {
-      goto err;
-    }
+    mont = new_mont;
   }
 
   if (a->neg || BN_ucmp(a, m) >= 0) {
@@ -762,9 +769,7 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
   ret = 1;
 
 err:
-  if (in_mont == NULL && mont != NULL) {
-    BN_MONT_CTX_free(mont);
-  }
+  BN_MONT_CTX_free(new_mont);
   BN_CTX_end(ctx);
   return ret;
 }
@@ -850,10 +855,10 @@ static int copy_from_prebuf(BIGNUM *b, int top, unsigned char *buf, int idx,
  */
 int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
                               const BIGNUM *m, BN_CTX *ctx,
-                              BN_MONT_CTX *in_mont) {
+                              const BN_MONT_CTX *mont) {
   int i, bits, ret = 0, window, wvalue;
   int top;
-  BN_MONT_CTX *mont = NULL;
+  BN_MONT_CTX *new_mont = NULL;
 
   int numPowers;
   unsigned char *powerbufFree = NULL;
@@ -861,13 +866,13 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
   unsigned char *powerbuf = NULL;
   BIGNUM tmp, am;
 
-  top = m->top;
-
-  if (!(m->d[0] & 1)) {
-    OPENSSL_PUT_ERROR(BN, BN_mod_exp_mont_consttime,
-                      BN_R_CALLED_WITH_EVEN_MODULUS);
+  if (!BN_is_odd(m)) {
+    OPENSSL_PUT_ERROR(BN, BN_R_CALLED_WITH_EVEN_MODULUS);
     return 0;
   }
+
+  top = m->top;
+
   bits = BN_num_bits(p);
   if (bits == 0) {
     ret = BN_one(rr);
@@ -876,16 +881,13 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 
   BN_CTX_start(ctx);
 
-  /* Allocate a montgomery context if it was not supplied by the caller.
-   * If this is not done, things will break in the montgomery part.
-   */
-  if (in_mont != NULL) {
-    mont = in_mont;
-  } else {
-    mont = BN_MONT_CTX_new();
-    if (mont == NULL || !BN_MONT_CTX_set(mont, m, ctx)) {
+  /* Allocate a montgomery context if it was not supplied by the caller. */
+  if (mont == NULL) {
+    new_mont = BN_MONT_CTX_new();
+    if (new_mont == NULL || !BN_MONT_CTX_set(new_mont, m, ctx)) {
       goto err;
     }
+    mont = new_mont;
   }
 
 #ifdef RSAZ_ENABLED
@@ -926,7 +928,6 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     }
   }
 #endif
-  (void)0;
 
   /* Allocate a buffer large enough to hold all of the pre-computed
    * powers of am, am itself and tmp.
@@ -995,20 +996,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
   /* Dedicated window==4 case improves 512-bit RSA sign by ~15%, but as
    * 512-bit RSA is hardly relevant, we omit it to spare size... */
   if (window == 5 && top > 1) {
-    void bn_mul_mont_gather5(BN_ULONG * rp, const BN_ULONG * ap,
-                             const void * table, const BN_ULONG * np,
-                             const BN_ULONG * n0, int num, int power);
-    void bn_scatter5(const BN_ULONG * inp, size_t num, void * table,
-                     size_t power);
-    void bn_gather5(BN_ULONG * out, size_t num, void * table, size_t power);
-    void bn_power5(BN_ULONG * rp, const BN_ULONG * ap, const void * table,
-                   const BN_ULONG * np, const BN_ULONG * n0, int num,
-                   int power);
-    int bn_from_montgomery(BN_ULONG * rp, const BN_ULONG * ap,
-                           const BN_ULONG * not_used, const BN_ULONG * np,
-                           const BN_ULONG * n0, int num);
-
-    BN_ULONG *np = mont->N.d, *n0 = mont->n0, *np2;
+    const BN_ULONG *np = mont->N.d, *n0 = mont->n0, *np2;
 
     /* BN_to_montgomery can contaminate words above .top
      * [in BN_DEBUG[_DEBUG] build]... */
@@ -1022,9 +1010,11 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     if (top & 7) {
       np2 = np;
     } else {
-      for (np2 = am.d + top, i = 0; i < top; i++) {
-        np2[2 * i] = np[i];
+      BN_ULONG *np_double = am.d + top;
+      for (i = 0; i < top; i++) {
+        np_double[2 * i] = np[i];
       }
+      np2 = np_double;
     }
 
     bn_scatter5(tmp.d, top, powerbuf, 0);
@@ -1189,23 +1179,21 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     goto err;
   }
   ret = 1;
+
 err:
-  if ((in_mont == NULL) && (mont != NULL)) {
-    BN_MONT_CTX_free(mont);
-  }
+  BN_MONT_CTX_free(new_mont);
   if (powerbuf != NULL) {
     OPENSSL_cleanse(powerbuf, powerbufLen);
-    if (powerbufFree) {
-      OPENSSL_free(powerbufFree);
-    }
+    OPENSSL_free(powerbufFree);
   }
   BN_CTX_end(ctx);
   return (ret);
 }
 
 int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
-                         const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *in_mont) {
-  BN_MONT_CTX *mont = NULL;
+                         const BIGNUM *m, BN_CTX *ctx,
+                         const BN_MONT_CTX *mont) {
+  BN_MONT_CTX *new_mont = NULL;
   int b, bits, ret = 0;
   int r_is_one;
   BN_ULONG w, next_w;
@@ -1225,13 +1213,12 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
 
   if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0) {
     /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
-    OPENSSL_PUT_ERROR(BN, BN_mod_exp_mont_word,
-        ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    OPENSSL_PUT_ERROR(BN, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
     return 0;
   }
 
   if (!BN_is_odd(m)) {
-    OPENSSL_PUT_ERROR(BN, BN_mod_exp_mont_word, BN_R_CALLED_WITH_EVEN_MODULUS);
+    OPENSSL_PUT_ERROR(BN, BN_R_CALLED_WITH_EVEN_MODULUS);
     return 0;
   }
 
@@ -1264,13 +1251,13 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
     goto err;
   }
 
-  if (in_mont != NULL) {
-    mont = in_mont;
-  } else {
-    mont = BN_MONT_CTX_new();
-    if (mont == NULL || !BN_MONT_CTX_set(mont, m, ctx)) {
+  /* Allocate a montgomery context if it was not supplied by the caller. */
+  if (mont == NULL) {
+    new_mont = BN_MONT_CTX_new();
+    if (new_mont == NULL || !BN_MONT_CTX_set(new_mont, m, ctx)) {
       goto err;
     }
+    mont = new_mont;
   }
 
   r_is_one = 1; /* except for Montgomery factor */
@@ -1352,9 +1339,7 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
   ret = 1;
 
 err:
-  if (in_mont == NULL && mont != NULL) {
-    BN_MONT_CTX_free(mont);
-  }
+  BN_MONT_CTX_free(new_mont);
   BN_CTX_end(ctx);
   return ret;
 }
@@ -1363,7 +1348,7 @@ err:
 
 int BN_mod_exp2_mont(BIGNUM *rr, const BIGNUM *a1, const BIGNUM *p1,
                      const BIGNUM *a2, const BIGNUM *p2, const BIGNUM *m,
-                     BN_CTX *ctx, BN_MONT_CTX *in_mont) {
+                     BN_CTX *ctx, const BN_MONT_CTX *mont) {
   int i, j, bits, b, bits1, bits2, ret = 0, wpos1, wpos2, window1, window2,
                                    wvalue1, wvalue2;
   int r_is_one = 1;
@@ -1371,10 +1356,10 @@ int BN_mod_exp2_mont(BIGNUM *rr, const BIGNUM *a1, const BIGNUM *p1,
   const BIGNUM *a_mod_m;
   /* Tables of variables obtained from 'ctx' */
   BIGNUM *val1[TABLE_SIZE], *val2[TABLE_SIZE];
-  BN_MONT_CTX *mont = NULL;
+  BN_MONT_CTX *new_mont = NULL;
 
   if (!(m->d[0] & 1)) {
-    OPENSSL_PUT_ERROR(BN, BN_mod_exp2_mont, BN_R_CALLED_WITH_EVEN_MODULUS);
+    OPENSSL_PUT_ERROR(BN, BN_R_CALLED_WITH_EVEN_MODULUS);
     return 0;
   }
   bits1 = BN_num_bits(p1);
@@ -1395,16 +1380,13 @@ int BN_mod_exp2_mont(BIGNUM *rr, const BIGNUM *a1, const BIGNUM *p1,
     goto err;
   }
 
-  if (in_mont != NULL) {
-    mont = in_mont;
-  } else {
-    mont = BN_MONT_CTX_new();
-    if (mont == NULL) {
+  /* Allocate a montgomery context if it was not supplied by the caller. */
+  if (mont == NULL) {
+    new_mont = BN_MONT_CTX_new();
+    if (new_mont == NULL || !BN_MONT_CTX_set(new_mont, m, ctx)) {
       goto err;
     }
-    if (!BN_MONT_CTX_set(mont, m, ctx)) {
-      goto err;
-    }
+    mont = new_mont;
   }
 
   window1 = BN_window_bits_for_exponent_size(bits1);
@@ -1556,9 +1538,7 @@ int BN_mod_exp2_mont(BIGNUM *rr, const BIGNUM *a1, const BIGNUM *p1,
   ret = 1;
 
 err:
-  if (in_mont == NULL && mont != NULL) {
-    BN_MONT_CTX_free(mont);
-  }
+  BN_MONT_CTX_free(new_mont);
   BN_CTX_end(ctx);
   return ret;
 }

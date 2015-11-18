@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <errno.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -31,11 +32,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #else
-#define NOMINMAX
 #include <io.h>
 #pragma warning(push, 3)
-#include <WinSock2.h>
-#include <WS2tcpip.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #pragma warning(pop)
 
 typedef int ssize_t;
@@ -133,19 +133,19 @@ out:
 }
 
 bool Accept(int *out_sock, const std::string &port) {
-  struct sockaddr_in addr, cli_addr;
+  struct sockaddr_in6 addr, cli_addr;
   socklen_t cli_addr_len = sizeof(cli_addr);
   memset(&addr, 0, sizeof(addr));
 
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = INADDR_ANY;
-  addr.sin_port = htons(atoi(port.c_str()));
+  addr.sin6_family = AF_INET6;
+  addr.sin6_addr = in6addr_any;
+  addr.sin6_port = htons(atoi(port.c_str()));
 
   bool ok = false;
   int server_sock = -1;
 
   server_sock =
-      socket(addr.sin_family, SOCK_STREAM, 0);
+      socket(addr.sin6_family, SOCK_STREAM, 0);
   if (server_sock < 0) {
     perror("socket");
     goto out;
@@ -169,9 +169,22 @@ void PrintConnectionInfo(const SSL *ssl) {
   const SSL_CIPHER *cipher = SSL_get_current_cipher(ssl);
 
   fprintf(stderr, "  Version: %s\n", SSL_get_version(ssl));
+  fprintf(stderr, "  Resumed session: %s\n",
+          SSL_session_reused(ssl) ? "yes" : "no");
   fprintf(stderr, "  Cipher: %s\n", SSL_CIPHER_get_name(cipher));
   fprintf(stderr, "  Secure renegotiation: %s\n",
           SSL_get_secure_renegotiation_support(ssl) ? "yes" : "no");
+
+  const uint8_t *next_proto;
+  unsigned next_proto_len;
+  SSL_get0_next_proto_negotiated(ssl, &next_proto, &next_proto_len);
+  fprintf(stderr, "  Next protocol negotiated: %.*s\n", next_proto_len,
+          next_proto);
+
+  const uint8_t *alpn;
+  unsigned alpn_len;
+  SSL_get0_alpn_selected(ssl, &alpn, &alpn_len);
+  fprintf(stderr, "  ALPN protocol: %.*s\n", alpn_len, alpn);
 }
 
 bool SocketSetNonBlocking(int sock, bool is_non_blocking) {

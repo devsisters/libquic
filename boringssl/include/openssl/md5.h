@@ -1,4 +1,5 @@
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com) * All rights reserved.
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
+ * All rights reserved.
  *
  * This package is an SSL implementation written
  * by Eric Young (eay@cryptsoft.com).
@@ -72,7 +73,7 @@ extern "C" {
 /* MD5_DIGEST_LENGTH is the length of an MD5 digest. */
 #define MD5_DIGEST_LENGTH 16
 
-/* MD51_Init initialises |md5| and returns one. */
+/* MD5_Init initialises |md5| and returns one. */
 OPENSSL_EXPORT int MD5_Init(MD5_CTX *md5);
 
 /* MD5_Update adds |len| bytes from |data| to |md5| and returns one. */
@@ -92,7 +93,7 @@ OPENSSL_EXPORT uint8_t *MD5(const uint8_t *data, size_t len, uint8_t *out);
 OPENSSL_EXPORT void MD5_Transform(MD5_CTX *md5, const uint8_t *block);
 
 struct md5_state_st {
-  uint32_t A, B, C, D;
+  uint32_t h[4];
   uint32_t Nl, Nh;
   uint32_t data[16];
   unsigned int num;

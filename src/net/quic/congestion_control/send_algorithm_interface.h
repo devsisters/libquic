@@ -27,7 +27,7 @@ class RttStats;
 class NET_EXPORT_PRIVATE SendAlgorithmInterface {
  public:
   // A sorted vector of packets.
-  typedef std::vector<std::pair<QuicPacketSequenceNumber, TransmissionInfo>>
+  typedef std::vector<std::pair<QuicPacketNumber, QuicPacketLength>>
       CongestionVector;
 
   static SendAlgorithmInterface* Create(
@@ -67,13 +67,16 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
   // Note: this function must be called for every packet sent to the wire.
   virtual bool OnPacketSent(QuicTime sent_time,
                             QuicByteCount bytes_in_flight,
-                            QuicPacketSequenceNumber sequence_number,
+                            QuicPacketNumber packet_number,
                             QuicByteCount bytes,
                             HasRetransmittableData is_retransmittable) = 0;
 
   // Called when the retransmission timeout fires.  Neither OnPacketAbandoned
   // nor OnPacketLost will be called for these packets.
   virtual void OnRetransmissionTimeout(bool packets_retransmitted) = 0;
+
+  // Called when connection migrates and cwnd needs to be reset.
+  virtual void OnConnectionMigration() = 0;
 
   // Calculate the time until we can send the next packet.
   virtual QuicTime::Delta TimeUntilSend(
@@ -87,9 +90,6 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
   // What's the current estimated bandwidth in bytes per second.
   // Returns 0 when it does not have an estimate.
   virtual QuicBandwidth BandwidthEstimate() const = 0;
-
-  // Returns true if the current bandwidth estimate is reliable.
-  virtual bool HasReliableBandwidthEstimate() const = 0;
 
   // Get the send algorithm specific retransmission delay, called RTO in TCP,
   // Note 1: the caller is responsible for sanity checking this value.
@@ -117,8 +117,7 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
 
   // Called by the Session when we get a bandwidth estimate from the client.
   // Uses the max bandwidth in the params if |max_bandwidth_resumption| is true.
-  // Returns true if initial connection state is changed as a result.
-  virtual bool ResumeConnectionState(
+  virtual void ResumeConnectionState(
       const CachedNetworkParameters& cached_network_params,
       bool max_bandwidth_resumption) = 0;
 };

@@ -14,6 +14,7 @@
 #include "url/gurl.h"
 
 #include "base/logging.h"
+#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "url/url_canon_stdstring.h"
 #include "url/url_util.h"
@@ -60,7 +61,7 @@ const std::string& EmptyStringForGURL() {
 
 #endif  // WIN32
 
-} // namespace
+}  // namespace
 
 GURL::GURL() : is_valid_(false) {
 }
@@ -131,7 +132,7 @@ void GURL::InitializeFromCanonicalSpec() {
 #ifndef NDEBUG
   // For testing purposes, check that the parsed canonical URL is identical to
   // what we would have produced. Skip checking for invalid URLs have no meaning
-  // and we can't always canonicalize then reproducabely.
+  // and we can't always canonicalize then reproducibly.
   if (is_valid_) {
     url::Component scheme;
     // We can't do this check on the inner_url of a filesystem URL, as
@@ -194,17 +195,8 @@ bool GURL::operator>(const GURL& other) const {
   return spec_ > other.spec_;
 }
 
-GURL GURL::Resolve(const std::string& relative) const {
-  return ResolveWithCharsetConverter(relative, NULL);
-}
-GURL GURL::Resolve(const base::string16& relative) const {
-  return ResolveWithCharsetConverter(relative, NULL);
-}
-
 // Note: code duplicated below (it's inconvenient to use a template here).
-GURL GURL::ResolveWithCharsetConverter(
-    const std::string& relative,
-    url::CharsetConverter* charset_converter) const {
+GURL GURL::Resolve(const std::string& relative) const {
   // Not allowed for invalid URLs.
   if (!is_valid_)
     return GURL();
@@ -219,7 +211,7 @@ GURL GURL::ResolveWithCharsetConverter(
   if (!url::ResolveRelative(spec_.data(), static_cast<int>(spec_.length()),
                             parsed_, relative.data(),
                             static_cast<int>(relative.length()),
-                            charset_converter, &output, &result.parsed_)) {
+                            nullptr, &output, &result.parsed_)) {
     // Error resolving, return an empty URL.
     return GURL();
   }
@@ -235,9 +227,7 @@ GURL GURL::ResolveWithCharsetConverter(
 }
 
 // Note: code duplicated above (it's inconvenient to use a template here).
-GURL GURL::ResolveWithCharsetConverter(
-    const base::string16& relative,
-    url::CharsetConverter* charset_converter) const {
+GURL GURL::Resolve(const base::string16& relative) const {
   // Not allowed for invalid URLs.
   if (!is_valid_)
     return GURL();
@@ -252,7 +242,7 @@ GURL GURL::ResolveWithCharsetConverter(
   if (!url::ResolveRelative(spec_.data(), static_cast<int>(spec_.length()),
                             parsed_, relative.data(),
                             static_cast<int>(relative.length()),
-                            charset_converter, &output, &result.parsed_)) {
+                            nullptr, &output, &result.parsed_)) {
     // Error resolving, return an empty URL.
     return GURL();
   }
@@ -321,7 +311,7 @@ GURL GURL::ReplaceComponents(
 
 GURL GURL::GetOrigin() const {
   // This doesn't make sense for invalid or nonstandard URLs, so return
-  // the empty URL
+  // the empty URL.
   if (!is_valid_ || !IsStandard())
     return GURL();
 
@@ -380,12 +370,13 @@ bool GURL::IsStandard() const {
   return url::IsStandard(spec_.data(), parsed_.scheme);
 }
 
-bool GURL::SchemeIs(const char* lower_ascii_scheme) const {
+bool GURL::SchemeIs(base::StringPiece lower_ascii_scheme) const {
+  DCHECK(base::IsStringASCII(lower_ascii_scheme));
+  DCHECK(base::ToLowerASCII(lower_ascii_scheme) == lower_ascii_scheme);
+
   if (parsed_.scheme.len <= 0)
-    return lower_ascii_scheme == NULL;
-  return base::LowerCaseEqualsASCII(spec_.data() + parsed_.scheme.begin,
-                                    spec_.data() + parsed_.scheme.end(),
-                                    lower_ascii_scheme);
+    return lower_ascii_scheme.empty();
+  return scheme_piece() == lower_ascii_scheme;
 }
 
 bool GURL::SchemeIsHTTPOrHTTPS() const {
@@ -417,16 +408,17 @@ std::string GURL::ExtractFileName() const {
 }
 
 std::string GURL::PathForRequest() const {
-  DCHECK(parsed_.path.len > 0) << "Canonical path for requests should be non-empty";
+  DCHECK(parsed_.path.len > 0)
+      << "Canonical path for requests should be non-empty";
   if (parsed_.ref.len >= 0) {
-    // Clip off the reference when it exists. The reference starts after the #
-    // sign, so we have to subtract one to also remove it.
+    // Clip off the reference when it exists. The reference starts after the
+    // #-sign, so we have to subtract one to also remove it.
     return std::string(spec_, parsed_.path.begin,
                        parsed_.ref.begin - parsed_.path.begin - 1);
   }
   // Compute the actual path length, rather than depending on the spec's
-  // terminator.  If we're an inner_url, our spec continues on into our outer
-  // url's path/query/ref.
+  // terminator. If we're an inner_url, our spec continues on into our outer
+  // URL's path/query/ref.
   int path_len = parsed_.path.len;
   if (parsed_.query.is_valid())
     path_len = parsed_.query.end() - parsed_.path.begin;
@@ -491,48 +483,45 @@ const GURL& GURL::EmptyGURL() {
 
 #endif  // WIN32
 
-bool GURL::DomainIs(const char* lower_ascii_domain,
-                    int domain_len) const {
-  // Return false if this URL is not valid or domain is empty.
-  if (!is_valid_ || !domain_len)
+bool GURL::DomainIs(base::StringPiece lower_ascii_domain) const {
+  if (!is_valid_ || lower_ascii_domain.empty())
     return false;
 
   // FileSystem URLs have empty parsed_.host, so check this first.
   if (SchemeIsFileSystem() && inner_url_)
-    return inner_url_->DomainIs(lower_ascii_domain, domain_len);
+    return inner_url_->DomainIs(lower_ascii_domain);
 
   if (!parsed_.host.is_nonempty())
     return false;
 
-  // Check whether the host name is end with a dot. If yes, treat it
-  // the same as no-dot unless the input comparison domain is end
-  // with dot.
-  const char* last_pos = spec_.data() + parsed_.host.end() - 1;
+  // If the host name ends with a dot but the input domain doesn't,
+  // then we ignore the dot in the host name.
+  const char* host_last_pos = spec_.data() + parsed_.host.end() - 1;
   int host_len = parsed_.host.len;
-  if ('.' == *last_pos && '.' != lower_ascii_domain[domain_len - 1]) {
-    last_pos--;
+  int domain_len = lower_ascii_domain.length();
+  if ('.' == *host_last_pos && '.' != lower_ascii_domain[domain_len - 1]) {
+    host_last_pos--;
     host_len--;
   }
 
-  // Return false if host's length is less than domain's length.
   if (host_len < domain_len)
     return false;
 
-  // Compare this url whether belong specific domain.
-  const char* start_pos = spec_.data() + parsed_.host.begin +
-                          host_len - domain_len;
+  // |host_first_pos| is the start of the compared part of the host name, not
+  // start of the whole host name.
+  const char* host_first_pos = spec_.data() + parsed_.host.begin +
+                               host_len - domain_len;
 
-  if (!base::LowerCaseEqualsASCII(start_pos,
-                                  last_pos + 1,
-                                  lower_ascii_domain,
-                                  lower_ascii_domain + domain_len))
+  if (!base::LowerCaseEqualsASCII(
+           base::StringPiece(host_first_pos, domain_len), lower_ascii_domain))
     return false;
 
-  // Check whether host has right domain start with dot, make sure we got
-  // right domain range. For example www.google.com has domain
-  // "google.com" but www.iamnotgoogle.com does not.
+  // Make sure there aren't extra characters in host before the compared part;
+  // if the host name is longer than the input domain name, then the character
+  // immediately before the compared part should be a dot. For example,
+  // www.google.com has domain "google.com", but www.iamnotgoogle.com does not.
   if ('.' != lower_ascii_domain[0] && host_len > domain_len &&
-      '.' != *(start_pos - 1))
+      '.' != *(host_first_pos - 1))
     return false;
 
   return true;

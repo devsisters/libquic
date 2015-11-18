@@ -1,4 +1,5 @@
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com) * All rights reserved.
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
+ * All rights reserved.
  *
  * This package is an SSL implementation written
  * by Eric Young (eay@cryptsoft.com).
@@ -96,8 +97,6 @@ extern "C" {
  *
  * LHASH_OF:ASN1_OBJECT
  * LHASH_OF:CONF_VALUE
- * LHASH_OF:ERR_STATE
- * LHASH_OF:EX_CLASS_ITEM
  * LHASH_OF:SSL_SESSION */
 
 #define IN_LHASH_H
@@ -190,4 +189,4 @@ OPENSSL_EXPORT uint32_t lh_strhash(const char *c);
 } /* extern C */
 #endif
 
-#endif /* OPENSSL_HEADER_STACK_H */
+#endif /* OPENSSL_HEADER_LHASH_H */

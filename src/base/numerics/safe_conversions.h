@@ -20,6 +20,24 @@ inline bool IsValueInRangeForNumericType(Src value) {
          internal::RANGE_VALID;
 }
 
+// Convenience function for determining if a numeric value is negative without
+// throwing compiler warnings on: unsigned(value) < 0.
+template <typename T>
+typename enable_if<std::numeric_limits<T>::is_signed, bool>::type
+IsValueNegative(T value) {
+  static_assert(std::numeric_limits<T>::is_specialized,
+                "Argument must be numeric.");
+  return value < 0;
+}
+
+template <typename T>
+typename enable_if<!std::numeric_limits<T>::is_signed, bool>::type
+IsValueNegative(T) {
+  static_assert(std::numeric_limits<T>::is_specialized,
+                "Argument must be numeric.");
+  return false;
+}
+
 // checked_cast<> is analogous to static_cast<> for numeric types,
 // except that it CHECKs that the specified numeric conversion will not
 // overflow or underflow. NaN source will always trigger a CHECK.

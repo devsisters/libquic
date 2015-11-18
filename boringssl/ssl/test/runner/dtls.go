@@ -12,11 +12,10 @@
 // with simulated loss, but there is no point in forcing the test
 // driver to.
 
-package main
+package runner
 
 import (
 	"bytes"
-	"crypto/cipher"
 	"errors"
 	"fmt"
 	"io"
@@ -81,15 +80,21 @@ func (c *Conn) dtlsDoReadRecord(want recordType) (recordType, *block, error) {
 			return 0, nil, c.in.setErrorLocked(fmt.Errorf("dtls: received record with version %x when expecting version %x", vers, expect))
 		}
 	}
-	seq := b.data[3:11]
-	// For test purposes, we assume a reliable channel. Require
-	// that the explicit sequence number matches the incrementing
-	// one we maintain. A real implementation would maintain a
-	// replay window and such.
-	if !bytes.Equal(seq, c.in.seq[:]) {
+	epoch := b.data[3:5]
+	seq := b.data[5:11]
+	// For test purposes, require the sequence number be monotonically
+	// increasing, so c.in includes the minimum next sequence number. Gaps
+	// may occur if packets failed to be sent out. A real implementation
+	// would maintain a replay window and such.
+	if !bytes.Equal(epoch, c.in.seq[:2]) {
+		c.sendAlert(alertIllegalParameter)
+		return 0, nil, c.in.setErrorLocked(fmt.Errorf("dtls: bad epoch"))
+	}
+	if bytes.Compare(seq, c.in.seq[2:]) < 0 {
 		c.sendAlert(alertIllegalParameter)
 		return 0, nil, c.in.setErrorLocked(fmt.Errorf("dtls: bad sequence number"))
 	}
+	copy(c.in.seq[2:], seq)
 	n := int(b.data[11])<<8 | int(b.data[12])
 	if n > maxCiphertext || len(b.data) < recordHeaderLen+n {
 		c.sendAlert(alertRecordOverflow)
@@ -197,6 +202,8 @@ func (c *Conn) dtlsFlushHandshake() error {
 		return nil
 	}
 
+	// This is a test-only DTLS implementation, so there is no need to
+	// retain |c.pendingFragments| for a future retransmit.
 	var fragments [][]byte
 	fragments, c.pendingFragments = c.pendingFragments, fragments
 
@@ -209,38 +216,63 @@ func (c *Conn) dtlsFlushHandshake() error {
 		fragments = tmp
 	}
 
-	// Send them all.
+	maxRecordLen := c.config.Bugs.PackHandshakeFragments
+	maxPacketLen := c.config.Bugs.PackHandshakeRecords
+
+	// Pack handshake fragments into records.
+	var records [][]byte
 	for _, fragment := range fragments {
-		if c.config.Bugs.SplitFragmentHeader {
-			if _, err := c.dtlsWriteRawRecord(recordTypeHandshake, fragment[:2]); err != nil {
-				return err
+		if n := c.config.Bugs.SplitFragments; n > 0 {
+			if len(fragment) > n {
+				records = append(records, fragment[:n])
+				records = append(records, fragment[n:])
+			} else {
+				records = append(records, fragment)
 			}
-			fragment = fragment[2:]
-		} else if c.config.Bugs.SplitFragmentBody && len(fragment) > 12 {
-			if _, err := c.dtlsWriteRawRecord(recordTypeHandshake, fragment[:13]); err != nil {
-				return err
-			}
-			fragment = fragment[13:]
+		} else if i := len(records) - 1; len(records) > 0 && len(records[i])+len(fragment) <= maxRecordLen {
+			records[i] = append(records[i], fragment...)
+		} else {
+			// The fragment will be appended to, so copy it.
+			records = append(records, append([]byte{}, fragment...))
+		}
+	}
+
+	// Format them into packets.
+	var packets [][]byte
+	for _, record := range records {
+		b, err := c.dtlsSealRecord(recordTypeHandshake, record)
+		if err != nil {
+			return err
 		}
 
-		// TODO(davidben): A real DTLS implementation needs to
-		// retransmit handshake messages. For testing purposes, we don't
-		// actually care.
-		if _, err := c.dtlsWriteRawRecord(recordTypeHandshake, fragment); err != nil {
+		if i := len(packets) - 1; len(packets) > 0 && len(packets[i])+len(b.data) <= maxPacketLen {
+			packets[i] = append(packets[i], b.data...)
+		} else {
+			// The sealed record will be appended to and reused by
+			// |c.out|, so copy it.
+			packets = append(packets, append([]byte{}, b.data...))
+		}
+		c.out.freeBlock(b)
+	}
+
+	// Send all the packets.
+	for _, packet := range packets {
+		if _, err := c.conn.Write(packet); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *Conn) dtlsWriteRawRecord(typ recordType, data []byte) (n int, err error) {
+// dtlsSealRecord seals a record into a block from |c.out|'s pool.
+func (c *Conn) dtlsSealRecord(typ recordType, data []byte) (b *block, err error) {
 	recordHeaderLen := dtlsRecordHeaderLen
 	maxLen := c.config.Bugs.MaxHandshakeRecordLength
 	if maxLen <= 0 {
 		maxLen = 1024
 	}
 
-	b := c.out.newBlock()
+	b = c.out.newBlock()
 
 	explicitIVLen := 0
 	explicitIVIsSeq := false
@@ -248,13 +280,15 @@ func (c *Conn) dtlsWriteRawRecord(typ recordType, data []byte) (n int, err error
 	if cbc, ok := c.out.cipher.(cbcMode); ok {
 		// Block cipher modes have an explicit IV.
 		explicitIVLen = cbc.BlockSize()
-	} else if _, ok := c.out.cipher.(cipher.AEAD); ok {
-		explicitIVLen = 8
-		// The AES-GCM construction in TLS has an explicit nonce so that
-		// the nonce can be random. However, the nonce is only 8 bytes
-		// which is too small for a secure, random nonce. Therefore we
-		// use the sequence number as the nonce.
-		explicitIVIsSeq = true
+	} else if aead, ok := c.out.cipher.(*tlsAead); ok {
+		if aead.explicitNonce {
+			explicitIVLen = 8
+			// The AES-GCM construction in TLS has an explicit nonce so that
+			// the nonce can be random. However, the nonce is only 8 bytes
+			// which is too small for a secure, random nonce. Therefore we
+			// use the sequence number as the nonce.
+			explicitIVIsSeq = true
+		}
 	} else if c.out.cipher != nil {
 		panic("Unknown cipher")
 	}
@@ -270,13 +304,13 @@ func (c *Conn) dtlsWriteRawRecord(typ recordType, data []byte) (n int, err error
 	b.data[1] = byte(vers >> 8)
 	b.data[2] = byte(vers)
 	// DTLS records include an explicit sequence number.
-	copy(b.data[3:11], c.out.seq[0:])
+	copy(b.data[3:11], c.out.outSeq[0:])
 	b.data[11] = byte(len(data) >> 8)
 	b.data[12] = byte(len(data))
 	if explicitIVLen > 0 {
 		explicitIV := b.data[recordHeaderLen : recordHeaderLen+explicitIVLen]
 		if explicitIVIsSeq {
-			copy(explicitIV, c.out.seq[:])
+			copy(explicitIV, c.out.outSeq[:])
 		} else {
 			if _, err = io.ReadFull(c.config.rand(), explicitIV); err != nil {
 				return
@@ -285,6 +319,14 @@ func (c *Conn) dtlsWriteRawRecord(typ recordType, data []byte) (n int, err error
 	}
 	copy(b.data[recordHeaderLen+explicitIVLen:], data)
 	c.out.encrypt(b, explicitIVLen)
+	return
+}
+
+func (c *Conn) dtlsWriteRawRecord(typ recordType, data []byte) (n int, err error) {
+	b, err := c.dtlsSealRecord(typ, data)
+	if err != nil {
+		return
+	}
 
 	_, err = c.conn.Write(b.data)
 	if err != nil {

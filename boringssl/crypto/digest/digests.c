@@ -56,6 +56,9 @@
 
 #include <openssl/digest.h>
 
+#include <assert.h>
+#include <string.h>
+
 #include <openssl/md4.h>
 #include <openssl/md5.h>
 #include <openssl/obj.h>
@@ -63,15 +66,23 @@
 
 #include "internal.h"
 
+#if defined(NDEBUG)
+#define CHECK(x) (void) (x)
+#else
+#define CHECK(x) assert(x)
+#endif
 
-static int md4_init(EVP_MD_CTX *ctx) { return MD4_Init(ctx->md_data); }
 
-static int md4_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
-  return MD4_Update(ctx->md_data, data, count);
+static void md4_init(EVP_MD_CTX *ctx) {
+  CHECK(MD4_Init(ctx->md_data));
 }
 
-static int md4_final(EVP_MD_CTX *ctx, unsigned char *out) {
-  return MD4_Final(out, ctx->md_data);
+static void md4_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
+  CHECK(MD4_Update(ctx->md_data, data, count));
+}
+
+static void md4_final(EVP_MD_CTX *ctx, uint8_t *out) {
+  CHECK(MD4_Final(out, ctx->md_data));
 }
 
 static const EVP_MD md4_md = {
@@ -82,14 +93,16 @@ static const EVP_MD md4_md = {
 const EVP_MD *EVP_md4(void) { return &md4_md; }
 
 
-static int md5_init(EVP_MD_CTX *ctx) { return MD5_Init(ctx->md_data); }
-
-static int md5_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
-  return MD5_Update(ctx->md_data, data, count);
+static void md5_init(EVP_MD_CTX *ctx) {
+  CHECK(MD5_Init(ctx->md_data));
 }
 
-static int md5_final(EVP_MD_CTX *ctx, unsigned char *out) {
-  return MD5_Final(out, ctx->md_data);
+static void md5_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
+  CHECK(MD5_Update(ctx->md_data, data, count));
+}
+
+static void md5_final(EVP_MD_CTX *ctx, uint8_t *out) {
+  CHECK(MD5_Final(out, ctx->md_data));
 }
 
 static const EVP_MD md5_md = {
@@ -100,14 +113,16 @@ static const EVP_MD md5_md = {
 const EVP_MD *EVP_md5(void) { return &md5_md; }
 
 
-static int sha1_init(EVP_MD_CTX *ctx) { return SHA1_Init(ctx->md_data); }
-
-static int sha1_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
-  return SHA1_Update(ctx->md_data, data, count);
+static void sha1_init(EVP_MD_CTX *ctx) {
+  CHECK(SHA1_Init(ctx->md_data));
 }
 
-static int sha1_final(EVP_MD_CTX *ctx, unsigned char *md) {
-  return SHA1_Final(md, ctx->md_data);
+static void sha1_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
+  CHECK(SHA1_Update(ctx->md_data, data, count));
+}
+
+static void sha1_final(EVP_MD_CTX *ctx, uint8_t *md) {
+  CHECK(SHA1_Final(md, ctx->md_data));
 }
 
 static const EVP_MD sha1_md = {
@@ -118,14 +133,16 @@ static const EVP_MD sha1_md = {
 const EVP_MD *EVP_sha1(void) { return &sha1_md; }
 
 
-static int sha224_init(EVP_MD_CTX *ctx) { return SHA224_Init(ctx->md_data); }
-
-static int sha224_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
-  return SHA224_Update(ctx->md_data, data, count);
+static void sha224_init(EVP_MD_CTX *ctx) {
+  CHECK(SHA224_Init(ctx->md_data));
 }
 
-static int sha224_final(EVP_MD_CTX *ctx, unsigned char *md) {
-  return SHA224_Final(md, ctx->md_data);
+static void sha224_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
+  CHECK(SHA224_Update(ctx->md_data, data, count));
+}
+
+static void sha224_final(EVP_MD_CTX *ctx, uint8_t *md) {
+  CHECK(SHA224_Final(md, ctx->md_data));
 }
 
 static const EVP_MD sha224_md = {
@@ -137,14 +154,16 @@ static const EVP_MD sha224_md = {
 const EVP_MD *EVP_sha224(void) { return &sha224_md; }
 
 
-static int sha256_init(EVP_MD_CTX *ctx) { return SHA256_Init(ctx->md_data); }
-
-static int sha256_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
-  return SHA256_Update(ctx->md_data, data, count);
+static void sha256_init(EVP_MD_CTX *ctx) {
+  CHECK(SHA256_Init(ctx->md_data));
 }
 
-static int sha256_final(EVP_MD_CTX *ctx, unsigned char *md) {
-  return SHA256_Final(md, ctx->md_data);
+static void sha256_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
+  CHECK(SHA256_Update(ctx->md_data, data, count));
+}
+
+static void sha256_final(EVP_MD_CTX *ctx, uint8_t *md) {
+  CHECK(SHA256_Final(md, ctx->md_data));
 }
 
 static const EVP_MD sha256_md = {
@@ -156,14 +175,16 @@ static const EVP_MD sha256_md = {
 const EVP_MD *EVP_sha256(void) { return &sha256_md; }
 
 
-static int sha384_init(EVP_MD_CTX *ctx) { return SHA384_Init(ctx->md_data); }
-
-static int sha384_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
-  return SHA384_Update(ctx->md_data, data, count);
+static void sha384_init(EVP_MD_CTX *ctx) {
+  CHECK(SHA384_Init(ctx->md_data));
 }
 
-static int sha384_final(EVP_MD_CTX *ctx, unsigned char *md) {
-  return SHA384_Final(md, ctx->md_data);
+static void sha384_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
+  CHECK(SHA384_Update(ctx->md_data, data, count));
+}
+
+static void sha384_final(EVP_MD_CTX *ctx, uint8_t *md) {
+  CHECK(SHA384_Final(md, ctx->md_data));
 }
 
 static const EVP_MD sha384_md = {
@@ -175,14 +196,16 @@ static const EVP_MD sha384_md = {
 const EVP_MD *EVP_sha384(void) { return &sha384_md; }
 
 
-static int sha512_init(EVP_MD_CTX *ctx) { return SHA512_Init(ctx->md_data); }
-
-static int sha512_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
-  return SHA512_Update(ctx->md_data, data, count);
+static void sha512_init(EVP_MD_CTX *ctx) {
+  CHECK(SHA512_Init(ctx->md_data));
 }
 
-static int sha512_final(EVP_MD_CTX *ctx, unsigned char *md) {
-  return SHA512_Final(md, ctx->md_data);
+static void sha512_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
+  CHECK(SHA512_Update(ctx->md_data, data, count));
+}
+
+static void sha512_final(EVP_MD_CTX *ctx, uint8_t *md) {
+  CHECK(SHA512_Final(md, ctx->md_data));
 }
 
 static const EVP_MD sha512_md = {
@@ -199,23 +222,22 @@ typedef struct {
   SHA_CTX sha1;
 } MD5_SHA1_CTX;
 
-static int md5_sha1_init(EVP_MD_CTX *md_ctx) {
+static void md5_sha1_init(EVP_MD_CTX *md_ctx) {
   MD5_SHA1_CTX *ctx = md_ctx->md_data;
-  return MD5_Init(&ctx->md5) && SHA1_Init(&ctx->sha1);
+  CHECK(MD5_Init(&ctx->md5) && SHA1_Init(&ctx->sha1));
 }
 
-static int md5_sha1_update(EVP_MD_CTX *md_ctx, const void *data, size_t count) {
+static void md5_sha1_update(EVP_MD_CTX *md_ctx, const void *data,
+                            size_t count) {
   MD5_SHA1_CTX *ctx = md_ctx->md_data;
-  return MD5_Update(&ctx->md5, data, count) && SHA1_Update(&ctx->sha1, data, count);
+  CHECK(MD5_Update(&ctx->md5, data, count) &&
+        SHA1_Update(&ctx->sha1, data, count));
 }
 
-static int md5_sha1_final(EVP_MD_CTX *md_ctx, unsigned char *out) {
+static void md5_sha1_final(EVP_MD_CTX *md_ctx, uint8_t *out) {
   MD5_SHA1_CTX *ctx = md_ctx->md_data;
-  if (!MD5_Final(out, &ctx->md5) ||
-      !SHA1_Final(out + MD5_DIGEST_LENGTH, &ctx->sha1)) {
-    return 0;
-  }
-  return 1;
+  CHECK(MD5_Final(out, &ctx->md5) &&
+        SHA1_Final(out + MD5_DIGEST_LENGTH, &ctx->sha1));
 }
 
 static const EVP_MD md5_sha1_md = {
@@ -235,25 +257,34 @@ const EVP_MD *EVP_md5_sha1(void) { return &md5_sha1_md; }
 struct nid_to_digest {
   int nid;
   const EVP_MD* (*md_func)(void);
+  const char *short_name;
+  const char *long_name;
 };
 
 static const struct nid_to_digest nid_to_digest_mapping[] = {
-  { NID_md5, EVP_md5 },
-  { NID_sha1, EVP_sha1 },
-  { NID_sha224, EVP_sha224 },
-  { NID_sha256, EVP_sha256 },
-  { NID_sha384, EVP_sha384 },
-  { NID_sha512, EVP_sha512 },
-  { NID_md5_sha1, EVP_md5_sha1 },
-  { NID_dsaWithSHA, EVP_sha1 },
-  { NID_dsaWithSHA1, EVP_sha1 },
-  { NID_ecdsa_with_SHA1, EVP_sha1 },
-  { NID_md5WithRSAEncryption, EVP_md5 },
-  { NID_sha1WithRSAEncryption, EVP_sha1 },
-  { NID_sha224WithRSAEncryption, EVP_sha224 },
-  { NID_sha256WithRSAEncryption, EVP_sha256 },
-  { NID_sha384WithRSAEncryption, EVP_sha384 },
-  { NID_sha512WithRSAEncryption, EVP_sha512 },
+  { NID_md4, EVP_md4, SN_md4, LN_md4 },
+  { NID_md5, EVP_md5, SN_md5, LN_md5 },
+  { NID_sha1, EVP_sha1, SN_sha1, LN_sha1 },
+  { NID_sha224, EVP_sha224, SN_sha224, LN_sha224 },
+  { NID_sha256, EVP_sha256, SN_sha256, LN_sha256 },
+  { NID_sha384, EVP_sha384, SN_sha384, LN_sha384 },
+  { NID_sha512, EVP_sha512, SN_sha512, LN_sha512 },
+  { NID_md5_sha1, EVP_md5_sha1, SN_md5_sha1, LN_md5_sha1 },
+  { NID_dsaWithSHA, EVP_sha1, SN_dsaWithSHA, LN_dsaWithSHA },
+  { NID_dsaWithSHA1, EVP_sha1, SN_dsaWithSHA1, LN_dsaWithSHA1 },
+  { NID_ecdsa_with_SHA1, EVP_sha1, SN_ecdsa_with_SHA1, NULL },
+  { NID_md5WithRSAEncryption, EVP_md5, SN_md5WithRSAEncryption,
+    LN_md5WithRSAEncryption },
+  { NID_sha1WithRSAEncryption, EVP_sha1, SN_sha1WithRSAEncryption,
+    LN_sha1WithRSAEncryption },
+  { NID_sha224WithRSAEncryption, EVP_sha224, SN_sha224WithRSAEncryption,
+    LN_sha224WithRSAEncryption },
+  { NID_sha256WithRSAEncryption, EVP_sha256, SN_sha256WithRSAEncryption,
+    LN_sha256WithRSAEncryption },
+  { NID_sha384WithRSAEncryption, EVP_sha384, SN_sha384WithRSAEncryption,
+    LN_sha384WithRSAEncryption },
+  { NID_sha512WithRSAEncryption, EVP_sha512, SN_sha512WithRSAEncryption,
+    LN_sha512WithRSAEncryption },
 };
 
 const EVP_MD* EVP_get_digestbynid(int nid) {
@@ -271,4 +302,20 @@ const EVP_MD* EVP_get_digestbynid(int nid) {
 
 const EVP_MD* EVP_get_digestbyobj(const ASN1_OBJECT *obj) {
   return EVP_get_digestbynid(OBJ_obj2nid(obj));
+}
+
+const EVP_MD *EVP_get_digestbyname(const char *name) {
+  unsigned i;
+
+  for (i = 0; i < sizeof(nid_to_digest_mapping) / sizeof(struct nid_to_digest);
+       i++) {
+    const char *short_name = nid_to_digest_mapping[i].short_name;
+    const char *long_name = nid_to_digest_mapping[i].long_name;
+    if ((short_name && strcmp(short_name, name) == 0) ||
+        (long_name && strcmp(long_name, name) == 0)) {
+      return nid_to_digest_mapping[i].md_func();
+    }
+  }
+
+  return NULL;
 }

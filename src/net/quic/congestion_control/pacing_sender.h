@@ -37,7 +37,7 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
   // SendAlgorithmInterface methods.
   void SetFromConfig(const QuicConfig& config,
                      Perspective perspective) override;
-  bool ResumeConnectionState(
+  void ResumeConnectionState(
       const CachedNetworkParameters& cached_network_params,
       bool max_bandwidth_resumption) override;
   void SetNumEmulatedConnections(int num_connections) override;
@@ -48,17 +48,17 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
                          const CongestionVector& lost_packets) override;
   bool OnPacketSent(QuicTime sent_time,
                     QuicByteCount bytes_in_flight,
-                    QuicPacketSequenceNumber sequence_number,
+                    QuicPacketNumber packet_number,
                     QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable) override;
   void OnRetransmissionTimeout(bool packets_retransmitted) override;
+  void OnConnectionMigration() override {}
   QuicTime::Delta TimeUntilSend(
       QuicTime now,
       QuicByteCount bytes_in_flight,
       HasRetransmittableData has_retransmittable_data) const override;
   QuicBandwidth PacingRate() const override;
   QuicBandwidth BandwidthEstimate() const override;
-  bool HasReliableBandwidthEstimate() const override;
   QuicTime::Delta RetransmissionDelay() const override;
   QuicByteCount GetCongestionWindow() const override;
   bool InSlowStart() const override;
@@ -71,7 +71,8 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
   scoped_ptr<SendAlgorithmInterface> sender_;  // Underlying sender.
   // The estimated system alarm granularity.
   const QuicTime::Delta alarm_granularity_;
-  // Configured size of the burst coming out of quiescence.
+  // Configured maximum size of the burst coming out of quiescence.  The burst
+  // is never larger than the current CWND in packets.
   const uint32 initial_packet_burst_;
   // Number of unpaced packets to be sent before packets are delayed.
   uint32 burst_tokens_;

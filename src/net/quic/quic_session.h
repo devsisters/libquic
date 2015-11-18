@@ -53,6 +53,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
     HANDSHAKE_CONFIRMED,
   };
 
+  // Takes ownership of |connection|.
   QuicSession(QuicConnection* connection, const QuicConfig& config);
 
   ~QuicSession() override;
@@ -60,17 +61,17 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   virtual void Initialize();
 
   // QuicConnectionVisitorInterface methods:
-  void OnStreamFrames(const std::vector<QuicStreamFrame>& frames) override;
+  void OnStreamFrame(const QuicStreamFrame& frame) override;
   void OnRstStream(const QuicRstStreamFrame& frame) override;
   void OnGoAway(const QuicGoAwayFrame& frame) override;
-  void OnWindowUpdateFrames(
-      const std::vector<QuicWindowUpdateFrame>& frames) override;
-  void OnBlockedFrames(const std::vector<QuicBlockedFrame>& frames) override;
+  void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
+  void OnBlockedFrame(const QuicBlockedFrame& frame) override;
   void OnConnectionClosed(QuicErrorCode error, bool from_peer) override;
   void OnWriteBlocked() override {}
   void OnSuccessfulVersionNegotiation(const QuicVersion& version) override;
   void OnCanWrite() override;
-  void OnCongestionWindowChange(QuicTime now) override {}
+  void OnCongestionWindowChange(QuicTime /*now*/) override {}
+  void OnConnectionMigration() override {}
   bool WillingAndAbleToWrite() const override;
   bool HasPendingHandshake() const override;
   bool HasOpenDynamicStreams() const override;
@@ -87,11 +88,11 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // we have seen ACKs for all packets resulting from this call.
   virtual QuicConsumedData WritevData(
       QuicStreamId id,
-      const QuicIOVector& iov,
+      QuicIOVector iov,
       QuicStreamOffset offset,
       bool fin,
       FecProtection fec_protection,
-      QuicAckNotifier::DelegateInterface* ack_notifier_delegate);
+      QuicAckListenerInterface* ack_notifier_delegate);
 
   // Called by streams when they want to close the stream in both directions.
   virtual void SendRstStream(QuicStreamId id,
@@ -152,20 +153,30 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
     return connection_->connection_id();
   }
 
-  // Returns the number of currently open streams, including those which have
-  // been implicitly created, but excluding the reserved headers and crypto
-  // streams.
+  // Returns the number of currently open streams, excluding the reserved
+  // headers and crypto streams.
   virtual size_t GetNumOpenStreams() const;
 
-  void MarkWriteBlocked(QuicStreamId id, QuicPriority priority);
+  // Same as GetNumOpenStreams(), but never counting unfinished streams.
+  virtual size_t GetNumActiveStreams() const;
+
+  // Returns the number of "available" streams, the stream ids less than
+  // largest_peer_created_stream_id_ that have not yet been opened.
+  virtual size_t GetNumAvailableStreams() const;
+
+  // Add the stream to the session's write-blocked list because it is blocked by
+  // connection-level flow control but not by its own stream-level flow control.
+  // The stream will be given a chance to write when a connection-level
+  // WINDOW_UPDATE arrives.
+  void MarkConnectionLevelWriteBlocked(QuicStreamId id, QuicPriority priority);
 
   // Returns true if the session has data to be sent, either queued in the
   // connection, or in a write-blocked stream.
   bool HasDataToWrite() const;
 
-  bool goaway_received() const { return goaway_received_; }
+  bool goaway_sent() const;
 
-  bool goaway_sent() const { return goaway_sent_; }
+  bool goaway_received() const;
 
   QuicErrorCode error() const { return error_; }
 
@@ -179,12 +190,19 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // Returns true if any stream is flow controller blocked.
   bool IsStreamFlowControlBlocked();
 
-  // Returns true if this is a secure QUIC session.
-  bool IsSecure() const { return connection()->is_secure(); }
-
   size_t get_max_open_streams() const { return max_open_streams_; }
 
+  size_t get_max_available_streams() const {
+    return max_open_streams_ * kMaxAvailableStreamsMultiplier;
+  }
+
   ReliableQuicStream* GetStream(const QuicStreamId stream_id);
+
+  // Mark a stream as draining.
+  void StreamDraining(QuicStreamId id);
+
+  // Close the connection, if it is not already closed.
+  void CloseConnection(QuicErrorCode error);
 
  protected:
   typedef base::hash_map<QuicStreamId, ReliableQuicStream*> StreamMap;
@@ -204,12 +222,15 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // Adds 'stream' to the active stream map.
   virtual void ActivateStream(ReliableQuicStream* stream);
 
-  // Returns the stream id for a new stream.
-  QuicStreamId GetNextStreamId();
+  // Returns the stream ID for a new outgoing stream, and increments the
+  // underlying counter.
+  QuicStreamId GetNextOutgoingStreamId();
 
-  ReliableQuicStream* GetIncomingDynamicStream(QuicStreamId stream_id);
-
-  ReliableQuicStream* GetDynamicStream(const QuicStreamId stream_id);
+  // Returns existing stream with id = |stream_id|. If no such stream exists,
+  // and |stream_id| is a peer-created id, then a new stream is created and
+  // returned. However if |stream_id| is a locally-created id and no such stream
+  // exists, the connection is closed.
+  ReliableQuicStream* GetOrCreateDynamicStream(QuicStreamId stream_id);
 
   // This is called after every call other than OnConnectionClose from the
   // QuicConnectionVisitor to allow post-processing once the work has been done.
@@ -233,6 +254,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
       QuicStreamId largest_peer_created_stream_id) {
     largest_peer_created_stream_id_ = largest_peer_created_stream_id;
   }
+  void set_error(QuicErrorCode error) { error_ = error; }
 
  private:
   friend class test::QuicSessionPeer;
@@ -253,13 +275,17 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // control window in a negotiated config. Closes the connection if invalid.
   void OnNewStreamFlowControlWindow(QuicStreamOffset new_window);
 
-  // Called in OnConfigNegotiated when we receive a new session level flow
+  // Called in OnConfigNegotiated when we receive a new connection level flow
   // control window in a negotiated config. Closes the connection if invalid.
   void OnNewSessionFlowControlWindow(QuicStreamOffset new_window);
 
   // Called in OnConfigNegotiated when auto-tuning is enabled for flow
   // control receive windows.
   void EnableAutoTuneReceiveWindow();
+
+  // Called in OnConfigNegotiated for finch trials to measure performance of
+  // starting with smaller flow control receive windows and auto-tuning.
+  void AdjustInitialFlowControlWindows(size_t stream_window);
 
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
@@ -285,11 +311,18 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
 
   // Map from StreamId to pointers to streams that are owned by the caller.
   StreamMap dynamic_stream_map_;
-  QuicStreamId next_stream_id_;
 
-  // Set of stream ids that have been "implicitly created" by receipt
-  // of a stream id larger than the next expected stream id.
-  base::hash_set<QuicStreamId> implicitly_created_streams_;
+  // The ID to use for the next outgoing stream.
+  QuicStreamId next_outgoing_stream_id_;
+
+  // Set of stream ids that are less than the largest stream id that has been
+  // received, but are nonetheless available to be created.
+  base::hash_set<QuicStreamId> available_streams_;
+
+  // Set of stream ids that are "draining" -- a FIN has been sent and received,
+  // but the stream object still exists because not all the received data has
+  // been consumed.
+  base::hash_set<QuicStreamId> draining_streams_;
 
   // A list of streams which need to write more data.
   QuicWriteBlockedList write_blocked_streams_;
@@ -299,13 +332,8 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // The latched error with which the connection was closed.
   QuicErrorCode error_;
 
-  // Used for session level flow control.
+  // Used for connection-level flow control.
   QuicFlowController flow_controller_;
-
-  // Whether a GoAway has been received.
-  bool goaway_received_;
-  // Whether a GoAway has been sent.
-  bool goaway_sent_;
 
   // Indicate if there is pending data for the crypto stream.
   bool has_pending_handshake_;

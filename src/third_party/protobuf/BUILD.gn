@@ -19,7 +19,7 @@ config("protobuf_config") {
   ]
 }
 
-if (component_mode == "shared_library") {
+if (is_component_build) {
   config("protobuf_use_dlls") {
     defines = [ "PROTOBUF_USE_DLLS" ]
   }
@@ -77,11 +77,11 @@ protobuf_lite_sources = [
 protobuf_lite_cflags = []
 if (is_win) {
   protobuf_lite_cflags = [
-    "/wd4018",  # signed/unsigned mismatch in comparison
-    "/wd4244",  # implicit conversion, possible loss of data
-    "/wd4355",  # 'this' used in base member initializer list
-    "/wd4267",  # size_t to int truncation
-    "/wd4291",  # no matching operator delete for a placement new
+    "/wd4018",  # Signed/unsigned mismatch in comparison.
+    "/wd4244",  # Implicit conversion, possible loss of data.
+    "/wd4355",  # 'this' used in base member initializer list.
+    "/wd4267",  # Size_t to int truncation.
+    "/wd4291",  # No matching operator delete for a placement new.
   ]
 }
 
@@ -103,7 +103,7 @@ component("protobuf_lite") {
   cflags = protobuf_lite_cflags
 
   # Required for component builds. See http://crbug.com/172800.
-  if (component_mode == "shared_library") {
+  if (is_component_build) {
     public_configs += [ ":protobuf_use_dlls" ]
     defines = [ "LIBPROTOBUF_EXPORTS" ]
   }
@@ -260,17 +260,20 @@ if (current_toolchain == host_toolchain) {
 
     deps = [
       ":protobuf_full",
+      "//build/config/sanitizers:deps",
     ]
     deps += [ "//build/config/sanitizers:deps" ]
   }
 }
+
+google_python_dir = "$root_out_dir/pyproto/google"
 
 copy("copy_google") {
   sources = [
     "__init__.py",
   ]
   outputs = [
-    "$root_gen_dir/google/{{source_file_part}}",
+    "$google_python_dir/{{source_file_part}}",
   ]
 }
 
@@ -298,7 +301,7 @@ copy("copy_google_protobuf") {
     "descriptor_pb2.py",
   ]
   outputs = [
-    "$root_gen_dir/google/protobuf/{{source_file_part}}",
+    "$google_python_dir/protobuf/{{source_file_part}}",
   ]
 }
 
@@ -318,7 +321,7 @@ copy("copy_google_protobuf_internal") {
     "python/google/protobuf/internal/wire_format.py",
   ]
   outputs = [
-    "$root_gen_dir/google/protobuf/internal/{{source_file_part}}",
+    "$google_python_dir/protobuf/internal/{{source_file_part}}",
   ]
 }
 
@@ -328,4 +331,9 @@ group("py_proto") {
     ":copy_google_protobuf",
     ":copy_google_protobuf_internal",
   ]
+
+  # Targets that depend on this should depend on the copied data files.
+  data = get_target_outputs(":copy_google")
+  data += get_target_outputs(":copy_google_protobuf")
+  data += get_target_outputs(":copy_google_protobuf_internal")
 }

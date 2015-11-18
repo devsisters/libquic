@@ -19,30 +19,26 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <time.h>
 
 #include <openssl/aead.h>
-#include <openssl/bio.h>
+#include <openssl/curve25519.h>
 #include <openssl/digest.h>
+#include <openssl/err.h>
 #include <openssl/obj.h>
+#include <openssl/rand.h>
 #include <openssl/rsa.h>
 
 #if defined(OPENSSL_WINDOWS)
 #pragma warning(push, 3)
-#include <Windows.h>
+#include <windows.h>
 #pragma warning(pop)
 #elif defined(OPENSSL_APPLE)
 #include <sys/time.h>
 #endif
 
+#include "../crypto/test/scoped_types.h"
+#include "internal.h"
 
-extern "C" {
-// These values are DER encoded, RSA private keys.
-extern const uint8_t kDERRSAPrivate2048[];
-extern size_t kDERRSAPrivate2048Len;
-extern const uint8_t kDERRSAPrivate4096[];
-extern size_t kDERRSAPrivate4096Len;
-}
 
 // TimeResults represents the results of benchmarking a function.
 struct TimeResults {
@@ -93,7 +89,7 @@ static uint64_t time_now() {
 static bool TimeFunction(TimeResults *results, std::function<bool()> func) {
   // kTotalMS is the total amount of time that we'll aim to measure a function
   // for.
-  static const uint64_t kTotalUS = 3000000;
+  static const uint64_t kTotalUS = 1000000;
   uint64_t start = time_now(), now, delta;
   unsigned done = 0, iterations_between_time_checks;
 
@@ -134,20 +130,24 @@ static bool TimeFunction(TimeResults *results, std::function<bool()> func) {
   return true;
 }
 
-static bool SpeedRSA(const std::string& key_name, RSA *key) {
-  TimeResults results;
+static bool SpeedRSA(const std::string &key_name, RSA *key,
+                     const std::string &selected) {
+  if (!selected.empty() && key_name.find(selected) == std::string::npos) {
+    return true;
+  }
 
   std::unique_ptr<uint8_t[]> sig(new uint8_t[RSA_size(key)]);
   const uint8_t fake_sha256_hash[32] = {0};
   unsigned sig_len;
 
+  TimeResults results;
   if (!TimeFunction(&results,
                     [key, &sig, &fake_sha256_hash, &sig_len]() -> bool {
         return RSA_sign(NID_sha256, fake_sha256_hash, sizeof(fake_sha256_hash),
                         sig.get(), &sig_len, key);
       })) {
     fprintf(stderr, "RSA_sign failed.\n");
-    BIO_print_errors_fp(stderr);
+    ERR_print_errors_fp(stderr);
     return false;
   }
   results.Print(key_name + " signing");
@@ -158,7 +158,7 @@ static bool SpeedRSA(const std::string& key_name, RSA *key) {
                           sizeof(fake_sha256_hash), sig.get(), sig_len, key);
       })) {
     fprintf(stderr, "RSA_verify failed.\n");
-    BIO_print_errors_fp(stderr);
+    ERR_print_errors_fp(stderr);
     return false;
   }
   results.Print(key_name + " verify");
@@ -166,16 +166,10 @@ static bool SpeedRSA(const std::string& key_name, RSA *key) {
   return true;
 }
 
-template<typename T>
-struct free_functor {
-  void operator()(T* ptr) {
-    free(ptr);
-  }
-};
-
 static uint8_t *align(uint8_t *in, unsigned alignment) {
   return reinterpret_cast<uint8_t *>(
-      (reinterpret_cast<uintptr_t>(in) + alignment) & ~(alignment - 1));
+      (reinterpret_cast<uintptr_t>(in) + alignment) &
+      ~static_cast<size_t>(alignment - 1));
 }
 
 static bool SpeedAEADChunk(const EVP_AEAD *aead, const std::string &name,
@@ -191,10 +185,8 @@ static bool SpeedAEADChunk(const EVP_AEAD *aead, const std::string &name,
   memset(key.get(), 0, key_len);
   std::unique_ptr<uint8_t[]> nonce(new uint8_t[nonce_len]);
   memset(nonce.get(), 0, nonce_len);
-  std::unique_ptr<uint8_t, free_functor<uint8_t>> in_storage(
-      new uint8_t[chunk_len + kAlignment]);
-  std::unique_ptr<uint8_t, free_functor<uint8_t>> out_storage(
-      new uint8_t[chunk_len + overhead_len + kAlignment]);
+  std::unique_ptr<uint8_t[]> in_storage(new uint8_t[chunk_len + kAlignment]);
+  std::unique_ptr<uint8_t[]> out_storage(new uint8_t[chunk_len + overhead_len + kAlignment]);
   std::unique_ptr<uint8_t[]> ad(new uint8_t[ad_len]);
   memset(ad.get(), 0, ad_len);
 
@@ -203,10 +195,11 @@ static bool SpeedAEADChunk(const EVP_AEAD *aead, const std::string &name,
   uint8_t *const out = align(out_storage.get(), kAlignment);
   memset(out, 0, chunk_len + overhead_len);
 
-  if (!EVP_AEAD_CTX_init(&ctx, aead, key.get(), key_len,
-                         EVP_AEAD_DEFAULT_TAG_LENGTH, NULL)) {
+  if (!EVP_AEAD_CTX_init_with_direction(&ctx, aead, key.get(), key_len,
+                                        EVP_AEAD_DEFAULT_TAG_LENGTH,
+                                        evp_aead_seal)) {
     fprintf(stderr, "Failed to create EVP_AEAD_CTX.\n");
-    BIO_print_errors_fp(stderr);
+    ERR_print_errors_fp(stderr);
     return false;
   }
 
@@ -220,7 +213,7 @@ static bool SpeedAEADChunk(const EVP_AEAD *aead, const std::string &name,
             nonce_len, in, chunk_len, ad.get(), ad_len);
       })) {
     fprintf(stderr, "EVP_AEAD_CTX_seal failed.\n");
-    BIO_print_errors_fp(stderr);
+    ERR_print_errors_fp(stderr);
     return false;
   }
 
@@ -232,7 +225,11 @@ static bool SpeedAEADChunk(const EVP_AEAD *aead, const std::string &name,
 }
 
 static bool SpeedAEAD(const EVP_AEAD *aead, const std::string &name,
-                      size_t ad_len) {
+                      size_t ad_len, const std::string &selected) {
+  if (!selected.empty() && name.find(selected) == std::string::npos) {
+    return true;
+  }
+
   return SpeedAEADChunk(aead, name + " (16 bytes)", 16, ad_len) &&
          SpeedAEADChunk(aead, name + " (1350 bytes)", 1350, ad_len) &&
          SpeedAEADChunk(aead, name + " (8192 bytes)", 8192, ad_len);
@@ -257,7 +254,7 @@ static bool SpeedHashChunk(const EVP_MD *md, const std::string &name,
                EVP_DigestFinal_ex(ctx, digest, &md_len);
       })) {
     fprintf(stderr, "EVP_DigestInit_ex failed.\n");
-    BIO_print_errors_fp(stderr);
+    ERR_print_errors_fp(stderr);
     return false;
   }
 
@@ -267,38 +264,256 @@ static bool SpeedHashChunk(const EVP_MD *md, const std::string &name,
 
   return true;
 }
-static bool SpeedHash(const EVP_MD *md, const std::string &name) {
+static bool SpeedHash(const EVP_MD *md, const std::string &name,
+                      const std::string &selected) {
+  if (!selected.empty() && name.find(selected) == std::string::npos) {
+    return true;
+  }
+
   return SpeedHashChunk(md, name + " (16 bytes)", 16) &&
          SpeedHashChunk(md, name + " (256 bytes)", 256) &&
          SpeedHashChunk(md, name + " (8192 bytes)", 8192);
 }
 
-bool Speed(const std::vector<std::string> &args) {
-  const uint8_t *inp;
+static bool SpeedRandomChunk(const std::string name, size_t chunk_len) {
+  uint8_t scratch[8192];
 
-  RSA *key = NULL;
-  inp = kDERRSAPrivate2048;
-  if (NULL == d2i_RSAPrivateKey(&key, &inp, kDERRSAPrivate2048Len)) {
-    fprintf(stderr, "Failed to parse RSA key.\n");
-    BIO_print_errors_fp(stderr);
+  if (chunk_len > sizeof(scratch)) {
     return false;
   }
 
-  if (!SpeedRSA("RSA 2048", key)) {
+  TimeResults results;
+  if (!TimeFunction(&results, [chunk_len, &scratch]() -> bool {
+        RAND_bytes(scratch, chunk_len);
+        return true;
+      })) {
+    return false;
+  }
+
+  results.PrintWithBytes(name, chunk_len);
+  return true;
+}
+
+static bool SpeedRandom(const std::string &selected) {
+  if (!selected.empty() && selected != "RNG") {
+    return true;
+  }
+
+  return SpeedRandomChunk("RNG (16 bytes)", 16) &&
+         SpeedRandomChunk("RNG (256 bytes)", 256) &&
+         SpeedRandomChunk("RNG (8192 bytes)", 8192);
+}
+
+static bool SpeedECDHCurve(const std::string &name, int nid,
+                           const std::string &selected) {
+  if (!selected.empty() && name.find(selected) == std::string::npos) {
+    return true;
+  }
+
+  TimeResults results;
+  if (!TimeFunction(&results, [nid]() -> bool {
+        ScopedEC_KEY key(EC_KEY_new_by_curve_name(nid));
+        if (!key ||
+            !EC_KEY_generate_key(key.get())) {
+          return false;
+        }
+        const EC_GROUP *const group = EC_KEY_get0_group(key.get());
+        ScopedEC_POINT point(EC_POINT_new(group));
+        ScopedBN_CTX ctx(BN_CTX_new());
+
+        ScopedBIGNUM x(BN_new());
+        ScopedBIGNUM y(BN_new());
+
+        if (!point || !ctx || !x || !y ||
+            !EC_POINT_mul(group, point.get(), NULL,
+                          EC_KEY_get0_public_key(key.get()),
+                          EC_KEY_get0_private_key(key.get()), ctx.get()) ||
+            !EC_POINT_get_affine_coordinates_GFp(group, point.get(), x.get(),
+                                                 y.get(), ctx.get())) {
+          return false;
+        }
+
+        return true;
+      })) {
+    return false;
+  }
+
+  results.Print(name);
+  return true;
+}
+
+static bool SpeedECDSACurve(const std::string &name, int nid,
+                            const std::string &selected) {
+  if (!selected.empty() && name.find(selected) == std::string::npos) {
+    return true;
+  }
+
+  ScopedEC_KEY key(EC_KEY_new_by_curve_name(nid));
+  if (!key ||
+      !EC_KEY_generate_key(key.get())) {
+    return false;
+  }
+
+  uint8_t signature[256];
+  if (ECDSA_size(key.get()) > sizeof(signature)) {
+    return false;
+  }
+  uint8_t digest[20];
+  memset(digest, 42, sizeof(digest));
+  unsigned sig_len;
+
+  TimeResults results;
+  if (!TimeFunction(&results, [&key, &signature, &digest, &sig_len]() -> bool {
+        return ECDSA_sign(0, digest, sizeof(digest), signature, &sig_len,
+                          key.get()) == 1;
+      })) {
+    return false;
+  }
+
+  results.Print(name + " signing");
+
+  if (!TimeFunction(&results, [&key, &signature, &digest, sig_len]() -> bool {
+        return ECDSA_verify(0, digest, sizeof(digest), signature, sig_len,
+                            key.get()) == 1;
+      })) {
+    return false;
+  }
+
+  results.Print(name + " verify");
+
+  return true;
+}
+
+static bool SpeedECDH(const std::string &selected) {
+  return SpeedECDHCurve("ECDH P-224", NID_secp224r1, selected) &&
+         SpeedECDHCurve("ECDH P-256", NID_X9_62_prime256v1, selected) &&
+         SpeedECDHCurve("ECDH P-384", NID_secp384r1, selected) &&
+         SpeedECDHCurve("ECDH P-521", NID_secp521r1, selected);
+}
+
+static bool SpeedECDSA(const std::string &selected) {
+  return SpeedECDSACurve("ECDSA P-224", NID_secp224r1, selected) &&
+         SpeedECDSACurve("ECDSA P-256", NID_X9_62_prime256v1, selected) &&
+         SpeedECDSACurve("ECDSA P-384", NID_secp384r1, selected) &&
+         SpeedECDSACurve("ECDSA P-521", NID_secp521r1, selected);
+}
+
+static bool Speed25519(const std::string &selected) {
+  if (!selected.empty() && selected.find("25519") == std::string::npos) {
+    return true;
+  }
+
+  TimeResults results;
+
+#if !defined(OPENSSL_SMALL)
+  uint8_t public_key[32], private_key[64];
+
+  if (!TimeFunction(&results, [&public_key, &private_key]() -> bool {
+        ED25519_keypair(public_key, private_key);
+        return true;
+      })) {
+    return false;
+  }
+
+  results.Print("Ed25519 key generation");
+
+  static const uint8_t kMessage[] = {0, 1, 2, 3, 4, 5};
+  uint8_t signature[64];
+
+  if (!TimeFunction(&results, [&private_key, &signature]() -> bool {
+        return ED25519_sign(signature, kMessage, sizeof(kMessage),
+                            private_key) == 1;
+      })) {
+    return false;
+  }
+
+  results.Print("Ed25519 signing");
+
+  if (!TimeFunction(&results, [&public_key, &signature]() -> bool {
+        return ED25519_verify(kMessage, sizeof(kMessage), signature,
+                              public_key) == 1;
+      })) {
+    fprintf(stderr, "Ed25519 verify failed.\n");
+    return false;
+  }
+
+  results.Print("Ed25519 verify");
+#endif
+
+  if (!TimeFunction(&results, []() -> bool {
+        uint8_t out[32], in[32];
+        memset(in, 0, sizeof(in));
+        X25519_public_from_private(out, in);
+        return true;
+      })) {
+    fprintf(stderr, "Curve25519 base-point multiplication failed.\n");
+    return false;
+  }
+
+  results.Print("Curve25519 base-point multiplication");
+
+  if (!TimeFunction(&results, []() -> bool {
+        uint8_t out[32], in1[32], in2[32];
+        memset(in1, 0, sizeof(in1));
+        memset(in2, 0, sizeof(in2));
+        in1[0] = 1;
+        in2[0] = 9;
+        return X25519(out, in1, in2) == 1;
+      })) {
+    fprintf(stderr, "Curve25519 arbitrary point multiplication failed.\n");
+    return false;
+  }
+
+  results.Print("Curve25519 arbitrary point multiplication");
+
+  return true;
+}
+
+bool Speed(const std::vector<std::string> &args) {
+  std::string selected;
+  if (args.size() > 1) {
+    fprintf(stderr, "Usage: bssl speed [speed test selector, i.e. 'RNG']\n");
+    return false;
+  }
+  if (args.size() > 0) {
+    selected = args[0];
+  }
+
+  RSA *key = RSA_private_key_from_bytes(kDERRSAPrivate2048,
+                                        kDERRSAPrivate2048Len);
+  if (key == NULL) {
+    fprintf(stderr, "Failed to parse RSA key.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
+
+  if (!SpeedRSA("RSA 2048", key, selected)) {
     return false;
   }
 
   RSA_free(key);
-  key = NULL;
+  key = RSA_private_key_from_bytes(kDERRSAPrivate3Prime2048,
+                                   kDERRSAPrivate3Prime2048Len);
+  if (key == NULL) {
+    fprintf(stderr, "Failed to parse RSA key.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
 
-  inp = kDERRSAPrivate4096;
-  if (NULL == d2i_RSAPrivateKey(&key, &inp, kDERRSAPrivate4096Len)) {
+  if (!SpeedRSA("RSA 2048 (3 prime, e=3)", key, selected)) {
+    return false;
+  }
+
+  RSA_free(key);
+  key = RSA_private_key_from_bytes(kDERRSAPrivate4096,
+                                   kDERRSAPrivate4096Len);
+  if (key == NULL) {
     fprintf(stderr, "Failed to parse 4096-bit RSA key.\n");
-    BIO_print_errors_fp(stderr);
+    ERR_print_errors_fp(stderr);
     return 1;
   }
 
-  if (!SpeedRSA("RSA 4096", key)) {
+  if (!SpeedRSA("RSA 4096", key, selected)) {
     return false;
   }
 
@@ -313,17 +528,26 @@ bool Speed(const std::vector<std::string> &args) {
   // knowledge in them and construct a couple of the AD bytes internally.
   static const size_t kLegacyADLen = kTLSADLen - 2;
 
-  if (!SpeedAEAD(EVP_aead_aes_128_gcm(), "AES-128-GCM", kTLSADLen) ||
-      !SpeedAEAD(EVP_aead_aes_256_gcm(), "AES-256-GCM", kTLSADLen) ||
-      !SpeedAEAD(EVP_aead_chacha20_poly1305(), "ChaCha20-Poly1305", kTLSADLen) ||
-      !SpeedAEAD(EVP_aead_rc4_md5_tls(), "RC4-MD5", kLegacyADLen) ||
-      !SpeedAEAD(EVP_aead_aes_128_cbc_sha1_tls(), "AES-128-CBC-SHA1", kLegacyADLen) ||
-      !SpeedAEAD(EVP_aead_aes_256_cbc_sha1_tls(), "AES-256-CBC-SHA1", kLegacyADLen) ||
-      !SpeedHash(EVP_sha1(), "SHA-1") ||
-      !SpeedHash(EVP_sha256(), "SHA-256") ||
-      !SpeedHash(EVP_sha512(), "SHA-512")) {
+  if (!SpeedAEAD(EVP_aead_aes_128_gcm(), "AES-128-GCM", kTLSADLen, selected) ||
+      !SpeedAEAD(EVP_aead_aes_256_gcm(), "AES-256-GCM", kTLSADLen, selected) ||
+      !SpeedAEAD(EVP_aead_chacha20_poly1305_rfc7539(), "ChaCha20-Poly1305",
+                 kTLSADLen, selected) ||
+      !SpeedAEAD(EVP_aead_chacha20_poly1305_old(), "ChaCha20-Poly1305-Old",
+                 kTLSADLen, selected) ||
+      !SpeedAEAD(EVP_aead_rc4_md5_tls(), "RC4-MD5", kLegacyADLen, selected) ||
+      !SpeedAEAD(EVP_aead_aes_128_cbc_sha1_tls(), "AES-128-CBC-SHA1",
+                 kLegacyADLen, selected) ||
+      !SpeedAEAD(EVP_aead_aes_256_cbc_sha1_tls(), "AES-256-CBC-SHA1",
+                 kLegacyADLen, selected) ||
+      !SpeedHash(EVP_sha1(), "SHA-1", selected) ||
+      !SpeedHash(EVP_sha256(), "SHA-256", selected) ||
+      !SpeedHash(EVP_sha512(), "SHA-512", selected) ||
+      !SpeedRandom(selected) ||
+      !SpeedECDH(selected) ||
+      !SpeedECDSA(selected) ||
+      !Speed25519(selected)) {
     return false;
   }
 
-  return 0;
+  return true;
 }

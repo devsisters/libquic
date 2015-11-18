@@ -189,7 +189,7 @@ class NET_EXPORT_PRIVATE StrikeRegister {
 
   void ValidateTree(uint32 internal_node,
                     int last_bit,
-                    const std::vector<std::pair<unsigned, bool> >& bits,
+                    const std::vector<std::pair<unsigned, bool>>& bits,
                     const std::set<uint32>& free_internal_nodes,
                     const std::set<uint32>& free_external_nodes,
                     std::set<uint32>* used_internal_nodes,

@@ -54,31 +54,23 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include "ssl_locl.h"
+#include <openssl/ssl.h>
+
+#include "internal.h"
 
 
 static const SSL_PROTOCOL_METHOD TLS_protocol_method = {
+    0 /* is_dtls */,
     ssl3_new,
     ssl3_free,
     ssl3_accept,
     ssl3_connect,
-    ssl3_read,
-    ssl3_peek,
-    ssl3_write,
-    ssl3_shutdown,
-    ssl3_renegotiate,
-    ssl3_renegotiate_check,
     ssl3_get_message,
-    ssl3_read_bytes,
-    ssl3_write_bytes,
+    ssl3_read_app_data,
+    ssl3_read_close_notify,
+    ssl3_write_app_data,
     ssl3_dispatch_alert,
-    ssl3_ctrl,
-    ssl3_ctx_ctrl,
-    ssl3_pending,
-    ssl3_num_ciphers,
-    ssl3_get_cipher,
-    ssl3_callback_ctrl,
-    ssl3_ctx_callback_ctrl,
+    ssl3_supports_cipher,
     SSL3_HM_HEADER_LENGTH,
     ssl3_set_handshake_header,
     ssl3_handshake_write,

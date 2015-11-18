@@ -14,13 +14,6 @@
 
 #include <openssl/base.h>
 
-#include <string>
-#include <vector>
-
-#include <errno.h>
-#include <stdlib.h>
-#include <sys/types.h>
-
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
@@ -30,21 +23,65 @@
 
 static const struct argument kArguments[] = {
     {
-     "-accept", true,
+     "-accept", kRequiredArgument,
      "The port of the server to bind on; eg 45102",
     },
     {
-     "-cipher", false,
+     "-cipher", kOptionalArgument,
      "An OpenSSL-style cipher suite string that configures the offered ciphers",
     },
     {
-      "-key", false,
+      "-key", kOptionalArgument,
       "Private-key file to use (default is server.pem)",
     },
     {
-     "", false, "",
+      "-ocsp-response", kOptionalArgument,
+      "OCSP response file to send",
+    },
+    {
+     "", kOptionalArgument, "",
     },
 };
+
+static bool LoadOCSPResponse(SSL_CTX *ctx, const char *filename) {
+  void *data = NULL;
+  bool ret = false;
+  size_t bytes_read;
+  long length;
+
+  FILE *f = fopen(filename, "rb");
+
+  if (f == NULL ||
+      fseek(f, 0, SEEK_END) != 0) {
+    goto out;
+  }
+
+  length = ftell(f);
+  if (length < 0) {
+    goto out;
+  }
+
+  data = malloc(length);
+  if (data == NULL) {
+    goto out;
+  }
+  rewind(f);
+
+  bytes_read = fread(data, 1, length, f);
+  if (ferror(f) != 0 ||
+      bytes_read != (size_t)length ||
+      !SSL_CTX_set_ocsp_response(ctx, (uint8_t*)data, bytes_read)) {
+    goto out;
+  }
+
+  ret = true;
+out:
+  if (f != NULL) {
+      fclose(f);
+  }
+  free(data);
+  return ret;
+}
 
 bool Server(const std::vector<std::string> &args) {
   if (!InitSocketLibrary()) {
@@ -78,6 +115,12 @@ bool Server(const std::vector<std::string> &args) {
   if (args_map.count("-cipher") != 0 &&
       !SSL_CTX_set_cipher_list(ctx, args_map["-cipher"].c_str())) {
     fprintf(stderr, "Failed setting cipher list\n");
+    return false;
+  }
+
+  if (args_map.count("-ocsp-response") != 0 &&
+      !LoadOCSPResponse(ctx, args_map["-ocsp-response"].c_str())) {
+    fprintf(stderr, "Failed to load OCSP response: %s\n", args_map["-ocsp-response"].c_str());
     return false;
   }
 

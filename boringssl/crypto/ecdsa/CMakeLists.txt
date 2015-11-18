@@ -1,4 +1,4 @@
-include_directories(. .. ../../include)
+include_directories(../../include)
 
 add_library(
   ecdsa
@@ -13,7 +13,10 @@ add_library(
 add_executable(
   ecdsa_test
 
-  ecdsa_test.c
+  ecdsa_test.cc
+
+  $<TARGET_OBJECTS:test_support>
 )
 
 target_link_libraries(ecdsa_test crypto)
+add_dependencies(all_tests ecdsa_test)

@@ -65,19 +65,44 @@ const Flag<bool> kBoolFlags[] = {
   { "-expect-session-miss", &TestConfig::expect_session_miss },
   { "-expect-extended-master-secret",
     &TestConfig::expect_extended_master_secret },
-  { "-renegotiate", &TestConfig::renegotiate },
-  { "-allow-unsafe-legacy-renegotiation",
-    &TestConfig::allow_unsafe_legacy_renegotiation },
   { "-enable-ocsp-stapling", &TestConfig::enable_ocsp_stapling },
   { "-enable-signed-cert-timestamps",
     &TestConfig::enable_signed_cert_timestamps },
-  { "-fastradio-padding", &TestConfig::fastradio_padding },
   { "-implicit-handshake", &TestConfig::implicit_handshake },
   { "-use-early-callback", &TestConfig::use_early_callback },
   { "-fail-early-callback", &TestConfig::fail_early_callback },
+  { "-install-ddos-callback", &TestConfig::install_ddos_callback },
+  { "-fail-ddos-callback", &TestConfig::fail_ddos_callback },
+  { "-fail-second-ddos-callback", &TestConfig::fail_second_ddos_callback },
+  { "-handshake-never-done", &TestConfig::handshake_never_done },
+  { "-use-export-context", &TestConfig::use_export_context },
+  { "-no-legacy-server-connect", &TestConfig::no_legacy_server_connect },
+  { "-tls-unique", &TestConfig::tls_unique },
+  { "-expect-ticket-renewal", &TestConfig::expect_ticket_renewal },
+  { "-expect-no-session", &TestConfig::expect_no_session },
+  { "-use-ticket-callback", &TestConfig::use_ticket_callback },
+  { "-renew-ticket", &TestConfig::renew_ticket },
+  { "-enable-client-custom-extension",
+    &TestConfig::enable_client_custom_extension },
+  { "-enable-server-custom-extension",
+    &TestConfig::enable_server_custom_extension },
+  { "-custom-extension-skip", &TestConfig::custom_extension_skip },
+  { "-custom-extension-fail-add", &TestConfig::custom_extension_fail_add },
+  { "-check-close-notify", &TestConfig::check_close_notify },
+  { "-shim-shuts-down", &TestConfig::shim_shuts_down },
+  { "-microsoft-big-sslv3-buffer", &TestConfig::microsoft_big_sslv3_buffer },
+  { "-verify-fail", &TestConfig::verify_fail },
+  { "-verify-peer", &TestConfig::verify_peer },
+  { "-expect-verify-result", &TestConfig::expect_verify_result },
+  { "-renegotiate-once", &TestConfig::renegotiate_once },
+  { "-renegotiate-freely", &TestConfig::renegotiate_freely },
+  { "-renegotiate-ignore", &TestConfig::renegotiate_ignore },
+  { "-disable-npn", &TestConfig::disable_npn },
+  { "-p384-only", &TestConfig::p384_only },
 };
 
 const Flag<std::string> kStringFlags[] = {
+  { "-digest-prefs", &TestConfig::digest_prefs },
   { "-key-file", &TestConfig::key_file },
   { "-cert-file", &TestConfig::cert_file },
   { "-expect-server-name", &TestConfig::expected_server_name },
@@ -93,6 +118,11 @@ const Flag<std::string> kStringFlags[] = {
   { "-psk", &TestConfig::psk },
   { "-psk-identity", &TestConfig::psk_identity },
   { "-srtp-profiles", &TestConfig::srtp_profiles },
+  { "-cipher", &TestConfig::cipher },
+  { "-cipher-tls10", &TestConfig::cipher_tls10 },
+  { "-cipher-tls11", &TestConfig::cipher_tls11 },
+  { "-export-label", &TestConfig::export_label },
+  { "-export-context", &TestConfig::export_context },
 };
 
 const Flag<std::string> kBase64Flags[] = {
@@ -101,6 +131,8 @@ const Flag<std::string> kBase64Flags[] = {
   { "-expect-ocsp-response", &TestConfig::expected_ocsp_response },
   { "-expect-signed-cert-timestamps",
     &TestConfig::expected_signed_cert_timestamps },
+  { "-ocsp-response", &TestConfig::ocsp_response },
+  { "-signed-cert-timestamps", &TestConfig::signed_cert_timestamps },
 };
 
 const Flag<int> kIntFlags[] = {
@@ -108,42 +140,13 @@ const Flag<int> kIntFlags[] = {
   { "-min-version", &TestConfig::min_version },
   { "-max-version", &TestConfig::max_version },
   { "-mtu", &TestConfig::mtu },
+  { "-export-keying-material", &TestConfig::export_keying_material },
+  { "-expect-total-renegotiations", &TestConfig::expect_total_renegotiations },
+  { "-expect-server-key-exchange-hash",
+    &TestConfig::expect_server_key_exchange_hash },
 };
 
 }  // namespace
-
-TestConfig::TestConfig()
-    : port(0),
-      is_server(false),
-      is_dtls(false),
-      resume(false),
-      fallback_scsv(false),
-      require_any_client_certificate(false),
-      false_start(false),
-      async(false),
-      write_different_record_sizes(false),
-      cbc_record_splitting(false),
-      partial_write(false),
-      no_tls12(false),
-      no_tls11(false),
-      no_tls1(false),
-      no_ssl3(false),
-      shim_writes_first(false),
-      tls_d5_bug(false),
-      expect_session_miss(false),
-      expect_extended_master_secret(false),
-      renegotiate(false),
-      allow_unsafe_legacy_renegotiation(false),
-      enable_ocsp_stapling(false),
-      enable_signed_cert_timestamps(false),
-      fastradio_padding(false),
-      min_version(0),
-      max_version(0),
-      mtu(0),
-      implicit_handshake(false),
-      use_early_callback(false),
-      fail_early_callback(false) {
-}
 
 bool ParseConfig(int argc, char **argv, TestConfig *out_config) {
   for (int i = 0; i < argc; i++) {

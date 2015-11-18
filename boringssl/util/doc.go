@@ -42,15 +42,16 @@ type HeaderFile struct {
 	// is a separate paragraph.
 	Preamble []string
 	Sections []HeaderSection
+	// AllDecls maps all decls to their URL fragments.
+	AllDecls map[string]string
 }
 
 type HeaderSection struct {
 	// Preamble contains a comment for a group of functions.
 	Preamble []string
 	Decls    []HeaderDecl
-	// Num is just the index of the section. It's included in order to help
-	// text/template generate anchors.
-	Num int
+	// Anchor, if non-empty, is the URL fragment to use in anchor tags.
+	Anchor string
 	// IsPrivate is true if the section contains private functions (as
 	// indicated by its name).
 	IsPrivate bool
@@ -65,10 +66,8 @@ type HeaderDecl struct {
 	Name string
 	// Decl contains the preformatted C declaration itself.
 	Decl string
-	// Num is an index for the declaration, but the value is unique for all
-	// declarations in a HeaderFile. It's included in order to help
-	// text/template generate anchors.
-	Num int
+	// Anchor, if non-empty, is the URL fragment to use in anchor tags.
+	Anchor string
 }
 
 const (
@@ -111,7 +110,9 @@ func extractComment(lines []string, lineNo int) (comment []string, rest []string
 			err = fmt.Errorf("comment doesn't start with block prefix on line %d: %s", restLineNo, line)
 			return
 		}
-		line = line[2:]
+		if len(line) == 2 || line[2] != '/' {
+			line = line[2:]
+		}
 		if strings.HasPrefix(line, "   ") {
 			/* Identing the lines of a paragraph marks them as
 			* preformatted. */
@@ -190,20 +191,36 @@ func extractDecl(lines []string, lineNo int) (decl string, rest []string, restLi
 	return
 }
 
-func skipPast(s, skip string) string {
-	i := strings.Index(s, skip)
+func skipLine(s string) string {
+	i := strings.Index(s, "\n")
 	if i > 0 {
-		return s[len(skip):]
+		return s[i:]
 	}
-	return s
+	return ""
 }
 
 func getNameFromDecl(decl string) (string, bool) {
+	for strings.HasPrefix(decl, "#if") || strings.HasPrefix(decl, "#elif") {
+		decl = skipLine(decl)
+	}
 	if strings.HasPrefix(decl, "struct ") {
 		return "", false
 	}
-	decl = skipPast(decl, "STACK_OF(")
-	decl = skipPast(decl, "LHASH_OF(")
+	if strings.HasPrefix(decl, "#define ") {
+		// This is a preprocessor #define. The name is the next symbol.
+		decl = strings.TrimPrefix(decl, "#define ")
+		for len(decl) > 0 && decl[0] == ' ' {
+			decl = decl[1:]
+		}
+		i := strings.IndexAny(decl, "( ")
+		if i < 0 {
+			return "", false
+		}
+		return decl[:i], true
+	}
+	decl = strings.TrimPrefix(decl, "OPENSSL_EXPORT ")
+	decl = strings.TrimPrefix(decl, "STACK_OF(")
+	decl = strings.TrimPrefix(decl, "LHASH_OF(")
 	i := strings.Index(decl, "(")
 	if i < 0 {
 		return "", false
@@ -216,6 +233,14 @@ func getNameFromDecl(decl string) (string, bool) {
 		j++
 	}
 	return decl[j+1 : i], true
+}
+
+func sanitizeAnchor(name string) string {
+	return strings.Replace(name, " ", "-", -1)
+}
+
+func isPrivateSection(name string) bool {
+	return strings.HasPrefix(name, "Private functions") || strings.HasPrefix(name, "Private structures") || strings.Contains(name, "(hidden)")
 }
 
 func (config *Config) parseHeader(path string) (*HeaderFile, error) {
@@ -259,7 +284,8 @@ func (config *Config) parseHeader(path string) (*HeaderFile, error) {
 	lines = lines[2:]
 
 	header := &HeaderFile{
-		Name: filepath.Base(path),
+		Name:     filepath.Base(path),
+		AllDecls: make(map[string]string),
 	}
 
 	for i, line := range lines {
@@ -289,7 +315,7 @@ func (config *Config) parseHeader(path string) (*HeaderFile, error) {
 		}
 	}
 
-	var sectionNumber, declNumber int
+	allAnchors := make(map[string]struct{})
 
 	for {
 		// Start of a section.
@@ -305,10 +331,7 @@ func (config *Config) parseHeader(path string) (*HeaderFile, error) {
 			return nil, fmt.Errorf("blank line at start of section on line %d", lineNo)
 		}
 
-		section := HeaderSection{
-			Num: sectionNumber,
-		}
-		sectionNumber++
+		var section HeaderSection
 
 		if strings.HasPrefix(line, commentStart) {
 			comment, rest, restLineNo, err := extractComment(lines, lineNo)
@@ -316,8 +339,17 @@ func (config *Config) parseHeader(path string) (*HeaderFile, error) {
 				return nil, err
 			}
 			if len(rest) > 0 && len(rest[0]) == 0 {
+				anchor := sanitizeAnchor(firstSentence(comment))
+				if len(anchor) > 0 {
+					if _, ok := allAnchors[anchor]; ok {
+						return nil, fmt.Errorf("duplicate anchor: %s", anchor)
+					}
+					allAnchors[anchor] = struct{}{}
+				}
+
 				section.Preamble = comment
-				section.IsPrivate = len(comment) > 0 && strings.HasPrefix(comment[0], "Private functions")
+				section.IsPrivate = len(comment) > 0 && isPrivateSection(comment[0])
+				section.Anchor = anchor
 				lines = rest[1:]
 				lineNo = restLineNo + 1
 			}
@@ -356,13 +388,33 @@ func (config *Config) parseHeader(path string) (*HeaderFile, error) {
 			if last := len(section.Decls) - 1; len(name) == 0 && len(comment) == 0 && last >= 0 {
 				section.Decls[last].Decl += "\n" + decl
 			} else {
+				// As a matter of style, comments should start
+				// with the name of the thing that they are
+				// commenting on. We make an exception here for
+				// #defines (because we often have blocks of
+				// them) and collective comments, which are
+				// detected by starting with “The” or “These”.
+				if len(comment) > 0 &&
+					!strings.HasPrefix(comment[0], name) &&
+					!strings.HasPrefix(decl, "#define ") &&
+					!strings.HasPrefix(comment[0], "The ") &&
+					!strings.HasPrefix(comment[0], "These ") {
+					return nil, fmt.Errorf("Comment for %q doesn't seem to match just above %s:%d\n", name, path, lineNo)
+				}
+				anchor := sanitizeAnchor(name)
+				// TODO(davidben): Enforce uniqueness. This is
+				// skipped because #ifdefs currently result in
+				// duplicate table-of-contents entries.
+				allAnchors[anchor] = struct{}{}
+
+				header.AllDecls[name] = anchor
+
 				section.Decls = append(section.Decls, HeaderDecl{
 					Comment: comment,
 					Name:    name,
 					Decl:    decl,
-					Num:     declNumber,
+					Anchor:  anchor,
 				})
-				declNumber++
 			}
 
 			if len(lines) > 0 && len(lines[0]) == 0 {
@@ -392,7 +444,7 @@ func firstSentence(paragraphs []string) string {
 	return s
 }
 
-func markupPipeWords(s string) template.HTML {
+func markupPipeWords(allDecls map[string]string, s string) template.HTML {
 	ret := ""
 
 	for {
@@ -408,7 +460,14 @@ func markupPipeWords(s string) template.HTML {
 		j := strings.Index(s, " ")
 		if i > 0 && (j == -1 || j > i) {
 			ret += "<tt>"
+			anchor, isLink := allDecls[s[:i]]
+			if isLink {
+				ret += fmt.Sprintf("<a href=\"%s\">", template.HTMLEscapeString(anchor))
+			}
 			ret += s[:i]
+			if isLink {
+				ret += "</a>"
+			}
 			ret += "</tt>"
 			s = s[i+1:]
 		} else {
@@ -426,7 +485,12 @@ again:
 	if end > 0 {
 		end += start
 		w := strings.ToLower(string(s[start:end]))
-		if w == "a" || w == "an" || w == "deprecated:" {
+		// The first word was already marked up as an HTML tag. Don't
+		// mark it up further.
+		if strings.ContainsRune(w, '<') {
+			return s
+		}
+		if w == "a" || w == "an" {
 			start = end + 1
 			goto again
 		}
@@ -446,10 +510,12 @@ func newlinesToBR(html template.HTML) template.HTML {
 }
 
 func generate(outPath string, config *Config) (map[string]string, error) {
+	allDecls := make(map[string]string)
+
 	headerTmpl := template.New("headerTmpl")
 	headerTmpl.Funcs(template.FuncMap{
 		"firstSentence":   firstSentence,
-		"markupPipeWords": markupPipeWords,
+		"markupPipeWords": func(s string) template.HTML { return markupPipeWords(allDecls, s) },
 		"markupFirstWord": markupFirstWord,
 		"newlinesToBR":    newlinesToBR,
 	})
@@ -470,9 +536,9 @@ func generate(outPath string, config *Config) (map[string]string, error) {
     <ol>
       {{range .Sections}}
         {{if not .IsPrivate}}
-          {{if .Preamble}}<li class="header"><a href="#section-{{.Num}}">{{.Preamble | firstSentence | html | markupPipeWords}}</a></li>{{end}}
+          {{if .Anchor}}<li class="header"><a href="#{{.Anchor}}">{{.Preamble | firstSentence | html | markupPipeWords}}</a></li>{{end}}
           {{range .Decls}}
-            {{if .Name}}<li><a href="#decl-{{.Num}}"><tt>{{.Name}}</tt></a></li>{{end}}
+            {{if .Anchor}}<li><a href="#{{.Anchor}}"><tt>{{.Name}}</tt></a></li>{{end}}
           {{end}}
         {{end}}
       {{end}}
@@ -480,23 +546,19 @@ func generate(outPath string, config *Config) (map[string]string, error) {
 
     {{range .Sections}}
       {{if not .IsPrivate}}
-        <div class="section">
+        <div class="section" {{if .Anchor}}id="{{.Anchor}}"{{end}}>
         {{if .Preamble}}
           <div class="sectionpreamble">
-          <a name="section-{{.Num}}">
           {{range .Preamble}}<p>{{. | html | markupPipeWords}}</p>{{end}}
-          </a>
           </div>
         {{end}}
 
         {{range .Decls}}
-          <div class="decl">
-          <a name="decl-{{.Num}}">
+          <div class="decl" {{if .Anchor}}id="{{.Anchor}}"{{end}}>
           {{range .Comment}}
             <p>{{. | html | markupPipeWords | newlinesToBR | markupFirstWord}}</p>
           {{end}}
           <pre>{{.Decl}}</pre>
-          </a>
           </div>
         {{end}}
         </div>
@@ -510,6 +572,7 @@ func generate(outPath string, config *Config) (map[string]string, error) {
 	}
 
 	headerDescriptions := make(map[string]string)
+	var headers []*HeaderFile
 
 	for _, section := range config.Sections {
 		for _, headerPath := range section.Headers {
@@ -518,15 +581,23 @@ func generate(outPath string, config *Config) (map[string]string, error) {
 				return nil, errors.New("while parsing " + headerPath + ": " + err.Error())
 			}
 			headerDescriptions[header.Name] = firstSentence(header.Preamble)
-			filename := filepath.Join(outPath, header.Name+".html")
-			file, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
-			if err != nil {
-				panic(err)
+			headers = append(headers, header)
+
+			for name, anchor := range header.AllDecls {
+				allDecls[name] = fmt.Sprintf("%s#%s", header.Name+".html", anchor)
 			}
-			defer file.Close()
-			if err := headerTmpl.Execute(file, header); err != nil {
-				return nil, err
-			}
+		}
+	}
+
+	for _, header := range headers {
+		filename := filepath.Join(outPath, header.Name+".html")
+		file, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
+		if err != nil {
+			panic(err)
+		}
+		defer file.Close()
+		if err := headerTmpl.Execute(file, header); err != nil {
+			return nil, err
 		}
 	}
 
@@ -580,10 +651,18 @@ func generateIndex(outPath string, config *Config, headerDescriptions map[string
 	return nil
 }
 
+func copyFile(outPath string, inFilePath string) error {
+	bytes, err := ioutil.ReadFile(inFilePath)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filepath.Join(outPath, filepath.Base(inFilePath)), bytes, 0666)
+}
+
 func main() {
 	var (
-		configFlag *string = flag.String("config", "", "Location of config file")
-		outputDir  *string = flag.String("out", "", "Path to the directory where the output will be written")
+		configFlag *string = flag.String("config", "doc.config", "Location of config file")
+		outputDir  *string = flag.String("out", ".", "Path to the directory where the output will be written")
 		config     Config
 	)
 
@@ -618,6 +697,11 @@ func main() {
 
 	if err := generateIndex(*outputDir, &config, headerDescriptions); err != nil {
 		fmt.Printf("Failed to generate index: %s\n", err)
+		os.Exit(1)
+	}
+
+	if err := copyFile(*outputDir, "doc.css"); err != nil {
+		fmt.Printf("Failed to copy static file: %s\n", err)
 		os.Exit(1)
 	}
 }

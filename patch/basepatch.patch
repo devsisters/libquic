@@ -1,49 +1,3 @@
-diff --git a/src/base/debug/stack_trace.cc b/src/base/debug/stack_trace.cc
-index ce9e9ad..8da6083 100644
---- a/src/base/debug/stack_trace.cc
-+++ b/src/base/debug/stack_trace.cc
-@@ -10,33 +10,29 @@
- 
- #include <algorithm>
- #include <sstream>
-+#include <ostream>
- 
- namespace base {
- namespace debug {
- 
-+StackTrace::StackTrace() {
-+}
-+
- StackTrace::StackTrace(const void* const* trace, size_t count) {
--  count = std::min(count, arraysize(trace_));
--  if (count)
--    memcpy(trace_, trace, count * sizeof(trace_[0]));
--  count_ = count;
- }
- 
- StackTrace::~StackTrace() {
- }
- 
-+void StackTrace::OutputToStream(std::ostream* os) const {
-+}
-+
- const void *const *StackTrace::Addresses(size_t* count) const {
--  *count = count_;
--  if (count_)
--    return trace_;
-   return NULL;
- }
- 
- std::string StackTrace::ToString() const {
--  std::stringstream stream;
--#if !defined(__UCLIBC__)
--  OutputToStream(&stream);
--#endif
--  return stream.str();
-+  return "";
- }
- 
- }  // namespace debug
 diff --git a/src/base/rand_util_posix.cc b/src/base/rand_util_posix.cc
 index fe73b96..abe0590 100644
 --- a/src/base/rand_util_posix.cc
@@ -98,7 +52,7 @@ index ad01828..dde18a9 100644
  namespace base {
  
 diff --git a/src/base/threading/platform_thread_linux.cc b/src/base/threading/platform_thread_linux.cc
-index 9f74374..046cc99 100644
+index 48cf744..46374af 100644
 --- a/src/base/threading/platform_thread_linux.cc
 +++ b/src/base/threading/platform_thread_linux.cc
 @@ -11,7 +11,9 @@
@@ -111,7 +65,7 @@ index 9f74374..046cc99 100644
  
  #if !defined(OS_NACL)
  #include <pthread.h>
-@@ -72,7 +74,9 @@ bool GetThreadPriorityForPlatform(PlatformThreadHandle handle,
+@@ -77,7 +79,9 @@ bool GetCurrentThreadPriorityForPlatform(ThreadPriority* priority) {
  // static
  void PlatformThread::SetName(const std::string& name) {
    ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
@@ -122,7 +76,7 @@ index 9f74374..046cc99 100644
  #if !defined(OS_NACL)
    // On linux we can get the thread names to show up in the debugger by setting
 diff --git a/src/base/threading/platform_thread_mac.mm b/src/base/threading/platform_thread_mac.mm
-index 813cae2..7991050 100644
+index 1ecbcd6..593caad 100644
 --- a/src/base/threading/platform_thread_mac.mm
 +++ b/src/base/threading/platform_thread_mac.mm
 @@ -16,7 +16,9 @@
@@ -145,391 +99,6 @@ index 813cae2..7991050 100644
  
    // Mac OS X does not expose the length limit of the name, so
    // hardcode it.
-diff --git a/src/base/threading/platform_thread_posix.cc b/src/base/threading/platform_thread_posix.cc
-index 0d821a9..4d16bbb 100644
---- a/src/base/threading/platform_thread_posix.cc
-+++ b/src/base/threading/platform_thread_posix.cc
-@@ -17,7 +17,9 @@
- #include "base/threading/platform_thread_internal_posix.h"
- #include "base/threading/thread_id_name_manager.h"
- #include "base/threading/thread_restrictions.h"
-+#if 0
- #include "base/tracked_objects.h"
-+#endif
- 
- #if defined(OS_LINUX)
- #include <sys/syscall.h>
-diff --git a/src/crypto/nss_util.cc b/src/crypto/nss_util.cc
-index 125591c..acebabe 100644
---- a/src/crypto/nss_util.cc
-+++ b/src/crypto/nss_util.cc
-@@ -27,22 +27,30 @@
- 
- #include "base/base_paths.h"
- #include "base/bind.h"
-+#if 0
- #include "base/cpu.h"
-+#endif
- #include "base/debug/alias.h"
- #include "base/debug/stack_trace.h"
- #include "base/environment.h"
- #include "base/files/file_path.h"
-+#if 0
- #include "base/files/file_util.h"
-+#endif
- #include "base/lazy_instance.h"
- #include "base/logging.h"
- #include "base/memory/scoped_ptr.h"
-+#if 0
- #include "base/message_loop/message_loop.h"
-+#endif
- #include "base/native_library.h"
- #include "base/path_service.h"
- #include "base/stl_util.h"
- #include "base/strings/stringprintf.h"
-+#if 0
- #include "base/threading/thread_checker.h"
- #include "base/threading/thread_restrictions.h"
-+#endif
- #include "base/threading/worker_pool.h"
- #include "build/build_config.h"
- 
-@@ -86,6 +94,7 @@ std::string GetNSSErrorMessage() {
- #if !defined(OS_CHROMEOS)
- base::FilePath GetDefaultConfigDirectory() {
-   base::FilePath dir;
-+#if 0
-   PathService::Get(base::DIR_HOME, &dir);
-   if (dir.empty()) {
-     LOG(ERROR) << "Failed to get home directory.";
-@@ -97,6 +106,7 @@ base::FilePath GetDefaultConfigDirectory() {
-     dir.clear();
-   }
-   DVLOG(2) << "DefaultConfigDirectory: " << dir.value();
-+#endif
-   return dir;
- }
- #endif  // !defined(IS_CHROMEOS)
-@@ -151,6 +161,7 @@ char* PKCS11PasswordFunc(PK11SlotInfo* slot, PRBool retry, void* arg) {
- // Because this function sets an environment variable it must be run before we
- // go multi-threaded.
- void UseLocalCacheOfNSSDatabaseIfNFS(const base::FilePath& database_dir) {
-+#if 0
-   bool db_on_nfs = false;
- #if defined(OS_LINUX)
-   base::FileSystemType fs_type = base::FILE_SYSTEM_UNKNOWN;
-@@ -170,6 +181,7 @@ void UseLocalCacheOfNSSDatabaseIfNFS(const base::FilePath& database_dir) {
-     if (!env->HasVar(kUseCacheEnvVar))
-       env->SetVar(kUseCacheEnvVar, "yes");
-   }
-+#endif
- }
- 
- #endif  // defined(USE_NSS_CERTS)
-@@ -317,11 +329,15 @@ class NSSInitSingleton {
- 
-   ScopedPK11Slot OpenPersistentNSSDBForPath(const std::string& db_name,
-                                             const base::FilePath& path) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     // NSS is allowed to do IO on the current thread since dispatching
-     // to a dedicated thread would still have the affect of blocking
-     // the current thread, due to NSS's internal locking requirements
-+#if 0
-     base::ThreadRestrictions::ScopedAllowIO allow_io;
-+#endif
- 
-     base::FilePath nssdb_path = path.AppendASCII(".pki").AppendASCII("nssdb");
-     if (!base::CreateDirectory(nssdb_path)) {
-@@ -332,7 +348,9 @@ class NSSInitSingleton {
-   }
- 
-   void EnableTPMTokenForNSS() {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
- 
-     // If this gets set, then we'll use the TPM for certs with
-     // private keys, otherwise we'll fall back to the software
-@@ -341,14 +359,18 @@ class NSSInitSingleton {
-   }
- 
-   bool IsTPMTokenEnabledForNSS() {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     return tpm_token_enabled_for_nss_;
-   }
- 
-   void InitializeTPMTokenAndSystemSlot(
-       int system_slot_id,
-       const base::Callback<void(bool)>& callback) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     // Should not be called while there is already an initialization in
-     // progress.
-     DCHECK(!initializing_tpm_token_);
-@@ -417,7 +439,9 @@ class NSSInitSingleton {
-   void OnInitializedTPMTokenAndSystemSlot(
-       const base::Callback<void(bool)>& callback,
-       scoped_ptr<TPMModuleAndSlot> tpm_args) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     DVLOG(2) << "Loaded chaps: " << !!tpm_args->chaps_module
-              << ", got tpm slot: " << !!tpm_args->tpm_slot;
- 
-@@ -451,11 +475,13 @@ class NSSInitSingleton {
-       // Cannot DCHECK in the general case yet, but since the callback is
-       // a new addition to the API, DCHECK to make sure at least the new uses
-       // don't regress.
-+#if 0
-       DCHECK(thread_checker_.CalledOnValidThread());
-     } else if (!thread_checker_.CalledOnValidThread()) {
-       // TODO(mattm): Change to DCHECK when callers have been fixed.
-       DVLOG(1) << "Called on wrong thread.\n"
-                << base::debug::StackTrace().ToString();
-+#endif
-     }
- 
-     if (tpm_slot_)
-@@ -488,7 +514,9 @@ class NSSInitSingleton {
- 
-   bool InitializeNSSForChromeOSUser(const std::string& username_hash,
-                                     const base::FilePath& path) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     if (chromeos_user_map_.find(username_hash) != chromeos_user_map_.end()) {
-       // This user already exists in our mapping.
-       DVLOG(2) << username_hash << " already initialized.";
-@@ -505,7 +533,9 @@ class NSSInitSingleton {
-   }
- 
-   bool ShouldInitializeTPMForChromeOSUser(const std::string& username_hash) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     DCHECK(chromeos_user_map_.find(username_hash) != chromeos_user_map_.end());
- 
-     return !chromeos_user_map_[username_hash]
-@@ -513,7 +543,9 @@ class NSSInitSingleton {
-   }
- 
-   void WillInitializeTPMForChromeOSUser(const std::string& username_hash) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     DCHECK(chromeos_user_map_.find(username_hash) != chromeos_user_map_.end());
- 
-     chromeos_user_map_[username_hash]
-@@ -522,7 +554,9 @@ class NSSInitSingleton {
- 
-   void InitializeTPMForChromeOSUser(const std::string& username_hash,
-                                     CK_SLOT_ID slot_id) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     DCHECK(chromeos_user_map_.find(username_hash) != chromeos_user_map_.end());
-     DCHECK(chromeos_user_map_[username_hash]->
-                private_slot_initialization_started());
-@@ -549,7 +583,9 @@ class NSSInitSingleton {
- 
-   void OnInitializedTPMForChromeOSUser(const std::string& username_hash,
-                                        scoped_ptr<TPMModuleAndSlot> tpm_args) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     DVLOG(2) << "Got tpm slot for " << username_hash << " "
-              << !!tpm_args->tpm_slot;
-     chromeos_user_map_[username_hash]->SetPrivateSlot(
-@@ -558,7 +594,9 @@ class NSSInitSingleton {
- 
-   void InitializePrivateSoftwareSlotForChromeOSUser(
-       const std::string& username_hash) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     VLOG(1) << "using software private slot for " << username_hash;
-     DCHECK(chromeos_user_map_.find(username_hash) != chromeos_user_map_.end());
-     DCHECK(chromeos_user_map_[username_hash]->
-@@ -570,7 +608,9 @@ class NSSInitSingleton {
- 
-   ScopedPK11Slot GetPublicSlotForChromeOSUser(
-       const std::string& username_hash) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
- 
-     if (username_hash.empty()) {
-       DVLOG(2) << "empty username_hash";
-@@ -587,7 +627,9 @@ class NSSInitSingleton {
-   ScopedPK11Slot GetPrivateSlotForChromeOSUser(
-       const std::string& username_hash,
-       const base::Callback<void(ScopedPK11Slot)>& callback) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
- 
-     if (username_hash.empty()) {
-       DVLOG(2) << "empty username_hash";
-@@ -604,7 +646,9 @@ class NSSInitSingleton {
-   }
- 
-   void CloseChromeOSUserForTesting(const std::string& username_hash) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     ChromeOSUserMap::iterator i = chromeos_user_map_.find(username_hash);
-     DCHECK(i != chromeos_user_map_.end());
-     delete i->second;
-@@ -628,10 +672,12 @@ class NSSInitSingleton {
- #if !defined(OS_CHROMEOS)
-   PK11SlotInfo* GetPersistentNSSKeySlot() {
-     // TODO(mattm): Change to DCHECK when callers have been fixed.
-+#if 0
-     if (!thread_checker_.CalledOnValidThread()) {
-       DVLOG(1) << "Called on wrong thread.\n"
-                << base::debug::StackTrace().ToString();
-     }
-+#endif
- 
-     return PK11_GetInternalKeySlot();
-   }
-@@ -645,7 +691,9 @@ class NSSInitSingleton {
- 
-   ScopedPK11Slot GetSystemNSSKeySlot(
-       const base::Callback<void(ScopedPK11Slot)>& callback) {
-+#if 0
-     DCHECK(thread_checker_.CalledOnValidThread());
-+#endif
-     // TODO(mattm): chromeos::TPMTokenloader always calls
-     // InitializeTPMTokenAndSystemSlot with slot 0.  If the system slot is
-     // disabled, tpm_slot_ will be the first user's slot instead. Can that be
-@@ -686,7 +734,9 @@ class NSSInitSingleton {
-         root_(NULL) {
-     // It's safe to construct on any thread, since LazyInstance will prevent any
-     // other threads from accessing until the constructor is done.
-+#if 0
-     thread_checker_.DetachFromThread();
-+#endif
- 
-     DisableAESNIIfNeeded();
- 
-@@ -852,6 +902,7 @@ class NSSInitSingleton {
- #endif
- 
-   static void DisableAESNIIfNeeded() {
-+#if 0
-     if (NSS_VersionCheck("3.15") && !NSS_VersionCheck("3.15.4")) {
-       // Some versions of NSS have a bug that causes AVX instructions to be
-       // used without testing whether XSAVE is enabled by the operating system.
-@@ -865,6 +916,7 @@ class NSSInitSingleton {
-         env->SetVar("NSS_DISABLE_HW_AES", "1");
-       }
-     }
-+#endif
-   }
- 
-   // If this is set to true NSS is forced to be initialized without a DB.
-@@ -888,7 +940,9 @@ class NSSInitSingleton {
-   base::Lock write_lock_;
- #endif  // defined(USE_NSS_CERTS)
- 
-+#if 0
-   base::ThreadChecker thread_checker_;
-+#endif
- };
- 
- // static
-@@ -942,7 +996,9 @@ void EnsureNSSInit() {
-   // Initializing SSL causes us to do blocking IO.
-   // Temporarily allow it until we fix
-   //   http://code.google.com/p/chromium/issues/detail?id=59847
-+#if 0
-   base::ThreadRestrictions::ScopedAllowIO allow_io;
-+#endif
-   g_nss_singleton.Get();
- }
- 
-@@ -951,11 +1007,14 @@ void ForceNSSNoDBInit() {
- }
- 
- void DisableNSSForkCheck() {
-+#if 0
-   scoped_ptr<base::Environment> env(base::Environment::Create());
-   env->SetVar("NSS_STRICT_NOFORK", "DISABLED");
-+#endif
- }
- 
- void LoadNSSLibraries() {
-+#if 0
-   // Some NSS libraries are linked dynamically so load them here.
- #if defined(USE_NSS_CERTS)
-   // Try to search for multiple directories to load the libraries.
-@@ -1007,6 +1066,7 @@ void LoadNSSLibraries() {
-     LOG(ERROR) << "Failed to load NSS libraries.";
-   }
- #endif  // defined(USE_NSS_CERTS)
-+#endif
- }
- 
- bool CheckNSSVersion(const char* version) {
-diff --git a/src/net/base/host_port_pair.cc b/src/net/base/host_port_pair.cc
-index 816bbac..33fc2fa 100644
---- a/src/net/base/host_port_pair.cc
-+++ b/src/net/base/host_port_pair.cc
-@@ -11,7 +11,9 @@
- #include "base/strings/stringprintf.h"
- #include "net/base/ip_endpoint.h"
- #include "net/base/net_util.h"
-+#if 0
- #include "url/gurl.h"
-+#endif
- 
- namespace net {
- 
-@@ -20,11 +22,13 @@ HostPortPair::HostPortPair(const std::string& in_host, uint16_t in_port)
-     : host_(in_host), port_(in_port) {
- }
- 
-+#if 0
- // static
- HostPortPair HostPortPair::FromURL(const GURL& url) {
-   return HostPortPair(url.HostNoBrackets(),
-                       static_cast<uint16_t>(url.EffectiveIntPort()));
- }
-+#endif
- 
- // static
- HostPortPair HostPortPair::FromIPEndPoint(const IPEndPoint& ipe) {
-diff --git a/src/net/base/host_port_pair.h b/src/net/base/host_port_pair.h
-index 9b1df56..6067640 100644
---- a/src/net/base/host_port_pair.h
-+++ b/src/net/base/host_port_pair.h
-@@ -9,7 +9,9 @@
- #include "base/basictypes.h"
- #include "net/base/net_export.h"
- 
-+#if 0
- class GURL;
-+#endif
- 
- namespace net {
- 
-@@ -21,8 +23,10 @@ class NET_EXPORT HostPortPair {
-   // If |in_host| represents an IPv6 address, it should not bracket the address.
-   HostPortPair(const std::string& in_host, uint16_t in_port);
- 
-+#if 0
-   // Creates a HostPortPair for the origin of |url|.
-   static HostPortPair FromURL(const GURL& url);
-+#endif
- 
-   // Creates a HostPortPair from an IPEndPoint.
-   static HostPortPair FromIPEndPoint(const IPEndPoint& ipe);
 diff --git a/src/net/base/net_errors.cc b/src/net/base/net_errors.cc
 index ddba87b..6f07590 100644
 --- a/src/net/base/net_errors.cc
@@ -574,132 +143,13 @@ index a3b6040..485d3c0 100644
  
  }  // namespace net
  
-diff --git a/src/net/quic/crypto/crypto_utils.cc b/src/net/quic/crypto/crypto_utils.cc
-index 0916474..e3e7155 100644
---- a/src/net/quic/crypto/crypto_utils.cc
-+++ b/src/net/quic/crypto/crypto_utils.cc
-@@ -12,7 +12,9 @@
- #include "net/quic/crypto/quic_encrypter.h"
- #include "net/quic/crypto/quic_random.h"
- #include "net/quic/quic_time.h"
-+#if 0
- #include "url/url_canon.h"
-+#endif
- 
- using base::StringPiece;
- using std::numeric_limits;
-@@ -47,6 +49,7 @@ void CryptoUtils::GenerateNonce(QuicWallTime now,
-                               kNonceSize - bytes_written);
- }
- 
-+#if 0
- // static
- bool CryptoUtils::IsValidSNI(StringPiece sni) {
-   // TODO(rtenneti): Support RFC2396 hostname.
-@@ -78,6 +81,29 @@ string CryptoUtils::NormalizeHostname(const char* hostname) {
-   }
-   return host;
- }
-+#else
-+// TODO(hodduc): We should implement this !
-+// static
-+bool CryptoUtils::IsValidSNI(StringPiece sni) {
-+  return sni.find_last_of('.') != string::npos;
-+}
-+
-+string CryptoUtils::NormalizeHostname(const char* hostname) {
-+  string host(hostname);
-+
-+  // Walk backwards over the string, stopping at the first trailing dot.
-+  size_t host_end = host.length();
-+  while (host_end != 0 && host[host_end - 1] == '.') {
-+    host_end--;
-+  }
-+
-+  // Erase the trailing dots.
-+  if (host_end != host.length()) {
-+    host.erase(host_end, host.length() - host_end);
-+  }
-+  return host;
-+}
-+#endif
- 
- // static
- bool CryptoUtils::DeriveKeys(StringPiece premaster_secret,
-diff --git a/src/net/quic/quic_connection.cc b/src/net/quic/quic_connection.cc
-index dde2b07..909ba58 100644
---- a/src/net/quic/quic_connection.cc
-+++ b/src/net/quic/quic_connection.cc
-@@ -17,7 +17,9 @@
- #include "base/debug/stack_trace.h"
- #include "base/format_macros.h"
- #include "base/logging.h"
-+#if 0
- #include "base/profiler/scoped_tracker.h"
-+#endif
- #include "base/stl_util.h"
- #include "base/strings/stringprintf.h"
- #include "net/base/net_errors.h"
-@@ -1239,10 +1241,12 @@ void QuicConnection::ProcessUdpPacket(const IPEndPoint& self_address,
-   if (!connected_) {
-     return;
-   }
-+#if 0
-   // TODO(rtenneti): Remove ScopedTracker below once crbug.com/462789 is fixed.
-   tracked_objects::ScopedTracker tracking_profile(
-       FROM_HERE_WITH_EXPLICIT_FUNCTION(
-           "462789 QuicConnection::ProcessUdpPacket"));
-+#endif
-   if (debug_visitor_ != nullptr) {
-     debug_visitor_->OnPacketReceived(self_address, peer_address, packet);
-   }
-diff --git a/src/net/quic/quic_crypto_client_stream.cc b/src/net/quic/quic_crypto_client_stream.cc
-index d8463c5..9c1089f 100644
---- a/src/net/quic/quic_crypto_client_stream.cc
-+++ b/src/net/quic/quic_crypto_client_stream.cc
-@@ -5,7 +5,9 @@
- #include "net/quic/quic_crypto_client_stream.h"
- 
- #include "base/metrics/histogram_macros.h"
-+#if 0
- #include "base/profiler/scoped_tracker.h"
-+#endif
- #include "net/quic/crypto/crypto_protocol.h"
- #include "net/quic/crypto/crypto_utils.h"
- #include "net/quic/crypto/null_encrypter.h"
-@@ -363,10 +365,12 @@ void QuicCryptoClientStream::DoSendCHLO(
- void QuicCryptoClientStream::DoReceiveREJ(
-     const CryptoHandshakeMessage* in,
-     QuicCryptoClientConfig::CachedState* cached) {
-+#if 0
-   // TODO(rtenneti): Remove ScopedTracker below once crbug.com/422516 is fixed.
-   tracked_objects::ScopedTracker tracking_profile(
-       FROM_HERE_WITH_EXPLICIT_FUNCTION(
-           "422516 QuicCryptoClientStream::DoReceiveREJ"));
-+#endif
- 
-   // We sent a dummy CHLO because we didn't have enough information to
-   // perform a handshake, or we sent a full hello that the server
-diff --git a/src/net/quic/quic_sent_packet_manager.cc b/src/net/quic/quic_sent_packet_manager.cc
-index c81c93d..3fd4e7a 100644
---- a/src/net/quic/quic_sent_packet_manager.cc
-+++ b/src/net/quic/quic_sent_packet_manager.cc
-@@ -661,7 +661,7 @@ bool QuicSentPacketManager::MaybeRetransmitTailLossProbe() {
-     MarkForRetransmission(sequence_number, TLP_RETRANSMISSION);
-     return true;
-   }
--  DLOG(FATAL)
-+  DLOG(ERROR)
-     << "No retransmittable packets, so RetransmitOldestPacket failed.";
-   return false;
- }
 diff --git a/src/net/quic/quic_session.cc b/src/net/quic/quic_session.cc
-index e5a77a9..7d6c420 100644
+index 2a325d6..b532683 100644
 --- a/src/net/quic/quic_session.cc
 +++ b/src/net/quic/quic_session.cc
-@@ -8,7 +8,9 @@
- #include "net/quic/crypto/proof_verifier.h"
+@@ -9,7 +9,9 @@
  #include "net/quic/quic_connection.h"
+ #include "net/quic/quic_flags.h"
  #include "net/quic/quic_flow_controller.h"
 +#if 0
  #include "net/ssl/ssl_info.h"
@@ -708,26 +158,26 @@ index e5a77a9..7d6c420 100644
  using base::StringPiece;
  using base::hash_map;
 diff --git a/src/net/spdy/spdy_framer.cc b/src/net/spdy/spdy_framer.cc
-index 7aee1ec..2f95059 100644
+index faf49b4..205a77c 100644
 --- a/src/net/spdy/spdy_framer.cc
 +++ b/src/net/spdy/spdy_framer.cc
-@@ -10,7 +10,9 @@
- 
+@@ -14,7 +14,9 @@
  #include "base/lazy_instance.h"
  #include "base/memory/scoped_ptr.h"
+ #include "base/metrics/histogram_macros.h"
 +#if 0
  #include "base/third_party/valgrind/memcheck.h"
 +#endif
+ #include "net/spdy/hpack/hpack_constants.h"
  #include "net/spdy/spdy_frame_builder.h"
  #include "net/spdy/spdy_frame_reader.h"
- #include "net/spdy/spdy_bitmasks.h"
 diff --git a/src/net/spdy/spdy_framer.h b/src/net/spdy/spdy_framer.h
-index 86d956c..7534292 100644
+index 976a364..df08986 100644
 --- a/src/net/spdy/spdy_framer.h
 +++ b/src/net/spdy/spdy_framer.h
-@@ -21,7 +21,9 @@
- #include "net/spdy/hpack_decoder.h"
- #include "net/spdy/hpack_encoder.h"
+@@ -17,7 +17,9 @@
+ #include "net/spdy/hpack/hpack_decoder.h"
+ #include "net/spdy/hpack/hpack_encoder.h"
  #include "net/spdy/spdy_alt_svc_wire_format.h"
 +#if 0
  #include "net/spdy/spdy_header_block.h"

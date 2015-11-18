@@ -34,11 +34,36 @@ bool ParsePositiveIntegerImpl(StringPiece::const_iterator c,
 
 }  // namespace
 
+SpdyAltSvcWireFormat::AlternativeService::AlternativeService() {}
+
+SpdyAltSvcWireFormat::AlternativeService::AlternativeService(
+    const std::string& protocol_id,
+    const std::string& host,
+    uint16 port,
+    uint32 max_age,
+    double probability,
+    VersionVector version)
+    : protocol_id(protocol_id),
+      host(host),
+      port(port),
+      max_age(max_age),
+      probability(probability),
+      version(version) {}
+
+SpdyAltSvcWireFormat::AlternativeService::~AlternativeService() {}
+
 // static
 bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
     StringPiece value,
     AlternativeServiceVector* altsvc_vector) {
+  // Empty value is invalid according to the specification.
+  if (value.empty()) {
+    return false;
+  }
   altsvc_vector->clear();
+  if (value == StringPiece("clear")) {
+    return true;
+  }
   StringPiece::const_iterator c = value.begin();
   while (c != value.end()) {
     // Parse protocol-id.
@@ -83,7 +108,8 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
     ++c;
     // Parse parameters.
     uint32 max_age = 86400;
-    double p = 1.0;
+    double probability = 1.0;
+    VersionVector version;
     StringPiece::const_iterator parameters_end = std::find(c, value.end(), ',');
     while (c != parameters_end) {
       SkipWhiteSpace(&c, parameters_end);
@@ -119,13 +145,48 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
           return false;
         }
       } else if (parameter_name.compare("p") == 0) {
-        if (!ParseProbability(parameter_value_begin, c, &p)) {
+        // Probability value is enclosed in quotation marks.
+        if (*parameter_value_begin != '"' || *(c - 1) != '"') {
           return false;
+        }
+        if (!ParseProbability(parameter_value_begin + 1, c - 1, &probability)) {
+          return false;
+        }
+      } else if (parameter_name.compare("v") == 0) {
+        // Version is a comma separated list of positive integers enclosed in
+        // quotation marks.  Since it can contain commas, which are not
+        // delineating alternative service entries, |parameters_end| and |c| can
+        // be invalid.
+        if (*parameter_value_begin != '"') {
+          return false;
+        }
+        c = std::find(parameter_value_begin + 1, value.end(), '"');
+        if (c == value.end()) {
+          return false;
+        }
+        ++c;
+        parameters_end = std::find(c, value.end(), ',');
+        StringPiece::const_iterator v_begin = parameter_value_begin + 1;
+        while (v_begin < c) {
+          StringPiece::const_iterator v_end = v_begin;
+          while (v_end < c - 1 && *v_end != ',') {
+            ++v_end;
+          }
+          uint16 v;
+          if (!ParsePositiveInteger16(v_begin, v_end, &v)) {
+            return false;
+          }
+          version.push_back(v);
+          v_begin = v_end + 1;
+          if (v_begin == c - 1) {
+            // List ends in comma.
+            return false;
+          }
         }
       }
     }
-    altsvc_vector->push_back(
-        AlternativeService(protocol_id, host, port, max_age, p));
+    altsvc_vector->push_back(AlternativeService(protocol_id, host, port,
+                                                max_age, probability, version));
     for (; c != value.end() && (*c == ' ' || *c == '\t' || *c == ','); ++c) {
     }
   }
@@ -135,6 +196,9 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
 // static
 std::string SpdyAltSvcWireFormat::SerializeHeaderFieldValue(
     const AlternativeServiceVector& altsvc_vector) {
+  if (altsvc_vector.empty()) {
+    return std::string("clear");
+  }
   const char kNibbleToHex[] = "0123456789ABCDEF";
   std::string value;
   for (const AlternativeService& altsvc : altsvc_vector) {
@@ -185,8 +249,19 @@ std::string SpdyAltSvcWireFormat::SerializeHeaderFieldValue(
     if (altsvc.max_age != 86400) {
       base::StringAppendF(&value, "; ma=%d", altsvc.max_age);
     }
-    if (altsvc.p != 1.0) {
-      base::StringAppendF(&value, "; p=%.2f", altsvc.p);
+    if (altsvc.probability != 1.0) {
+      base::StringAppendF(&value, "; p=\"%.2f\"", altsvc.probability);
+    }
+    if (!altsvc.version.empty()) {
+      value.append("; v=\"");
+      for (VersionVector::const_iterator it = altsvc.version.begin();
+           it != altsvc.version.end(); ++it) {
+        if (it != altsvc.version.begin()) {
+          value.append(",");
+        }
+        base::StringAppendF(&value, "%d", *it);
+      }
+      value.append("\"");
     }
   }
   return value;
@@ -281,7 +356,7 @@ bool SpdyAltSvcWireFormat::ParsePositiveInteger32(
 // static
 bool SpdyAltSvcWireFormat::ParseProbability(StringPiece::const_iterator c,
                                             StringPiece::const_iterator end,
-                                            double* p) {
+                                            double* probability) {
   // "" is invalid.
   if (c == end) {
     return false;
@@ -291,10 +366,10 @@ bool SpdyAltSvcWireFormat::ParseProbability(StringPiece::const_iterator c,
     return false;
   }
   if (*c == '1') {
-    *p = 1.0;
+    *probability = 1.0;
     ++c;
   } else {
-    *p = 0.0;
+    *probability = 0.0;
     if (*c == '0') {
       ++c;
     }
@@ -309,10 +384,10 @@ bool SpdyAltSvcWireFormat::ParseProbability(StringPiece::const_iterator c,
   ++c;
   double place_value = 0.1;
   for (; c != end && isdigit(*c); ++c) {
-    *p += place_value * (*c - '0');
+    *probability += place_value * (*c - '0');
     place_value *= 0.1;
   }
-  return (c == end && *p <= 1.0);
+  return (c == end && *probability <= 1.0);
 }
 
 }  // namespace net

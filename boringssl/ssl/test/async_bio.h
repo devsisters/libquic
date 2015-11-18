@@ -17,7 +17,7 @@
 
 #include <openssl/bio.h>
 
-#include "scoped_types.h"
+#include "../../crypto/test/scoped_types.h"
 
 
 // AsyncBioCreate creates a filter BIO for testing asynchronous state
@@ -37,6 +37,9 @@ void AsyncBioAllowRead(BIO *bio, size_t count);
 
 // AsyncBioAllowWrite increments |bio|'s write quota by |count|.
 void AsyncBioAllowWrite(BIO *bio, size_t count);
+
+// AsyncBioEnforceWriteQuota configures where |bio| enforces its write quota.
+void AsyncBioEnforceWriteQuota(BIO *bio, bool enforce);
 
 
 #endif  // HEADER_ASYNC_BIO

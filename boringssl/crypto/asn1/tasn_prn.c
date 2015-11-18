@@ -72,7 +72,7 @@
 
 /* ASN1_PCTX routines */
 
-ASN1_PCTX default_pctx = 
+static ASN1_PCTX default_pctx = 
 	{
 	ASN1_PCTX_FLAGS_SHOW_ABSENT,	/* flags */
 	0,	/* nm_flags */
@@ -88,7 +88,7 @@ ASN1_PCTX *ASN1_PCTX_new(void)
 	ret = OPENSSL_malloc(sizeof(ASN1_PCTX));
 	if (ret == NULL)
 		{
-		OPENSSL_PUT_ERROR(ASN1, ASN1_PCTX_new, ERR_R_MALLOC_FAILURE);
+		OPENSSL_PUT_ERROR(ASN1, ERR_R_MALLOC_FAILURE);
 		return NULL;
 		}
 	ret->flags = 0;
@@ -229,6 +229,7 @@ static int asn1_item_print_ctx(BIO *out, ASN1_VALUE **fld, int indent,
 			if (!asn1_template_print_ctx(out, fld, indent,
 							it->templates, pctx))
 				return 0;
+			break;
 			}
 		/* fall thru */
 		case ASN1_ITYPE_MSTRING:
@@ -309,6 +310,8 @@ static int asn1_item_print_ctx(BIO *out, ASN1_VALUE **fld, int indent,
 			{
 			const ASN1_TEMPLATE *seqtt;
 			seqtt = asn1_do_adb(fld, tt, 1);
+			if (!seqtt)
+				return 0;
 			tmpfld = asn1_get_field_ptr(fld, seqtt);
 			if (!asn1_template_print_ctx(out, tmpfld,
 						indent + 2, seqtt, pctx))

@@ -90,8 +90,12 @@ static int conf_value_cmp(const CONF_VALUE *a, const CONF_VALUE *b) {
   }
 }
 
-CONF *NCONF_new(void) {
+CONF *NCONF_new(void *method) {
   CONF *conf;
+
+  if (method != NULL) {
+    return NULL;
+  }
 
   conf = OPENSSL_malloc(sizeof(CONF));
   if (conf == NULL) {
@@ -105,6 +109,16 @@ CONF *NCONF_new(void) {
   }
 
   return conf;
+}
+
+CONF_VALUE *CONF_VALUE_new(void) {
+  CONF_VALUE *v = OPENSSL_malloc(sizeof(CONF_VALUE));
+  if (!v) {
+    OPENSSL_PUT_ERROR(CONF, ERR_R_MALLOC_FAILURE);
+    return NULL;
+  }
+  memset(v, 0, sizeof(CONF_VALUE));
+  return v;
 }
 
 static void value_free_contents(CONF_VALUE *value) {
@@ -133,29 +147,26 @@ void NCONF_free(CONF *conf) {
     return;
   }
 
-  lh_CONF_VALUE_doall(conf->data, value_free_contents);
+  lh_CONF_VALUE_doall(conf->data, value_free);
   lh_CONF_VALUE_free(conf->data);
   OPENSSL_free(conf);
 }
 
 CONF_VALUE *NCONF_new_section(const CONF *conf, const char *section) {
   STACK_OF(CONF_VALUE) *sk = NULL;
-  int ok = 0, i;
+  int ok = 0;
   CONF_VALUE *v = NULL, *old_value;
 
   sk = sk_CONF_VALUE_new_null();
-  v = OPENSSL_malloc(sizeof(CONF_VALUE));
+  v = CONF_VALUE_new();
   if (sk == NULL || v == NULL) {
     goto err;
   }
-  i = strlen(section) + 1;
-  v->section = OPENSSL_malloc(i);
+  v->section = OPENSSL_strdup(section);
   if (v->section == NULL) {
     goto err;
   }
 
-  memcpy(v->section, section, i);
-  v->section[i-1] = 0;
   v->name = NULL;
   v->value = (char *)sk;
 
@@ -281,7 +292,7 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from) {
       rp = e;
       if (q) {
         if (r != q) {
-          OPENSSL_PUT_ERROR(CONF, str_copy, CONF_R_NO_CLOSE_BRACE);
+          OPENSSL_PUT_ERROR(CONF, CONF_R_NO_CLOSE_BRACE);
           goto err;
         }
         e++;
@@ -300,7 +311,7 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from) {
       }
       *rp = r;
       if (p == NULL) {
-        OPENSSL_PUT_ERROR(CONF, str_copy, CONF_R_VARIABLE_HAS_NO_VALUE);
+        OPENSSL_PUT_ERROR(CONF, CONF_R_VARIABLE_HAS_NO_VALUE);
         goto err;
       }
       BUF_MEM_grow_clean(buf, (strlen(p) + buf->length - (e - from)));
@@ -368,11 +379,12 @@ const char *NCONF_get_string(const CONF *conf, const char *section,
   return value->value;
 }
 
-int add_string(const CONF *conf, CONF_VALUE *section, CONF_VALUE *value) {
+static int add_string(const CONF *conf, CONF_VALUE *section,
+                      CONF_VALUE *value) {
   STACK_OF(CONF_VALUE) *section_stack = (STACK_OF(CONF_VALUE)*) section->value;
   CONF_VALUE *old_value;
 
-  value->section = section->section;
+  value->section = OPENSSL_strdup(section->section);
   if (!sk_CONF_VALUE_push(section_stack, value)) {
     return 0;
   }
@@ -501,20 +513,19 @@ static int def_load_bio(CONF *conf, BIO *in, long *out_error_line) {
   char *start, *psection, *pname;
 
   if ((buff = BUF_MEM_new()) == NULL) {
-    OPENSSL_PUT_ERROR(CONF, def_load_bio, ERR_R_BUF_LIB);
+    OPENSSL_PUT_ERROR(CONF, ERR_R_BUF_LIB);
     goto err;
   }
 
-  section = (char *)OPENSSL_malloc(10);
+  section = OPENSSL_strdup("default");
   if (section == NULL) {
-    OPENSSL_PUT_ERROR(CONF, def_load_bio, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(CONF, ERR_R_MALLOC_FAILURE);
     goto err;
   }
-  BUF_strlcpy(section, "default", 10);
 
   sv = NCONF_new_section(conf, section);
   if (sv == NULL) {
-    OPENSSL_PUT_ERROR(CONF, def_load_bio, CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
+    OPENSSL_PUT_ERROR(CONF, CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
     goto err;
   }
 
@@ -522,7 +533,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *out_error_line) {
   again = 0;
   for (;;) {
     if (!BUF_MEM_grow(buff, bufnum + CONFBUFSIZE)) {
-      OPENSSL_PUT_ERROR(CONF, def_load_bio, ERR_R_BUF_LIB);
+      OPENSSL_PUT_ERROR(CONF, ERR_R_BUF_LIB);
       goto err;
     }
     p = &(buff->data[bufnum]);
@@ -591,7 +602,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *out_error_line) {
           ss = p;
           goto again;
         }
-        OPENSSL_PUT_ERROR(CONF, def_load_bio, CONF_R_MISSING_CLOSE_SQUARE_BRACKET);
+        OPENSSL_PUT_ERROR(CONF, CONF_R_MISSING_CLOSE_SQUARE_BRACKET);
         goto err;
       }
       *end = '\0';
@@ -602,7 +613,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *out_error_line) {
         sv = NCONF_new_section(conf, section);
       }
       if (sv == NULL) {
-        OPENSSL_PUT_ERROR(CONF, def_load_bio, CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
+        OPENSSL_PUT_ERROR(CONF, CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
         goto err;
       }
       continue;
@@ -619,7 +630,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *out_error_line) {
       }
       p = eat_ws(conf, end);
       if (*p != '=') {
-        OPENSSL_PUT_ERROR(CONF, def_load_bio, CONF_R_MISSING_EQUAL_SIGN);
+        OPENSSL_PUT_ERROR(CONF, CONF_R_MISSING_EQUAL_SIGN);
         goto err;
       }
       *end = '\0';
@@ -635,20 +646,17 @@ static int def_load_bio(CONF *conf, BIO *in, long *out_error_line) {
       p++;
       *p = '\0';
 
-      if (!(v = (CONF_VALUE *)OPENSSL_malloc(sizeof(CONF_VALUE)))) {
-        OPENSSL_PUT_ERROR(CONF, def_load_bio, ERR_R_MALLOC_FAILURE);
+      if (!(v = CONF_VALUE_new())) {
         goto err;
       }
       if (psection == NULL) {
         psection = section;
       }
-      v->name = (char *)OPENSSL_malloc(strlen(pname) + 1);
-      v->value = NULL;
+      v->name = OPENSSL_strdup(pname);
       if (v->name == NULL) {
-        OPENSSL_PUT_ERROR(CONF, def_load_bio, ERR_R_MALLOC_FAILURE);
+        OPENSSL_PUT_ERROR(CONF, ERR_R_MALLOC_FAILURE);
         goto err;
       }
-      BUF_strlcpy(v->name, pname, strlen(pname) + 1);
       if (!str_copy(conf, psection, &(v->value), start)) {
         goto err;
       }
@@ -658,14 +666,14 @@ static int def_load_bio(CONF *conf, BIO *in, long *out_error_line) {
           tv = NCONF_new_section(conf, psection);
         }
         if (tv == NULL) {
-          OPENSSL_PUT_ERROR(CONF, def_load_bio, CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
+          OPENSSL_PUT_ERROR(CONF, CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
           goto err;
         }
       } else {
         tv = sv;
       }
       if (add_string(conf, tv, v) == 0) {
-        OPENSSL_PUT_ERROR(CONF, def_load_bio, ERR_R_MALLOC_FAILURE);
+        OPENSSL_PUT_ERROR(CONF, ERR_R_MALLOC_FAILURE);
         goto err;
       }
       v = NULL;
@@ -711,7 +719,7 @@ int NCONF_load(CONF *conf, const char *filename, long *out_error_line) {
   int ret;
 
   if (in == NULL) {
-    OPENSSL_PUT_ERROR(CONF, NCONF_load, ERR_R_SYS_LIB);
+    OPENSSL_PUT_ERROR(CONF, ERR_R_SYS_LIB);
     return 0;
   }
 
@@ -721,6 +729,10 @@ int NCONF_load(CONF *conf, const char *filename, long *out_error_line) {
   return ret;
 }
 
+int NCONF_load_bio(CONF *conf, BIO *bio, long *out_error_line) {
+  return def_load_bio(conf, bio, out_error_line);
+}
+
 int CONF_parse_list(const char *list, char sep, int remove_whitespace,
                     int (*list_cb)(const char *elem, int len, void *usr),
                     void *arg) {
@@ -728,7 +740,7 @@ int CONF_parse_list(const char *list, char sep, int remove_whitespace,
   const char *lstart, *tmpend, *p;
 
   if (list == NULL) {
-    OPENSSL_PUT_ERROR(CONF, CONF_parse_list, CONF_R_LIST_CANNOT_BE_NULL);
+    OPENSSL_PUT_ERROR(CONF, CONF_R_LIST_CANNOT_BE_NULL);
     return 0;
   }
 

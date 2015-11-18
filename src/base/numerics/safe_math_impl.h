@@ -90,6 +90,25 @@ struct PositionOfSignBit {
                                   size_t>::type value = 8 * sizeof(Integer) - 1;
 };
 
+// This is used for UnsignedAbs, where we need to support floating-point
+// template instantiations even though we don't actually support the operations.
+// However, there is no corresponding implementation of e.g. CheckedUnsignedAbs,
+// so the float versions will not compile.
+template <typename Numeric,
+          bool IsInteger = std::numeric_limits<Numeric>::is_integer,
+          bool IsFloat = std::numeric_limits<Numeric>::is_iec559>
+struct UnsignedOrFloatForSize;
+
+template <typename Numeric>
+struct UnsignedOrFloatForSize<Numeric, true, false> {
+  typedef typename UnsignedIntegerForSize<Numeric>::type type;
+};
+
+template <typename Numeric>
+struct UnsignedOrFloatForSize<Numeric, false, true> {
+  typedef Numeric type;
+};
+
 // Helper templates for integer manipulations.
 
 template <typename T>
@@ -284,8 +303,28 @@ typename enable_if<
     std::numeric_limits<T>::is_integer && !std::numeric_limits<T>::is_signed,
     T>::type
 CheckedAbs(T value, RangeConstraint* validity) {
-  // Absolute value of a positive is just its identiy.
+  // T is unsigned, so |value| must already be positive.
   *validity = RANGE_VALID;
+  return value;
+}
+
+template <typename T>
+typename enable_if<std::numeric_limits<T>::is_integer &&
+                       std::numeric_limits<T>::is_signed,
+                   typename UnsignedIntegerForSize<T>::type>::type
+CheckedUnsignedAbs(T value) {
+  typedef typename UnsignedIntegerForSize<T>::type UnsignedT;
+  return value == std::numeric_limits<T>::min()
+             ? static_cast<UnsignedT>(std::numeric_limits<T>::max()) + 1
+             : static_cast<UnsignedT>(std::abs(value));
+}
+
+template <typename T>
+typename enable_if<std::numeric_limits<T>::is_integer &&
+                       !std::numeric_limits<T>::is_signed,
+                   T>::type
+CheckedUnsignedAbs(T value) {
+  // T is unsigned, so |value| must already be positive.
   return value;
 }
 

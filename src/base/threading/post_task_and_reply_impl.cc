@@ -75,6 +75,9 @@ bool PostTaskAndReplyImpl::PostTaskAndReply(
     const tracked_objects::Location& from_here,
     const Closure& task,
     const Closure& reply) {
+  // TODO(tzik): Use DCHECK here once the crash is gone. http://crbug.com/541319
+  CHECK(!task.is_null()) << from_here.ToString();
+  CHECK(!reply.is_null()) << from_here.ToString();
   PostTaskAndReplyRelay* relay =
       new PostTaskAndReplyRelay(from_here, task, reply);
   if (!PostTask(from_here, Bind(&PostTaskAndReplyRelay::Run,

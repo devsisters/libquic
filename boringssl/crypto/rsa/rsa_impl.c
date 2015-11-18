@@ -61,8 +61,10 @@
 #include <openssl/bn.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
+#include <openssl/thread.h>
 
 #include "internal.h"
+#include "../internal.h"
 
 
 #define OPENSSL_RSA_MAX_MODULUS_BITS 16384
@@ -71,26 +73,12 @@
   64 /* exponent limit enforced for "large" modulus only */
 
 
-static int finish(RSA *rsa) {
-  if (rsa->_method_mod_n != NULL) {
-    BN_MONT_CTX_free(rsa->_method_mod_n);
-  }
-  if (rsa->_method_mod_p != NULL) {
-    BN_MONT_CTX_free(rsa->_method_mod_p);
-  }
-  if (rsa->_method_mod_q != NULL) {
-    BN_MONT_CTX_free(rsa->_method_mod_q);
-  }
-
-  return 1;
-}
-
-static size_t size(const RSA *rsa) {
+size_t rsa_default_size(const RSA *rsa) {
   return BN_num_bytes(rsa->n);
 }
 
-static int encrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
-                   const uint8_t *in, size_t in_len, int padding) {
+int rsa_default_encrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
+                        const uint8_t *in, size_t in_len, int padding) {
   const unsigned rsa_size = RSA_size(rsa);
   BIGNUM *f, *result;
   uint8_t *buf = NULL;
@@ -98,24 +86,24 @@ static int encrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
   int i, ret = 0;
 
   if (rsa_size > OPENSSL_RSA_MAX_MODULUS_BITS) {
-    OPENSSL_PUT_ERROR(RSA, encrypt, RSA_R_MODULUS_TOO_LARGE);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_MODULUS_TOO_LARGE);
     return 0;
   }
 
   if (max_out < rsa_size) {
-    OPENSSL_PUT_ERROR(RSA, encrypt, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
     return 0;
   }
 
   if (BN_ucmp(rsa->n, rsa->e) <= 0) {
-    OPENSSL_PUT_ERROR(RSA, encrypt, RSA_R_BAD_E_VALUE);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_E_VALUE);
     return 0;
   }
 
   /* for large moduli, enforce exponent limit */
   if (BN_num_bits(rsa->n) > OPENSSL_RSA_SMALL_MODULUS_BITS &&
       BN_num_bits(rsa->e) > OPENSSL_RSA_MAX_PUBEXP_BITS) {
-    OPENSSL_PUT_ERROR(RSA, encrypt, RSA_R_BAD_E_VALUE);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_E_VALUE);
     return 0;
   }
 
@@ -129,7 +117,7 @@ static int encrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
   result = BN_CTX_get(ctx);
   buf = OPENSSL_malloc(rsa_size);
   if (!f || !result || !buf) {
-    OPENSSL_PUT_ERROR(RSA, encrypt, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
@@ -146,7 +134,7 @@ static int encrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
       i = RSA_padding_add_none(buf, rsa_size, in, in_len);
       break;
     default:
-      OPENSSL_PUT_ERROR(RSA, encrypt, RSA_R_UNKNOWN_PADDING_TYPE);
+      OPENSSL_PUT_ERROR(RSA, RSA_R_UNKNOWN_PADDING_TYPE);
       goto err;
   }
 
@@ -160,25 +148,24 @@ static int encrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
 
   if (BN_ucmp(f, rsa->n) >= 0) {
     /* usually the padding functions would catch this */
-    OPENSSL_PUT_ERROR(RSA, encrypt, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
     goto err;
   }
 
   if (rsa->flags & RSA_FLAG_CACHE_PUBLIC) {
-    if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n,
-                                ctx)) {
+    if (BN_MONT_CTX_set_locked(&rsa->mont_n, &rsa->lock, rsa->n, ctx) == NULL) {
       goto err;
     }
   }
 
-  if (!rsa->meth->bn_mod_exp(result, f, rsa->e, rsa->n, ctx, rsa->_method_mod_n)) {
+  if (!rsa->meth->bn_mod_exp(result, f, rsa->e, rsa->n, ctx, rsa->mont_n)) {
     goto err;
   }
 
   /* put in leading 0 bytes if the number is less than the length of the
    * modulus */
   if (!BN_bn2bin_padded(out, rsa_size, result)) {
-    OPENSSL_PUT_ERROR(RSA, encrypt, ERR_R_INTERNAL_ERROR);
+    OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
     goto err;
   }
 
@@ -217,37 +204,20 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
   uint8_t *new_blindings_inuse;
   char overflow = 0;
 
-  CRYPTO_w_lock(CRYPTO_LOCK_RSA_BLINDING);
-  if (rsa->num_blindings > 0) {
-    unsigned i, starting_index;
-    CRYPTO_THREADID threadid;
+  CRYPTO_MUTEX_lock_write(&rsa->lock);
 
-    /* We start searching the array at a value based on the
-     * threadid in order to try avoid bouncing the BN_BLINDING
-     * values around different threads. It's harmless if
-     * threadid.val is always set to zero. */
-    CRYPTO_THREADID_current(&threadid);
-    starting_index = threadid.val % rsa->num_blindings;
-
-    for (i = starting_index;;) {
-      if (rsa->blindings_inuse[i] == 0) {
-        rsa->blindings_inuse[i] = 1;
-        ret = rsa->blindings[i];
-        *index_used = i;
-        break;
-      }
-      i++;
-      if (i == rsa->num_blindings) {
-        i = 0;
-      }
-      if (i == starting_index) {
-        break;
-      }
+  unsigned i;
+  for (i = 0; i < rsa->num_blindings; i++) {
+    if (rsa->blindings_inuse[i] == 0) {
+      rsa->blindings_inuse[i] = 1;
+      ret = rsa->blindings[i];
+      *index_used = i;
+      break;
     }
   }
 
   if (ret != NULL) {
-    CRYPTO_w_unlock(CRYPTO_LOCK_RSA_BLINDING);
+    CRYPTO_MUTEX_unlock(&rsa->lock);
     return ret;
   }
 
@@ -256,7 +226,7 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
   /* We didn't find a free BN_BLINDING to use so increase the length of
    * the arrays by one and use the newly created element. */
 
-  CRYPTO_w_unlock(CRYPTO_LOCK_RSA_BLINDING);
+  CRYPTO_MUTEX_unlock(&rsa->lock);
   ret = rsa_setup_blinding(rsa, ctx);
   if (ret == NULL) {
     return NULL;
@@ -269,7 +239,7 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
     return ret;
   }
 
-  CRYPTO_w_lock(CRYPTO_LOCK_RSA_BLINDING);
+  CRYPTO_MUTEX_lock_write(&rsa->lock);
 
   new_blindings =
       OPENSSL_malloc(sizeof(BN_BLINDING *) * (rsa->num_blindings + 1));
@@ -288,24 +258,20 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
   new_blindings_inuse[rsa->num_blindings] = 1;
   *index_used = rsa->num_blindings;
 
-  if (rsa->blindings != NULL) {
-    OPENSSL_free(rsa->blindings);
-  }
+  OPENSSL_free(rsa->blindings);
   rsa->blindings = new_blindings;
-  if (rsa->blindings_inuse != NULL) {
-    OPENSSL_free(rsa->blindings_inuse);
-  }
+  OPENSSL_free(rsa->blindings_inuse);
   rsa->blindings_inuse = new_blindings_inuse;
   rsa->num_blindings++;
 
-  CRYPTO_w_unlock(CRYPTO_LOCK_RSA_BLINDING);
+  CRYPTO_MUTEX_unlock(&rsa->lock);
   return ret;
 
 err2:
   OPENSSL_free(new_blindings);
 
 err1:
-  CRYPTO_w_unlock(CRYPTO_LOCK_RSA_BLINDING);
+  CRYPTO_MUTEX_unlock(&rsa->lock);
   BN_BLINDING_free(ret);
   return NULL;
 }
@@ -320,26 +286,27 @@ static void rsa_blinding_release(RSA *rsa, BN_BLINDING *blinding,
     return;
   }
 
-  CRYPTO_w_lock(CRYPTO_LOCK_RSA_BLINDING);
+  CRYPTO_MUTEX_lock_write(&rsa->lock);
   rsa->blindings_inuse[blinding_index] = 0;
-  CRYPTO_w_unlock(CRYPTO_LOCK_RSA_BLINDING);
+  CRYPTO_MUTEX_unlock(&rsa->lock);
 }
 
 /* signing */
-static int sign_raw(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
-                    const uint8_t *in, size_t in_len, int padding) {
+int rsa_default_sign_raw(RSA *rsa, size_t *out_len, uint8_t *out,
+                         size_t max_out, const uint8_t *in, size_t in_len,
+                         int padding) {
   const unsigned rsa_size = RSA_size(rsa);
   uint8_t *buf = NULL;
   int i, ret = 0;
 
   if (max_out < rsa_size) {
-    OPENSSL_PUT_ERROR(RSA, sign_raw, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
     return 0;
   }
 
   buf = OPENSSL_malloc(rsa_size);
   if (buf == NULL) {
-    OPENSSL_PUT_ERROR(RSA, sign_raw, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
@@ -351,7 +318,7 @@ static int sign_raw(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
       i = RSA_padding_add_none(buf, rsa_size, in, in_len);
       break;
     default:
-      OPENSSL_PUT_ERROR(RSA, sign_raw, RSA_R_UNKNOWN_PADDING_TYPE);
+      OPENSSL_PUT_ERROR(RSA, RSA_R_UNKNOWN_PADDING_TYPE);
       goto err;
   }
 
@@ -375,26 +342,31 @@ err:
   return ret;
 }
 
-static int decrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
-                   const uint8_t *in, size_t in_len, int padding) {
+int rsa_default_decrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
+                        const uint8_t *in, size_t in_len, int padding) {
   const unsigned rsa_size = RSA_size(rsa);
   int r = -1;
   uint8_t *buf = NULL;
   int ret = 0;
 
   if (max_out < rsa_size) {
-    OPENSSL_PUT_ERROR(RSA, decrypt, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
     return 0;
   }
 
-  buf = OPENSSL_malloc(rsa_size);
-  if (buf == NULL) {
-    OPENSSL_PUT_ERROR(RSA, decrypt, ERR_R_MALLOC_FAILURE);
-    goto err;
+  if (padding == RSA_NO_PADDING) {
+    buf = out;
+  } else {
+    /* Allocate a temporary buffer to hold the padded plaintext. */
+    buf = OPENSSL_malloc(rsa_size);
+    if (buf == NULL) {
+      OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
+      goto err;
+    }
   }
 
   if (in_len != rsa_size) {
-    OPENSSL_PUT_ERROR(RSA, decrypt, RSA_R_DATA_LEN_NOT_EQUAL_TO_MOD_LEN);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_LEN_NOT_EQUAL_TO_MOD_LEN);
     goto err;
   }
 
@@ -412,22 +384,22 @@ static int decrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
                                             NULL, 0, NULL, NULL);
       break;
     case RSA_NO_PADDING:
-      r = RSA_padding_check_none(out, rsa_size, buf, rsa_size);
+      r = rsa_size;
       break;
     default:
-      OPENSSL_PUT_ERROR(RSA, decrypt, RSA_R_UNKNOWN_PADDING_TYPE);
+      OPENSSL_PUT_ERROR(RSA, RSA_R_UNKNOWN_PADDING_TYPE);
       goto err;
   }
 
   if (r < 0) {
-    OPENSSL_PUT_ERROR(RSA, decrypt, RSA_R_PADDING_CHECK_FAILED);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_PADDING_CHECK_FAILED);
   } else {
     *out_len = r;
     ret = 1;
   }
 
 err:
-  if (buf != NULL) {
+  if (padding != RSA_NO_PADDING && buf != NULL) {
     OPENSSL_cleanse(buf, rsa_size);
     OPENSSL_free(buf);
   }
@@ -435,8 +407,9 @@ err:
   return ret;
 }
 
-static int verify_raw(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
-                      const uint8_t *in, size_t in_len, int padding) {
+int rsa_default_verify_raw(RSA *rsa, size_t *out_len, uint8_t *out,
+                           size_t max_out, const uint8_t *in, size_t in_len,
+                           int padding) {
   const unsigned rsa_size = RSA_size(rsa);
   BIGNUM *f, *result;
   int ret = 0;
@@ -445,24 +418,24 @@ static int verify_raw(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
   BN_CTX *ctx = NULL;
 
   if (BN_num_bits(rsa->n) > OPENSSL_RSA_MAX_MODULUS_BITS) {
-    OPENSSL_PUT_ERROR(RSA, verify_raw, RSA_R_MODULUS_TOO_LARGE);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_MODULUS_TOO_LARGE);
     return 0;
   }
 
   if (BN_ucmp(rsa->n, rsa->e) <= 0) {
-    OPENSSL_PUT_ERROR(RSA, verify_raw, RSA_R_BAD_E_VALUE);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_E_VALUE);
     return 0;
   }
 
   if (max_out < rsa_size) {
-    OPENSSL_PUT_ERROR(RSA, verify_raw, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
     return 0;
   }
 
   /* for large moduli, enforce exponent limit */
   if (BN_num_bits(rsa->n) > OPENSSL_RSA_SMALL_MODULUS_BITS &&
       BN_num_bits(rsa->e) > OPENSSL_RSA_MAX_PUBEXP_BITS) {
-    OPENSSL_PUT_ERROR(RSA, verify_raw, RSA_R_BAD_E_VALUE);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_E_VALUE);
     return 0;
   }
 
@@ -474,14 +447,23 @@ static int verify_raw(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
   BN_CTX_start(ctx);
   f = BN_CTX_get(ctx);
   result = BN_CTX_get(ctx);
-  buf = OPENSSL_malloc(rsa_size);
-  if (!f || !result || !buf) {
-    OPENSSL_PUT_ERROR(RSA, verify_raw, ERR_R_MALLOC_FAILURE);
+  if (padding == RSA_NO_PADDING) {
+    buf = out;
+  } else {
+    /* Allocate a temporary buffer to hold the padded plaintext. */
+    buf = OPENSSL_malloc(rsa_size);
+    if (buf == NULL) {
+      OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
+      goto err;
+    }
+  }
+  if (!f || !result) {
+    OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
   if (in_len != rsa_size) {
-    OPENSSL_PUT_ERROR(RSA, verify_raw, RSA_R_DATA_LEN_NOT_EQUAL_TO_MOD_LEN);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_LEN_NOT_EQUAL_TO_MOD_LEN);
     goto err;
   }
 
@@ -490,24 +472,22 @@ static int verify_raw(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
   }
 
   if (BN_ucmp(f, rsa->n) >= 0) {
-    OPENSSL_PUT_ERROR(RSA, verify_raw, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
     goto err;
   }
 
   if (rsa->flags & RSA_FLAG_CACHE_PUBLIC) {
-    if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n,
-                                ctx)) {
+    if (BN_MONT_CTX_set_locked(&rsa->mont_n, &rsa->lock, rsa->n, ctx) == NULL) {
       goto err;
     }
   }
 
-  if (!rsa->meth->bn_mod_exp(result, f, rsa->e, rsa->n, ctx,
-                             rsa->_method_mod_n)) {
+  if (!rsa->meth->bn_mod_exp(result, f, rsa->e, rsa->n, ctx, rsa->mont_n)) {
     goto err;
   }
 
   if (!BN_bn2bin_padded(buf, rsa_size, result)) {
-    OPENSSL_PUT_ERROR(RSA, verify_raw, ERR_R_INTERNAL_ERROR);
+    OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
     goto err;
   }
 
@@ -516,15 +496,15 @@ static int verify_raw(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
       r = RSA_padding_check_PKCS1_type_1(out, rsa_size, buf, rsa_size);
       break;
     case RSA_NO_PADDING:
-      r = RSA_padding_check_none(out, rsa_size, buf, rsa_size);
+      r = rsa_size;
       break;
     default:
-      OPENSSL_PUT_ERROR(RSA, verify_raw, RSA_R_UNKNOWN_PADDING_TYPE);
+      OPENSSL_PUT_ERROR(RSA, RSA_R_UNKNOWN_PADDING_TYPE);
       goto err;
   }
 
   if (r < 0) {
-    OPENSSL_PUT_ERROR(RSA, verify_raw, RSA_R_PADDING_CHECK_FAILED);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_PADDING_CHECK_FAILED);
   } else {
     *out_len = r;
     ret = 1;
@@ -535,15 +515,15 @@ err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
   }
-  if (buf != NULL) {
+  if (padding != RSA_NO_PADDING && buf != NULL) {
     OPENSSL_cleanse(buf, rsa_size);
     OPENSSL_free(buf);
   }
   return ret;
 }
 
-static int private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
-                             size_t len) {
+int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
+                                  size_t len) {
   BIGNUM *f, *result;
   BN_CTX *ctx = NULL;
   unsigned blinding_index = 0;
@@ -559,7 +539,7 @@ static int private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
   result = BN_CTX_get(ctx);
 
   if (f == NULL || result == NULL) {
-    OPENSSL_PUT_ERROR(RSA, private_transform, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
@@ -569,14 +549,14 @@ static int private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
 
   if (BN_ucmp(f, rsa->n) >= 0) {
     /* Usually the padding functions would catch this. */
-    OPENSSL_PUT_ERROR(RSA, private_transform, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
+    OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
     goto err;
   }
 
   if (!(rsa->flags & RSA_FLAG_NO_BLINDING)) {
     blinding = rsa_blinding_get(rsa, &blinding_index, ctx);
     if (blinding == NULL) {
-      OPENSSL_PUT_ERROR(RSA, private_transform, ERR_R_INTERNAL_ERROR);
+      OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
       goto err;
     }
     if (!BN_BLINDING_convert_ex(f, NULL, blinding, ctx)) {
@@ -599,13 +579,13 @@ static int private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
     BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
 
     if (rsa->flags & RSA_FLAG_CACHE_PUBLIC) {
-      if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n,
-                                  ctx)) {
+      if (BN_MONT_CTX_set_locked(&rsa->mont_n, &rsa->lock, rsa->n, ctx) ==
+          NULL) {
         goto err;
       }
     }
 
-    if (!rsa->meth->bn_mod_exp(result, f, d, rsa->n, ctx, rsa->_method_mod_n)) {
+    if (!rsa->meth->bn_mod_exp(result, f, d, rsa->n, ctx, rsa->mont_n)) {
       goto err;
     }
   }
@@ -617,7 +597,7 @@ static int private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
   }
 
   if (!BN_bn2bin_padded(out, len, result)) {
-    OPENSSL_PUT_ERROR(RSA, private_transform, ERR_R_INTERNAL_ERROR);
+    OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
     goto err;
   }
 
@@ -640,6 +620,11 @@ static int mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx) {
   BIGNUM local_dmp1, local_dmq1, local_c, local_r1;
   BIGNUM *dmp1, *dmq1, *c, *pr1;
   int ret = 0;
+  size_t i, num_additional_primes = 0;
+
+  if (rsa->additional_primes != NULL) {
+    num_additional_primes = sk_RSA_additional_prime_num(rsa->additional_primes);
+  }
 
   BN_CTX_start(ctx);
   r1 = BN_CTX_get(ctx);
@@ -661,18 +646,17 @@ static int mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx) {
     BN_with_flags(q, rsa->q, BN_FLG_CONSTTIME);
 
     if (rsa->flags & RSA_FLAG_CACHE_PRIVATE) {
-      if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_p, CRYPTO_LOCK_RSA, p, ctx)) {
+      if (BN_MONT_CTX_set_locked(&rsa->mont_p, &rsa->lock, p, ctx) == NULL) {
         goto err;
       }
-      if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_q, CRYPTO_LOCK_RSA, q, ctx)) {
+      if (BN_MONT_CTX_set_locked(&rsa->mont_q, &rsa->lock, q, ctx) == NULL) {
         goto err;
       }
     }
   }
 
   if (rsa->flags & RSA_FLAG_CACHE_PUBLIC) {
-    if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n,
-                                ctx)) {
+    if (BN_MONT_CTX_set_locked(&rsa->mont_n, &rsa->lock, rsa->n, ctx) == NULL) {
       goto err;
     }
   }
@@ -687,7 +671,7 @@ static int mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx) {
   /* compute r1^dmq1 mod q */
   dmq1 = &local_dmq1;
   BN_with_flags(dmq1, rsa->dmq1, BN_FLG_CONSTTIME);
-  if (!rsa->meth->bn_mod_exp(m1, r1, dmq1, rsa->q, ctx, rsa->_method_mod_q)) {
+  if (!rsa->meth->bn_mod_exp(m1, r1, dmq1, rsa->q, ctx, rsa->mont_q)) {
     goto err;
   }
 
@@ -701,7 +685,7 @@ static int mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx) {
   /* compute r1^dmp1 mod p */
   dmp1 = &local_dmp1;
   BN_with_flags(dmp1, rsa->dmp1, BN_FLG_CONSTTIME);
-  if (!rsa->meth->bn_mod_exp(r0, r1, dmp1, rsa->p, ctx, rsa->_method_mod_p)) {
+  if (!rsa->meth->bn_mod_exp(r0, r1, dmp1, rsa->p, ctx, rsa->mont_p)) {
     goto err;
   }
 
@@ -746,9 +730,44 @@ static int mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx) {
     goto err;
   }
 
+  for (i = 0; i < num_additional_primes; i++) {
+    /* multi-prime RSA. */
+    BIGNUM local_exp, local_prime;
+    BIGNUM *exp = &local_exp, *prime = &local_prime;
+    RSA_additional_prime *ap =
+        sk_RSA_additional_prime_value(rsa->additional_primes, i);
+
+    BN_with_flags(exp, ap->exp, BN_FLG_CONSTTIME);
+    BN_with_flags(prime, ap->prime, BN_FLG_CONSTTIME);
+
+    /* c will already point to a BIGNUM with the correct flags. */
+    if (!BN_mod(r1, c, prime, ctx)) {
+      goto err;
+    }
+
+    if ((rsa->flags & RSA_FLAG_CACHE_PRIVATE) &&
+        !BN_MONT_CTX_set_locked(&ap->mont, &rsa->lock, prime, ctx)) {
+      goto err;
+    }
+
+    if (!rsa->meth->bn_mod_exp(m1, r1, exp, prime, ctx, ap->mont)) {
+      goto err;
+    }
+
+    BN_set_flags(m1, BN_FLG_CONSTTIME);
+
+    if (!BN_sub(m1, m1, r0) ||
+        !BN_mul(m1, m1, ap->coeff, ctx) ||
+        !BN_mod(m1, m1, prime, ctx) ||
+        (BN_is_negative(m1) && !BN_add(m1, m1, prime)) ||
+        !BN_mul(m1, m1, ap->r, ctx) ||
+        !BN_add(r0, r0, m1)) {
+      goto err;
+    }
+  }
+
   if (rsa->e && rsa->n) {
-    if (!rsa->meth->bn_mod_exp(vrfy, r0, rsa->e, rsa->n, ctx,
-                               rsa->_method_mod_n)) {
+    if (!rsa->meth->bn_mod_exp(vrfy, r0, rsa->e, rsa->n, ctx, rsa->mont_n)) {
       goto err;
     }
     /* If 'I' was greater than (or equal to) rsa->n, the operation
@@ -776,7 +795,7 @@ static int mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx) {
 
       d = &local_d;
       BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
-      if (!rsa->meth->bn_mod_exp(r0, I, d, rsa->n, ctx, rsa->_method_mod_n)) {
+      if (!rsa->meth->bn_mod_exp(r0, I, d, rsa->n, ctx, rsa->mont_n)) {
         goto err;
       }
     }
@@ -788,12 +807,20 @@ err:
   return ret;
 }
 
-static int keygen(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb) {
+int rsa_default_multi_prime_keygen(RSA *rsa, int bits, int num_primes,
+                                   BIGNUM *e_value, BN_GENCB *cb) {
   BIGNUM *r0 = NULL, *r1 = NULL, *r2 = NULL, *r3 = NULL, *tmp;
   BIGNUM local_r0, local_d, local_p;
   BIGNUM *pr0, *d, *p;
-  int bitsp, bitsq, ok = -1, n = 0;
+  int prime_bits, ok = -1, n = 0, i, j;
   BN_CTX *ctx = NULL;
+  STACK_OF(RSA_additional_prime) *additional_primes = NULL;
+
+  if (num_primes < 2) {
+    ok = 0; /* we set our own err */
+    OPENSSL_PUT_ERROR(RSA, RSA_R_MUST_HAVE_AT_LEAST_TWO_PRIMES);
+    goto err;
+  }
 
   ctx = BN_CTX_new();
   if (ctx == NULL) {
@@ -804,12 +831,36 @@ static int keygen(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb) {
   r1 = BN_CTX_get(ctx);
   r2 = BN_CTX_get(ctx);
   r3 = BN_CTX_get(ctx);
-  if (r3 == NULL) {
+  if (r0 == NULL || r1 == NULL || r2 == NULL || r3 == NULL) {
     goto err;
   }
 
-  bitsp = (bits + 1) / 2;
-  bitsq = bits - bitsp;
+  if (num_primes > 2) {
+    additional_primes = sk_RSA_additional_prime_new_null();
+    if (additional_primes == NULL) {
+      goto err;
+    }
+  }
+
+  for (i = 2; i < num_primes; i++) {
+    RSA_additional_prime *ap = OPENSSL_malloc(sizeof(RSA_additional_prime));
+    if (ap == NULL) {
+      goto err;
+    }
+    memset(ap, 0, sizeof(RSA_additional_prime));
+    ap->prime = BN_new();
+    ap->exp = BN_new();
+    ap->coeff = BN_new();
+    ap->r = BN_new();
+    if (ap->prime == NULL ||
+        ap->exp == NULL ||
+        ap->coeff == NULL ||
+        ap->r == NULL ||
+        !sk_RSA_additional_prime_push(additional_primes, ap)) {
+      RSA_additional_prime_free(ap);
+      goto err;
+    }
+  }
 
   /* We need the RSA components non-NULL */
   if (!rsa->n && ((rsa->n = BN_new()) == NULL)) {
@@ -837,11 +888,14 @@ static int keygen(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb) {
     goto err;
   }
 
-  BN_copy(rsa->e, e_value);
+  if (!BN_copy(rsa->e, e_value)) {
+    goto err;
+  }
 
   /* generate p and q */
+  prime_bits = (bits + (num_primes - 1)) / num_primes;
   for (;;) {
-    if (!BN_generate_prime_ex(rsa->p, bitsp, 0, NULL, NULL, cb) ||
+    if (!BN_generate_prime_ex(rsa->p, prime_bits, 0, NULL, NULL, cb) ||
         !BN_sub(r2, rsa->p, BN_value_one()) ||
         !BN_gcd(r1, r2, rsa->e, ctx)) {
       goto err;
@@ -856,19 +910,20 @@ static int keygen(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb) {
   if (!BN_GENCB_call(cb, 3, 0)) {
     goto err;
   }
+  prime_bits = ((bits - prime_bits) + (num_primes - 2)) / (num_primes - 1);
   for (;;) {
     /* When generating ridiculously small keys, we can get stuck
      * continually regenerating the same prime values. Check for
      * this and bail if it happens 3 times. */
     unsigned int degenerate = 0;
     do {
-      if (!BN_generate_prime_ex(rsa->q, bitsq, 0, NULL, NULL, cb)) {
+      if (!BN_generate_prime_ex(rsa->q, prime_bits, 0, NULL, NULL, cb)) {
         goto err;
       }
     } while ((BN_cmp(rsa->p, rsa->q) == 0) && (++degenerate < 3));
     if (degenerate == 3) {
       ok = 0; /* we set our own err */
-      OPENSSL_PUT_ERROR(RSA, keygen, RSA_R_KEY_SIZE_TOO_SMALL);
+      OPENSSL_PUT_ERROR(RSA, RSA_R_KEY_SIZE_TOO_SMALL);
       goto err;
     }
     if (!BN_sub(r2, rsa->q, BN_value_one()) ||
@@ -882,18 +937,89 @@ static int keygen(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb) {
       goto err;
     }
   }
-  if (!BN_GENCB_call(cb, 3, 1)) {
+
+  if (!BN_GENCB_call(cb, 3, 1) ||
+      !BN_mul(rsa->n, rsa->p, rsa->q, ctx)) {
     goto err;
   }
+
+  for (i = 2; i < num_primes; i++) {
+    RSA_additional_prime *ap =
+        sk_RSA_additional_prime_value(additional_primes, i - 2);
+    prime_bits = ((bits - BN_num_bits(rsa->n)) + (num_primes - (i + 1))) /
+                 (num_primes - i);
+
+    for (;;) {
+      if (!BN_generate_prime_ex(ap->prime, prime_bits, 0, NULL, NULL, cb)) {
+        goto err;
+      }
+      if (BN_cmp(rsa->p, ap->prime) == 0 ||
+          BN_cmp(rsa->q, ap->prime) == 0) {
+        continue;
+      }
+
+      for (j = 0; j < i - 2; j++) {
+        if (BN_cmp(sk_RSA_additional_prime_value(additional_primes, j)->prime,
+                   ap->prime) == 0) {
+          break;
+        }
+      }
+      if (j != i - 2) {
+        continue;
+      }
+
+      if (!BN_sub(r2, ap->prime, BN_value_one()) ||
+          !BN_gcd(r1, r2, rsa->e, ctx)) {
+        goto err;
+      }
+
+      if (!BN_is_one(r1)) {
+        continue;
+      }
+      if (i != num_primes - 1) {
+        break;
+      }
+
+      /* For the last prime we'll check that it makes n large enough. In the
+       * two prime case this isn't a problem because we generate primes with
+       * the top two bits set and so the product is always of the expected
+       * size. In the multi prime case, this doesn't follow. */
+      if (!BN_mul(r1, rsa->n, ap->prime, ctx)) {
+        goto err;
+      }
+      if (BN_num_bits(r1) == (unsigned) bits) {
+        break;
+      }
+
+      if (!BN_GENCB_call(cb, 2, n++)) {
+        goto err;
+      }
+    }
+
+    /* ap->r is is the product of all the primes prior to the current one
+     * (including p and q). */
+    if (!BN_copy(ap->r, rsa->n)) {
+      goto err;
+    }
+    if (i == num_primes - 1) {
+      /* In the case of the last prime, we calculated n as |r1| in the loop
+       * above. */
+      if (!BN_copy(rsa->n, r1)) {
+        goto err;
+      }
+    } else if (!BN_mul(rsa->n, rsa->n, ap->prime, ctx)) {
+      goto err;
+    }
+
+    if (!BN_GENCB_call(cb, 3, 1)) {
+      goto err;
+    }
+  }
+
   if (BN_cmp(rsa->p, rsa->q) < 0) {
     tmp = rsa->p;
     rsa->p = rsa->q;
     rsa->q = tmp;
-  }
-
-  /* calculate n */
-  if (!BN_mul(rsa->n, rsa->p, rsa->q, ctx)) {
-    goto err;
   }
 
   /* calculate d */
@@ -905,6 +1031,14 @@ static int keygen(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb) {
   }
   if (!BN_mul(r0, r1, r2, ctx)) {
     goto err; /* (p-1)(q-1) */
+  }
+  for (i = 2; i < num_primes; i++) {
+    RSA_additional_prime *ap =
+        sk_RSA_additional_prime_value(additional_primes, i - 2);
+    if (!BN_sub(r3, ap->prime, BN_value_one()) ||
+        !BN_mul(r0, r0, r3, ctx)) {
+      goto err;
+    }
   }
   pr0 = &local_r0;
   BN_with_flags(pr0, r0, BN_FLG_CONSTTIME);
@@ -934,22 +1068,43 @@ static int keygen(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb) {
     goto err;
   }
 
+  for (i = 2; i < num_primes; i++) {
+    RSA_additional_prime *ap =
+        sk_RSA_additional_prime_value(additional_primes, i - 2);
+    if (!BN_sub(ap->exp, ap->prime, BN_value_one()) ||
+        !BN_mod(ap->exp, rsa->d, ap->exp, ctx) ||
+        !BN_mod_inverse(ap->coeff, ap->r, ap->prime, ctx)) {
+      goto err;
+    }
+  }
+
   ok = 1;
+  rsa->additional_primes = additional_primes;
+  additional_primes = NULL;
 
 err:
   if (ok == -1) {
-    OPENSSL_PUT_ERROR(RSA, keygen, ERR_LIB_BN);
+    OPENSSL_PUT_ERROR(RSA, ERR_LIB_BN);
     ok = 0;
   }
   if (ctx != NULL) {
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
   }
-
+  sk_RSA_additional_prime_pop_free(additional_primes,
+                                   RSA_additional_prime_free);
   return ok;
 }
 
-const struct rsa_meth_st RSA_default_method = {
+int rsa_default_keygen(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb) {
+  return rsa_default_multi_prime_keygen(rsa, bits, 2 /* num primes */, e_value,
+                                        cb);
+}
+
+/* Many of these methods are NULL to more easily drop unused functions. The
+ * wrapper functions will select the appropriate |rsa_default_*| for all
+ * methods. */
+const RSA_METHOD RSA_default_method = {
   {
     0 /* references */,
     1 /* is_static */,
@@ -957,24 +1112,27 @@ const struct rsa_meth_st RSA_default_method = {
   NULL /* app_data */,
 
   NULL /* init */,
-  finish,
+  NULL /* finish (defaults to rsa_default_finish) */,
 
-  size,
+  NULL /* size (defaults to rsa_default_size) */,
 
   NULL /* sign */,
   NULL /* verify */,
 
-  encrypt,
-  sign_raw,
-  decrypt,
-  verify_raw,
+  NULL /* encrypt (defaults to rsa_default_encrypt) */,
+  NULL /* sign_raw (defaults to rsa_default_sign_raw) */,
+  NULL /* decrypt (defaults to rsa_default_decrypt) */,
+  NULL /* verify_raw (defaults to rsa_default_verify_raw) */,
 
-  private_transform,
+  NULL /* private_transform (defaults to rsa_default_private_transform) */,
 
-  mod_exp /* mod_exp */,
+  mod_exp,
   BN_mod_exp_mont /* bn_mod_exp */,
 
   RSA_FLAG_CACHE_PUBLIC | RSA_FLAG_CACHE_PRIVATE,
 
-  keygen,
+  NULL /* keygen (defaults to rsa_default_keygen) */,
+  NULL /* multi_prime_keygen (defaults to rsa_default_multi_prime_keygen) */,
+
+  NULL /* supports_digest */,
 };

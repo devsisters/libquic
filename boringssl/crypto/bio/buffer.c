@@ -122,17 +122,13 @@ err1:
 static int buffer_free(BIO *bio) {
   BIO_F_BUFFER_CTX *ctx;
 
-  if (bio == NULL) {
+  if (bio == NULL || bio->ptr == NULL) {
     return 0;
   }
 
   ctx = (BIO_F_BUFFER_CTX *)bio->ptr;
-  if (ctx->ibuf != NULL) {
-    OPENSSL_free(ctx->ibuf);
-  }
-  if (ctx->obuf != NULL) {
-    OPENSSL_free(ctx->obuf);
-  }
+  OPENSSL_free(ctx->ibuf);
+  OPENSSL_free(ctx->obuf);
   OPENSSL_free(bio->ptr);
 
   bio->ptr = NULL;
@@ -410,7 +406,7 @@ static long buffer_ctrl(BIO *b, int cmd, long num, void *ptr) {
   return ret;
 
 malloc_error:
-  OPENSSL_PUT_ERROR(BIO, buffer_ctrl, ERR_R_MALLOC_FAILURE);
+  OPENSSL_PUT_ERROR(BIO, ERR_R_MALLOC_FAILURE);
   return 0;
 }
 

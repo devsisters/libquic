@@ -14,8 +14,10 @@
 #
 #		SHA256-hw	SHA256(*)	SHA512
 # Apple A7	1.97		10.5 (+33%)	6.73 (-1%(**))
-# Cortex-A53	2.38		15.6 (+110%)	10.1 (+190%(***))
+# Cortex-A53	2.38		15.5 (+115%)	10.0 (+150%(***))
 # Cortex-A57	2.31		11.6 (+86%)	7.51 (+260%(***))
+# Denver	2.01		10.5 (+26%)	6.70 (+8%)
+# X-Gene			20.0 (+100%)	12.8 (+300%(***))
 # 
 # (*)	Software SHA256 results are of lesser relevance, presented
 #	mostly for informational purposes.
@@ -25,12 +27,24 @@
 # (***)	Super-impressive coefficients over gcc-generated code are
 #	indication of some compiler "pathology", most notably code
 #	generated with -mgeneral-regs-only is significanty faster
-#	and lags behind assembly only by 50-90%.
+#	and the gap is only 40-90%.
 
 $flavour=shift;
+# Unlike most perlasm files, sha512-armv8.pl takes an additional argument to
+# determine which hash function to emit. This differs from upstream OpenSSL so
+# that the script may continue to output to stdout.
+$variant=shift;
 $output=shift;
 
-if ($output =~ /512/) {
+$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
+( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
+die "can't locate arm-xlate.pl";
+
+open OUT,"| \"$^X\" $xlate $flavour $output";
+*STDOUT=*OUT;
+
+if ($variant eq "sha512") {
 	$BITS=512;
 	$SZ=8;
 	@Sigma0=(28,34,39);
@@ -39,7 +53,7 @@ if ($output =~ /512/) {
 	@sigma1=(19,61, 6);
 	$rounds=80;
 	$reg_t="x";
-} else {
+} elsif ($variant eq "sha256") {
 	$BITS=256;
 	$SZ=4;
 	@Sigma0=( 2,13,22);
@@ -48,6 +62,8 @@ if ($output =~ /512/) {
 	@sigma1=(17,19,10);
 	$rounds=64;
 	$reg_t="w";
+} else {
+  die "Unknown variant: $variant";
 }
 
 $func="sha${BITS}_block_data_order";
@@ -148,10 +164,11 @@ ___
 }
 
 $code.=<<___;
-#include "arm_arch.h"
+#include <openssl/arm_arch.h>
 
 .text
 
+.extern	OPENSSL_armcap_P
 .globl	$func
 .type	$func,%function
 .align	6
@@ -181,7 +198,7 @@ $code.=<<___;
 	ldp	$E,$F,[$ctx,#4*$SZ]
 	add	$num,$inp,$num,lsl#`log(16*$SZ)/log(2)`	// end of input
 	ldp	$G,$H,[$ctx,#6*$SZ]
-	adr	$Ktbl,K$BITS
+	adr	$Ktbl,.LK$BITS
 	stp	$ctx,$num,[x29,#96]
 
 .Loop:
@@ -231,8 +248,8 @@ $code.=<<___;
 .size	$func,.-$func
 
 .align	6
-.type	K$BITS,%object
-K$BITS:
+.type	.LK$BITS,%object
+.LK$BITS:
 ___
 $code.=<<___ if ($SZ==8);
 	.quad	0x428a2f98d728ae22,0x7137449123ef65cd
@@ -297,7 +314,7 @@ $code.=<<___ if ($SZ==4);
 	.long	0	//terminator
 ___
 $code.=<<___;
-.size	K$BITS,.-K$BITS
+.size	.LK$BITS,.-.LK$BITS
 .align	3
 .LOPENSSL_armcap_P:
 	.quad	OPENSSL_armcap_P-.
@@ -322,7 +339,7 @@ sha256_block_armv8:
 	add		x29,sp,#0
 
 	ld1.32		{$ABCD,$EFGH},[$ctx]
-	adr		$Ktbl,K256
+	adr		$Ktbl,.LK256
 
 .Loop_hw:
 	ld1		{@MSG[0]-@MSG[3]},[$inp],#64

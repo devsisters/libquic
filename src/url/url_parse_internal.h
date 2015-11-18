@@ -11,7 +11,7 @@
 
 namespace url {
 
-// We treat slashes and backslashes the same for IE compatability.
+// We treat slashes and backslashes the same for IE compatibility.
 inline bool IsURLSlash(base::char16 ch) {
   return ch == '/' || ch == '\\';
 }

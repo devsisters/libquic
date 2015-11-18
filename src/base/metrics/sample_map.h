@@ -17,7 +17,7 @@
 
 namespace base {
 
-class BASE_EXPORT_PRIVATE SampleMap : public HistogramSamples {
+class BASE_EXPORT SampleMap : public HistogramSamples {
  public:
   SampleMap();
   ~SampleMap() override;
@@ -40,7 +40,7 @@ class BASE_EXPORT_PRIVATE SampleMap : public HistogramSamples {
   DISALLOW_COPY_AND_ASSIGN(SampleMap);
 };
 
-class BASE_EXPORT_PRIVATE SampleMapIterator : public SampleCountIterator {
+class BASE_EXPORT SampleMapIterator : public SampleCountIterator {
  public:
   typedef std::map<HistogramBase::Sample, HistogramBase::Count>
       SampleToCountMap;

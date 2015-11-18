@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "net/base/ip_address_number.h"
 #include "net/base/net_export.h"
-#include "net/base/net_util.h"
 
 namespace net {
 
@@ -45,13 +45,16 @@ class NET_EXPORT_PRIVATE ProofSource {
   // |hostname| may be empty to signify that a default certificate should be
   // used.
   //
+  // |out_leaf_cert_sct| points to the signed timestamp (RFC6962) of the leaf
+  // cert.
   // This function may be called concurrently.
   virtual bool GetProof(const IPAddressNumber& server_ip,
                         const std::string& hostname,
                         const std::string& server_config,
                         bool ecdsa_ok,
                         const std::vector<std::string>** out_certs,
-                        std::string* out_signature) = 0;
+                        std::string* out_signature,
+                        std::string* out_leaf_cert_sct) = 0;
 };
 
 }  // namespace net

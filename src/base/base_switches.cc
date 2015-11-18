@@ -14,6 +14,11 @@ const char kDisableBreakpad[]               = "disable-breakpad";
 // generated internally.
 const char kEnableCrashReporter[]           = "enable-crash-reporter";
 
+// Makes memory allocators keep track of their allocations and context, so a
+// detailed breakdown of memory usage can be presented in chrome://tracing when
+// the memory-infra category is enabled.
+const char kEnableHeapProfiling[]           = "enable-heap-profiling";
+
 // Generates full memory crash dump.
 const char kFullMemoryCrashReport[]         = "full-memory-crash-report";
 
@@ -22,6 +27,16 @@ const char kEnableLowEndDeviceMode[]        = "enable-low-end-device-mode";
 
 // Force disabling of low-end device mode when set.
 const char kDisableLowEndDeviceMode[]       = "disable-low-end-device-mode";
+
+// This option can be used to force field trials when testing changes locally.
+// The argument is a list of name and value pairs, separated by slashes. If a
+// trial name is prefixed with an asterisk, that trial will start activated.
+// For example, the following argument defines two trials, with the second one
+// activated: "GoogleNow/Enable/*MaterialDesignNTP/Default/" This option can
+// also be used by the browser process to send the list of trials to a
+// non-browser process, using the same format. See
+// FieldTrialList::CreateTrialsFromString() in field_trial.h for details.
+const char kForceFieldTrials[]              = "force-fieldtrials";
 
 // Suppresses all error dialogs when present.
 const char kNoErrorDialogs[]                = "noerrdialogs";
@@ -66,6 +81,11 @@ const char kProfilerTiming[]                = "profiler-timing";
 // Value of the --profiler-timing flag that will disable timing information for
 // chrome://profiler.
 const char kProfilerTimingDisabledValue[]   = "0";
+
+#if defined(OS_WIN)
+// Disables the USB keyboard detection for blocking the OSK on Win8+.
+const char kDisableUsbKeyboardDetect[]      = "disable-usb-keyboard-detect";
+#endif
 
 #if defined(OS_POSIX)
 // Used for turning on Breakpad crash reporting in a debug environment where

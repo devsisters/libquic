@@ -95,15 +95,11 @@ class BASE_EXPORT JSONReader {
   // Reads and parses |json|, returning a Value. The caller owns the returned
   // instance. If |json| is not a properly formed JSON string, returns NULL.
   static scoped_ptr<Value> Read(const StringPiece& json);
-  // TODO(estade): remove this bare pointer version.
-  static Value* DeprecatedRead(const StringPiece& json);
 
   // Reads and parses |json|, returning a Value owned by the caller. The
   // parser respects the given |options|. If the input is not properly formed,
   // returns NULL.
   static scoped_ptr<Value> Read(const StringPiece& json, int options);
-  // TODO(estade): remove this bare pointer version.
-  static Value* DeprecatedRead(const StringPiece& json, int options);
 
   // Reads and parses |json| like Read(). |error_code_out| and |error_msg_out|
   // are optional. If specified and NULL is returned, they will be populated
@@ -113,11 +109,6 @@ class BASE_EXPORT JSONReader {
                                               int options,  // JSONParserOptions
                                               int* error_code_out,
                                               std::string* error_msg_out);
-  // TODO(estade): remove this bare pointer version.
-  static Value* DeprecatedReadAndReturnError(const StringPiece& json,
-                                             int options,  // JSONParserOptions
-                                             int* error_code_out,
-                                             std::string* error_msg_out);
 
   // Converts a JSON parse error code into a human readable message.
   // Returns an empty string if error_code is JSON_NO_ERROR.

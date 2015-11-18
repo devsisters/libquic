@@ -10,9 +10,6 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/pickle.h"
-
-// These includes are just for the *Hack functions, and should be removed
-// when those functions are removed.
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
@@ -1259,11 +1256,12 @@ int FilePath::CompareIgnoreCase(StringPieceType string1,
 
 #else  // << WIN. MACOSX | other (POSIX) >>
 
-// Generic (POSIX) implementation of file string comparison.
-// TODO(rolandsteiner) check if this is sufficient/correct.
+// Generic Posix system comparisons.
 int FilePath::CompareIgnoreCase(StringPieceType string1,
                                 StringPieceType string2) {
-  int comparison = strcasecmp(string1.data(), string2.data());
+  // Specifically need null termianted strings for this API call.
+  int comparison = strcasecmp(string1.as_string().c_str(),
+                              string2.as_string().c_str());
   if (comparison < 0)
     return -1;
   if (comparison > 0)
@@ -1316,7 +1314,7 @@ FilePath FilePath::NormalizePathSeparatorsTo(CharType separator) const {
 
 #if defined(OS_ANDROID)
 bool FilePath::IsContentUri() const {
-  return StartsWithASCII(path_, "content://", false /*case_sensitive*/);
+  return StartsWith(path_, "content://", base::CompareCase::INSENSITIVE_ASCII);
 }
 #endif
 

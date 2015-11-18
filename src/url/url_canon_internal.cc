@@ -249,9 +249,9 @@ void AppendStringOfType(const base::char16* source, int length,
 
 bool ReadUTFChar(const char* str, int* begin, int length,
                  unsigned* code_point_out) {
-  // This depends on ints and int32s being the same thing.  If they're not, it
+  // This depends on ints and int32s being the same thing. If they're not, it
   // will fail to compile.
-  // TODO(mmenke):  This should probably be fixed.
+  // TODO(mmenke): This should probably be fixed.
   if (!base::ReadUnicodeCharacter(str, length, begin, code_point_out) ||
       !base::IsValidCharacter(*code_point_out)) {
     *code_point_out = kUnicodeReplacementCharacter;
@@ -262,9 +262,9 @@ bool ReadUTFChar(const char* str, int* begin, int length,
 
 bool ReadUTFChar(const base::char16* str, int* begin, int length,
                  unsigned* code_point_out) {
-  // This depends on ints and int32s being the same thing.  If they're not, it
+  // This depends on ints and int32s being the same thing. If they're not, it
   // will fail to compile.
-  // TODO(mmenke):  This should probably be fixed.
+  // TODO(mmenke): This should probably be fixed.
   if (!base::ReadUnicodeCharacter(str, length, begin, code_point_out) ||
       !base::IsValidCharacter(*code_point_out)) {
     *code_point_out = kUnicodeReplacementCharacter;

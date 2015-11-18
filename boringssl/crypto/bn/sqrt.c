@@ -86,7 +86,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
       return ret;
     }
 
-    OPENSSL_PUT_ERROR(BN, BN_mod_sqrt, BN_R_P_IS_NOT_PRIME);
+    OPENSSL_PUT_ERROR(BN, BN_R_P_IS_NOT_PRIME);
     return (NULL);
   }
 
@@ -260,7 +260,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
     }
     if (r == 0) {
       /* m divides p */
-      OPENSSL_PUT_ERROR(BN, BN_mod_sqrt, BN_R_P_IS_NOT_PRIME);
+      OPENSSL_PUT_ERROR(BN, BN_R_P_IS_NOT_PRIME);
       goto end;
     }
   } while (r == 1 && ++i < 82);
@@ -271,7 +271,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
      * Even if  p  is not prime, we should have found some  y
      * such that r == -1.
      */
-    OPENSSL_PUT_ERROR(BN, BN_mod_sqrt, BN_R_TOO_MANY_ITERATIONS);
+    OPENSSL_PUT_ERROR(BN, BN_R_TOO_MANY_ITERATIONS);
     goto end;
   }
 
@@ -286,7 +286,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
     goto end;
   }
   if (BN_is_one(y)) {
-    OPENSSL_PUT_ERROR(BN, BN_mod_sqrt, BN_R_P_IS_NOT_PRIME);
+    OPENSSL_PUT_ERROR(BN, BN_R_P_IS_NOT_PRIME);
     goto end;
   }
 
@@ -377,7 +377,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
     while (!BN_is_one(t)) {
       i++;
       if (i == e) {
-        OPENSSL_PUT_ERROR(BN, BN_mod_sqrt, BN_R_NOT_A_SQUARE);
+        OPENSSL_PUT_ERROR(BN, BN_R_NOT_A_SQUARE);
         goto end;
       }
       if (!BN_mod_mul(t, t, t, p, ctx)) {
@@ -413,14 +413,14 @@ vrfy:
     }
 
     if (!err && 0 != BN_cmp(x, A)) {
-      OPENSSL_PUT_ERROR(BN, BN_mod_sqrt, BN_R_NOT_A_SQUARE);
+      OPENSSL_PUT_ERROR(BN, BN_R_NOT_A_SQUARE);
       err = 1;
     }
   }
 
 end:
   if (err) {
-    if (ret != NULL && ret != in) {
+    if (ret != in) {
       BN_clear_free(ret);
     }
     ret = NULL;
@@ -434,7 +434,7 @@ int BN_sqrt(BIGNUM *out_sqrt, const BIGNUM *in, BN_CTX *ctx) {
   int ok = 0, last_delta_valid = 0;
 
   if (in->neg) {
-    OPENSSL_PUT_ERROR(BN, BN_sqrt, BN_R_NEGATIVE_NUMBER);
+    OPENSSL_PUT_ERROR(BN, BN_R_NEGATIVE_NUMBER);
     return 0;
   }
   if (BN_is_zero(in)) {
@@ -452,7 +452,7 @@ int BN_sqrt(BIGNUM *out_sqrt, const BIGNUM *in, BN_CTX *ctx) {
   last_delta = BN_CTX_get(ctx);
   delta = BN_CTX_get(ctx);
   if (estimate == NULL || tmp == NULL || last_delta == NULL || delta == NULL) {
-    OPENSSL_PUT_ERROR(BN, BN_sqrt, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(BN, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
@@ -470,7 +470,7 @@ int BN_sqrt(BIGNUM *out_sqrt, const BIGNUM *in, BN_CTX *ctx) {
         !BN_sqr(tmp, estimate, ctx) ||
         /* |delta| = |in| - |tmp| */
         !BN_sub(delta, in, tmp)) {
-      OPENSSL_PUT_ERROR(BN, BN_sqrt, ERR_R_BN_LIB);
+      OPENSSL_PUT_ERROR(BN, ERR_R_BN_LIB);
       goto err;
     }
 
@@ -490,15 +490,15 @@ int BN_sqrt(BIGNUM *out_sqrt, const BIGNUM *in, BN_CTX *ctx) {
   }
 
   if (BN_cmp(tmp, in) != 0) {
-    OPENSSL_PUT_ERROR(BN, BN_sqrt, BN_R_NOT_A_SQUARE);
+    OPENSSL_PUT_ERROR(BN, BN_R_NOT_A_SQUARE);
     goto err;
   }
 
   ok = 1;
 
 err:
-  if (ok && out_sqrt == in) {
-    BN_copy(out_sqrt, estimate);
+  if (ok && out_sqrt == in && !BN_copy(out_sqrt, estimate)) {
+    ok = 0;
   }
   BN_CTX_end(ctx);
   return ok;

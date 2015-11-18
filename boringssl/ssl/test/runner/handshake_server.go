@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package runner
 
 import (
 	"bytes"
@@ -69,7 +69,7 @@ func (c *Conn) serverHandshake() error {
 				return err
 			}
 		}
-		if err := hs.sendFinished(); err != nil {
+		if err := hs.sendFinished(c.firstFinished[:]); err != nil {
 			return err
 		}
 		// Most retransmits are triggered by a timeout, but the final
@@ -81,7 +81,7 @@ func (c *Conn) serverHandshake() error {
 		}); err != nil {
 			return err
 		}
-		if err := hs.readFinished(isResume); err != nil {
+		if err := hs.readFinished(nil, isResume); err != nil {
 			return err
 		}
 		c.didResume = true
@@ -94,22 +94,28 @@ func (c *Conn) serverHandshake() error {
 		if err := hs.establishKeys(); err != nil {
 			return err
 		}
-		if err := hs.readFinished(isResume); err != nil {
+		if err := hs.readFinished(c.firstFinished[:], isResume); err != nil {
 			return err
+		}
+		if c.config.Bugs.AlertBeforeFalseStartTest != 0 {
+			c.sendAlert(c.config.Bugs.AlertBeforeFalseStartTest)
 		}
 		if c.config.Bugs.ExpectFalseStart {
 			if err := c.readRecord(recordTypeApplicationData); err != nil {
-				return err
+				return fmt.Errorf("tls: peer did not false start: %s", err)
 			}
 		}
 		if err := hs.sendSessionTicket(); err != nil {
 			return err
 		}
-		if err := hs.sendFinished(); err != nil {
+		if err := hs.sendFinished(nil); err != nil {
 			return err
 		}
 	}
 	c.handshakeComplete = true
+	copy(c.clientRandom[:], hs.clientHello.random)
+	copy(c.serverRandom[:], hs.hello.random)
+	copy(c.masterSecret[:], hs.masterSecret)
 
 	return nil
 }
@@ -133,8 +139,8 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 		c.sendAlert(alertUnexpectedMessage)
 		return false, unexpectedMessageError(hs.clientHello, msg)
 	}
-	if config.Bugs.RequireFastradioPadding && len(hs.clientHello.raw) < 1000 {
-		return false, errors.New("tls: ClientHello record size should be larger than 1000 bytes when padding enabled.")
+	if size := config.Bugs.RequireClientHelloSize; size != 0 && len(hs.clientHello.raw) != size {
+		return false, fmt.Errorf("tls: ClientHello record size is %d, but expected %d", len(hs.clientHello.raw), size)
 	}
 
 	if c.isDTLS && !config.Bugs.SkipHelloVerifyRequest {
@@ -193,6 +199,18 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 	if c.clientVersion < VersionTLS12 && len(hs.clientHello.signatureAndHashes) > 0 {
 		return false, fmt.Errorf("tls: client included signature_algorithms before TLS 1.2")
 	}
+	if config.Bugs.IgnorePeerSignatureAlgorithmPreferences {
+		hs.clientHello.signatureAndHashes = config.signatureAndHashesForServer()
+	}
+
+	// Check the client cipher list is consistent with the version.
+	if hs.clientHello.vers < VersionTLS12 {
+		for _, id := range hs.clientHello.cipherSuites {
+			if isTLS12Cipher(id) {
+				return false, fmt.Errorf("tls: client offered TLS 1.2 cipher before TLS 1.2")
+			}
+		}
+	}
 
 	c.vers, ok = config.mutualVersion(hs.clientHello.vers)
 	if !ok {
@@ -201,11 +219,17 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 	}
 	c.haveVers = true
 
-	hs.hello = new(serverHelloMsg)
-	hs.hello.isDTLS = c.isDTLS
+	hs.hello = &serverHelloMsg{
+		isDTLS:          c.isDTLS,
+		customExtension: config.Bugs.CustomExtension,
+		npnLast:         config.Bugs.SwapNPNAndALPN,
+	}
 
 	supportedCurve := false
 	preferredCurves := config.curvePreferences()
+	if config.Bugs.IgnorePeerCurvePreferences {
+		hs.clientHello.supportedCurves = preferredCurves
+	}
 Curves:
 	for _, curve := range hs.clientHello.supportedCurves {
 		for _, supported := range preferredCurves {
@@ -262,6 +286,10 @@ Curves:
 		hs.hello.secureRenegotiation = hs.clientHello.secureRenegotiation
 	}
 
+	if c.config.Bugs.NoRenegotiationInfo {
+		hs.hello.secureRenegotiation = nil
+	}
+
 	hs.hello.compressionMethod = compressionNone
 	hs.hello.duplicateExtension = c.config.Bugs.DuplicateExtension
 	if len(hs.clientHello.serverName) > 0 {
@@ -269,12 +297,18 @@ Curves:
 	}
 
 	if len(hs.clientHello.alpnProtocols) > 0 {
-		if selectedProto, fallback := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); !fallback {
+		if proto := c.config.Bugs.ALPNProtocol; proto != nil {
+			hs.hello.alpnProtocol = *proto
+			hs.hello.alpnProtocolEmpty = len(*proto) == 0
+			c.clientProtocol = *proto
+			c.usedALPN = true
+		} else if selectedProto, fallback := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); !fallback {
 			hs.hello.alpnProtocol = selectedProto
 			c.clientProtocol = selectedProto
 			c.usedALPN = true
 		}
-	} else {
+	}
+	if len(hs.clientHello.alpnProtocols) == 0 || c.config.Bugs.NegotiateALPNAndNPN {
 		// Although sending an empty NPN extension is reasonable, Firefox has
 		// had a bug around this. Best to send nothing at all if
 		// config.NextProtos is empty. See
@@ -319,7 +353,23 @@ Curves:
 		hs.hello.srtpProtectionProfile = c.config.Bugs.SendSRTPProtectionProfile
 	}
 
+	if expected := c.config.Bugs.ExpectedCustomExtension; expected != nil {
+		if hs.clientHello.customExtension != *expected {
+			return false, fmt.Errorf("tls: bad custom extension contents %q", hs.clientHello.customExtension)
+		}
+	}
+
 	_, hs.ecdsaOk = hs.cert.PrivateKey.(*ecdsa.PrivateKey)
+
+	// For test purposes, check that the peer never offers a session when
+	// renegotiating.
+	if c.cipherSuite != nil && len(hs.clientHello.sessionId) > 0 && c.config.Bugs.FailIfResumeOnRenego {
+		return false, errors.New("tls: offered resumption on renegotiation")
+	}
+
+	if c.config.Bugs.FailIfSessionOffered && (len(hs.clientHello.sessionTicket) > 0 || len(hs.clientHello.sessionId) > 0) {
+		return false, errors.New("tls: client offered a session ticket or ID")
+	}
 
 	if hs.checkForResumption() {
 		return true, nil
@@ -340,6 +390,9 @@ Curves:
 		return false, errors.New("tls: fallback SCSV found when not expected")
 	}
 
+	if config.Bugs.IgnorePeerCipherPreferences {
+		hs.clientHello.cipherSuites = c.config.cipherSuites()
+	}
 	var preferenceList, supportedList []uint16
 	if c.config.PreferServerCipherSuites {
 		preferenceList = c.config.cipherSuites()
@@ -427,6 +480,9 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 	c := hs.c
 
 	hs.hello.cipherSuite = hs.suite.id
+	if c.config.Bugs.SendCipherSuite != 0 {
+		hs.hello.cipherSuite = c.config.Bugs.SendCipherSuite
+	}
 	// We echo the client's session ID in the ServerHello to let it know
 	// that we're doing a resumption.
 	hs.hello.sessionId = hs.clientHello.sessionId
@@ -488,7 +544,9 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 
 	if !isPSK {
 		certMsg := new(certificateMsg)
-		certMsg.certificates = hs.cert.Certificate
+		if !config.Bugs.EmptyCertificateList {
+			certMsg.certificates = hs.cert.Certificate
+		}
 		if !config.Bugs.UnauthenticatedECDH {
 			certMsgBytes := certMsg.marshal()
 			if config.Bugs.WrongCertificateMessageType {
@@ -499,7 +557,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 	}
 
-	if hs.hello.ocspStapling {
+	if hs.hello.ocspStapling && !c.config.Bugs.SkipCertificateStatus {
 		certStatus := new(certificateStatusMsg)
 		certStatus.statusType = statusTypeOCSP
 		certStatus.response = hs.cert.OCSPStaple
@@ -640,6 +698,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			if !isSupportedSignatureAndHash(signatureAndHash, config.signatureAndHashesForServer()) {
 				return errors.New("tls: unsupported hash function for client certificate")
 			}
+			c.clientCertSignatureHash = signatureAndHash.hash
 		} else {
 			// Before TLS 1.2 the signature algorithm was implicit
 			// from the key type, and only one hash per signature
@@ -726,7 +785,7 @@ func (hs *serverHandshakeState) establishKeys() error {
 	return nil
 }
 
-func (hs *serverHandshakeState) readFinished(isResume bool) error {
+func (hs *serverHandshakeState) readFinished(out []byte, isResume bool) error {
 	c := hs.c
 
 	c.readRecord(recordTypeChangeCipherSpec)
@@ -795,6 +854,7 @@ func (hs *serverHandshakeState) readFinished(isResume bool) error {
 		return errors.New("tls: client's Finished message is incorrect")
 	}
 	c.clientVerify = append(c.clientVerify[:0], clientFinished.verifyData...)
+	copy(out, clientFinished.verifyData)
 
 	hs.writeClientHash(clientFinished.marshal())
 	return nil
@@ -819,10 +879,12 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 
 	m := new(newSessionTicketMsg)
 
-	var err error
-	m.ticket, err = c.encryptTicket(&state)
-	if err != nil {
-		return err
+	if !c.config.Bugs.SendEmptySessionTicket {
+		var err error
+		m.ticket, err = c.encryptTicket(&state)
+		if err != nil {
+			return err
+		}
 	}
 
 	hs.writeServerHash(m.marshal())
@@ -831,11 +893,15 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	return nil
 }
 
-func (hs *serverHandshakeState) sendFinished() error {
+func (hs *serverHandshakeState) sendFinished(out []byte) error {
 	c := hs.c
 
 	finished := new(finishedMsg)
 	finished.verifyData = hs.finishedHash.serverSum(hs.masterSecret)
+	copy(out, finished.verifyData)
+	if c.config.Bugs.BadFinished {
+		finished.verifyData[0]++
+	}
 	c.serverVerify = append(c.serverVerify[:0], finished.verifyData...)
 	hs.finishedBytes = finished.marshal()
 	hs.writeServerHash(hs.finishedBytes)
@@ -854,13 +920,17 @@ func (hs *serverHandshakeState) sendFinished() error {
 	if c.config.Bugs.AppDataAfterChangeCipherSpec != nil {
 		c.writeRecord(recordTypeApplicationData, c.config.Bugs.AppDataAfterChangeCipherSpec)
 	}
+	if c.config.Bugs.AlertAfterChangeCipherSpec != 0 {
+		c.sendAlert(c.config.Bugs.AlertAfterChangeCipherSpec)
+		return errors.New("tls: simulating post-CCS alert")
+	}
 
 	if !c.config.Bugs.SkipFinished {
 		c.writeRecord(recordTypeHandshake, postCCSBytes)
 		c.dtlsFlushHandshake()
 	}
 
-	c.cipherSuite = hs.suite.id
+	c.cipherSuite = hs.suite
 
 	return nil
 }
@@ -991,4 +1061,15 @@ func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, version
 	}
 
 	return nil
+}
+
+func isTLS12Cipher(id uint16) bool {
+	for _, cipher := range cipherSuites {
+		if cipher.id != id {
+			continue
+		}
+		return cipher.flags&suiteTLS12 != 0
+	}
+	// Unknown cipher.
+	return false
 }

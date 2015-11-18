@@ -124,7 +124,7 @@ struct bignum_ctx {
 BN_CTX *BN_CTX_new(void) {
   BN_CTX *ret = OPENSSL_malloc(sizeof(BN_CTX));
   if (!ret) {
-    OPENSSL_PUT_ERROR(BN, BN_CTX_new, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(BN, ERR_R_MALLOC_FAILURE);
     return NULL;
   }
 
@@ -153,7 +153,7 @@ void BN_CTX_start(BN_CTX *ctx) {
     ctx->err_stack++;
   } else if (!BN_STACK_push(&ctx->stack, ctx->used)) {
     /* (Try to) get a new frame pointer */
-    OPENSSL_PUT_ERROR(BN, BN_CTX_start, BN_R_TOO_MANY_TEMPORARY_VARIABLES);
+    OPENSSL_PUT_ERROR(BN, BN_R_TOO_MANY_TEMPORARY_VARIABLES);
     ctx->err_stack++;
   }
 }
@@ -169,7 +169,7 @@ BIGNUM *BN_CTX_get(BN_CTX *ctx) {
     /* Setting too_many prevents repeated "get" attempts from
      * cluttering the error stack. */
     ctx->too_many = 1;
-    OPENSSL_PUT_ERROR(BN, BN_CTX_get, BN_R_TOO_MANY_TEMPORARY_VARIABLES);
+    OPENSSL_PUT_ERROR(BN, BN_R_TOO_MANY_TEMPORARY_VARIABLES);
     return NULL;
   }
 
@@ -205,9 +205,7 @@ static void BN_STACK_init(BN_STACK *st) {
 }
 
 static void BN_STACK_finish(BN_STACK *st) {
-  if (st->size) {
-    OPENSSL_free(st->indexes);
-  }
+  OPENSSL_free(st->indexes);
 }
 
 static int BN_STACK_push(BN_STACK *st, unsigned int idx) {
@@ -222,9 +220,7 @@ static int BN_STACK_push(BN_STACK *st, unsigned int idx) {
     if (st->depth) {
       memcpy(newitems, st->indexes, st->depth * sizeof(unsigned int));
     }
-    if (st->size) {
-      OPENSSL_free(st->indexes);
-    }
+    OPENSSL_free(st->indexes);
     st->indexes = newitems;
     st->size = newsize;
   }

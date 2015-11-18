@@ -97,7 +97,7 @@ void HMAC_CTX_cleanup(HMAC_CTX *ctx) {
   EVP_MD_CTX_cleanup(&ctx->i_ctx);
   EVP_MD_CTX_cleanup(&ctx->o_ctx);
   EVP_MD_CTX_cleanup(&ctx->md_ctx);
-  OPENSSL_cleanse(ctx, sizeof(ctx));
+  OPENSSL_cleanse(ctx, sizeof(HMAC_CTX));
 }
 
 int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, size_t key_len,
@@ -126,10 +126,10 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, size_t key_len,
       if (!EVP_DigestInit_ex(&ctx->md_ctx, md, impl) ||
           !EVP_DigestUpdate(&ctx->md_ctx, key, key_len) ||
           !EVP_DigestFinal_ex(&ctx->md_ctx, key_block, &key_block_len)) {
-        goto err;
+        return 0;
       }
     } else {
-      assert(key_len >= 0 && key_len <= sizeof(key_block));
+      assert(key_len <= sizeof(key_block));
       memcpy(key_block, key, key_len);
       key_block_len = (unsigned)key_len;
     }
@@ -143,7 +143,7 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, size_t key_len,
     }
     if (!EVP_DigestInit_ex(&ctx->i_ctx, md, impl) ||
         !EVP_DigestUpdate(&ctx->i_ctx, pad, EVP_MD_block_size(md))) {
-      goto err;
+      return 0;
     }
 
     for (i = 0; i < HMAC_MAX_MD_CBLOCK; i++) {
@@ -151,20 +151,17 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, size_t key_len,
     }
     if (!EVP_DigestInit_ex(&ctx->o_ctx, md, impl) ||
         !EVP_DigestUpdate(&ctx->o_ctx, pad, EVP_MD_block_size(md))) {
-      goto err;
+      return 0;
     }
 
     ctx->md = md;
   }
 
   if (!EVP_MD_CTX_copy_ex(&ctx->md_ctx, &ctx->i_ctx)) {
-    goto err;
+    return 0;
   }
 
   return 1;
-
-err:
-  return 0;
 }
 
 int HMAC_Update(HMAC_CTX *ctx, const uint8_t *data, size_t data_len) {
@@ -175,6 +172,8 @@ int HMAC_Final(HMAC_CTX *ctx, uint8_t *out, unsigned int *out_len) {
   unsigned int i;
   uint8_t buf[EVP_MAX_MD_SIZE];
 
+  /* TODO(davidben): The only thing that can officially fail here is
+   * |EVP_MD_CTX_copy_ex|, but even that should be impossible in this case. */
   if (!EVP_DigestFinal_ex(&ctx->md_ctx, buf, &i) ||
       !EVP_MD_CTX_copy_ex(&ctx->md_ctx, &ctx->o_ctx) ||
       !EVP_DigestUpdate(&ctx->md_ctx, buf, i) ||
@@ -199,12 +198,6 @@ int HMAC_CTX_copy_ex(HMAC_CTX *dest, const HMAC_CTX *src) {
 
   dest->md = src->md;
   return 1;
-}
-
-void HMAC_CTX_set_flags(HMAC_CTX *ctx, unsigned long flags) {
-  EVP_MD_CTX_set_flags(&ctx->i_ctx, flags);
-  EVP_MD_CTX_set_flags(&ctx->o_ctx, flags);
-  EVP_MD_CTX_set_flags(&ctx->md_ctx, flags);
 }
 
 int HMAC_Init(HMAC_CTX *ctx, const void *key, int key_len, const EVP_MD *md) {

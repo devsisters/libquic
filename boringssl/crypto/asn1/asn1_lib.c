@@ -69,17 +69,10 @@
 OPENSSL_DECLARE_ERROR_REASON(ASN1, MALLOC_FAILURE);
 
 /* Cross-module errors from crypto/x509/i2d_pr.c */
-OPENSSL_DECLARE_ERROR_FUNCTION(ASN1, i2d_PrivateKey);
 OPENSSL_DECLARE_ERROR_REASON(ASN1, UNSUPPORTED_PUBLIC_KEY_TYPE);
 
 /* Cross-module errors from crypto/x509/asn1_gen.c.
  * TODO(davidben): Remove these once asn1_gen.c is gone. */
-OPENSSL_DECLARE_ERROR_FUNCTION(ASN1, ASN1_generate_v3);
-OPENSSL_DECLARE_ERROR_FUNCTION(ASN1, asn1_cb);
-OPENSSL_DECLARE_ERROR_FUNCTION(ASN1, parse_tagging);
-OPENSSL_DECLARE_ERROR_FUNCTION(ASN1, append_exp);
-OPENSSL_DECLARE_ERROR_FUNCTION(ASN1, asn1_str2type);
-OPENSSL_DECLARE_ERROR_FUNCTION(ASN1, bitstr_cb);
 OPENSSL_DECLARE_ERROR_REASON(ASN1, DEPTH_EXCEEDED);
 OPENSSL_DECLARE_ERROR_REASON(ASN1, ILLEGAL_BITSTRING_FORMAT);
 OPENSSL_DECLARE_ERROR_REASON(ASN1, ILLEGAL_BOOLEAN);
@@ -183,7 +176,7 @@ int ASN1_get_object(const unsigned char **pp, long *plength, int *ptag,
 #endif
 	if (*plength > (omax - (p - *pp)))
 		{
-		OPENSSL_PUT_ERROR(ASN1, ASN1_get_object, ASN1_R_TOO_LONG);
+		OPENSSL_PUT_ERROR(ASN1, ASN1_R_TOO_LONG);
 		/* Set this so that even if things are not long enough
 		 * the values are set correctly */
 		ret|=0x80;
@@ -191,7 +184,7 @@ int ASN1_get_object(const unsigned char **pp, long *plength, int *ptag,
 	*pp=p;
 	return(ret|inf);
 err:
-	OPENSSL_PUT_ERROR(ASN1, ASN1_get_object, ASN1_R_HEADER_TOO_LONG);
+	OPENSSL_PUT_ERROR(ASN1, ASN1_R_HEADER_TOO_LONG);
 	return(0x80);
 	}
 
@@ -433,7 +426,7 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, int len)
 
 		if (str->data == NULL)
 			{
-			OPENSSL_PUT_ERROR(ASN1, ASN1_STRING_set, ERR_R_MALLOC_FAILURE);
+			OPENSSL_PUT_ERROR(ASN1, ERR_R_MALLOC_FAILURE);
 			str->data=c;
 			return(0);
 			}
@@ -469,7 +462,7 @@ ASN1_STRING *ASN1_STRING_type_new(int type)
 	ret=(ASN1_STRING *)OPENSSL_malloc(sizeof(ASN1_STRING));
 	if (ret == NULL)
 		{
-		OPENSSL_PUT_ERROR(ASN1, ASN1_STRING_type_new, ERR_R_MALLOC_FAILURE);
+		OPENSSL_PUT_ERROR(ASN1, ERR_R_MALLOC_FAILURE);
 		return(NULL);
 		}
 	ret->length=0;
@@ -502,15 +495,6 @@ int ASN1_STRING_cmp(const ASN1_STRING *a, const ASN1_STRING *b)
 		}
 	else
 		return(i);
-	}
-
-void asn1_add_error(const unsigned char *address, int offset)
-	{
-	char buf1[DECIMAL_SIZE(address)+1],buf2[DECIMAL_SIZE(offset)+1];
-
-	BIO_snprintf(buf1,sizeof buf1,"%lu",(unsigned long)address);
-	BIO_snprintf(buf2,sizeof buf2,"%d",offset);
-	ERR_add_error_data(4,"address=",buf1," offset=",buf2);
 	}
 
 int ASN1_STRING_length(const ASN1_STRING *x)

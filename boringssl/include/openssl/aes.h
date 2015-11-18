@@ -124,7 +124,7 @@ OPENSSL_EXPORT void AES_cbc_encrypt(const uint8_t *in, uint8_t *out, size_t len,
                                     const AES_KEY *key, uint8_t *ivec,
                                     const int enc);
 
-/* AES_ofb128_encrypt encrypts (or decrypts, it's the same in CTR mode) |len|
+/* AES_ofb128_encrypt encrypts (or decrypts, it's the same in OFB mode) |len|
  * bytes from |in| to |out|. The |num| parameter must be set to zero on the
  * first call. */
 OPENSSL_EXPORT void AES_ofb128_encrypt(const uint8_t *in, uint8_t *out,
@@ -137,6 +137,18 @@ OPENSSL_EXPORT void AES_ofb128_encrypt(const uint8_t *in, uint8_t *out,
 OPENSSL_EXPORT void AES_cfb128_encrypt(const uint8_t *in, uint8_t *out,
                                        size_t len, const AES_KEY *key,
                                        uint8_t *ivec, int *num, int enc);
+
+
+/* Android compatibility section.
+ *
+ * These functions are declared, temporarily, for Android because
+ * wpa_supplicant will take a little time to sync with upstream. Outside of
+ * Android they'll have no definition. */
+
+OPENSSL_EXPORT int AES_wrap_key(AES_KEY *key, const uint8_t *iv, uint8_t *out,
+                                const uint8_t *in, unsigned in_len);
+OPENSSL_EXPORT int AES_unwrap_key(AES_KEY *key, const uint8_t *iv, uint8_t *out,
+                                  const uint8_t *in, unsigned in_len);
 
 
 #if defined(__cplusplus)

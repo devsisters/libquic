@@ -1,4 +1,3 @@
-/* crypto/x509/x509.h */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -73,13 +72,14 @@
 #include <openssl/cipher.h>
 #include <openssl/dh.h>
 #include <openssl/dsa.h>
-#include <openssl/ec.h>
 #include <openssl/ecdh.h>
 #include <openssl/ecdsa.h>
+#include <openssl/ec.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
 #include <openssl/stack.h>
+#include <openssl/thread.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -101,22 +101,22 @@ extern "C" {
 #define X509v3_KU_DECIPHER_ONLY		0x8000
 #define X509v3_KU_UNDEF			0xffff
 
-typedef struct X509_objects_st
+struct X509_objects_st
 	{
 	int nid;
 	int (*a2i)(void);
 	int (*i2a)(void);
-	} X509_OBJECTS;
+	} /* X509_OBJECTS */;
 
 DECLARE_ASN1_SET_OF(X509_ALGOR)
 
 typedef STACK_OF(X509_ALGOR) X509_ALGORS;
 
-typedef struct X509_val_st
+struct X509_val_st
 	{
 	ASN1_TIME *notBefore;
 	ASN1_TIME *notAfter;
-	} X509_VAL;
+	} /* X509_VAL */;
 
 struct X509_pubkey_st
 	{
@@ -125,25 +125,25 @@ struct X509_pubkey_st
 	EVP_PKEY *pkey;
 	};
 
-typedef struct X509_sig_st
+struct X509_sig_st
 	{
 	X509_ALGOR *algor;
 	ASN1_OCTET_STRING *digest;
-	} X509_SIG;
+	} /* X509_SIG */;
 
-typedef struct X509_name_entry_st
+struct X509_name_entry_st
 	{
 	ASN1_OBJECT *object;
 	ASN1_STRING *value;
 	int set;
 	int size; 	/* temp variable */
-	} X509_NAME_ENTRY;
+	} /* X509_NAME_ENTRY */;
 
 DECLARE_STACK_OF(X509_NAME_ENTRY)
 DECLARE_ASN1_SET_OF(X509_NAME_ENTRY)
 
 /* we always keep X509_NAMEs in 2 forms. */
-typedef struct X509_name_st
+struct X509_name_st
 	{
 	STACK_OF(X509_NAME_ENTRY) *entries;
 	int modified;	/* true if 'bytes' needs to be built */
@@ -155,18 +155,18 @@ typedef struct X509_name_st
 /*	unsigned long hash; Keep the hash around for lookups */
 	unsigned char *canon_enc;
 	int canon_enclen;
-	} X509_NAME;
+	} /* X509_NAME */;
 
 DECLARE_STACK_OF(X509_NAME)
 
 #define X509_EX_V_NETSCAPE_HACK		0x8000
 #define X509_EX_V_INIT			0x0001
-typedef struct X509_extension_st
+struct X509_extension_st
 	{
 	ASN1_OBJECT *object;
 	ASN1_BOOLEAN critical;
 	ASN1_OCTET_STRING *value;
-	} X509_EXTENSION;
+	} /* X509_EXTENSION */;
 
 typedef STACK_OF(X509_EXTENSION) X509_EXTENSIONS;
 
@@ -174,7 +174,7 @@ DECLARE_STACK_OF(X509_EXTENSION)
 DECLARE_ASN1_SET_OF(X509_EXTENSION)
 
 /* a sequence of these are used */
-typedef struct x509_attributes_st
+struct x509_attributes_st
 	{
 	ASN1_OBJECT *object;
 	int single; /* 0 for a set, 1 for a single item (which is wrong) */
@@ -183,13 +183,13 @@ typedef struct x509_attributes_st
 /* 0 */		STACK_OF(ASN1_TYPE) *set;
 /* 1 */		ASN1_TYPE	*single;
 		} value;
-	} X509_ATTRIBUTE;
+	} /* X509_ATTRIBUTE */;
 
 DECLARE_STACK_OF(X509_ATTRIBUTE)
 DECLARE_ASN1_SET_OF(X509_ATTRIBUTE)
 
 
-typedef struct X509_req_info_st
+struct X509_req_info_st
 	{
 	ASN1_ENCODING enc;
 	ASN1_INTEGER *version;
@@ -197,17 +197,17 @@ typedef struct X509_req_info_st
 	X509_PUBKEY *pubkey;
 	/*  d=2 hl=2 l=  0 cons: cont: 00 */
 	STACK_OF(X509_ATTRIBUTE) *attributes; /* [ 0 ] */
-	} X509_REQ_INFO;
+	} /* X509_REQ_INFO */;
 
-typedef struct X509_req_st
+struct X509_req_st
 	{
 	X509_REQ_INFO *req_info;
 	X509_ALGOR *sig_alg;
 	ASN1_BIT_STRING *signature;
-	int references;
-	} X509_REQ;
+	CRYPTO_refcount_t references;
+	} /* X509_REQ */;
 
-typedef struct x509_cinf_st
+struct x509_cinf_st
 	{
 	ASN1_INTEGER *version;		/* [ 0 ] default of v1 */
 	ASN1_INTEGER *serialNumber;
@@ -220,7 +220,7 @@ typedef struct x509_cinf_st
 	ASN1_BIT_STRING *subjectUID;		/* [ 2 ] optional in v2 */
 	STACK_OF(X509_EXTENSION) *extensions;	/* [ 3 ] optional in v3 */
 	ASN1_ENCODING enc;
-	} X509_CINF;
+	} /* X509_CINF */;
 
 /* This stuff is certificate "auxiliary info"
  * it contains details which are useful in certificate
@@ -228,14 +228,14 @@ typedef struct x509_cinf_st
  * the end of the certificate itself
  */
 
-typedef struct x509_cert_aux_st
+struct x509_cert_aux_st
 	{
 	STACK_OF(ASN1_OBJECT) *trust;		/* trusted uses */
 	STACK_OF(ASN1_OBJECT) *reject;		/* rejected uses */
 	ASN1_UTF8STRING *alias;			/* "friendly name" */
 	ASN1_OCTET_STRING *keyid;		/* key id of private key */
 	STACK_OF(X509_ALGOR) *other;		/* other unspecified info */
-	} X509_CERT_AUX;
+	} /* X509_CERT_AUX */;
 
 struct x509_st
 	{
@@ -243,7 +243,7 @@ struct x509_st
 	X509_ALGOR *sig_alg;
 	ASN1_BIT_STRING *signature;
 	int valid;
-	int references;
+	CRYPTO_refcount_t references;
 	char *name;
 	CRYPTO_EX_DATA ex_data;
 	/* These contain copies of various extension values */
@@ -268,21 +268,21 @@ DECLARE_ASN1_SET_OF(X509)
 
 /* This is used for a table of trust checking functions */
 
-typedef struct x509_trust_st {
+struct x509_trust_st {
 	int trust;
 	int flags;
 	int (*check_trust)(struct x509_trust_st *, X509 *, int);
 	char *name;
 	int arg1;
 	void *arg2;
-} X509_TRUST;
+} /* X509_TRUST */;
 
 DECLARE_STACK_OF(X509_TRUST)
 
-typedef struct x509_cert_pair_st {
+struct x509_cert_pair_st {
 	X509 *forward;
 	X509 *reverse;
-} X509_CERT_PAIR;
+} /* X509_CERT_PAIR */;
 
 /* standard trust ids */
 
@@ -402,7 +402,7 @@ struct x509_revoked_st
 DECLARE_STACK_OF(X509_REVOKED)
 DECLARE_ASN1_SET_OF(X509_REVOKED)
 
-typedef struct X509_crl_info_st
+struct X509_crl_info_st
 	{
 	ASN1_INTEGER *version;
 	X509_ALGOR *sig_alg;
@@ -412,7 +412,7 @@ typedef struct X509_crl_info_st
 	STACK_OF(X509_REVOKED) *revoked;
 	STACK_OF(X509_EXTENSION) /* [0] */ *extensions;
 	ASN1_ENCODING enc;
-	} X509_CRL_INFO;
+	} /* X509_CRL_INFO */;
 
 struct X509_crl_st
 	{
@@ -420,7 +420,7 @@ struct X509_crl_st
 	X509_CRL_INFO *crl;
 	X509_ALGOR *sig_alg;
 	ASN1_BIT_STRING *signature;
-	int references;
+	CRYPTO_refcount_t references;
 	int flags;
 	/* Copies of various extensions */
 	AUTHORITY_KEYID *akid;
@@ -440,7 +440,7 @@ struct X509_crl_st
 DECLARE_STACK_OF(X509_CRL)
 DECLARE_ASN1_SET_OF(X509_CRL)
 
-typedef struct private_key_st
+struct private_key_st
 	{
 	int version;
 	/* The PKCS#8 data types */
@@ -457,12 +457,10 @@ typedef struct private_key_st
 
 	/* expanded version of 'enc_algor' */
 	EVP_CIPHER_INFO cipher;
-
-	int references;
-	} X509_PKEY;
+	} /* X509_PKEY */;
 
 #ifndef OPENSSL_NO_EVP
-typedef struct X509_info_st
+struct X509_info_st
 	{
 	X509 *x509;
 	X509_CRL *crl;
@@ -472,8 +470,7 @@ typedef struct X509_info_st
 	int enc_len;
 	char *enc_data;
 
-	int references;
-	} X509_INFO;
+	} /* X509_INFO */;
 
 DECLARE_STACK_OF(X509_INFO)
 #endif
@@ -482,25 +479,25 @@ DECLARE_STACK_OF(X509_INFO)
  * Pat Richard <patr@x509.com> and are used to manipulate
  * Netscapes spki structures - useful if you are writing a CA web page
  */
-typedef struct Netscape_spkac_st
+struct Netscape_spkac_st
 	{
 	X509_PUBKEY *pubkey;
 	ASN1_IA5STRING *challenge;	/* challenge sent in atlas >= PR2 */
-	} NETSCAPE_SPKAC;
+	} /* NETSCAPE_SPKAC */;
 
-typedef struct Netscape_spki_st
+struct Netscape_spki_st
 	{
 	NETSCAPE_SPKAC *spkac;	/* signed public key and challenge */
 	X509_ALGOR *sig_algor;
 	ASN1_BIT_STRING *signature;
-	} NETSCAPE_SPKI;
+	} /* NETSCAPE_SPKI */;
 
 /* Netscape certificate sequence structure */
-typedef struct Netscape_certificate_sequence
+struct Netscape_certificate_sequence
 	{
 	ASN1_OBJECT *type;
 	STACK_OF(X509) *certs;
-	} NETSCAPE_CERT_SEQUENCE;
+	} /* NETSCAPE_CERT_SEQUENCE */;
 
 /* Unused (and iv length is wrong)
 typedef struct CBCParameter_st
@@ -511,24 +508,24 @@ typedef struct CBCParameter_st
 
 /* Password based encryption structure */
 
-typedef struct PBEPARAM_st {
+struct PBEPARAM_st {
 ASN1_OCTET_STRING *salt;
 ASN1_INTEGER *iter;
-} PBEPARAM;
+} /* PBEPARAM */;
 
 /* Password based encryption V2 structures */
 
-typedef struct PBE2PARAM_st {
+struct PBE2PARAM_st {
 X509_ALGOR *keyfunc;
 X509_ALGOR *encryption;
-} PBE2PARAM;
+} /* PBE2PARAM */;
 
-typedef struct PBKDF2PARAM_st {
+struct PBKDF2PARAM_st {
 ASN1_TYPE *salt;	/* Usually OCTET STRING but could be anything */
 ASN1_INTEGER *iter;
 ASN1_INTEGER *keylength;
 X509_ALGOR *prf;
-} PBKDF2PARAM;
+} /* PBKDF2PARAM */;
 
 
 /* PKCS#8 private key info structure */
@@ -898,6 +895,7 @@ OPENSSL_EXPORT int X509_CRL_set_issuer_name(X509_CRL *x, X509_NAME *name);
 OPENSSL_EXPORT int X509_CRL_set_lastUpdate(X509_CRL *x, const ASN1_TIME *tm);
 OPENSSL_EXPORT int X509_CRL_set_nextUpdate(X509_CRL *x, const ASN1_TIME *tm);
 OPENSSL_EXPORT int X509_CRL_sort(X509_CRL *crl);
+OPENSSL_EXPORT void X509_CRL_up_ref(X509_CRL *crl);
 
 OPENSSL_EXPORT int X509_REVOKED_set_serialNumber(X509_REVOKED *x, ASN1_INTEGER *serial);
 OPENSSL_EXPORT int X509_REVOKED_set_revocationDate(X509_REVOKED *r, ASN1_TIME *tm);
@@ -1219,65 +1217,6 @@ OPENSSL_EXPORT int PKCS7_get_PEM_CRLs(STACK_OF(X509_CRL) *out_crls,
 }
 #endif
 
-#define X509_F_ASN1_digest 100
-#define X509_F_ASN1_item_sign_ctx 101
-#define X509_F_ASN1_item_verify 102
-#define X509_F_NETSCAPE_SPKI_b64_decode 103
-#define X509_F_NETSCAPE_SPKI_b64_encode 104
-#define X509_F_PKCS7_get_certificates 105
-#define X509_F_X509_ATTRIBUTE_create_by_NID 106
-#define X509_F_X509_ATTRIBUTE_create_by_OBJ 107
-#define X509_F_X509_ATTRIBUTE_create_by_txt 108
-#define X509_F_X509_ATTRIBUTE_get0_data 109
-#define X509_F_X509_ATTRIBUTE_set1_data 110
-#define X509_F_X509_CRL_add0_revoked 111
-#define X509_F_X509_CRL_diff 112
-#define X509_F_X509_CRL_print_fp 113
-#define X509_F_X509_EXTENSION_create_by_NID 114
-#define X509_F_X509_EXTENSION_create_by_OBJ 115
-#define X509_F_X509_INFO_new 116
-#define X509_F_X509_NAME_ENTRY_create_by_NID 117
-#define X509_F_X509_NAME_ENTRY_create_by_txt 118
-#define X509_F_X509_NAME_ENTRY_set_object 119
-#define X509_F_X509_NAME_add_entry 120
-#define X509_F_X509_NAME_oneline 121
-#define X509_F_X509_NAME_print 122
-#define X509_F_X509_PKEY_new 123
-#define X509_F_X509_PUBKEY_get 124
-#define X509_F_X509_PUBKEY_set 125
-#define X509_F_X509_REQ_check_private_key 126
-#define X509_F_X509_REQ_to_X509 127
-#define X509_F_X509_STORE_CTX_get1_issuer 128
-#define X509_F_X509_STORE_CTX_init 129
-#define X509_F_X509_STORE_CTX_new 130
-#define X509_F_X509_STORE_CTX_purpose_inherit 131
-#define X509_F_X509_STORE_add_cert 132
-#define X509_F_X509_STORE_add_crl 133
-#define X509_F_X509_TRUST_add 134
-#define X509_F_X509_TRUST_set 135
-#define X509_F_X509_check_private_key 136
-#define X509_F_X509_get_pubkey_parameters 137
-#define X509_F_X509_load_cert_crl_file 138
-#define X509_F_X509_load_cert_file 139
-#define X509_F_X509_load_crl_file 140
-#define X509_F_X509_print_ex_fp 141
-#define X509_F_X509_to_X509_REQ 142
-#define X509_F_X509_verify_cert 143
-#define X509_F_X509at_add1_attr 144
-#define X509_F_X509v3_add_ext 145
-#define X509_F_add_cert_dir 146
-#define X509_F_by_file_ctrl 147
-#define X509_F_check_policy 148
-#define X509_F_dir_ctrl 149
-#define X509_F_get_cert_by_subject 150
-#define X509_F_i2d_DSA_PUBKEY 151
-#define X509_F_i2d_EC_PUBKEY 152
-#define X509_F_i2d_RSA_PUBKEY 153
-#define X509_F_x509_name_encode 154
-#define X509_F_x509_name_ex_d2i 155
-#define X509_F_x509_name_ex_new 156
-#define X509_F_pkcs7_parse_header 157
-#define X509_F_PKCS7_get_CRLs 158
 #define X509_R_AKID_MISMATCH 100
 #define X509_R_BAD_PKCS7_VERSION 101
 #define X509_R_BAD_X509_FILETYPE 102

@@ -45,7 +45,6 @@ QuicErrorCode ReadUint32(const CryptoHandshakeMessage& msg,
   return error;
 }
 
-
 QuicConfigValue::QuicConfigValue(QuicTag tag,
                                  QuicConfigPresence presence)
     : tag_(tag),
@@ -367,6 +366,17 @@ QuicConfig::QuicConfig()
 
 QuicConfig::~QuicConfig() {}
 
+bool QuicConfig::SetInitialReceivedConnectionOptions(
+    const QuicTagVector& tags) {
+  if (HasReceivedConnectionOptions()) {
+    // If we have already received connection options (via handshake or due to a
+    // previous call), don't re-initialize.
+    return false;
+  }
+  connection_options_.SetReceivedValues(tags);
+  return true;
+}
+
 void QuicConfig::SetConnectionOptionsToSend(
     const QuicTagVector& connection_options) {
   connection_options_.SetSendValues(connection_options);
@@ -386,6 +396,20 @@ bool QuicConfig::HasSendConnectionOptions() const {
 
 QuicTagVector QuicConfig::SendConnectionOptions() const {
   return connection_options_.GetSendValues();
+}
+
+bool QuicConfig::HasClientSentConnectionOption(QuicTag tag,
+                                               Perspective perspective) const {
+  if (perspective == Perspective::IS_SERVER) {
+    if (HasReceivedConnectionOptions() &&
+        ContainsQuicTag(ReceivedConnectionOptions(), tag)) {
+      return true;
+    }
+  } else if (HasSendConnectionOptions() &&
+             ContainsQuicTag(SendConnectionOptions(), tag)) {
+    return true;
+  }
+  return false;
 }
 
 void QuicConfig::SetIdleConnectionStateLifetime(

@@ -1,8 +1,8 @@
-include_directories(. ../include)
+include_directories(../include)
 
 if(APPLE)
   if (${ARCH} STREQUAL "x86")
-    set(PERLASM_FLAGS "-fPIC")
+    set(PERLASM_FLAGS "-fPIC -DOPENSSL_IA32_SSE2")
   endif()
   set(PERLASM_STYLE macosx)
   set(ASM_EXT S)
@@ -12,8 +12,10 @@ elseif(UNIX)
     # The "armx" Perl scripts look for "64" in the style argument
     # in order to decide whether to generate 32- or 64-bit asm.
     set(PERLASM_STYLE linux64)
+  elseif (${ARCH} STREQUAL "arm")
+    set(PERLASM_STYLE linux32)
   elseif (${ARCH} STREQUAL "x86")
-    set(PERLASM_FLAGS "-fPIC")
+    set(PERLASM_FLAGS "-fPIC -DOPENSSL_IA32_SSE2")
     set(PERLASM_STYLE elf)
   else()
     set(PERLASM_STYLE elf)
@@ -27,6 +29,7 @@ else()
   else()
     message("Using win32n")
     set(PERLASM_STYLE win32n)
+    set(PERLASM_FLAGS "-DOPENSSL_IA32_SSE2")
   endif()
 
   # On Windows, we use the NASM output, specifically built with Yasm.
@@ -40,6 +43,7 @@ function(perlasm dest src)
     COMMAND ${PERL_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/${src} ${PERLASM_STYLE} ${PERLASM_FLAGS} ${ARGN} > ${dest}
     DEPENDS
     ${src}
+    ${PROJECT_SOURCE_DIR}/crypto/perlasm/arm-xlate.pl
     ${PROJECT_SOURCE_DIR}/crypto/perlasm/x86_64-xlate.pl
     ${PROJECT_SOURCE_DIR}/crypto/perlasm/x86asm.pl
     ${PROJECT_SOURCE_DIR}/crypto/perlasm/x86gas.pl
@@ -53,7 +57,6 @@ if (${ARCH} STREQUAL "x86_64")
   set(
     CRYPTO_ARCH_SOURCES
 
-    cpu-x86_64-asm.${ASM_EXT}
     cpu-intel.c
   )
 endif()
@@ -62,7 +65,6 @@ if (${ARCH} STREQUAL "x86")
   set(
     CRYPTO_ARCH_SOURCES
 
-    cpu-x86-asm.${ASM_EXT}
     cpu-intel.c
   )
 endif()
@@ -103,6 +105,7 @@ add_subdirectory(rc4)
 add_subdirectory(conf)
 add_subdirectory(chacha)
 add_subdirectory(poly1305)
+add_subdirectory(curve25519)
 
 # Level 1, depends only on 0.*
 add_subdirectory(digest)
@@ -124,6 +127,7 @@ add_subdirectory(ecdsa)
 add_subdirectory(hmac)
 
 # Level 3
+add_subdirectory(cmac)
 add_subdirectory(evp)
 add_subdirectory(hkdf)
 add_subdirectory(pem)
@@ -133,17 +137,24 @@ add_subdirectory(x509v3)
 # Level 4
 add_subdirectory(pkcs8)
 
+# Test support code
+add_subdirectory(test)
+
 add_library(
   crypto
 
   crypto.c
-  mem.c
-  thread.c
-  ex_data.c
-  ex_data_impl.c
-  time_support.c
   directory_posix.c
   directory_win.c
+  ex_data.c
+  mem.c
+  refcount_c11.c
+  refcount_lock.c
+  thread.c
+  thread_none.c
+  thread_pthread.c
+  thread_win.c
+  time_support.c
 
   ${CRYPTO_ARCH_SOURCES}
 
@@ -164,6 +175,7 @@ add_library(
   $<TARGET_OBJECTS:conf>
   $<TARGET_OBJECTS:chacha>
   $<TARGET_OBJECTS:poly1305>
+  $<TARGET_OBJECTS:curve25519>
   $<TARGET_OBJECTS:buf>
   $<TARGET_OBJECTS:bn>
   $<TARGET_OBJECTS:bio>
@@ -178,6 +190,7 @@ add_library(
   $<TARGET_OBJECTS:ecdh>
   $<TARGET_OBJECTS:ecdsa>
   $<TARGET_OBJECTS:hmac>
+  $<TARGET_OBJECTS:cmac>
   $<TARGET_OBJECTS:evp>
   $<TARGET_OBJECTS:hkdf>
   $<TARGET_OBJECTS:pem>
@@ -186,13 +199,37 @@ add_library(
   $<TARGET_OBJECTS:pkcs8>
 )
 
+if(NOT MSVC AND NOT ANDROID)
+  target_link_libraries(crypto pthread)
+endif()
+
 add_executable(
   constant_time_test
 
   constant_time_test.c
+
+  $<TARGET_OBJECTS:test_support>
 )
 
 target_link_libraries(constant_time_test crypto)
+add_dependencies(all_tests constant_time_test)
 
-perlasm(cpu-x86_64-asm.${ASM_EXT} cpu-x86_64-asm.pl)
-perlasm(cpu-x86-asm.${ASM_EXT} cpu-x86-asm.pl)
+add_executable(
+  thread_test
+
+  thread_test.c
+
+  $<TARGET_OBJECTS:test_support>
+)
+
+target_link_libraries(thread_test crypto)
+add_dependencies(all_tests thread_test)
+
+add_executable(
+  refcount_test
+
+  refcount_test.c
+)
+
+target_link_libraries(refcount_test crypto)
+add_dependencies(all_tests refcount_test)

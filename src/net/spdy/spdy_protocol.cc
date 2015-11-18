@@ -6,10 +6,10 @@
 
 namespace net {
 
-SpdyFrameWithNameValueBlockIR::SpdyFrameWithNameValueBlockIR(
-    SpdyStreamId stream_id) : SpdyFrameWithFinIR(stream_id) {}
+SpdyFrameWithHeaderBlockIR::SpdyFrameWithHeaderBlockIR(SpdyStreamId stream_id)
+    : SpdyFrameWithFinIR(stream_id) {}
 
-SpdyFrameWithNameValueBlockIR::~SpdyFrameWithNameValueBlockIR() {}
+SpdyFrameWithHeaderBlockIR::~SpdyFrameWithHeaderBlockIR() {}
 
 SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, base::StringPiece data)
     : SpdyFrameWithFinIR(stream_id), padded_(false), padding_payload_len_(0) {
@@ -628,7 +628,7 @@ std::string SpdyConstants::GetVersionString(SpdyMajorVersion version) {
     case SPDY3:
       return "spdy/3";
     case HTTP2:
-      return "h2-14";
+      return "h2";
     default:
       LOG(DFATAL) << "Unsupported SPDY major version: " << version;
       return "spdy/3";
@@ -776,10 +776,8 @@ void SpdySynReplyIR::Visit(SpdyFrameVisitor* visitor) const {
 }
 
 SpdyRstStreamIR::SpdyRstStreamIR(SpdyStreamId stream_id,
-                                 SpdyRstStreamStatus status,
-                                 base::StringPiece description)
-    : SpdyFrameWithStreamIdIR(stream_id),
-      description_(description) {
+                                 SpdyRstStreamStatus status)
+    : SpdyFrameWithStreamIdIR(stream_id) {
   set_status(status);
 }
 

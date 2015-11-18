@@ -10,6 +10,7 @@
 //     getaddrinfo()
 //     freeaddrinfo()
 //     AI_*
+//     AF_*
 //
 // Prefer including this file instead of directly writing the #if / #else,
 // since it avoids duplicating the platform-specific selections.

@@ -260,13 +260,11 @@ static const BIGNUM dh1024_safe_prime[] = {
   STATIC_BIGNUM(dh1024_safe_prime_4)
 };
 
-BIGNUM bn_two = STATIC_BIGNUM(bn_two_data);
+static BIGNUM bn_two = STATIC_BIGNUM(bn_two_data);
 
 static DH *get_standard_parameters(const struct standard_parameters *params,
                                    const ENGINE *engine) {
-  DH *dh;
-
-  dh = DH_new_method(engine);
+  DH *dh = DH_new();
   if (!dh) {
     return NULL;
   }
@@ -295,7 +293,7 @@ DH *DH_get_2048_256(const ENGINE *engine) {
 }
 
 void DH_check_standard_parameters(DH *dh) {
-  int i;
+  unsigned i;
 
   if (dh->p == NULL ||
       dh->g == NULL ||

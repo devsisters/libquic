@@ -10,7 +10,7 @@
 # SHA256 block transform for x86. September 2007.
 #
 # Performance improvement over compiler generated code varies from
-# 10% to 40% [see below]. Not very impressive on some µ-archs, but
+# 10% to 40% [see below]. Not very impressive on some Âµ-archs, but
 # it's 5 times smaller and optimizies amount of writes.
 #
 # May 2012.
@@ -68,26 +68,20 @@ require "x86asm.pl";
 $xmm=$avx=0;
 for (@ARGV) { $xmm=1 if (/-DOPENSSL_IA32_SSE2/); }
 
-if ($xmm &&	`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-			=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-	$avx = ($1>=2.19) + ($1>=2.22);
-}
+# In upstream, this is controlled by shelling out to the compiler to check
+# versions, but BoringSSL is intended to be used with pre-generated perlasm
+# output, so this isn't useful anyway.
+#
+# TODO(davidben): Enable AVX2 code after testing by setting $avx to 2.
+$avx = 1;
 
-if ($xmm && !$avx && $ARGV[0] eq "win32n" &&
-		`nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)/) {
-	$avx = ($1>=2.03) + ($1>=2.10);
-}
-
-if ($xmm && !$avx && $ARGV[0] eq "win32" &&
-		`ml 2>&1` =~ /Version ([0-9]+)\./) {
-	$avx = ($1>=10) + ($1>=11);
-}
-
-if ($xmm && !$avx && `$ENV{CC} -v 2>&1` =~ /(^clang version|based on LLVM) ([3-9]\.[0-9]+)/) {
-	$avx = ($2>=3.0) + ($2>3.0);
-}
+$avx = 0 unless ($xmm);
 
 $shaext=$xmm;	### set to zero if compiling for 1.0.1
+
+# TODO(davidben): Consider enabling the Intel SHA Extensions code once it's
+# been tested.
+$shaext = 0;
 
 $unroll_after = 64*4;	# If pre-evicted from L1P cache first spin of
 			# fully unrolled loop was measured to run about

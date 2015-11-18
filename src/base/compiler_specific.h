@@ -9,6 +9,9 @@
 
 #if defined(COMPILER_MSVC)
 
+// For _Printf_format_string_.
+#include <sal.h>
+
 // Macros for suppressing and disabling warnings on MSVC.
 //
 // Warning numbers are enumerated at:
@@ -57,6 +60,7 @@
 
 #else  // Not MSVC
 
+#define _Printf_format_string_
 #define MSVC_SUPPRESS_WARNING(n)
 #define MSVC_PUSH_DISABLE_WARNING(n)
 #define MSVC_PUSH_WARNING_LEVEL(n)
@@ -67,28 +71,6 @@
 
 #endif  // COMPILER_MSVC
 
-
-// The C++ standard requires that static const members have an out-of-class
-// definition (in a single compilation unit), but MSVC chokes on this (when
-// language extensions, which are required, are enabled). (You're only likely to
-// notice the need for a definition if you take the address of the member or,
-// more commonly, pass it to a function that takes it as a reference argument --
-// probably an STL function.) This macro makes MSVC do the right thing. See
-// http://msdn.microsoft.com/en-us/library/34h23df8(v=vs.100).aspx for more
-// information. Use like:
-//
-// In .h file:
-//   struct Foo {
-//     static const int kBar = 5;
-//   };
-//
-// In .cc file:
-//   STATIC_CONST_MEMBER_DEFINITION const int Foo::kBar;
-#if defined(COMPILER_MSVC)
-#define STATIC_CONST_MEMBER_DEFINITION __declspec(selectany)
-#else
-#define STATIC_CONST_MEMBER_DEFINITION
-#endif
 
 // Annotate a variable indicating it's ok if the variable is not used.
 // (Typically used to silence a compiler warning when the assignment
@@ -101,7 +83,7 @@
 // Annotate a typedef or function indicating it's ok if it's not used.
 // Use like:
 //   typedef Foo Bar ALLOW_UNUSED_TYPE;
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) || defined(__clang__)
 #define ALLOW_UNUSED_TYPE __attribute__((unused))
 #else
 #define ALLOW_UNUSED_TYPE
@@ -140,8 +122,10 @@
 // Annotate a function indicating the caller must examine the return value.
 // Use like:
 //   int foo() WARN_UNUSED_RESULT;
-// To explicitly ignore a result, see |ignore_result()| in <base/basictypes.h>.
-#if defined(COMPILER_GCC)
+// To explicitly ignore a result, see |ignore_result()| in base/macros.h.
+// TODO(dcheng): Update //third_party/webrtc's macro definition to match.
+#undef WARN_UNUSED_RESULT
+#if defined(COMPILER_GCC) || defined(__clang__)
 #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else
 #define WARN_UNUSED_RESULT

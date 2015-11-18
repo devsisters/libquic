@@ -347,6 +347,22 @@ NET_ERROR(SSL_FALLBACK_BEYOND_MINIMUM_VERSION, -165)
 // problem.
 NET_ERROR(ICANN_NAME_COLLISION, -166)
 
+// The SSL server presented a certificate which could not be decoded. This is
+// not a certificate error code as no X509Certificate object is available. This
+// error is fatal.
+NET_ERROR(SSL_SERVER_CERT_BAD_FORMAT, -167)
+// Certificate Transparency: Received a signed tree head that failed to parse.
+NET_ERROR(CT_STH_PARSING_FAILED, -168)
+// Certificate Transparency: Received a signed tree head whose JSON parsing was
+// OK but was missing some of the fields.
+NET_ERROR(CT_STH_INCOMPLETE, -169)
+
+// The attempt to reuse a connection to send proxy auth credentials failed
+// before the AuthController was used to generate credentials. The caller should
+// reuse the controller with a new connection. This error is only used
+// internally by the network stack.
+NET_ERROR(UNABLE_TO_REUSE_CONNECTION_FOR_PROXY_AUTH, -170)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
@@ -354,8 +370,8 @@ NET_ERROR(ICANN_NAME_COLLISION, -166)
 // The server responded with a certificate whose common name did not match
 // the host name.  This could mean:
 //
-// 1. An attacker has redirected our traffic to his server and is
-//    presenting a certificate for which he knows the private key.
+// 1. An attacker has redirected our traffic to their server and is
+//    presenting a certificate for which they know the private key.
 //
 // 2. The server is misconfigured and responding with the wrong cert.
 //
@@ -370,7 +386,7 @@ NET_ERROR(CERT_COMMON_NAME_INVALID, -200)
 // The server responded with a certificate that, by our clock, appears to
 // either not yet be valid or to have expired.  This could mean:
 //
-// 1. An attacker is presenting an old certificate for which he has
+// 1. An attacker is presenting an old certificate for which they have
 //    managed to obtain the private key.
 //
 // 2. The server is misconfigured and is not presenting a valid cert.
@@ -383,7 +399,7 @@ NET_ERROR(CERT_DATE_INVALID, -201)
 // we don't trust.  The could mean:
 //
 // 1. An attacker has substituted the real certificate for a cert that
-//    contains his public key and is signed by his cousin.
+//    contains their public key and is signed by their cousin.
 //
 // 2. The server operator has a legitimate certificate from a CA we don't
 //    know about, but should trust.
@@ -610,8 +626,9 @@ NET_ERROR(RESPONSE_HEADERS_TRUNCATED, -357)
 // to read any requests sent, so they may be resent.
 NET_ERROR(QUIC_HANDSHAKE_FAILED, -358)
 
-// An https resource was requested over an insecure QUIC connection.
-NET_ERROR(REQUEST_FOR_SECURE_RESOURCE_OVER_INSECURE_QUIC, -359)
+// Obsolete.  Kept here to avoid reuse, as the old error can still appear on
+// histograms.
+// NET_ERROR(REQUEST_FOR_SECURE_RESOURCE_OVER_INSECURE_QUIC, -359)
 
 // Transport security is inadequate for the SPDY version.
 NET_ERROR(SPDY_INADEQUATE_TRANSPORT_SECURITY, -360)
@@ -641,6 +658,10 @@ NET_ERROR(PAC_SCRIPT_TERMINATED, -367)
 // origin, a violation of HTTP Alternative Services specification Section 2.1,
 // https://tools.ietf.org/id/draft-ietf-httpbis-alt-svc-06.html#host_auth.
 NET_ERROR(ALTERNATIVE_CERT_NOT_VALID_FOR_ORIGIN, -368)
+
+// Request is throttled because of a Backoff header.
+// See: crbug.com/486891.
+NET_ERROR(TEMPORARY_BACKOFF, -369)
 
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)

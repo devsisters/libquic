@@ -34,6 +34,9 @@ class NET_EXPORT_PRIVATE Aes128Gcm12Decrypter : public AeadBaseDecrypter {
                       AeadParams* aead_params) const override;
 #endif
 
+  const char* cipher_name() const override;
+  uint32 cipher_id() const override;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Aes128Gcm12Decrypter);
 };

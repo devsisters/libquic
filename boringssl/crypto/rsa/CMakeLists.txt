@@ -1,4 +1,4 @@
-include_directories(. .. ../../include)
+include_directories(../../include)
 
 add_library(
   rsa
@@ -15,7 +15,10 @@ add_library(
 add_executable(
   rsa_test
 
-  rsa_test.c
+  rsa_test.cc
+
+  $<TARGET_OBJECTS:test_support>
 )
 
 target_link_libraries(rsa_test crypto)
+add_dependencies(all_tests rsa_test)

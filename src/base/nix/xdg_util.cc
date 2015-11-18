@@ -15,8 +15,8 @@
 
 namespace {
 
-// The KDE session version environment variable used in KDE 4.
-const char kKDE4SessionEnvVar[] = "KDE_SESSION_VERSION";
+// The KDE session version environment variable introduced in KDE 4.
+const char kKDESessionEnvVar[] = "KDE_SESSION_VERSION";
 
 }  // namespace
 
@@ -69,6 +69,12 @@ DesktopEnvironment GetDesktopEnvironment(Environment* env) {
     } else if (xdg_current_desktop == "GNOME") {
       return DESKTOP_ENVIRONMENT_GNOME;
     } else if (xdg_current_desktop == "KDE") {
+      std::string kde_session;
+      if (env->GetVar(kKDESessionEnvVar, &kde_session)) {
+        if (kde_session == "5") {
+          return DESKTOP_ENVIRONMENT_KDE5;
+        }
+      }
       return DESKTOP_ENVIRONMENT_KDE4;
     }
   }
@@ -82,7 +88,7 @@ DesktopEnvironment GetDesktopEnvironment(Environment* env) {
       return DESKTOP_ENVIRONMENT_KDE4;
     } else if (desktop_session == "kde") {
       // This may mean KDE4 on newer systems, so we have to check.
-      if (env->HasVar(kKDE4SessionEnvVar))
+      if (env->HasVar(kKDESessionEnvVar))
         return DESKTOP_ENVIRONMENT_KDE4;
       return DESKTOP_ENVIRONMENT_KDE3;
     } else if (desktop_session.find("xfce") != std::string::npos ||
@@ -96,7 +102,7 @@ DesktopEnvironment GetDesktopEnvironment(Environment* env) {
   if (env->HasVar("GNOME_DESKTOP_SESSION_ID")) {
     return DESKTOP_ENVIRONMENT_GNOME;
   } else if (env->HasVar("KDE_FULL_SESSION")) {
-    if (env->HasVar(kKDE4SessionEnvVar))
+    if (env->HasVar(kKDESessionEnvVar))
       return DESKTOP_ENVIRONMENT_KDE4;
     return DESKTOP_ENVIRONMENT_KDE3;
   }
@@ -114,6 +120,8 @@ const char* GetDesktopEnvironmentName(DesktopEnvironment env) {
       return "KDE3";
     case DESKTOP_ENVIRONMENT_KDE4:
       return "KDE4";
+    case DESKTOP_ENVIRONMENT_KDE5:
+      return "KDE5";
     case DESKTOP_ENVIRONMENT_UNITY:
       return "UNITY";
     case DESKTOP_ENVIRONMENT_XFCE:

@@ -21,18 +21,16 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
 #if !defined(OPENSSL_WINDOWS)
+#include <string.h>
 #include <unistd.h>
 #if !defined(O_BINARY)
 #define O_BINARY 0
 #endif
 #else
-#define NOMINMAX
 #pragma warning(push, 3)
 #include <windows.h>
 #pragma warning(pop)
@@ -89,29 +87,25 @@ static bool OpenFile(int *out_fd, const std::string &filename) {
             strerror(errno));
     return false;
   }
+  std::unique_ptr<int, close_delete> scoped_fd(&fd);
 
 #if !defined(OPENSSL_WINDOWS)
   struct stat st;
   if (fstat(fd, &st)) {
     fprintf(stderr, "Failed to stat input file '%s': %s\n", filename.c_str(),
             strerror(errno));
-    goto err;
+    return false;
   }
 
   if (!S_ISREG(st.st_mode)) {
     fprintf(stderr, "%s: not a regular file\n", filename.c_str());
-    goto err;
+    return false;
   }
 #endif
 
   *out_fd = fd;
+  scoped_fd.release();
   return true;
-
-#if !defined(OPENSSL_WINDOWS)
-err:
-  close(fd);
-  return false;
-#endif
 }
 
 // SumFile hashes the contents of |source| with |md| and sets |*out_hex| to the

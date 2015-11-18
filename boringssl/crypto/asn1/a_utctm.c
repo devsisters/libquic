@@ -57,6 +57,7 @@
 #include <openssl/asn1.h>
 
 #include <string.h>
+#include <time.h>
 
 #include <openssl/err.h>
 #include <openssl/mem.h>
@@ -80,12 +81,12 @@ ASN1_UTCTIME *d2i_ASN1_UTCTIME(ASN1_UTCTIME **a, unsigned char **pp,
 		V_ASN1_UTCTIME,V_ASN1_UNIVERSAL);
 	if (ret == NULL)
 		{
-		OPENSSL_PUT_ERROR(ASN1, XXX, ERR_R_NESTED_ASN1_ERROR);
+		OPENSSL_PUT_ERROR(ASN1, ERR_R_NESTED_ASN1_ERROR);
 		return(NULL);
 		}
 	if (!ASN1_UTCTIME_check(ret))
 		{
-		OPENSSL_PUT_ERROR(ASN1, XXX, ASN1_R_INVALID_TIME_FORMAT);
+		OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_TIME_FORMAT);
 		goto err;
 		}
 
@@ -256,7 +257,7 @@ ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, time_t t,
 		p=OPENSSL_malloc(len);
 		if (p == NULL)
 			{
-			OPENSSL_PUT_ERROR(ASN1, ASN1_UTCTIME_adj, ERR_R_MALLOC_FAILURE);
+			OPENSSL_PUT_ERROR(ASN1, ERR_R_MALLOC_FAILURE);
 			goto err;
 			}
 		if (s->data != NULL)
@@ -287,7 +288,7 @@ int ASN1_UTCTIME_cmp_time_t(const ASN1_UTCTIME *s, time_t t)
 	if (!OPENSSL_gmtime(&t, &ttm))
 		return -2;
 
-	if (!OPENSSL_gmtime_diff(&day, &sec, &stm, &ttm))
+	if (!OPENSSL_gmtime_diff(&day, &sec, &ttm, &stm))
 		return -2;
 
 	if (day > 0)

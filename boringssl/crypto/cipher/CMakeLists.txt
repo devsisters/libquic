@@ -1,4 +1,4 @@
-include_directories(. .. ../../include)
+include_directories(../../include)
 
 add_library(
   cipher
@@ -24,14 +24,17 @@ add_library(
 add_executable(
   cipher_test
 
-  cipher_test.c
+  cipher_test.cc
+  $<TARGET_OBJECTS:test_support>
 )
 
 add_executable(
   aead_test
 
-  aead_test.c
+  aead_test.cc
+  $<TARGET_OBJECTS:test_support>
 )
 
 target_link_libraries(cipher_test crypto)
 target_link_libraries(aead_test crypto)
+add_dependencies(all_tests cipher_test aead_test)

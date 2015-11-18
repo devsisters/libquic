@@ -5,7 +5,8 @@
 
 namespace base {
 namespace debug {
-	BASE_EXPORT void BreakDebugger();
+  BASE_EXPORT bool BeingDebugged();
+  BASE_EXPORT void BreakDebugger();
 
 }  // namespace debug
 }  // namespace base

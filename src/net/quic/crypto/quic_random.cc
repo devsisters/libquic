@@ -25,12 +25,12 @@ class DefaultRandom : public QuicRandom {
   DefaultRandom() {};
   ~DefaultRandom() override {}
 
-  friend struct DefaultSingletonTraits<DefaultRandom>;
+  friend struct base::DefaultSingletonTraits<DefaultRandom>;
   DISALLOW_COPY_AND_ASSIGN(DefaultRandom);
 };
 
 DefaultRandom* DefaultRandom::GetInstance() {
-  return Singleton<DefaultRandom>::get();
+  return base::Singleton<DefaultRandom>::get();
 }
 
 void DefaultRandom::RandBytes(void* data, size_t len) {

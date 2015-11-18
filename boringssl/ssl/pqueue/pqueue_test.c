@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <openssl/crypto.h>
 #include <openssl/pqueue.h>
 #include <openssl/ssl.h>
 
@@ -72,7 +73,7 @@ static int fixed_random(void) {
   for (i = 0; i < NUM_ITEMS; i++) {
     priority[7] = ordering[i];
     item = pitem_new(priority, &ordering[i]);
-    if (pqueue_insert(q, item) != item) {
+    if (item == NULL || pqueue_insert(q, item) != item) {
       return 0;
     }
   }
@@ -82,7 +83,7 @@ static int fixed_random(void) {
   for (i = 0; i < NUM_ITEMS; i++) {
     priority[7] = ordering[i];
     item = pitem_new(priority, &ordering[i]);
-    if (pqueue_insert(q, item) != NULL) {
+    if (item == NULL || pqueue_insert(q, item) != NULL) {
       return 0;
     }
     pitem_free(item);
@@ -117,7 +118,7 @@ static int fixed_random(void) {
 }
 
 int main(void) {
-  SSL_library_init();
+  CRYPTO_library_init();
 
   if (!trivial() || !fixed_random()) {
     return 1;

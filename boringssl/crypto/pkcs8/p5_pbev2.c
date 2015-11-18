@@ -53,6 +53,8 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
+#include <assert.h>
+#include <limits.h>
 #include <string.h>
 
 #include <openssl/asn1t.h>
@@ -124,7 +126,7 @@ X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
 
 	alg_nid = EVP_CIPHER_nid(cipher);
 	if(alg_nid == NID_undef) {
-		OPENSSL_PUT_ERROR(PKCS8, PKCS5_pbe2_set_iv, PKCS8_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER);
+		OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER);
 		goto err;
 	}
 	obj = OBJ_nid2obj(alg_nid);
@@ -152,7 +154,7 @@ X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
 	if (!EVP_CipherInit_ex(&ctx, cipher, NULL, NULL, iv, 0))
 		goto err;
 	if(param_to_asn1(&ctx, scheme->parameter) < 0) {
-		OPENSSL_PUT_ERROR(PKCS8, PKCS5_pbe2_set_iv, PKCS8_R_ERROR_SETTING_CIPHER_PARAMS);
+		OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_ERROR_SETTING_CIPHER_PARAMS);
 		EVP_CIPHER_CTX_cleanup(&ctx);
 		goto err;
 	}
@@ -202,7 +204,7 @@ X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
 	return ret;
 
 	merr:
-	OPENSSL_PUT_ERROR(PKCS8, PKCS5_pbe2_set_iv, ERR_R_MALLOC_FAILURE);
+	OPENSSL_PUT_ERROR(PKCS8, ERR_R_MALLOC_FAILURE);
 
 	err:
 	PBE2PARAM_free(pbe2);
@@ -295,9 +297,144 @@ X509_ALGOR *PKCS5_pbkdf2_set(int iter, unsigned char *salt, int saltlen,
 	return keyfunc;
 
 	merr:
-	OPENSSL_PUT_ERROR(PKCS8, PKCS5_pbkdf2_set, ERR_R_MALLOC_FAILURE);
+	OPENSSL_PUT_ERROR(PKCS8, ERR_R_MALLOC_FAILURE);
 	PBKDF2PARAM_free(kdf);
 	X509_ALGOR_free(keyfunc);
 	return NULL;
 	}
 
+static int PKCS5_v2_PBKDF2_keyivgen(EVP_CIPHER_CTX *ctx,
+                                    const uint8_t *pass_raw,
+                                    size_t pass_raw_len, const ASN1_TYPE *param,
+                                    const ASN1_TYPE *iv, int enc) {
+  int rv = 0;
+  PBKDF2PARAM *pbkdf2param = NULL;
+
+  if (EVP_CIPHER_CTX_cipher(ctx) == NULL) {
+    OPENSSL_PUT_ERROR(PKCS8, CIPHER_R_NO_CIPHER_SET);
+    goto err;
+  }
+
+  /* Decode parameters. */
+  if (param == NULL || param->type != V_ASN1_SEQUENCE) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_DECODE_ERROR);
+    goto err;
+  }
+
+  const uint8_t *pbuf = param->value.sequence->data;
+  int plen = param->value.sequence->length;
+  pbkdf2param = d2i_PBKDF2PARAM(NULL, &pbuf, plen);
+  if (pbkdf2param == NULL || pbuf != param->value.sequence->data + plen) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_DECODE_ERROR);
+    goto err;
+  }
+
+  /* Now check the parameters. */
+  uint8_t key[EVP_MAX_KEY_LENGTH];
+  const size_t key_len = EVP_CIPHER_CTX_key_length(ctx);
+  assert(key_len <= sizeof(key));
+
+  if (pbkdf2param->keylength != NULL &&
+      ASN1_INTEGER_get(pbkdf2param->keylength) != (int) key_len) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_UNSUPPORTED_KEYLENGTH);
+    goto err;
+  }
+
+  if (pbkdf2param->prf != NULL &&
+      OBJ_obj2nid(pbkdf2param->prf->algorithm) != NID_hmacWithSHA1) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_UNSUPPORTED_PRF);
+    goto err;
+  }
+
+  if (pbkdf2param->salt->type != V_ASN1_OCTET_STRING) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_UNSUPPORTED_SALT_TYPE);
+    goto err;
+  }
+
+  if (pbkdf2param->iter->type != V_ASN1_INTEGER) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_BAD_ITERATION_COUNT);
+    goto err;
+  }
+  long iterations = ASN1_INTEGER_get(pbkdf2param->iter);
+  if (iterations <= 0 ||
+      (sizeof(long) > sizeof(unsigned) && iterations > (long)UINT_MAX)) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_BAD_ITERATION_COUNT);
+    goto err;
+  }
+
+  if (iv->type != V_ASN1_OCTET_STRING || iv->value.octet_string == NULL) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_ERROR_SETTING_CIPHER_PARAMS);
+    goto err;
+  }
+
+  const size_t iv_len = EVP_CIPHER_CTX_iv_length(ctx);
+  if ((size_t) iv->value.octet_string->length != iv_len) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_ERROR_SETTING_CIPHER_PARAMS);
+    goto err;
+  }
+
+  if (!PKCS5_PBKDF2_HMAC_SHA1((const char *) pass_raw, pass_raw_len,
+                              pbkdf2param->salt->value.octet_string->data,
+                              pbkdf2param->salt->value.octet_string->length,
+                              iterations, key_len, key)) {
+    goto err;
+  }
+
+  rv = EVP_CipherInit_ex(ctx, NULL /* cipher */, NULL /* engine */, key,
+                         iv->value.octet_string->data, enc);
+
+ err:
+  PBKDF2PARAM_free(pbkdf2param);
+  return rv;
+}
+
+int PKCS5_v2_PBE_keyivgen(EVP_CIPHER_CTX *ctx, const uint8_t *pass_raw,
+                          size_t pass_raw_len, ASN1_TYPE *param,
+                          const EVP_CIPHER *unused, const EVP_MD *unused2,
+                          int enc) {
+  PBE2PARAM *pbe2param = NULL;
+  int rv = 0;
+
+  if (param == NULL ||
+      param->type != V_ASN1_SEQUENCE ||
+      param->value.sequence == NULL) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_DECODE_ERROR);
+    goto err;
+  }
+
+  const uint8_t *pbuf = param->value.sequence->data;
+  int plen = param->value.sequence->length;
+  pbe2param = d2i_PBE2PARAM(NULL, &pbuf, plen);
+  if (pbe2param == NULL || pbuf != param->value.sequence->data + plen) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_DECODE_ERROR);
+    goto err;
+  }
+
+  /* Check that the key derivation function is PBKDF2. */
+  if (OBJ_obj2nid(pbe2param->keyfunc->algorithm) != NID_id_pbkdf2) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_UNSUPPORTED_KEY_DERIVATION_FUNCTION);
+    goto err;
+  }
+
+  /* See if we recognise the encryption algorithm. */
+  const EVP_CIPHER *cipher =
+      EVP_get_cipherbynid(OBJ_obj2nid(pbe2param->encryption->algorithm));
+  if (cipher == NULL) {
+    OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_UNSUPPORTED_CIPHER);
+    goto err;
+  }
+
+  /* Fixup cipher based on AlgorithmIdentifier. */
+  if (!EVP_CipherInit_ex(ctx, cipher, NULL /* engine */, NULL /* key */,
+                         NULL /* iv */, enc)) {
+    goto err;
+  }
+
+  rv = PKCS5_v2_PBKDF2_keyivgen(ctx, pass_raw, pass_raw_len,
+                                pbe2param->keyfunc->parameter,
+                                pbe2param->encryption->parameter, enc);
+
+ err:
+  PBE2PARAM_free(pbe2param);
+  return rv;
+}

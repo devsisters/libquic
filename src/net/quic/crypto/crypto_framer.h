@@ -103,7 +103,7 @@ class NET_EXPORT_PRIVATE CryptoFramer {
   uint16 num_entries_;
   // tags_and_lengths_ contains the tags that are currently being parsed and
   // their lengths.
-  std::vector<std::pair<QuicTag, size_t> > tags_and_lengths_;
+  std::vector<std::pair<QuicTag, size_t>> tags_and_lengths_;
   // Cumulative length of all values in the message currently being parsed.
   size_t values_len_;
 };

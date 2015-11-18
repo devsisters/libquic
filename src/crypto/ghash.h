@@ -25,7 +25,7 @@ namespace crypto {
 //
 // WARNING: this code is not constant time. However, in all likelihood, nor is
 // the implementation of AES that is used.
-class CRYPTO_EXPORT_PRIVATE GaloisHash {
+class CRYPTO_EXPORT GaloisHash {
  public:
   explicit GaloisHash(const uint8 key[16]);
 

@@ -64,7 +64,7 @@
 #else
 #include <io.h>
 #pragma warning(push, 3)
-#include <Windows.h>
+#include <windows.h>
 #pragma warning(pop)
 #endif
 
@@ -208,9 +208,9 @@ static long fd_ctrl(BIO *b, int cmd, long num, void *ptr) {
         if (ip != NULL) {
           *ip = b->num;
         }
-        return 1;
+        return b->num;
       } else {
-        ret = 0;
+        ret = -1;
       }
       break;
     case BIO_CTRL_GET_CLOSE:

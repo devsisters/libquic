@@ -100,8 +100,6 @@ static int asn1_item_ex_combine_new(ASN1_VALUE **pval, const ASN1_ITEM *it,
 	else
 		asn1_cb = 0;
 
-	if (!combine) *pval = NULL;
-
 #ifdef CRYPTO_MDEBUG
 	if (it->sname)
 		CRYPTO_push_info(it->sname);
@@ -192,7 +190,7 @@ static int asn1_item_ex_combine_new(ASN1_VALUE **pval, const ASN1_ITEM *it,
 			if (!*pval)
 				goto memerr;
 			memset(*pval, 0, it->size);
-			asn1_do_lock(pval, 0, it);
+			asn1_refcount_set_one(pval, it);
 			asn1_enc_init(pval, it);
 			}
 		for (i = 0, tt = it->templates; i < it->tcount; tt++, i++)
@@ -211,7 +209,7 @@ static int asn1_item_ex_combine_new(ASN1_VALUE **pval, const ASN1_ITEM *it,
 	return 1;
 
 	memerr:
-	OPENSSL_PUT_ERROR(ASN1, asn1_item_ex_combine_new,  ERR_R_MALLOC_FAILURE);
+	OPENSSL_PUT_ERROR(ASN1, ERR_R_MALLOC_FAILURE);
 	ASN1_item_ex_free(pval, it);
 #ifdef CRYPTO_MDEBUG
 	if (it->sname) CRYPTO_pop_info();
@@ -219,7 +217,7 @@ static int asn1_item_ex_combine_new(ASN1_VALUE **pval, const ASN1_ITEM *it,
 	return 0;
 
 	auxerr:
-	OPENSSL_PUT_ERROR(ASN1, asn1_item_ex_combine_new,  ASN1_R_AUX_ERROR);
+	OPENSSL_PUT_ERROR(ASN1, ASN1_R_AUX_ERROR);
 	ASN1_item_ex_free(pval, it);
 #ifdef CRYPTO_MDEBUG
 	if (it->sname) CRYPTO_pop_info();
@@ -291,7 +289,7 @@ int ASN1_template_new(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt)
 		skval = sk_ASN1_VALUE_new_null();
 		if (!skval)
 			{
-			OPENSSL_PUT_ERROR(ASN1, ASN1_template_new,  ERR_R_MALLOC_FAILURE);
+			OPENSSL_PUT_ERROR(ASN1, ERR_R_MALLOC_FAILURE);
 			ret = 0;
 			goto done;
 			}
@@ -329,14 +327,17 @@ int ASN1_primitive_new(ASN1_VALUE **pval, const ASN1_ITEM *it)
 	ASN1_STRING *str;
 	int utype;
 
-	if (it && it->funcs)
+	if (!it)
+		return 0;
+
+	if (it->funcs)
 		{
 		const ASN1_PRIMITIVE_FUNCS *pf = it->funcs;
 		if (pf->prim_new)
 			return pf->prim_new(pval, it);
 		}
 
-	if (!it || (it->itype == ASN1_ITYPE_MSTRING))
+	if (it->itype == ASN1_ITYPE_MSTRING)
 		utype = -1;
 	else
 		utype = it->utype;

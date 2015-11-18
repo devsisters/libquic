@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package runner
 
 import (
 	"crypto/aes"
@@ -62,6 +62,11 @@ const (
 	suitePSK
 )
 
+type tlsAead struct {
+	cipher.AEAD
+	explicitNonce bool
+}
+
 // A cipherSuite is a specific combination of key agreement, cipher and MAC
 // function. All cipher suites currently assume RSA key agreement.
 type cipherSuite struct {
@@ -75,12 +80,14 @@ type cipherSuite struct {
 	flags  int
 	cipher func(key, iv []byte, isRead bool) interface{}
 	mac    func(version uint16, macKey []byte) macFunction
-	aead   func(key, fixedNonce []byte) cipher.AEAD
+	aead   func(key, fixedNonce []byte) *tlsAead
 }
 
 var cipherSuites = []*cipherSuite{
 	// Ciphersuite order is chosen so that ECDHE comes before plain RSA
 	// and RC4 comes before AES (because of the Lucky13 attack).
+	{TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 32, 0, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadCHACHA20POLY1305},
+	{TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 32, 0, 0, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadCHACHA20POLY1305},
 	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12 | suiteSHA384, nil, nil, aeadAESGCM},
@@ -112,10 +119,18 @@ var cipherSuites = []*cipherSuite{
 	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, suiteECDHE, cipher3DES, macSHA1, nil},
 	{TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, dheRSAKA, 0, cipher3DES, macSHA1, nil},
 	{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, 0, cipher3DES, macSHA1, nil},
-	{TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdhePSKKA, suiteECDHE | suiteTLS12 | suitePSK, nil, nil, aeadAESGCM},
 	{TLS_PSK_WITH_RC4_128_SHA, 16, 20, 0, pskKA, suiteNoDTLS | suitePSK, cipherRC4, macSHA1, nil},
 	{TLS_PSK_WITH_AES_128_CBC_SHA, 16, 20, 16, pskKA, suitePSK, cipherAES, macSHA1, nil},
 	{TLS_PSK_WITH_AES_256_CBC_SHA, 32, 20, 16, pskKA, suitePSK, cipherAES, macSHA1, nil},
+	{TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdhePSKKA, suiteECDHE | suitePSK, cipherAES, macSHA1, nil},
+	{TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdhePSKKA, suiteECDHE | suitePSK, cipherAES, macSHA1, nil},
+	{TLS_RSA_WITH_NULL_SHA, 0, 20, 0, rsaKA, suiteNoDTLS, cipherNull, macSHA1, nil},
+}
+
+type nullCipher struct{}
+
+func cipherNull(key, iv []byte, isRead bool) interface{} {
+	return nullCipher{}
 }
 
 func cipherRC4(key, iv []byte, isRead bool) interface{} {
@@ -216,7 +231,7 @@ func (f *fixedNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]b
 	return f.aead.Open(out, f.openNonce, plaintext, additionalData)
 }
 
-func aeadAESGCM(key, fixedNonce []byte) cipher.AEAD {
+func aeadAESGCM(key, fixedNonce []byte) *tlsAead {
 	aes, err := aes.NewCipher(key)
 	if err != nil {
 		panic(err)
@@ -230,7 +245,15 @@ func aeadAESGCM(key, fixedNonce []byte) cipher.AEAD {
 	copy(nonce1, fixedNonce)
 	copy(nonce2, fixedNonce)
 
-	return &fixedNonceAEAD{nonce1, nonce2, aead}
+	return &tlsAead{&fixedNonceAEAD{nonce1, nonce2, aead}, true}
+}
+
+func aeadCHACHA20POLY1305(key, fixedNonce []byte) *tlsAead {
+	aead, err := newChaCha20Poly1305(key)
+	if err != nil {
+		panic(err)
+	}
+	return &tlsAead{aead, false}
 }
 
 // ssl30MAC implements the SSLv3 MAC function, as defined in
@@ -352,6 +375,7 @@ func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
 // A list of the possible cipher suite ids. Taken from
 // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml
 const (
+	TLS_RSA_WITH_NULL_SHA                   uint16 = 0x0002
 	TLS_RSA_WITH_RC4_128_MD5                uint16 = 0x0004
 	TLS_RSA_WITH_RC4_128_SHA                uint16 = 0x0005
 	TLS_RSA_WITH_3DES_EDE_CBC_SHA           uint16 = 0x000a
@@ -386,10 +410,14 @@ const (
 	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 uint16 = 0xc02c
 	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256   uint16 = 0xc02f
 	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384   uint16 = 0xc030
+	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA      uint16 = 0xc035
+	TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA      uint16 = 0xc036
+	renegotiationSCSV                       uint16 = 0x00ff
 	fallbackSCSV                            uint16 = 0x5600
 )
 
 // Additional cipher suite IDs, not IANA-assigned.
 const (
-	TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256 uint16 = 0xcafe
+	TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256   uint16 = 0xcc13
+	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 uint16 = 0xcc14
 )

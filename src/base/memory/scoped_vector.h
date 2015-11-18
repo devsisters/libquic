@@ -15,6 +15,9 @@
 
 // ScopedVector wraps a vector deleting the elements from its
 // destructor.
+//
+// TODO(http://crbug.com/554289): DEPRECATED: Use std::vector instead (now that
+// we have support for moveable types inside containers).
 template <class T>
 class ScopedVector {
   MOVE_ONLY_TYPE_FOR_CPP_03(ScopedVector, RValue)
@@ -104,6 +107,10 @@ class ScopedVector {
   // Lets the ScopedVector take ownership of |x|.
   iterator insert(iterator position, T* x) {
     return v_.insert(position, x);
+  }
+
+  iterator insert(iterator position, scoped_ptr<T> x) {
+    return v_.insert(position, x.release());
   }
 
   // Lets the ScopedVector take ownership of elements in [first,last).

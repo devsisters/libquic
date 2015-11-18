@@ -64,6 +64,8 @@ BASE_EXPORT std::string DoubleToString(double value);
 //  - No characters parseable as a number at the beginning of the string.
 //    |*output| will be set to 0.
 //  - Empty string.  |*output| will be set to 0.
+// WARNING: Will write to |output| even when returning false.
+//          Read the comments above carefully.
 BASE_EXPORT bool StringToInt(const StringPiece& input, int* output);
 BASE_EXPORT bool StringToInt(const StringPiece16& input, int* output);
 
@@ -81,10 +83,12 @@ BASE_EXPORT bool StringToSizeT(const StringPiece16& input, size_t* output);
 
 // For floating-point conversions, only conversions of input strings in decimal
 // form are defined to work.  Behavior with strings representing floating-point
-// numbers in hexadecimal, and strings representing non-fininte values (such as
+// numbers in hexadecimal, and strings representing non-finite values (such as
 // NaN and inf) is undefined.  Otherwise, these behave the same as the integral
 // variants.  This expects the input string to NOT be specific to the locale.
 // If your input is locale specific, use ICU to read the number.
+// WARNING: Will write to |output| even when returning false.
+//          Read the comments here and above StringToInt() carefully.
 BASE_EXPORT bool StringToDouble(const std::string& input, double* output);
 
 // Hex encoding ----------------------------------------------------------------

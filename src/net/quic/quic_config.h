@@ -223,11 +223,23 @@ class NET_EXPORT_PRIVATE QuicConfig {
 
   bool HasReceivedConnectionOptions() const;
 
+  // Sets initial received connection options.  All received connection options
+  // will be initialized with these fields. Initial received options may only be
+  // set once per config, prior to the setting of any other options.  If options
+  // have already been set (either by previous calls or via handshake), this
+  // function does nothing and returns false.
+  bool SetInitialReceivedConnectionOptions(const QuicTagVector& tags);
+
   QuicTagVector ReceivedConnectionOptions() const;
 
   bool HasSendConnectionOptions() const;
 
   QuicTagVector SendConnectionOptions() const;
+
+  // Returns true if the client is sending or the server has received a
+  // connection option.
+  bool HasClientSentConnectionOption(QuicTag tag,
+                                     Perspective perspective) const;
 
   void SetIdleConnectionStateLifetime(
       QuicTime::Delta max_idle_connection_state_lifetime,

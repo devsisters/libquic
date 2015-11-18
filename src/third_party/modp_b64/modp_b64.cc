@@ -211,28 +211,18 @@ size_t modp_b64_decode(char* dest, const char* src, size_t len)
 
     uint8_t* p = (uint8_t*)dest;
     uint32_t x = 0;
-    uint32_t* destInt = (uint32_t*) p;
-    uint32_t* srcInt = (uint32_t*) src;
-    uint32_t y = *srcInt++;
-    for (i = 0; i < chunks; ++i) {
-        x = d0[y & 0xff] |
-            d1[(y >> 8) & 0xff] |
-            d2[(y >> 16) & 0xff] |
-            d3[(y >> 24) & 0xff];
-
+    const uint8_t* y = (uint8_t*)src;
+    for (i = 0; i < chunks; ++i, y += 4) {
+        x = d0[y[0]] | d1[y[1]] | d2[y[2]] | d3[y[3]];
         if (x >= BADCHAR) return MODP_B64_ERROR;
-        *destInt = x ;
-        p += 3;
-        destInt = (uint32_t*)p;
-        y = *srcInt++;}
-
+        *p++ =  ((uint8_t*)(&x))[0];
+        *p++ =  ((uint8_t*)(&x))[1];
+        *p++ =  ((uint8_t*)(&x))[2];
+    }
 
     switch (leftover) {
     case 0:
-        x = d0[y & 0xff] |
-            d1[(y >> 8) & 0xff] |
-            d2[(y >> 16) & 0xff] |
-            d3[(y >> 24) & 0xff];
+        x = d0[y[0]] | d1[y[1]] | d2[y[2]] | d3[y[3]];
 
         if (x >= BADCHAR) return MODP_B64_ERROR;
         *p++ =  ((uint8_t*)(&x))[0];
@@ -241,17 +231,15 @@ size_t modp_b64_decode(char* dest, const char* src, size_t len)
         return (chunks+1)*3;
         break;
     case 1:  /* with padding this is an impossible case */
-        x = d0[y & 0xff];
+        x = d0[y[0]];
         *p = *((uint8_t*)(&x)); // i.e. first char/byte in int
         break;
     case 2: // * case 2, 1  output byte */
-        x = d0[y & 0xff] | d1[y >> 8 & 0xff];
+        x = d0[y[0]] | d1[y[1]];
         *p = *((uint8_t*)(&x)); // i.e. first char
         break;
     default: /* case 3, 2 output bytes */
-        x = d0[y & 0xff] |
-            d1[y >> 8 & 0xff ] |
-            d2[y >> 16 & 0xff];  /* 0x3c */
+        x = d0[y[0]] | d1[y[1]] | d2[y[2]];  /* 0x3c */
         *p++ =  ((uint8_t*)(&x))[0];
         *p =  ((uint8_t*)(&x))[1];
         break;

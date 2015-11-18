@@ -3,7 +3,7 @@
 
 # START #
 {
-    "chromium_revision": "394674f77ff069853d0df59918e23bd13ef3861f",
+    "chromium_revision": "ae8b8ce028ee77fb1bd35a83be04d2f176ef440e",
     "automatic_dependency": [
         {
             "from": "net/quic/quic_connection.cc",
@@ -155,7 +155,6 @@
                 "LICENSE",
                 "AUTHORS",
                 "base/atomicops_internals_portable.*",
-                "base/atomicops_internals_x86_gcc.*",
                 "base/callback_helpers.h",
                 "base/callback_helpers.cc",
                 "base/cancelable_callback.h",
@@ -173,7 +172,6 @@
                 "base/threading/thread_local_posix.cc",
                 "base/threading/platform_thread_mac.mm",
                 "base/synchronization/lock_impl_posix.cc",
-                "base/synchronization/waitable_event_posix.cc",
                 "base/synchronization/condition_variable.h",
                 "base/synchronization/condition_variable_posix.cc",
                 "base/files/file_path_constants.cc",

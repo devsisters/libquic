@@ -2351,7 +2351,7 @@
 #define OBJ_delta_crl		OBJ_id_ce,27L
 
 #define SN_issuing_distribution_point		"issuingDistributionPoint"
-#define LN_issuing_distribution_point		"X509v3 Issuing Distrubution Point"
+#define LN_issuing_distribution_point		"X509v3 Issuing Distribution Point"
 #define NID_issuing_distribution_point		770
 #define OBJ_issuing_distribution_point		OBJ_id_ce,28L
 
@@ -2575,11 +2575,6 @@
 #define LN_id_hex_multipart_message		"id-hex-multipart-message"
 #define NID_id_hex_multipart_message		508
 #define OBJ_id_hex_multipart_message		OBJ_mime_mhs_headings,2L
-
-#define SN_rle_compression		"RLE"
-#define LN_rle_compression		"run length compression"
-#define NID_rle_compression		124
-#define OBJ_rle_compression		1L,1L,1L,1L,666L,1L
 
 #define SN_zlib_compression		"ZLIB"
 #define LN_zlib_compression		"zlib compression"

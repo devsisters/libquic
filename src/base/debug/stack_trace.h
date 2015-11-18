@@ -26,16 +26,13 @@ namespace debug {
 // Enables stack dump to console output on exception and signals.
 // When enabled, the process will quit immediately. This is meant to be used in
 // unit_tests only! This is not thread-safe: only call from main thread.
-BASE_EXPORT bool EnableInProcessStackDumping();
-
-// A different version of EnableInProcessStackDumping that also works for
-// sandboxed processes.  For more details take a look at the description
-// of EnableInProcessStackDumping.
+// In sandboxed processes, this has to be called before the sandbox is turned
+// on.
 // Calling this function on Linux opens /proc/self/maps and caches its
-// contents. In DEBUG builds, this function also opens the object files that
-// are loaded in memory and caches their file descriptors (this cannot be
+// contents. In non-official builds, this function also opens the object files
+// that are loaded in memory and caches their file descriptors (this cannot be
 // done in official builds because it has security implications).
-BASE_EXPORT bool EnableInProcessStackDumpingForSandbox();
+BASE_EXPORT bool EnableInProcessStackDumping();
 
 // A stacktrace can be helpful in debugging. For example, you can include a
 // stacktrace member in a object (probably around #ifndef NDEBUG) so that you
@@ -54,7 +51,7 @@ class BASE_EXPORT StackTrace {
   // Creates a stacktrace for an exception.
   // Note: this function will throw an import not found (StackWalk64) exception
   // on system without dbghelp 5.1.
-  StackTrace(const _EXCEPTION_POINTERS* exception_pointers);
+  StackTrace(_EXCEPTION_POINTERS* exception_pointers);
   StackTrace(const _CONTEXT* context);
 #endif
 
@@ -79,7 +76,7 @@ class BASE_EXPORT StackTrace {
 
  private:
 #if defined(OS_WIN)
-  void InitTrace(_CONTEXT* context_record);
+  void InitTrace(const _CONTEXT* context_record);
 #endif
 
   // From http://msdn.microsoft.com/en-us/library/bb204633.aspx,

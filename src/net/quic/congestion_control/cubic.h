@@ -38,6 +38,10 @@ class NET_EXPORT_PRIVATE Cubic {
   QuicPacketCount CongestionWindowAfterAck(QuicPacketCount current,
                                            QuicTime::Delta delay_min);
 
+  // Call on ack arrival when sender is unable to use the available congestion
+  // window. Resets Cubic state during quiescence.
+  void OnApplicationLimited();
+
  private:
   static const QuicTime::Delta MaxCubicTimeInterval() {
     return QuicTime::Delta::FromMilliseconds(30);
@@ -55,6 +59,10 @@ class NET_EXPORT_PRIVATE Cubic {
 
   // Time when this cycle started, after last loss event.
   QuicTime epoch_;
+
+  // Time when sender went into application-limited period. Zero if not in
+  // application-limited period.
+  QuicTime app_limited_start_time_;
 
   // Time when we updated last_congestion_window.
   QuicTime last_update_time_;

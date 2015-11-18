@@ -156,13 +156,15 @@ bool ParseURLHostnameToNumber(const std::string& hostname,
   return family == url::CanonHostInfo::IPV4;
 }
 
-bool ParseIPLiteralToNumber(const std::string& ip_literal,
+bool ParseIPLiteralToNumber(const base::StringPiece& ip_literal,
                             IPAddressNumber* ip_number) {
   // |ip_literal| could be either a IPv4 or an IPv6 literal. If it contains
   // a colon however, it must be an IPv6 address.
-  if (ip_literal.find(':') != std::string::npos) {
+  if (ip_literal.find(':') != base::StringPiece::npos) {
     // GURL expects IPv6 hostnames to be surrounded with brackets.
-    std::string host_brackets = "[" + ip_literal + "]";
+    std::string host_brackets = "[";
+    ip_literal.AppendToString(&host_brackets);
+    host_brackets.push_back(']');
     url::Component host_comp(0, host_brackets.size());
 
     // Try parsing the hostname as an IPv6 literal.
@@ -222,8 +224,8 @@ bool ParseCIDRBlock(const std::string& cidr_literal,
   //   <IPv4-literal> "/" <number of bits>
   //   <IPv6-literal> "/" <number of bits>
 
-  std::vector<std::string> parts;
-  base::SplitString(cidr_literal, '/', &parts);
+  std::vector<base::StringPiece> parts = base::SplitStringPiece(
+      cidr_literal, "/", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   if (parts.size() != 2)
     return false;
 

@@ -45,8 +45,9 @@ class WriteBlockedList {
   // Returns the priority of the highest priority list with sessions on it.
   SpdyPriority GetHighestPriorityWriteBlockedList() const {
     for (SpdyPriority i = 0; i <= kLowestPriority; ++i) {
-      if (write_blocked_lists_[i].size() > 0)
+      if (write_blocked_lists_[i].size() > 0) {
         return i;
+      }
     }
     LOG(DFATAL) << "No blocked streams";
     return kHighestPriority;

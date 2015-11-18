@@ -1511,6 +1511,93 @@
                    copy_func),                                         \
       CHECKED_CAST(void (*)(void *), void (*)(MIME_HEADER *), free_func)))
 
+/* PKCS7_RECIP_INFO */
+#define sk_PKCS7_RECIP_INFO_new(comp)                 \
+  ((STACK_OF(PKCS7_RECIP_INFO) *)sk_new(CHECKED_CAST( \
+      stack_cmp_func,                                 \
+      int (*)(const PKCS7_RECIP_INFO **a, const PKCS7_RECIP_INFO **b), comp)))
+
+#define sk_PKCS7_RECIP_INFO_new_null() \
+  ((STACK_OF(PKCS7_RECIP_INFO) *)sk_new_null())
+
+#define sk_PKCS7_RECIP_INFO_num(sk) \
+  sk_num(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk))
+
+#define sk_PKCS7_RECIP_INFO_zero(sk) \
+  sk_zero(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk));
+
+#define sk_PKCS7_RECIP_INFO_value(sk, i) \
+  ((PKCS7_RECIP_INFO *)sk_value(         \
+      CHECKED_CAST(_STACK *, const STACK_OF(PKCS7_RECIP_INFO) *, sk), (i)))
+
+#define sk_PKCS7_RECIP_INFO_set(sk, i, p)                            \
+  ((PKCS7_RECIP_INFO *)sk_set(                                       \
+      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), (i), \
+      CHECKED_CAST(void *, PKCS7_RECIP_INFO *, p)))
+
+#define sk_PKCS7_RECIP_INFO_free(sk) \
+  sk_free(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk))
+
+#define sk_PKCS7_RECIP_INFO_pop_free(sk, free_func)             \
+  sk_pop_free(                                                  \
+      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), \
+      CHECKED_CAST(void (*)(void *), void (*)(PKCS7_RECIP_INFO *), free_func))
+
+#define sk_PKCS7_RECIP_INFO_insert(sk, p, where)                      \
+  sk_insert(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), \
+            CHECKED_CAST(void *, PKCS7_RECIP_INFO *, p), (where))
+
+#define sk_PKCS7_RECIP_INFO_delete(sk, where) \
+  ((PKCS7_RECIP_INFO *)sk_delete(             \
+      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), (where)))
+
+#define sk_PKCS7_RECIP_INFO_delete_ptr(sk, p)                   \
+  ((PKCS7_RECIP_INFO *)sk_delete_ptr(                           \
+      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), \
+      CHECKED_CAST(void *, PKCS7_RECIP_INFO *, p)))
+
+#define sk_PKCS7_RECIP_INFO_find(sk, out_index, p)                  \
+  sk_find(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), \
+          (out_index), CHECKED_CAST(void *, PKCS7_RECIP_INFO *, p))
+
+#define sk_PKCS7_RECIP_INFO_shift(sk) \
+  ((PKCS7_RECIP_INFO *)sk_shift(      \
+      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk)))
+
+#define sk_PKCS7_RECIP_INFO_push(sk, p)                             \
+  sk_push(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), \
+          CHECKED_CAST(void *, PKCS7_RECIP_INFO *, p))
+
+#define sk_PKCS7_RECIP_INFO_pop(sk) \
+  ((PKCS7_RECIP_INFO *)sk_pop(      \
+      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk)))
+
+#define sk_PKCS7_RECIP_INFO_dup(sk)      \
+  ((STACK_OF(PKCS7_RECIP_INFO) *)sk_dup( \
+      CHECKED_CAST(_STACK *, const STACK_OF(PKCS7_RECIP_INFO) *, sk)))
+
+#define sk_PKCS7_RECIP_INFO_sort(sk) \
+  sk_sort(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk))
+
+#define sk_PKCS7_RECIP_INFO_is_sorted(sk) \
+  sk_is_sorted(CHECKED_CAST(_STACK *, const STACK_OF(PKCS7_RECIP_INFO) *, sk))
+
+#define sk_PKCS7_RECIP_INFO_set_cmp_func(sk, comp)                           \
+  ((int (*)(const PKCS7_RECIP_INFO **a, const PKCS7_RECIP_INFO **b))         \
+       sk_set_cmp_func(                                                      \
+           CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk),         \
+           CHECKED_CAST(stack_cmp_func, int (*)(const PKCS7_RECIP_INFO **a,  \
+                                                const PKCS7_RECIP_INFO **b), \
+                        comp)))
+
+#define sk_PKCS7_RECIP_INFO_deep_copy(sk, copy_func, free_func)             \
+  ((STACK_OF(PKCS7_RECIP_INFO) *)sk_deep_copy(                              \
+      CHECKED_CAST(const _STACK *, const STACK_OF(PKCS7_RECIP_INFO) *, sk), \
+      CHECKED_CAST(void *(*)(void *),                                       \
+                   PKCS7_RECIP_INFO *(*)(PKCS7_RECIP_INFO *), copy_func),   \
+      CHECKED_CAST(void (*)(void *), void (*)(PKCS7_RECIP_INFO *),          \
+                   free_func)))
+
 /* PKCS7_SIGNER_INFO */
 #define sk_PKCS7_SIGNER_INFO_new(comp)                                   \
   ((STACK_OF(PKCS7_SIGNER_INFO) *)sk_new(CHECKED_CAST(                   \
@@ -1597,93 +1684,6 @@
       CHECKED_CAST(void *(*)(void *),                                        \
                    PKCS7_SIGNER_INFO *(*)(PKCS7_SIGNER_INFO *), copy_func),  \
       CHECKED_CAST(void (*)(void *), void (*)(PKCS7_SIGNER_INFO *),          \
-                   free_func)))
-
-/* PKCS7_RECIP_INFO */
-#define sk_PKCS7_RECIP_INFO_new(comp)                 \
-  ((STACK_OF(PKCS7_RECIP_INFO) *)sk_new(CHECKED_CAST( \
-      stack_cmp_func,                                 \
-      int (*)(const PKCS7_RECIP_INFO **a, const PKCS7_RECIP_INFO **b), comp)))
-
-#define sk_PKCS7_RECIP_INFO_new_null() \
-  ((STACK_OF(PKCS7_RECIP_INFO) *)sk_new_null())
-
-#define sk_PKCS7_RECIP_INFO_num(sk) \
-  sk_num(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk))
-
-#define sk_PKCS7_RECIP_INFO_zero(sk) \
-  sk_zero(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk));
-
-#define sk_PKCS7_RECIP_INFO_value(sk, i) \
-  ((PKCS7_RECIP_INFO *)sk_value(         \
-      CHECKED_CAST(_STACK *, const STACK_OF(PKCS7_RECIP_INFO) *, sk), (i)))
-
-#define sk_PKCS7_RECIP_INFO_set(sk, i, p)                            \
-  ((PKCS7_RECIP_INFO *)sk_set(                                       \
-      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), (i), \
-      CHECKED_CAST(void *, PKCS7_RECIP_INFO *, p)))
-
-#define sk_PKCS7_RECIP_INFO_free(sk) \
-  sk_free(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk))
-
-#define sk_PKCS7_RECIP_INFO_pop_free(sk, free_func)             \
-  sk_pop_free(                                                  \
-      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), \
-      CHECKED_CAST(void (*)(void *), void (*)(PKCS7_RECIP_INFO *), free_func))
-
-#define sk_PKCS7_RECIP_INFO_insert(sk, p, where)                      \
-  sk_insert(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), \
-            CHECKED_CAST(void *, PKCS7_RECIP_INFO *, p), (where))
-
-#define sk_PKCS7_RECIP_INFO_delete(sk, where) \
-  ((PKCS7_RECIP_INFO *)sk_delete(             \
-      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), (where)))
-
-#define sk_PKCS7_RECIP_INFO_delete_ptr(sk, p)                   \
-  ((PKCS7_RECIP_INFO *)sk_delete_ptr(                           \
-      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), \
-      CHECKED_CAST(void *, PKCS7_RECIP_INFO *, p)))
-
-#define sk_PKCS7_RECIP_INFO_find(sk, out_index, p)                  \
-  sk_find(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), \
-          (out_index), CHECKED_CAST(void *, PKCS7_RECIP_INFO *, p))
-
-#define sk_PKCS7_RECIP_INFO_shift(sk) \
-  ((PKCS7_RECIP_INFO *)sk_shift(      \
-      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk)))
-
-#define sk_PKCS7_RECIP_INFO_push(sk, p)                             \
-  sk_push(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk), \
-          CHECKED_CAST(void *, PKCS7_RECIP_INFO *, p))
-
-#define sk_PKCS7_RECIP_INFO_pop(sk) \
-  ((PKCS7_RECIP_INFO *)sk_pop(      \
-      CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk)))
-
-#define sk_PKCS7_RECIP_INFO_dup(sk)      \
-  ((STACK_OF(PKCS7_RECIP_INFO) *)sk_dup( \
-      CHECKED_CAST(_STACK *, const STACK_OF(PKCS7_RECIP_INFO) *, sk)))
-
-#define sk_PKCS7_RECIP_INFO_sort(sk) \
-  sk_sort(CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk))
-
-#define sk_PKCS7_RECIP_INFO_is_sorted(sk) \
-  sk_is_sorted(CHECKED_CAST(_STACK *, const STACK_OF(PKCS7_RECIP_INFO) *, sk))
-
-#define sk_PKCS7_RECIP_INFO_set_cmp_func(sk, comp)                           \
-  ((int (*)(const PKCS7_RECIP_INFO **a, const PKCS7_RECIP_INFO **b))         \
-       sk_set_cmp_func(                                                      \
-           CHECKED_CAST(_STACK *, STACK_OF(PKCS7_RECIP_INFO) *, sk),         \
-           CHECKED_CAST(stack_cmp_func, int (*)(const PKCS7_RECIP_INFO **a,  \
-                                                const PKCS7_RECIP_INFO **b), \
-                        comp)))
-
-#define sk_PKCS7_RECIP_INFO_deep_copy(sk, copy_func, free_func)             \
-  ((STACK_OF(PKCS7_RECIP_INFO) *)sk_deep_copy(                              \
-      CHECKED_CAST(const _STACK *, const STACK_OF(PKCS7_RECIP_INFO) *, sk), \
-      CHECKED_CAST(void *(*)(void *),                                       \
-                   PKCS7_RECIP_INFO *(*)(PKCS7_RECIP_INFO *), copy_func),   \
-      CHECKED_CAST(void (*)(void *), void (*)(PKCS7_RECIP_INFO *),          \
                    free_func)))
 
 /* POLICYINFO */
@@ -1937,6 +1937,99 @@
                    copy_func),                                               \
       CHECKED_CAST(void (*)(void *), void (*)(POLICY_MAPPING *), free_func)))
 
+/* RSA_additional_prime */
+#define sk_RSA_additional_prime_new(comp)                                      \
+  ((STACK_OF(RSA_additional_prime) *)sk_new(CHECKED_CAST(                      \
+      stack_cmp_func,                                                          \
+      int (*)(const RSA_additional_prime **a, const RSA_additional_prime **b), \
+      comp)))
+
+#define sk_RSA_additional_prime_new_null() \
+  ((STACK_OF(RSA_additional_prime) *)sk_new_null())
+
+#define sk_RSA_additional_prime_num(sk) \
+  sk_num(CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk))
+
+#define sk_RSA_additional_prime_zero(sk) \
+  sk_zero(CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk));
+
+#define sk_RSA_additional_prime_value(sk, i)                              \
+  ((RSA_additional_prime *)sk_value(                                      \
+      CHECKED_CAST(_STACK *, const STACK_OF(RSA_additional_prime) *, sk), \
+      (i)))
+
+#define sk_RSA_additional_prime_set(sk, i, p)                            \
+  ((RSA_additional_prime *)sk_set(                                       \
+      CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk), (i), \
+      CHECKED_CAST(void *, RSA_additional_prime *, p)))
+
+#define sk_RSA_additional_prime_free(sk) \
+  sk_free(CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk))
+
+#define sk_RSA_additional_prime_pop_free(sk, free_func)                        \
+  sk_pop_free(CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk),    \
+              CHECKED_CAST(void (*)(void *), void (*)(RSA_additional_prime *), \
+                           free_func))
+
+#define sk_RSA_additional_prime_insert(sk, p, where)                      \
+  sk_insert(CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk), \
+            CHECKED_CAST(void *, RSA_additional_prime *, p), (where))
+
+#define sk_RSA_additional_prime_delete(sk, where) \
+  ((RSA_additional_prime *)sk_delete(             \
+      CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk), (where)))
+
+#define sk_RSA_additional_prime_delete_ptr(sk, p)                   \
+  ((RSA_additional_prime *)sk_delete_ptr(                           \
+      CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk), \
+      CHECKED_CAST(void *, RSA_additional_prime *, p)))
+
+#define sk_RSA_additional_prime_find(sk, out_index, p)                  \
+  sk_find(CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk), \
+          (out_index), CHECKED_CAST(void *, RSA_additional_prime *, p))
+
+#define sk_RSA_additional_prime_shift(sk) \
+  ((RSA_additional_prime *)sk_shift(      \
+      CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk)))
+
+#define sk_RSA_additional_prime_push(sk, p)                             \
+  sk_push(CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk), \
+          CHECKED_CAST(void *, RSA_additional_prime *, p))
+
+#define sk_RSA_additional_prime_pop(sk) \
+  ((RSA_additional_prime *)sk_pop(      \
+      CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk)))
+
+#define sk_RSA_additional_prime_dup(sk)      \
+  ((STACK_OF(RSA_additional_prime) *)sk_dup( \
+      CHECKED_CAST(_STACK *, const STACK_OF(RSA_additional_prime) *, sk)))
+
+#define sk_RSA_additional_prime_sort(sk) \
+  sk_sort(CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk))
+
+#define sk_RSA_additional_prime_is_sorted(sk) \
+  sk_is_sorted(                               \
+      CHECKED_CAST(_STACK *, const STACK_OF(RSA_additional_prime) *, sk))
+
+#define sk_RSA_additional_prime_set_cmp_func(sk, comp)                       \
+  ((int (*)(const RSA_additional_prime **a, const RSA_additional_prime **b)) \
+       sk_set_cmp_func(                                                      \
+           CHECKED_CAST(_STACK *, STACK_OF(RSA_additional_prime) *, sk),     \
+           CHECKED_CAST(stack_cmp_func,                                      \
+                        int (*)(const RSA_additional_prime **a,              \
+                                const RSA_additional_prime **b),             \
+                        comp)))
+
+#define sk_RSA_additional_prime_deep_copy(sk, copy_func, free_func)        \
+  ((STACK_OF(RSA_additional_prime) *)sk_deep_copy(                         \
+      CHECKED_CAST(const _STACK *, const STACK_OF(RSA_additional_prime) *, \
+                   sk),                                                    \
+      CHECKED_CAST(void *(*)(void *),                                      \
+                   RSA_additional_prime *(*)(RSA_additional_prime *),      \
+                   copy_func),                                             \
+      CHECKED_CAST(void (*)(void *), void (*)(RSA_additional_prime *),     \
+                   free_func)))
+
 /* SSL_COMP */
 #define sk_SSL_COMP_new(comp)                 \
   ((STACK_OF(SSL_COMP) *)sk_new(CHECKED_CAST( \
@@ -2012,6 +2105,99 @@
       CHECKED_CAST(const _STACK *, const STACK_OF(SSL_COMP) *, sk),          \
       CHECKED_CAST(void *(*)(void *), SSL_COMP *(*)(SSL_COMP *), copy_func), \
       CHECKED_CAST(void (*)(void *), void (*)(SSL_COMP *), free_func)))
+
+/* SSL_CUSTOM_EXTENSION */
+#define sk_SSL_CUSTOM_EXTENSION_new(comp)                                      \
+  ((STACK_OF(SSL_CUSTOM_EXTENSION) *)sk_new(CHECKED_CAST(                      \
+      stack_cmp_func,                                                          \
+      int (*)(const SSL_CUSTOM_EXTENSION **a, const SSL_CUSTOM_EXTENSION **b), \
+      comp)))
+
+#define sk_SSL_CUSTOM_EXTENSION_new_null() \
+  ((STACK_OF(SSL_CUSTOM_EXTENSION) *)sk_new_null())
+
+#define sk_SSL_CUSTOM_EXTENSION_num(sk) \
+  sk_num(CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk))
+
+#define sk_SSL_CUSTOM_EXTENSION_zero(sk) \
+  sk_zero(CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk));
+
+#define sk_SSL_CUSTOM_EXTENSION_value(sk, i)                              \
+  ((SSL_CUSTOM_EXTENSION *)sk_value(                                      \
+      CHECKED_CAST(_STACK *, const STACK_OF(SSL_CUSTOM_EXTENSION) *, sk), \
+      (i)))
+
+#define sk_SSL_CUSTOM_EXTENSION_set(sk, i, p)                            \
+  ((SSL_CUSTOM_EXTENSION *)sk_set(                                       \
+      CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk), (i), \
+      CHECKED_CAST(void *, SSL_CUSTOM_EXTENSION *, p)))
+
+#define sk_SSL_CUSTOM_EXTENSION_free(sk) \
+  sk_free(CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk))
+
+#define sk_SSL_CUSTOM_EXTENSION_pop_free(sk, free_func)                        \
+  sk_pop_free(CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk),    \
+              CHECKED_CAST(void (*)(void *), void (*)(SSL_CUSTOM_EXTENSION *), \
+                           free_func))
+
+#define sk_SSL_CUSTOM_EXTENSION_insert(sk, p, where)                      \
+  sk_insert(CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk), \
+            CHECKED_CAST(void *, SSL_CUSTOM_EXTENSION *, p), (where))
+
+#define sk_SSL_CUSTOM_EXTENSION_delete(sk, where) \
+  ((SSL_CUSTOM_EXTENSION *)sk_delete(             \
+      CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk), (where)))
+
+#define sk_SSL_CUSTOM_EXTENSION_delete_ptr(sk, p)                   \
+  ((SSL_CUSTOM_EXTENSION *)sk_delete_ptr(                           \
+      CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk), \
+      CHECKED_CAST(void *, SSL_CUSTOM_EXTENSION *, p)))
+
+#define sk_SSL_CUSTOM_EXTENSION_find(sk, out_index, p)                  \
+  sk_find(CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk), \
+          (out_index), CHECKED_CAST(void *, SSL_CUSTOM_EXTENSION *, p))
+
+#define sk_SSL_CUSTOM_EXTENSION_shift(sk) \
+  ((SSL_CUSTOM_EXTENSION *)sk_shift(      \
+      CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk)))
+
+#define sk_SSL_CUSTOM_EXTENSION_push(sk, p)                             \
+  sk_push(CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk), \
+          CHECKED_CAST(void *, SSL_CUSTOM_EXTENSION *, p))
+
+#define sk_SSL_CUSTOM_EXTENSION_pop(sk) \
+  ((SSL_CUSTOM_EXTENSION *)sk_pop(      \
+      CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk)))
+
+#define sk_SSL_CUSTOM_EXTENSION_dup(sk)      \
+  ((STACK_OF(SSL_CUSTOM_EXTENSION) *)sk_dup( \
+      CHECKED_CAST(_STACK *, const STACK_OF(SSL_CUSTOM_EXTENSION) *, sk)))
+
+#define sk_SSL_CUSTOM_EXTENSION_sort(sk) \
+  sk_sort(CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk))
+
+#define sk_SSL_CUSTOM_EXTENSION_is_sorted(sk) \
+  sk_is_sorted(                               \
+      CHECKED_CAST(_STACK *, const STACK_OF(SSL_CUSTOM_EXTENSION) *, sk))
+
+#define sk_SSL_CUSTOM_EXTENSION_set_cmp_func(sk, comp)                       \
+  ((int (*)(const SSL_CUSTOM_EXTENSION **a, const SSL_CUSTOM_EXTENSION **b)) \
+       sk_set_cmp_func(                                                      \
+           CHECKED_CAST(_STACK *, STACK_OF(SSL_CUSTOM_EXTENSION) *, sk),     \
+           CHECKED_CAST(stack_cmp_func,                                      \
+                        int (*)(const SSL_CUSTOM_EXTENSION **a,              \
+                                const SSL_CUSTOM_EXTENSION **b),             \
+                        comp)))
+
+#define sk_SSL_CUSTOM_EXTENSION_deep_copy(sk, copy_func, free_func)        \
+  ((STACK_OF(SSL_CUSTOM_EXTENSION) *)sk_deep_copy(                         \
+      CHECKED_CAST(const _STACK *, const STACK_OF(SSL_CUSTOM_EXTENSION) *, \
+                   sk),                                                    \
+      CHECKED_CAST(void *(*)(void *),                                      \
+                   SSL_CUSTOM_EXTENSION *(*)(SSL_CUSTOM_EXTENSION *),      \
+                   copy_func),                                             \
+      CHECKED_CAST(void (*)(void *), void (*)(SSL_CUSTOM_EXTENSION *),     \
+                   free_func)))
 
 /* STACK_OF_X509_NAME_ENTRY */
 #define sk_STACK_OF_X509_NAME_ENTRY_new(comp)                      \
@@ -3591,25 +3777,25 @@
 
 #define sk_void_new_null() ((STACK_OF(void)*)sk_new_null())
 
-#define sk_void_num(sk) sk_num(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk))
+#define sk_void_num(sk) sk_num(CHECKED_CAST(_STACK *, STACK_OF(void) *, sk))
 
-#define sk_void_zero(sk) sk_zero(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk));
+#define sk_void_zero(sk) sk_zero(CHECKED_CAST(_STACK *, STACK_OF(void) *, sk));
 
 #define sk_void_value(sk, i) \
-  ((void *)sk_value(CHECKED_CAST(_STACK *, const STACK_OF(void)*, sk), (i)))
+  ((void *)sk_value(CHECKED_CAST(_STACK *, const STACK_OF(void) *, sk), (i)))
 
 #define sk_void_set(sk, i, p)                                       \
   ((void *)sk_set(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk), (i), \
                   CHECKED_CAST(void *, void *, p)))
 
-#define sk_void_free(sk) sk_free(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk))
+#define sk_void_free(sk) sk_free(CHECKED_CAST(_STACK *, STACK_OF(void) *, sk))
 
-#define sk_void_pop_free(sk, free_func)                    \
-  sk_pop_free(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk), \
+#define sk_void_pop_free(sk, free_func)                     \
+  sk_pop_free(CHECKED_CAST(_STACK *, STACK_OF(void) *, sk), \
               CHECKED_CAST(void (*)(void *), void (*)(void *), free_func))
 
-#define sk_void_insert(sk, p, where)                     \
-  sk_insert(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk), \
+#define sk_void_insert(sk, p, where)                      \
+  sk_insert(CHECKED_CAST(_STACK *, STACK_OF(void) *, sk), \
             CHECKED_CAST(void *, void *, p), (where))
 
 #define sk_void_delete(sk, where) \
@@ -3619,27 +3805,27 @@
   ((void *)sk_delete_ptr(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk), \
                          CHECKED_CAST(void *, void *, p)))
 
-#define sk_void_find(sk, out_index, p)                              \
-  sk_find(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk), (out_index), \
+#define sk_void_find(sk, out_index, p)                               \
+  sk_find(CHECKED_CAST(_STACK *, STACK_OF(void) *, sk), (out_index), \
           CHECKED_CAST(void *, void *, p))
 
 #define sk_void_shift(sk) \
   ((void *)sk_shift(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk)))
 
-#define sk_void_push(sk, p)                            \
-  sk_push(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk), \
+#define sk_void_push(sk, p)                             \
+  sk_push(CHECKED_CAST(_STACK *, STACK_OF(void) *, sk), \
           CHECKED_CAST(void *, void *, p))
 
 #define sk_void_pop(sk) \
   ((void *)sk_pop(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk)))
 
 #define sk_void_dup(sk) \
-  ((STACK_OF(void)*)sk_dup(CHECKED_CAST(_STACK *, const STACK_OF(void)*, sk)))
+  ((STACK_OF(void)*)sk_dup(CHECKED_CAST(_STACK *, const STACK_OF(void) *, sk)))
 
-#define sk_void_sort(sk) sk_sort(CHECKED_CAST(_STACK *, STACK_OF(void)*, sk))
+#define sk_void_sort(sk) sk_sort(CHECKED_CAST(_STACK *, STACK_OF(void) *, sk))
 
 #define sk_void_is_sorted(sk) \
-  sk_is_sorted(CHECKED_CAST(_STACK *, const STACK_OF(void)*, sk))
+  sk_is_sorted(CHECKED_CAST(_STACK *, const STACK_OF(void) *, sk))
 
 #define sk_void_set_cmp_func(sk, comp)                                      \
   ((int (*)(const void **a, const void **b))sk_set_cmp_func(                \
@@ -3649,7 +3835,7 @@
 
 #define sk_void_deep_copy(sk, copy_func, free_func)                  \
   ((STACK_OF(void)*)sk_deep_copy(                                    \
-      CHECKED_CAST(const _STACK *, const STACK_OF(void)*, sk),       \
+      CHECKED_CAST(const _STACK *, const STACK_OF(void) *, sk),      \
       CHECKED_CAST(void *(*)(void *), void *(*)(void *), copy_func), \
       CHECKED_CAST(void (*)(void *), void (*)(void *), free_func)))
 

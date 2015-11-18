@@ -30,31 +30,31 @@ LossDetectionType TCPLossAlgorithm::GetLossDetectionType() const {
 }
 
 // Uses nack counts to decide when packets are lost.
-SequenceNumberSet TCPLossAlgorithm::DetectLostPackets(
+PacketNumberSet TCPLossAlgorithm::DetectLostPackets(
     const QuicUnackedPacketMap& unacked_packets,
     const QuicTime& time,
-    QuicPacketSequenceNumber largest_observed,
+    QuicPacketNumber largest_observed,
     const RttStats& rtt_stats) {
-  SequenceNumberSet lost_packets;
+  PacketNumberSet lost_packets;
   loss_detection_timeout_ = QuicTime::Zero();
   QuicTime::Delta early_retransmit_delay = QuicTime::Delta::Max(
       QuicTime::Delta::FromMilliseconds(kMinLossDelayMs),
       rtt_stats.smoothed_rtt().Multiply(kEarlyRetransmitLossDelayMultiplier));
 
-  QuicPacketSequenceNumber sequence_number = unacked_packets.GetLeastUnacked();
+  QuicPacketNumber packet_number = unacked_packets.GetLeastUnacked();
   for (QuicUnackedPacketMap::const_iterator it = unacked_packets.begin();
-       it != unacked_packets.end() && sequence_number <= largest_observed;
-       ++it, ++sequence_number) {
+       it != unacked_packets.end() && packet_number <= largest_observed;
+       ++it, ++packet_number) {
     if (!it->in_flight) {
       continue;
     }
 
     LOG_IF(DFATAL, it->nack_count == 0 && it->sent_time.IsInitialized())
         << "All packets less than largest observed should have been nacked."
-        << "sequence_number:" << sequence_number
+        << "packet_number:" << packet_number
         << " largest_observed:" << largest_observed;
     if (it->nack_count >= kNumberOfNacksBeforeRetransmission) {
-      lost_packets.insert(sequence_number);
+      lost_packets.insert(packet_number);
       continue;
     }
 
@@ -64,7 +64,7 @@ SequenceNumberSet TCPLossAlgorithm::DetectLostPackets(
     // kNumberOfNacksBeforeRetransmission nacks.
     if (it->sent_time.Add(rtt_stats.smoothed_rtt()) <
         unacked_packets.GetTransmissionInfo(largest_observed).sent_time) {
-      lost_packets.insert(sequence_number);
+      lost_packets.insert(packet_number);
       continue;
     }
 
@@ -76,7 +76,7 @@ SequenceNumberSet TCPLossAlgorithm::DetectLostPackets(
       // Early retransmit marks the packet as lost once 1.25RTTs have passed
       // since the packet was sent and otherwise sets an alarm.
       if (time >= it->sent_time.Add(early_retransmit_delay)) {
-        lost_packets.insert(sequence_number);
+        lost_packets.insert(packet_number);
       } else {
         // Set the timeout for the earliest retransmittable packet where early
         // retransmit applies.

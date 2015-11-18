@@ -66,9 +66,9 @@
 # switch to AVX alone improves performance by as little as 4% in
 # comparison to SSSE3 code path. But below result doesn't look like
 # 4% improvement... Trouble is that Sandy Bridge decodes 'ro[rl]' as
-# pair of µ-ops, and it's the additional µ-ops, two per round, that
+# pair of Âµ-ops, and it's the additional Âµ-ops, two per round, that
 # make it run slower than Core2 and Westmere. But 'sh[rl]d' is decoded
-# as single µ-op by Sandy Bridge and it's replacing 'ro[rl]' with
+# as single Âµ-op by Sandy Bridge and it's replacing 'ro[rl]' with
 # equivalent 'sh[rl]d' that is responsible for the impressive 5.1
 # cycles per processed byte. But 'sh[rl]d' is not something that used
 # to be fast, nor does it appear to be fast in upcoming Bulldozer
@@ -118,23 +118,18 @@ require "x86asm.pl";
 $xmm=$ymm=0;
 for (@ARGV) { $xmm=1 if (/-DOPENSSL_IA32_SSE2/); }
 
-$ymm=1 if ($xmm &&
-		`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-			=~ /GNU assembler version ([2-9]\.[0-9]+)/ &&
-		$1>=2.19);	# first version supporting AVX
+# In upstream, this is controlled by shelling out to the compiler to check
+# versions, but BoringSSL is intended to be used with pre-generated perlasm
+# output, so this isn't useful anyway.
+$ymm = 1;
 
-$ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32n" && 
-		`nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)/ &&
-		$1>=2.03);	# first version supporting AVX
-
-$ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32" &&
-		`ml 2>&1` =~ /Version ([0-9]+)\./ &&
-		$1>=10);	# first version supporting AVX
-
-$ymm=1 if ($xmm && !$ymm && `$ENV{CC} -v 2>&1` =~ /(^clang version|based on LLVM) ([3-9]\.[0-9]+)/ &&
-		$2>=3.0);	# first version supporting AVX
+$ymm = 0 unless ($xmm);
 
 $shaext=$xmm;	### set to zero if compiling for 1.0.1
+
+# TODO(davidben): Consider enabling the Intel SHA Extensions code once it's
+# been tested.
+$shaext = 0;
 
 &external_label("OPENSSL_ia32cap_P") if ($xmm);
 

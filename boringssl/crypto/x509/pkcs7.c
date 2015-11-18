@@ -15,9 +15,11 @@
 #include <openssl/x509.h>
 
 #include <assert.h>
+#include <limits.h>
 
 #include <openssl/bytestring.h>
 #include <openssl/err.h>
+#include <openssl/mem.h>
 #include <openssl/obj.h>
 #include <openssl/pem.h>
 #include <openssl/stack.h>
@@ -56,8 +58,7 @@ static int pkcs7_parse_header(uint8_t **der_bytes, CBS *out, CBS *cbs) {
   }
 
   if (OBJ_cbs2nid(&content_type) != NID_pkcs7_signed) {
-    OPENSSL_PUT_ERROR(X509, pkcs7_parse_header,
-                      X509_R_NOT_PKCS7_SIGNED_DATA);
+    OPENSSL_PUT_ERROR(X509, X509_R_NOT_PKCS7_SIGNED_DATA);
     goto err;
   }
 
@@ -72,8 +73,7 @@ static int pkcs7_parse_header(uint8_t **der_bytes, CBS *out, CBS *cbs) {
   }
 
   if (version < 1) {
-    OPENSSL_PUT_ERROR(X509, pkcs7_parse_header,
-                      X509_R_BAD_PKCS7_VERSION);
+    OPENSSL_PUT_ERROR(X509, X509_R_BAD_PKCS7_VERSION);
     goto err;
   }
 
@@ -102,8 +102,7 @@ int PKCS7_get_certificates(STACK_OF(X509) *out_certs, CBS *cbs) {
   /* See https://tools.ietf.org/html/rfc2315#section-9.1 */
   if (!CBS_get_asn1(&signed_data, &certificates,
                     CBS_ASN1_CONTEXT_SPECIFIC | CBS_ASN1_CONSTRUCTED | 0)) {
-    OPENSSL_PUT_ERROR(X509, PKCS7_get_certificates,
-                      X509_R_NO_CERTIFICATES_INCLUDED);
+    OPENSSL_PUT_ERROR(X509, X509_R_NO_CERTIFICATES_INCLUDED);
     goto err;
   }
 
@@ -116,8 +115,11 @@ int PKCS7_get_certificates(STACK_OF(X509) *out_certs, CBS *cbs) {
       goto err;
     }
 
+    if (CBS_len(&cert) > LONG_MAX) {
+      goto err;
+    }
     inp = CBS_data(&cert);
-    x509 = d2i_X509(NULL, &inp, CBS_len(&cert));
+    x509 = d2i_X509(NULL, &inp, (long)CBS_len(&cert));
     if (!x509) {
       goto err;
     }
@@ -170,8 +172,7 @@ int PKCS7_get_CRLs(STACK_OF(X509_CRL) *out_crls, CBS *cbs) {
 
   if (!CBS_get_asn1(&signed_data, &crls,
                     CBS_ASN1_CONTEXT_SPECIFIC | CBS_ASN1_CONSTRUCTED | 1)) {
-    OPENSSL_PUT_ERROR(X509, PKCS7_get_CRLs,
-                      X509_R_NO_CRLS_INCLUDED);
+    OPENSSL_PUT_ERROR(X509, X509_R_NO_CRLS_INCLUDED);
     goto err;
   }
 
@@ -184,8 +185,11 @@ int PKCS7_get_CRLs(STACK_OF(X509_CRL) *out_crls, CBS *cbs) {
       goto err;
     }
 
+    if (CBS_len(&crl_data) > LONG_MAX) {
+      goto err;
+    }
     inp = CBS_data(&crl_data);
-    crl = d2i_X509_CRL(NULL, &inp, CBS_len(&crl_data));
+    crl = d2i_X509_CRL(NULL, &inp, (long)CBS_len(&crl_data));
     if (!crl) {
       goto err;
     }

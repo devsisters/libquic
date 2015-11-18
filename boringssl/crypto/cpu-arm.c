@@ -14,14 +14,16 @@
 
 #include <openssl/cpu.h>
 
-#if defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
+#if (defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)) && \
+    !defined(OPENSSL_STATIC_ARMCAP)
 
 #include <inttypes.h>
-#include <setjmp.h>
-#include <signal.h>
 #include <string.h>
 
-#include "arm_arch.h"
+#include <setjmp.h>
+#include <signal.h>
+
+#include <openssl/arm_arch.h>
 
 
 /* We can't include <sys/auxv.h> because the Android SDK version against which
@@ -30,8 +32,7 @@
 
 unsigned long getauxval(unsigned long type) __attribute__((weak));
 
-static const unsigned long AT_HWCAP = 16;
-static const unsigned long AT_HWCAP2 = 26;
+extern uint32_t OPENSSL_armcap_P;
 
 char CRYPTO_is_NEON_capable(void) {
   return (OPENSSL_armcap_P & ARMV7_NEON) != 0;
@@ -62,6 +63,14 @@ void CRYPTO_set_NEON_functional(char neon_functional) {
   }
 }
 
+int CRYPTO_is_ARMv8_AES_capable(void) {
+  return (OPENSSL_armcap_P & ARMV8_AES) != 0;
+}
+
+int CRYPTO_is_ARMv8_PMULL_capable(void) {
+  return (OPENSSL_armcap_P & ARMV8_PMULL) != 0;
+}
+
 #if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_ARM)
 
 static sigjmp_buf sigill_jmp;
@@ -70,12 +79,12 @@ static void sigill_handler(int signal) {
   siglongjmp(sigill_jmp, signal);
 }
 
-void CRYPTO_arm_neon_probe();
+void CRYPTO_arm_neon_probe(void);
 
 // probe_for_NEON returns 1 if a NEON instruction runs successfully. Because
 // getauxval doesn't exist on Android until Jelly Bean, supporting NEON on
 // older devices requires this.
-static int probe_for_NEON() {
+static int probe_for_NEON(void) {
   int supported = 0;
 
   sigset_t sigmask;
@@ -93,10 +102,10 @@ static int probe_for_NEON() {
 
   sigset_t original_sigmask;
   sigprocmask(SIG_SETMASK, &sigmask, &original_sigmask);
-  sigaction(SIGILL, &sigill_action, &sigill_original_action);
-
 
   if (sigsetjmp(sigill_jmp, 1 /* save signals */) == 0) {
+    sigaction(SIGILL, &sigill_action, &sigill_original_action);
+
     // This function cannot be inline asm because GCC will refuse to compile
     // inline NEON instructions unless building with -mfpu=neon, which would
     // defeat the point of probing for support at runtime.
@@ -116,7 +125,7 @@ static int probe_for_NEON() {
 
 #else
 
-static int probe_for_NEON() {
+static int probe_for_NEON(void) {
   return 0;
 }
 
@@ -136,6 +145,7 @@ void OPENSSL_cpuid_setup(void) {
     return;
   }
 
+  static const unsigned long AT_HWCAP = 16;
   unsigned long hwcap = getauxval(AT_HWCAP);
 
 #if defined(OPENSSL_ARM)
@@ -146,6 +156,7 @@ void OPENSSL_cpuid_setup(void) {
 
   /* In 32-bit mode, the ARMv8 feature bits are in a different aux vector
    * value. */
+  static const unsigned long AT_HWCAP2 = 26;
   hwcap = getauxval(AT_HWCAP2);
 
   /* See /usr/include/asm/hwcap.h on an ARM installation for the source of
@@ -168,7 +179,7 @@ void OPENSSL_cpuid_setup(void) {
   }
 #endif
 
-  OPENSSL_armcap_P |= ARMV7_NEON | ARMV7_NEON_FUNCTIONAL;
+  OPENSSL_armcap_P |= ARMV7_NEON;
 
   if (hwcap & kAES) {
     OPENSSL_armcap_P |= ARMV8_AES;
@@ -184,4 +195,5 @@ void OPENSSL_cpuid_setup(void) {
   }
 }
 
-#endif  /* defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64) */
+#endif  /* (defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)) &&
+           !defined(OPENSSL_STATIC_ARMCAP) */

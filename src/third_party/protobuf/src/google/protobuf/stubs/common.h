@@ -392,11 +392,12 @@ struct CompileAssert {
 }  // namespace internal
 
 #undef GOOGLE_COMPILE_ASSERT
+#if __cplusplus >= 201103L
+#define GOOGLE_COMPILE_ASSERT(expr, msg) static_assert(expr, #msg)
+#else
 #define GOOGLE_COMPILE_ASSERT(expr, msg) \
   typedef ::google::protobuf::internal::CompileAssert<(bool(expr))> \
           msg[bool(expr) ? 1 : -1]
-
-
 // Implementation details of COMPILE_ASSERT:
 //
 // - COMPILE_ASSERT works by defining an array type that has -1
@@ -437,6 +438,7 @@ struct CompileAssert {
 //
 //   This is to avoid running into a bug in MS VC 7.1, which
 //   causes ((0.0) ? 1 : -1) to incorrectly evaluate to 1.
+#endif  // __cplusplus >= 201103L
 
 // ===================================================================
 // from google3/base/memory/scoped_ptr.h

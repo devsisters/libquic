@@ -5,6 +5,8 @@
 #ifndef BASE_MOVE_H_
 #define BASE_MOVE_H_
 
+#include <utility>
+
 #include "base/compiler_specific.h"
 
 // Macro with the boilerplate that makes a type move-only in C++03.
@@ -222,13 +224,13 @@
   type(const type&); \
   void operator=(const type&); \
  public: \
-  type&& Pass() WARN_UNUSED_RESULT { return static_cast<type&&>(*this); } \
+  type&& Pass() WARN_UNUSED_RESULT { return std::move(*this); } \
   typedef void MoveOnlyTypeForCPP03; \
  private:
 
 #define TYPE_WITH_MOVE_CONSTRUCTOR_FOR_CPP_03(type) \
  public: \
-  type&& Pass() WARN_UNUSED_RESULT { return static_cast<type&&>(*this); } \
+  type&& Pass() WARN_UNUSED_RESULT { return std::move(*this); } \
  private:
 
 #endif  // BASE_MOVE_H_

@@ -12,7 +12,10 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-// This package generates chacha_vec_arm.S from chacha_vec.c.
+// This package generates chacha_vec_arm.S from chacha_vec.c. Install the
+// arm-linux-gnueabihf-gcc compiler as described in BUILDING.md. Then:
+// `(cd crypto/chacha && go run chacha_vec_arm_generate.go)`.
+
 package main
 
 import (
@@ -52,7 +55,8 @@ func main() {
 	output.WriteString(compiler)
 	output.WriteString(" ")
 	output.WriteString(strings.Join(args, " "))
-	output.WriteString("\n\n#if !defined(OPENSSL_NO_ASM)\n\n")
+	output.WriteString("\n\n#if !defined(OPENSSL_NO_ASM)\n")
+	output.WriteString("#if defined(__arm__)\n\n")
 
 	cmd := exec.Command(compiler, args...)
 	cmd.Stderr = os.Stderr
@@ -144,5 +148,6 @@ const attr28Block = `
 `
 
 const trailer = `
+#endif  /* __arm__ */
 #endif  /* !OPENSSL_NO_ASM */
 `

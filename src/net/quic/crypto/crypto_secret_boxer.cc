@@ -78,11 +78,10 @@ bool CryptoSecretBoxer::Unbox(StringPiece ciphertext,
 
   StringPiece nonce(ciphertext.data(), kBoxNonceSize);
   ciphertext.remove_prefix(kBoxNonceSize);
-  QuicPacketSequenceNumber sequence_number;
-  StringPiece nonce_prefix(nonce.data(),
-                           nonce.size() - sizeof(sequence_number));
-  memcpy(&sequence_number, nonce.data() + nonce_prefix.size(),
-         sizeof(sequence_number));
+  QuicPacketNumber packet_number;
+  StringPiece nonce_prefix(nonce.data(), nonce.size() - sizeof(packet_number));
+  memcpy(&packet_number, nonce.data() + nonce_prefix.size(),
+         sizeof(packet_number));
 
   scoped_ptr<Aes128Gcm12Decrypter> decrypter(new Aes128Gcm12Decrypter());
   if (!decrypter->SetKey(key_)) {
@@ -93,8 +92,8 @@ bool CryptoSecretBoxer::Unbox(StringPiece ciphertext,
   char plaintext[kMaxPacketSize];
   size_t plaintext_length = 0;
   const bool success = decrypter->DecryptPacket(
-      sequence_number, StringPiece() /* associated data */, ciphertext,
-      plaintext, &plaintext_length, kMaxPacketSize);
+      packet_number, StringPiece() /* associated data */, ciphertext, plaintext,
+      &plaintext_length, kMaxPacketSize);
   if (!success) {
     return false;
   }

@@ -1,4 +1,4 @@
-include_directories(. .. ../../include)
+include_directories(../../include)
 
 add_library(
   dh
@@ -6,7 +6,6 @@ add_library(
   OBJECT
 
   dh.c
-  dh_impl.c
   params.c
   check.c
   dh_asn1.c
@@ -15,7 +14,10 @@ add_library(
 add_executable(
   dh_test
 
-  dh_test.c
+  dh_test.cc
+
+  $<TARGET_OBJECTS:test_support>
 )
 
 target_link_libraries(dh_test crypto)
+add_dependencies(all_tests dh_test)

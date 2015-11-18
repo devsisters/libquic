@@ -13,9 +13,10 @@
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 
-template <typename T> struct DefaultSingletonTraits;
-
 namespace base {
+
+template <typename T>
+struct DefaultSingletonTraits;
 
 class BASE_EXPORT ThreadIdNameManager {
  public:
