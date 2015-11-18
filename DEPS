@@ -9,28 +9,23 @@
             "from": "net/quic/quic_connection.cc",
             "exclude": [
                 "cached_network_parameters.pb.h",
-                "source_address_token.pb.h",
                 "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
-                "base/profiler/scoped_tracker.h",
                 "base/files/file.h"
             ]
         },
         {
             "from": "base/threading/platform_thread_posix.cc",
             "exclude": [
-                "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
-                "base/files/file.h",
-                "base/tracked_objects.h"
+                "base/files/file.h"
             ]
         },
         {
             "from": "base/threading/platform_thread_linux.cc",
             "exclude": [
-                "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
                 "base/files/file.h",
@@ -41,16 +36,11 @@
             "from": "net/quic/quic_session.cc",
             "exclude": [
                 "cached_network_parameters.pb.h",
-                "source_address_token.pb.h",
                 "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
                 "base/files/file.h",
-                "base/tracked_objects.h",
-                "base/third_party/valgrind/memcheck.h",
-                "zconf.h",
                 "net/ssl/ssl_info.h",
-                "base/metrics/stats_counters.h",
                 "url/url_canon.h",
                 "net/spdy/spdy_header_block.h"
             ]
@@ -59,46 +49,34 @@
             "from": "net/quic/quic_client_session_base.cc",
             "exclude": [
                 "cached_network_parameters.pb.h",
-                "source_address_token.pb.h",
                 "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
                 "base/files/file.h",
-                "base/tracked_objects.h",
                 "base/third_party/valgrind/memcheck.h",
                 "zconf.h",
                 "net/ssl/ssl_info.h",
-                "base/metrics/stats_counters.h",
                 "url/url_canon.h",
                 "net/spdy/spdy_header_block.h",
-                "modp_b64.h",
-                "modp_b64_data.h",
                 "base/cpu.h",
-                "net/base/host_port_pair.h",
-                "base/profiler/scoped_tracker.h"
+                "net/base/host_port_pair.h"
             ]
         },
         {
             "from": "net/quic/quic_crypto_client_stream.cc",
             "exclude": [
                 "cached_network_parameters.pb.h",
-                "source_address_token.pb.h",
                 "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
                 "base/files/file.h",
-                "base/tracked_objects.h",
                 "base/third_party/valgrind/memcheck.h",
                 "zconf.h",
                 "net/ssl/ssl_info.h",
-                "base/metrics/stats_counters.h",
                 "url/url_canon.h",
                 "net/spdy/spdy_header_block.h",
-                "modp_b64.h",
-                "modp_b64_data.h",
                 "base/cpu.h",
-                "net/base/host_port_pair.h",
-                "base/profiler/scoped_tracker.h"
+                "net/base/host_port_pair.h"
             ]
         },
         {
@@ -110,18 +88,13 @@
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
                 "base/files/file.h",
-                "base/tracked_objects.h",
-                "base/third_party/valgrind/memcheck.h",
                 "zconf.h",
                 "net/ssl/ssl_info.h",
-                "base/metrics/stats_counters.h",
                 "url/url_canon.h",
                 "net/spdy/spdy_header_block.h",
                 "modp_b64.h",
                 "modp_b64_data.h",
-                "base/cpu.h",
-                "net/base/host_port_pair.h",
-                "base/profiler/scoped_tracker.h"
+                "base/cpu.h"
             ]
         },
         {
@@ -131,10 +104,7 @@
                 "base/sequence_checker.h",
                 "base/files/file.h",
                 "base/tracked_objects.h",
-                "base/third_party/valgrind/memcheck.h",
-                "base/metrics/stats_counters.h",
                 "base/cpu.h",
-                "base/profiler/scoped_tracker.h",
                 "base/base_paths_android.h",
                 "base/base_paths_win.h",
                 "base/message_loop/message_loop.h"
@@ -252,9 +222,7 @@
         }
     ],
     "patches": [
-        "patch/basepatch.patch",
-        "patch/nss_util.patch",
-        "patch/retrasmitoldestpacket_fatal_fix.patch"
+        "patch/basepatch.patch"
     ],
     "custom_files": [
         {"from": "custom/net_util.h", "to": "net/base/net_util.h"},
