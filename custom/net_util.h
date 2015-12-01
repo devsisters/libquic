@@ -46,6 +46,7 @@ typedef std::vector<unsigned char> IPAddressNumber;
 static const size_t kBluetoothAddressSize = 6;
 #endif
 
+#if 0
 // Splits an input of the form <host>[":"<port>] into its consitituent parts.
 // Saves the result into |*host| and |*port|. If the input did not have
 // the optional port, sets |*port| to -1.
@@ -65,13 +66,16 @@ NET_EXPORT bool ParseHostAndPort(
     const std::string& host_and_port,
     std::string* host,
     int* port);
+#endif
 
+#if 0
 // Returns a host:port string for the given URL.
 NET_EXPORT std::string GetHostAndPort(const GURL& url);
 
 // Returns a host[:port] string for the given URL, where the port is omitted
 // if it is the default for the URL's scheme.
 NET_EXPORT_PRIVATE std::string GetHostAndOptionalPort(const GURL& url);
+#endif
 
 // Returns true if |hostname| contains a non-registerable or non-assignable
 // domain name (eg: a gTLD that has not been assigned by IANA) or an IP address
@@ -120,10 +124,12 @@ NET_EXPORT_PRIVATE void GetIdentityFromURL(const GURL& url,
 // Returns either the host from |url|, or, if the host is empty, the full spec.
 NET_EXPORT std::string GetHostOrSpecFromURL(const GURL& url);
 
+#if 0
 // Canonicalizes |host| and returns it.  Also fills |host_info| with
 // IP address information.  |host_info| must not be NULL.
 NET_EXPORT std::string CanonicalizeHost(const std::string& host,
                                         url::CanonHostInfo* host_info);
+#endif
 
 // Returns true if |host| is not an IP address and is compliant with a set of
 // rules based on RFC 1738 and tweaked to be compatible with the real world.
@@ -164,10 +170,12 @@ NET_EXPORT std::string GetDirectoryListingEntry(const base::string16& name,
 // Set socket to non-blocking mode
 NET_EXPORT int SetNonBlocking(int fd);
 
+#if 0
 // Strip the portions of |url| that aren't core to the network request.
 //   - user name / password
 //   - reference section
 NET_EXPORT_PRIVATE GURL SimplifyUrlForRequest(const GURL& url);
+#endif
 
 // Returns true if it can determine that only loopback addresses are configured.
 // i.e. if only 127.0.0.1 and ::1 are routable.

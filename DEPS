@@ -41,7 +41,6 @@
                 "base/sequence_checker.h",
                 "base/files/file.h",
                 "net/ssl/ssl_info.h",
-                "url/url_canon.h",
                 "net/spdy/spdy_header_block.h"
             ]
         },
@@ -56,7 +55,6 @@
                 "base/third_party/valgrind/memcheck.h",
                 "zconf.h",
                 "net/ssl/ssl_info.h",
-                "url/url_canon.h",
                 "net/spdy/spdy_header_block.h",
                 "base/cpu.h",
                 "net/base/host_port_pair.h"
@@ -73,7 +71,6 @@
                 "base/third_party/valgrind/memcheck.h",
                 "zconf.h",
                 "net/ssl/ssl_info.h",
-                "url/url_canon.h",
                 "net/spdy/spdy_header_block.h",
                 "base/cpu.h",
                 "net/base/host_port_pair.h"
@@ -90,7 +87,6 @@
                 "base/files/file.h",
                 "zconf.h",
                 "net/ssl/ssl_info.h",
-                "url/url_canon.h",
                 "net/spdy/spdy_header_block.h",
                 "modp_b64.h",
                 "modp_b64_data.h",
@@ -228,6 +224,7 @@
         {"from": "custom/net_util.h", "to": "net/base/net_util.h"},
         {"from": "custom/net_util.cc", "to": "net/base/net_util.cc"},
         {"from": "custom/debugger.h", "to": "base/debug/debugger.h"},
-        {"from": "custom/debugger.cc", "to": "base/debug/debugger.cc"}
+        {"from": "custom/debugger.cc", "to": "base/debug/debugger.cc"},
+        {"from": "custom/stubs.cc", "to": "stubs.cc"}
     ]
 }

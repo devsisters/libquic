@@ -210,6 +210,7 @@ void SpdyHeaderBlock::AppendHeader(const StringPiece key,
   block_.insert(make_pair(storage_->Write(key), storage_->Write(value)));
 }
 
+#if 0
 scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
     const SpdyHeaderBlock* headers,
     NetLogCaptureMode capture_mode) {
@@ -225,6 +226,7 @@ scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
   dict->Set("headers", headers_dict);
   return dict.Pass();
 }
+#endif
 
 bool SpdyHeaderBlockFromNetLogParam(
     const base::Value* event_param,

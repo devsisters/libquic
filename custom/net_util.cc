@@ -90,6 +90,7 @@ bool IsLocal6Hostname(const std::string& host) {
 
 }  // namespace
 
+#if 0
 std::string CanonicalizeHost(const std::string& host,
                              url::CanonHostInfo* host_info) {
   // Try to canonicalize the host.
@@ -111,6 +112,7 @@ std::string CanonicalizeHost(const std::string& host,
 
   return canon_host;
 }
+#endif
 
 #if 0
 std::string GetDirectoryListingHeader(const base::string16& title) {
@@ -176,6 +178,7 @@ int SetNonBlocking(int fd) {
 #endif
 }
 
+#if 0
 bool ParseHostAndPort(std::string::const_iterator host_and_port_begin,
                       std::string::const_iterator host_and_port_end,
                       std::string* host,
@@ -246,7 +249,9 @@ bool ParseHostAndPort(const std::string& host_and_port,
   return ParseHostAndPort(
       host_and_port.begin(), host_and_port.end(), host, port);
 }
+#endif
 
+#if 0
 std::string GetHostAndPort(const GURL& url) {
   // For IPv6 literals, GURL::host() already includes the brackets so it is
   // safe to just append a colon.
@@ -261,6 +266,7 @@ std::string GetHostAndOptionalPort(const GURL& url) {
     return base::StringPrintf("%s:%s", url.host().c_str(), url.port().c_str());
   return url.host();
 }
+#endif
 
 #if 0
 bool IsHostnameNonUnique(const std::string& hostname) {
@@ -431,6 +437,7 @@ std::string GetHostOrSpecFromURL(const GURL& url) {
 }
 #endif
 
+#if 0
 GURL SimplifyUrlForRequest(const GURL& url) {
   DCHECK(url.is_valid());
   GURL::Replacements replacements;
@@ -439,6 +446,7 @@ GURL SimplifyUrlForRequest(const GURL& url) {
   replacements.ClearRef();
   return url.ReplaceComponents(replacements);
 }
+#endif
 
 bool HaveOnlyLoopbackAddresses() {
 #if defined(OS_ANDROID)

@@ -120,10 +120,12 @@ class NET_EXPORT SpdyHeaderBlock {
   scoped_ptr<Storage> storage_;
 };
 
+#if 0
 // Converts a SpdyHeaderBlock into NetLog event parameters.
 NET_EXPORT scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
     const SpdyHeaderBlock* headers,
     NetLogCaptureMode capture_mode);
+#endif
 
 // Converts NetLog event parameters into a SPDY header block and writes them
 // to |headers|.  |event_param| must have been created by

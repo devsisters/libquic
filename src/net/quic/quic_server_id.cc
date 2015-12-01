@@ -43,6 +43,7 @@ bool QuicServerId::operator==(const QuicServerId& other) const {
          host_port_pair_.Equals(other.host_port_pair_);
 }
 
+#if 0
 // static
 QuicServerId QuicServerId::FromString(const std::string& str) {
   GURL url(str);
@@ -52,6 +53,7 @@ QuicServerId QuicServerId::FromString(const std::string& str) {
                                                       ? PRIVACY_MODE_ENABLED
                                                       : PRIVACY_MODE_DISABLED);
 }
+#endif
 
 string QuicServerId::ToString() const {
   return "https://" + host_port_pair_.ToString() +

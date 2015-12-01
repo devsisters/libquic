@@ -72,10 +72,12 @@ set(
 	src/net/quic/quic_flow_controller.cc
 	src/net/quic/quic_connection_stats.cc
 	src/net/quic/quic_fec_group.cc
+	src/net/quic/quic_fec_group_interface.cc
 	src/net/quic/quic_data_writer.cc
 	src/net/quic/quic_data_reader.cc
 	src/net/quic/quic_session.cc
 	src/net/quic/quic_spdy_session.cc
+	src/net/quic/quic_spdy_stream.cc
 	src/net/quic/iovector.cc
 	src/net/quic/quic_stream_sequencer.cc
 	src/net/quic/quic_framer.cc
@@ -89,6 +91,7 @@ set(
 	src/net/quic/quic_crypto_stream.cc
 	src/net/quic/quic_socket_address_coder.cc
 	src/net/quic/quic_utils.cc
+	src/net/quic/quic_frame_list.cc
 	src/net/quic/crypto/quic_crypto_server_config.cc
 	src/net/quic/crypto/crypto_handshake_message.cc
 	src/net/quic/crypto/p256_key_exchange_openssl.cc
@@ -145,6 +148,7 @@ set(
 	src/net/quic/quic_server_id.cc
 	src/net/quic/proto/cached_network_parameters.pb.cc
 	src/net/quic/proto/source_address_token.pb.cc
+	src/net/quic/stream_sequencer_buffer.cc
 
 	src/net/base/int128.cc
 	src/net/base/io_buffer.cc
@@ -152,12 +156,24 @@ set(
 	src/net/base/net_errors.cc
 	src/net/base/ip_endpoint.cc
 	src/net/base/host_port_pair.cc
+	src/net/base/port_util.cc
+	src/net/base/address_family.cc
 
 	src/net/spdy/spdy_frame_reader.cc
 	src/net/spdy/spdy_frame_builder.cc
 	src/net/spdy/spdy_framer.cc
+	src/net/spdy/spdy_header_block.cc
 	src/net/spdy/spdy_protocol.cc
 	src/net/spdy/spdy_alt_svc_wire_format.cc
+	src/net/spdy/hpack/hpack_constants.cc
+	src/net/spdy/hpack/hpack_decoder.cc
+	src/net/spdy/hpack/hpack_encoder.cc
+	src/net/spdy/hpack/hpack_entry.cc
+	src/net/spdy/hpack/hpack_header_table.cc
+	src/net/spdy/hpack/hpack_huffman_table.cc
+	src/net/spdy/hpack/hpack_input_stream.cc
+	src/net/spdy/hpack/hpack_output_stream.cc
+	src/net/spdy/hpack/hpack_static_table.cc
 )
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -279,6 +295,12 @@ set(
 	src/crypto/secure_util.cc
 )
 
+set(
+	URL_SOURCES
+
+	src/url/url_constants.cc
+)
+
 add_library(
 	quic
 	STATIC
@@ -286,6 +308,9 @@ add_library(
 	${NET_SOURCES}
 	${BASE_SOURCES}
 	${CRYPTO_SOURCES}
+	${URL_SOURCES}
+
+	src/stubs.cc
 
 	src/third_party/modp_b64/modp_b64.cc
 	src/third_party/zlib/gzwrite.c
