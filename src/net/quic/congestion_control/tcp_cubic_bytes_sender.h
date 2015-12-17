@@ -39,7 +39,7 @@ class NET_EXPORT_PRIVATE TcpCubicBytesSender : public SendAlgorithmInterface {
   // Start implementation of SendAlgorithmInterface.
   void SetFromConfig(const QuicConfig& config,
                      Perspective perspective) override;
-  bool ResumeConnectionState(
+  void ResumeConnectionState(
       const CachedNetworkParameters& cached_network_params,
       bool max_bandwidth_resumption) override;
   void SetNumEmulatedConnections(int num_connections) override;
@@ -50,17 +50,17 @@ class NET_EXPORT_PRIVATE TcpCubicBytesSender : public SendAlgorithmInterface {
                          const CongestionVector& lost_packets) override;
   bool OnPacketSent(QuicTime sent_time,
                     QuicByteCount bytes_in_flight,
-                    QuicPacketSequenceNumber sequence_number,
+                    QuicPacketNumber packet_number,
                     QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable) override;
   void OnRetransmissionTimeout(bool packets_retransmitted) override;
+  void OnConnectionMigration() override {}
   QuicTime::Delta TimeUntilSend(
       QuicTime now,
       QuicByteCount bytes_in_flight,
       HasRetransmittableData has_retransmittable_data) const override;
   QuicBandwidth PacingRate() const override;
   QuicBandwidth BandwidthEstimate() const override;
-  bool HasReliableBandwidthEstimate() const override;
   QuicTime::Delta RetransmissionDelay() const override;
   QuicByteCount GetCongestionWindow() const override;
   bool InSlowStart() const override;
@@ -76,13 +76,13 @@ class NET_EXPORT_PRIVATE TcpCubicBytesSender : public SendAlgorithmInterface {
   float RenoBeta() const;
 
   // TODO(ianswett): Remove these and migrate to OnCongestionEvent.
-  void OnPacketAcked(QuicPacketSequenceNumber acked_sequence_number,
+  void OnPacketAcked(QuicPacketNumber acked_packet_number,
                      QuicByteCount acked_bytes,
                      QuicByteCount bytes_in_flight);
-  void OnPacketLost(QuicPacketSequenceNumber largest_loss,
+  void OnPacketLost(QuicPacketNumber largest_loss,
                     QuicByteCount bytes_in_flight);
 
-  void MaybeIncreaseCwnd(QuicPacketSequenceNumber acked_sequence_number,
+  void MaybeIncreaseCwnd(QuicPacketNumber acked_packet_number,
                          QuicByteCount acked_bytes,
                          QuicByteCount bytes_in_flight);
   bool IsCwndLimited(QuicByteCount bytes_in_flight) const;
@@ -103,13 +103,13 @@ class NET_EXPORT_PRIVATE TcpCubicBytesSender : public SendAlgorithmInterface {
   uint64 num_acked_packets_;
 
   // Track the largest packet that has been sent.
-  QuicPacketSequenceNumber largest_sent_sequence_number_;
+  QuicPacketNumber largest_sent_packet_number_;
 
   // Track the largest packet that has been acked.
-  QuicPacketSequenceNumber largest_acked_sequence_number_;
+  QuicPacketNumber largest_acked_packet_number_;
 
-  // Track the largest sequence number outstanding when a CWND cutback occurs.
-  QuicPacketSequenceNumber largest_sent_at_last_cutback_;
+  // Track the largest packet number outstanding when a CWND cutback occurs.
+  QuicPacketNumber largest_sent_at_last_cutback_;
 
   // Congestion window in bytes.
   QuicByteCount congestion_window_;
@@ -129,8 +129,6 @@ class NET_EXPORT_PRIVATE TcpCubicBytesSender : public SendAlgorithmInterface {
   // Whether the last loss event caused us to exit slowstart. Used for stats
   // collection of slowstart_packets_lost.
   bool last_cutback_exited_slowstart_;
-
-  const QuicClock* clock_;
 
   DISALLOW_COPY_AND_ASSIGN(TcpCubicBytesSender);
 };

@@ -267,7 +267,7 @@ void CommandLine::SetProgram(const FilePath& program) {
 }
 
 bool CommandLine::HasSwitch(const base::StringPiece& switch_string) const {
-  DCHECK_EQ(StringToLowerASCII(switch_string.as_string()), switch_string);
+  DCHECK_EQ(ToLowerASCII(switch_string), switch_string);
   return switches_by_stringpiece_.find(switch_string) !=
          switches_by_stringpiece_.end();
 }
@@ -297,7 +297,7 @@ FilePath CommandLine::GetSwitchValuePath(
 
 CommandLine::StringType CommandLine::GetSwitchValueNative(
     const base::StringPiece& switch_string) const {
-  DCHECK_EQ(StringToLowerASCII(switch_string.as_string()), switch_string);
+  DCHECK_EQ(ToLowerASCII(switch_string), switch_string);
   auto result = switches_by_stringpiece_.find(switch_string);
   return result == switches_by_stringpiece_.end() ? StringType()
                                                   : *(result->second);
@@ -315,7 +315,7 @@ void CommandLine::AppendSwitchPath(const std::string& switch_string,
 void CommandLine::AppendSwitchNative(const std::string& switch_string,
                                      const CommandLine::StringType& value) {
 #if defined(OS_WIN)
-  const std::string switch_key = StringToLowerASCII(switch_string);
+  const std::string switch_key = ToLowerASCII(switch_string);
   StringType combined_switch_string(ASCIIToUTF16(switch_key));
 #elif defined(OS_POSIX)
   const std::string& switch_key = switch_string;
@@ -394,8 +394,9 @@ void CommandLine::PrependWrapper(const CommandLine::StringType& wrapper) {
     return;
   // The wrapper may have embedded arguments (like "gdb --args"). In this case,
   // we don't pretend to do anything fancy, we just split on spaces.
-  StringVector wrapper_argv;
-  SplitString(wrapper, FILE_PATH_LITERAL(' '), &wrapper_argv);
+  StringVector wrapper_argv = SplitString(
+      wrapper, FilePath::StringType(1, ' '), base::TRIM_WHITESPACE,
+      base::SPLIT_WANT_ALL);
   // Prepend the wrapper and update the switches/arguments |begin_args_|.
   argv_.insert(argv_.begin(), wrapper_argv.begin(), wrapper_argv.end());
   begin_args_ += wrapper_argv.size();

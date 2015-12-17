@@ -4,21 +4,21 @@
  * This package is an SSL implementation written
  * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
- *g
+ *
  * This library is free for commercial and non-commercial use as long as
  * the following conditions are aheared to.  The following conditions
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
  * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *g
+ *
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
  * If this package is used in a product, Eric Young should be given attribution
  * as the author of the parts of the library used.
  * This can be in the form of a textual message at program startup or
  * in documentation (online or textual) provided with the package.
- *g
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -33,10 +33,10 @@
  *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) fromg
+ * 4. If you include any Windows specific code (or a derivative thereof) from
  *    the apps directory (application code) you must include an acknowledgement:
  *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *g
+ *
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -48,7 +48,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *g
+ *
  * The licence and distribution terms for any publically available version or
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
@@ -62,7 +62,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.g
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -133,8 +133,11 @@
  * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
  * OTHERWISE. */
 
-#include <stdio.h>
+#include <openssl/ssl.h>
+
 #include <assert.h>
+#include <stdio.h>
+#include <string.h>
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -142,7 +145,7 @@
 #include <openssl/md5.h>
 #include <openssl/obj.h>
 
-#include "ssl_locl.h"
+#include "internal.h"
 
 
 static const uint8_t ssl3_pad_1[48] = {
@@ -179,7 +182,7 @@ int ssl3_prf(SSL *s, uint8_t *out, size_t out_len, const uint8_t *secret,
     k++;
     if (k > sizeof(buf)) {
       /* bug: 'buf' is too small for this ciphersuite */
-      OPENSSL_PUT_ERROR(SSL, ssl3_prf, ERR_R_INTERNAL_ERROR);
+      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
       return 0;
     }
 
@@ -188,7 +191,7 @@ int ssl3_prf(SSL *s, uint8_t *out, size_t out_len, const uint8_t *secret,
     }
     c++;
     if (!EVP_DigestInit_ex(&sha1, EVP_sha1(), NULL)) {
-      OPENSSL_PUT_ERROR(SSL, ssl3_prf, ERR_LIB_EVP);
+      OPENSSL_PUT_ERROR(SSL, ERR_LIB_EVP);
       return 0;
     }
     EVP_DigestUpdate(&sha1, buf, k);
@@ -203,7 +206,7 @@ int ssl3_prf(SSL *s, uint8_t *out, size_t out_len, const uint8_t *secret,
     EVP_DigestFinal_ex(&sha1, smd, NULL);
 
     if (!EVP_DigestInit_ex(&md5, EVP_md5(), NULL)) {
-      OPENSSL_PUT_ERROR(SSL, ssl3_prf, ERR_LIB_EVP);
+      OPENSSL_PUT_ERROR(SSL, ERR_LIB_EVP);
       return 0;
     }
     EVP_DigestUpdate(&md5, secret, secret_len);
@@ -234,100 +237,75 @@ void ssl3_cleanup_key_block(SSL *s) {
   s->s3->tmp.key_block_length = 0;
 }
 
-int ssl3_init_finished_mac(SSL *s) {
-  if (s->s3->handshake_buffer) {
-    BIO_free(s->s3->handshake_buffer);
-  }
-  if (s->s3->handshake_dgst) {
-    ssl3_free_digest_list(s);
-  }
-  s->s3->handshake_buffer = BIO_new(BIO_s_mem());
-  if (s->s3->handshake_buffer == NULL) {
+int ssl3_init_handshake_buffer(SSL *ssl) {
+  ssl3_free_handshake_buffer(ssl);
+  ssl3_free_handshake_hash(ssl);
+  ssl->s3->handshake_buffer = BUF_MEM_new();
+  return ssl->s3->handshake_buffer != NULL;
+}
+
+/* init_digest_with_data calls |EVP_DigestInit_ex| on |ctx| with |md| and then
+ * writes the data in |buf| to it. */
+static int init_digest_with_data(EVP_MD_CTX *ctx, const EVP_MD *md,
+                                 const BUF_MEM *buf) {
+  if (!EVP_DigestInit_ex(ctx, md, NULL)) {
     return 0;
   }
-  BIO_set_close(s->s3->handshake_buffer, BIO_CLOSE);
+  EVP_DigestUpdate(ctx, buf->data, buf->length);
+  return 1;
+}
+
+int ssl3_init_handshake_hash(SSL *ssl) {
+  ssl3_free_handshake_hash(ssl);
+
+  uint32_t algorithm_prf = ssl_get_algorithm_prf(ssl);
+  if (!init_digest_with_data(&ssl->s3->handshake_hash,
+                             ssl_get_handshake_digest(algorithm_prf),
+                             ssl->s3->handshake_buffer)) {
+    return 0;
+  }
+
+  if (algorithm_prf == SSL_HANDSHAKE_MAC_DEFAULT &&
+      !init_digest_with_data(&ssl->s3->handshake_md5, EVP_md5(),
+                             ssl->s3->handshake_buffer)) {
+    return 0;
+  }
 
   return 1;
 }
 
-void ssl3_free_digest_list(SSL *s) {
-  int i;
-  if (!s->s3->handshake_dgst) {
-    return;
-  }
-  for (i = 0; i < SSL_MAX_DIGEST; i++) {
-    if (s->s3->handshake_dgst[i]) {
-      EVP_MD_CTX_destroy(s->s3->handshake_dgst[i]);
-    }
-  }
-  OPENSSL_free(s->s3->handshake_dgst);
-  s->s3->handshake_dgst = NULL;
+void ssl3_free_handshake_hash(SSL *ssl) {
+  EVP_MD_CTX_cleanup(&ssl->s3->handshake_hash);
+  EVP_MD_CTX_cleanup(&ssl->s3->handshake_md5);
 }
 
-int ssl3_finish_mac(SSL *s, const uint8_t *buf, int len) {
-  int i;
-
-  if (s->s3->handshake_buffer) {
-    return BIO_write(s->s3->handshake_buffer, (void *)buf, len) >= 0;
-  }
-
-  for (i = 0; i < SSL_MAX_DIGEST; i++) {
-    if (s->s3->handshake_dgst[i] != NULL) {
-      EVP_DigestUpdate(s->s3->handshake_dgst[i], buf, len);
-    }
-  }
-  return 1;
+void ssl3_free_handshake_buffer(SSL *ssl) {
+  BUF_MEM_free(ssl->s3->handshake_buffer);
+  ssl->s3->handshake_buffer = NULL;
 }
 
-int ssl3_digest_cached_records(
-    SSL *s, enum should_free_handshake_buffer_t should_free_handshake_buffer) {
-  int i;
-  long mask;
-  const EVP_MD *md;
-  const uint8_t *hdata;
-  size_t hdatalen;
+int ssl3_update_handshake_hash(SSL *ssl, const uint8_t *in, size_t in_len) {
+  /* Depending on the state of the handshake, either the handshake buffer may be
+   * active, the rolling hash, or both. */
 
-  /* Allocate handshake_dgst array */
-  ssl3_free_digest_list(s);
-  s->s3->handshake_dgst = OPENSSL_malloc(SSL_MAX_DIGEST * sizeof(EVP_MD_CTX *));
-  if (s->s3->handshake_dgst == NULL) {
-    OPENSSL_PUT_ERROR(SSL, ssl3_digest_cached_records, ERR_R_MALLOC_FAILURE);
-    return 0;
-  }
-
-  memset(s->s3->handshake_dgst, 0, SSL_MAX_DIGEST * sizeof(EVP_MD_CTX *));
-  if (!BIO_mem_contents(s->s3->handshake_buffer, &hdata, &hdatalen)) {
-    OPENSSL_PUT_ERROR(SSL, ssl3_digest_cached_records,
-                      SSL_R_BAD_HANDSHAKE_LENGTH);
-    return 0;
-  }
-
-  /* Loop through bits of algorithm2 field and create MD_CTX-es */
-  for (i = 0; ssl_get_handshake_digest(i, &mask, &md); i++) {
-    if ((mask & ssl_get_algorithm2(s)) && md) {
-      s->s3->handshake_dgst[i] = EVP_MD_CTX_create();
-      if (s->s3->handshake_dgst[i] == NULL) {
-        OPENSSL_PUT_ERROR(SSL, ssl3_digest_cached_records, ERR_LIB_EVP);
-        return 0;
-      }
-      if (!EVP_DigestInit_ex(s->s3->handshake_dgst[i], md, NULL)) {
-        EVP_MD_CTX_destroy(s->s3->handshake_dgst[i]);
-        s->s3->handshake_dgst[i] = NULL;
-        OPENSSL_PUT_ERROR(SSL, ssl3_digest_cached_records, ERR_LIB_EVP);
-        return 0;
-      }
-      EVP_DigestUpdate(s->s3->handshake_dgst[i], hdata, hdatalen);
-    } else {
-      s->s3->handshake_dgst[i] = NULL;
+  if (ssl->s3->handshake_buffer != NULL) {
+    size_t new_len = ssl->s3->handshake_buffer->length + in_len;
+    if (new_len < in_len) {
+      OPENSSL_PUT_ERROR(SSL, ERR_R_OVERFLOW);
+      return 0;
     }
+    if (!BUF_MEM_grow(ssl->s3->handshake_buffer, new_len)) {
+      return 0;
+    }
+    memcpy(ssl->s3->handshake_buffer->data + new_len - in_len, in, in_len);
   }
 
-  if (should_free_handshake_buffer == free_handshake_buffer) {
-    /* Free handshake_buffer BIO */
-    BIO_free(s->s3->handshake_buffer);
-    s->s3->handshake_buffer = NULL;
+  if (EVP_MD_CTX_md(&ssl->s3->handshake_hash) != NULL) {
+    EVP_DigestUpdate(&ssl->s3->handshake_hash, in, in_len);
   }
-
+  if (EVP_MD_CTX_md(&ssl->s3->handshake_md5) != NULL) {
+    EVP_DigestUpdate(&ssl->s3->handshake_md5, in, in_len);
+  }
   return 1;
 }
 
@@ -356,41 +334,29 @@ int ssl3_final_finish_mac(SSL *s, const char *sender, int len, uint8_t *p) {
 static int ssl3_handshake_mac(SSL *s, int md_nid, const char *sender, int len,
                               uint8_t *p) {
   unsigned int ret;
-  int npad, n;
+  size_t npad, n;
   unsigned int i;
   uint8_t md_buf[EVP_MAX_MD_SIZE];
-  EVP_MD_CTX ctx, *d = NULL;
+  EVP_MD_CTX ctx;
+  const EVP_MD_CTX *ctx_template;
 
-  if (s->s3->handshake_buffer &&
-      !ssl3_digest_cached_records(s, free_handshake_buffer)) {
-    return 0;
-  }
-
-  /* Search for digest of specified type in the handshake_dgst array. */
-  for (i = 0; i < SSL_MAX_DIGEST; i++) {
-    if (s->s3->handshake_dgst[i] &&
-        EVP_MD_CTX_type(s->s3->handshake_dgst[i]) == md_nid) {
-      d = s->s3->handshake_dgst[i];
-      break;
-    }
-  }
-
-  if (!d) {
-    OPENSSL_PUT_ERROR(SSL, ssl3_handshake_mac, SSL_R_NO_REQUIRED_DIGEST);
+  if (md_nid == NID_md5) {
+    ctx_template = &s->s3->handshake_md5;
+  } else if (md_nid == EVP_MD_CTX_type(&s->s3->handshake_hash)) {
+    ctx_template = &s->s3->handshake_hash;
+  } else {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_NO_REQUIRED_DIGEST);
     return 0;
   }
 
   EVP_MD_CTX_init(&ctx);
-  if (!EVP_MD_CTX_copy_ex(&ctx, d)) {
+  if (!EVP_MD_CTX_copy_ex(&ctx, ctx_template)) {
     EVP_MD_CTX_cleanup(&ctx);
-    OPENSSL_PUT_ERROR(SSL, ssl3_handshake_mac, ERR_LIB_EVP);
+    OPENSSL_PUT_ERROR(SSL, ERR_LIB_EVP);
     return 0;
   }
 
   n = EVP_MD_CTX_size(&ctx);
-  if (n < 0) {
-    return 0;
-  }
 
   npad = (48 / n) * n;
   if (sender != NULL) {
@@ -402,7 +368,7 @@ static int ssl3_handshake_mac(SSL *s, int md_nid, const char *sender, int len,
 
   if (!EVP_DigestInit_ex(&ctx, EVP_MD_CTX_md(&ctx), NULL)) {
     EVP_MD_CTX_cleanup(&ctx);
-    OPENSSL_PUT_ERROR(SSL, ssl3_handshake_mac, ERR_LIB_EVP);
+    OPENSSL_PUT_ERROR(SSL, ERR_LIB_EVP);
     return 0;
   }
   EVP_DigestUpdate(&ctx, s->session->master_key, s->session->master_key_length);
@@ -415,15 +381,16 @@ static int ssl3_handshake_mac(SSL *s, int md_nid, const char *sender, int len,
   return ret;
 }
 
-void ssl3_record_sequence_update(uint8_t *seq) {
-  int i;
-
-  for (i = 7; i >= 0; i--) {
+int ssl3_record_sequence_update(uint8_t *seq, size_t seq_len) {
+  size_t i;
+  for (i = seq_len - 1; i < seq_len; i--) {
     ++seq[i];
     if (seq[i] != 0) {
-      break;
+      return 1;
     }
   }
+  OPENSSL_PUT_ERROR(SSL, ERR_R_OVERFLOW);
+  return 0;
 }
 
 int ssl3_alert_code(int code) {

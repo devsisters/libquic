@@ -61,8 +61,12 @@
 #include <openssl/mem.h>
 #include <openssl/obj.h>
 #include <openssl/stack.h>
+#include <openssl/thread.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+
+#include "../internal.h"
+
 
 /* Method to handle CRL access.
  * In general a CRL could be very large (several Mb) and can consume large
@@ -369,7 +373,7 @@ static void setup_idp(X509_CRL *crl, ISSUING_DIST_POINT *idp)
 	DIST_POINT_set_dpname(idp->distpoint, X509_CRL_get_issuer(crl));
 	}
 
-ASN1_SEQUENCE_ref(X509_CRL, crl_cb, CRYPTO_LOCK_X509_CRL) = {
+ASN1_SEQUENCE_ref(X509_CRL, crl_cb) = {
 	ASN1_SIMPLE(X509_CRL, crl, X509_CRL_INFO),
 	ASN1_SIMPLE(X509_CRL, sig_alg, X509_ALGOR),
 	ASN1_SIMPLE(X509_CRL, signature, ASN1_BIT_STRING)
@@ -396,7 +400,7 @@ int X509_CRL_add0_revoked(X509_CRL *crl, X509_REVOKED *rev)
 	if(!inf->revoked)
 		inf->revoked = sk_X509_REVOKED_new(X509_REVOKED_cmp);
 	if(!inf->revoked || !sk_X509_REVOKED_push(inf->revoked, rev)) {
-		OPENSSL_PUT_ERROR(X509, X509_CRL_add0_revoked, ERR_R_MALLOC_FAILURE);
+		OPENSSL_PUT_ERROR(X509, ERR_R_MALLOC_FAILURE);
 		return 0;
 	}
 	inf->enc.modified = 1;
@@ -462,6 +466,8 @@ static int crl_revoked_issuer_match(X509_CRL *crl, X509_NAME *nm,
 
 	}
 
+static struct CRYPTO_STATIC_MUTEX g_crl_sort_lock = CRYPTO_STATIC_MUTEX_INIT;
+
 static int def_crl_lookup(X509_CRL *crl,
 		X509_REVOKED **ret, ASN1_INTEGER *serial, X509_NAME *issuer)
 	{
@@ -470,13 +476,22 @@ static int def_crl_lookup(X509_CRL *crl,
 	rtmp.serialNumber = serial;
 	/* Sort revoked into serial number order if not already sorted.
 	 * Do this under a lock to avoid race condition.
- 	 */
-	if (!sk_X509_REVOKED_is_sorted(crl->crl->revoked))
+	 */
+
+	CRYPTO_STATIC_MUTEX_lock_read(&g_crl_sort_lock);
+	const int is_sorted = sk_X509_REVOKED_is_sorted(crl->crl->revoked);
+	CRYPTO_STATIC_MUTEX_unlock(&g_crl_sort_lock);
+
+	if (!is_sorted)
 		{
-		CRYPTO_w_lock(CRYPTO_LOCK_X509_CRL);
-		sk_X509_REVOKED_sort(crl->crl->revoked);
-		CRYPTO_w_unlock(CRYPTO_LOCK_X509_CRL);
+		CRYPTO_STATIC_MUTEX_lock_write(&g_crl_sort_lock);
+		if (!sk_X509_REVOKED_is_sorted(crl->crl->revoked))
+			{
+			sk_X509_REVOKED_sort(crl->crl->revoked);
+			}
+		CRYPTO_STATIC_MUTEX_unlock(&g_crl_sort_lock);
 		}
+
 	if (!sk_X509_REVOKED_find(crl->crl->revoked, &idx, &rtmp))
 		return 0;
 	/* Need to look for matching name */

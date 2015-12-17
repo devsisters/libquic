@@ -8,6 +8,7 @@
 #define NET_QUIC_QUIC_BANDWIDTH_H_
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "net/quic/quic_time.h"
 
 namespace net {
@@ -50,11 +51,11 @@ class NET_EXPORT_PRIVATE QuicBandwidth {
 
   bool IsZero() const;
 
-  QuicBandwidth Add(const QuicBandwidth& delta) const;
+  QuicBandwidth Add(const QuicBandwidth& delta) const WARN_UNUSED_RESULT;
 
-  QuicBandwidth Subtract(const QuicBandwidth& delta) const;
+  QuicBandwidth Subtract(const QuicBandwidth& delta) const WARN_UNUSED_RESULT;
 
-  QuicBandwidth Scale(float scale_factor) const;
+  QuicBandwidth Scale(float scale_factor) const WARN_UNUSED_RESULT;
 
   QuicTime::Delta TransferTime(QuicByteCount bytes) const;
 

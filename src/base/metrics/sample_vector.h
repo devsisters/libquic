@@ -20,7 +20,7 @@ namespace base {
 
 class BucketRanges;
 
-class BASE_EXPORT_PRIVATE SampleVector : public HistogramSamples {
+class BASE_EXPORT SampleVector : public HistogramSamples {
  public:
   explicit SampleVector(const BucketRanges* bucket_ranges);
   ~SampleVector() override;
@@ -53,7 +53,7 @@ class BASE_EXPORT_PRIVATE SampleVector : public HistogramSamples {
   DISALLOW_COPY_AND_ASSIGN(SampleVector);
 };
 
-class BASE_EXPORT_PRIVATE SampleVectorIterator : public SampleCountIterator {
+class BASE_EXPORT SampleVectorIterator : public SampleCountIterator {
  public:
   SampleVectorIterator(const std::vector<HistogramBase::AtomicCount>* counts,
                        const BucketRanges* bucket_ranges);

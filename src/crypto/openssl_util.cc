@@ -35,11 +35,12 @@ class OpenSSLInitSingleton {
     //      we can't control the order the AtExit handlers will run in so
     //      allowing the global environment to leak at least ensures it is
     //      available for those other singletons to reliably cleanup.
-    return Singleton<OpenSSLInitSingleton,
-               LeakySingletonTraits<OpenSSLInitSingleton> >::get();
+    return base::Singleton<
+        OpenSSLInitSingleton,
+        base::LeakySingletonTraits<OpenSSLInitSingleton>>::get();
   }
  private:
-  friend struct DefaultSingletonTraits<OpenSSLInitSingleton>;
+  friend struct base::DefaultSingletonTraits<OpenSSLInitSingleton>;
   OpenSSLInitSingleton() {
 #if defined(OS_ANDROID) && defined(ARCH_CPU_ARMEL)
     const bool has_neon =

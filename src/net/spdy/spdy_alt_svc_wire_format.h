@@ -5,7 +5,7 @@
 // This file contains data structures and utility functions used for serializing
 // and parsing alternative service header values, common to HTTP/1.1 header
 // fields and HTTP/2 and QUIC ALTSVC frames.  See specification at
-// https://tools.ietf.org/id/draft-ietf-httpbis-alt-svc-06.html
+// https://httpwg.github.io/http-extensions/alt-svc.html.
 
 #ifndef NET_SPDY_SPDY_ALT_SVC_WIRE_FORMAT_H_
 #define NET_SPDY_SPDY_ALT_SVC_WIRE_FORMAT_H_
@@ -26,30 +26,39 @@ class SpdyAltSvcWireFormatPeer;
 
 class NET_EXPORT_PRIVATE SpdyAltSvcWireFormat {
  public:
-  struct AlternativeService {
+  using VersionVector = std::vector<uint16>;
+
+  struct NET_EXPORT_PRIVATE AlternativeService {
     std::string protocol_id;
     std::string host;
-    uint16 port;
-    uint32 max_age;
-    double p;
 
-    AlternativeService() = default;
+    // Default is 0: invalid port.
+    uint16 port = 0;
+    // Default is one day.
+    uint32 max_age = 86400;
+    // Default is always use.
+    double probability = 1.0;
+    // Default is empty: unspecified version.
+    VersionVector version;
+
+    AlternativeService();
     AlternativeService(const std::string& protocol_id,
                        const std::string& host,
                        uint16 port,
                        uint32 max_age,
-                       double p)
-        : protocol_id(protocol_id),
-          host(host),
-          port(port),
-          max_age(max_age),
-          p(p) {}
+                       double probability,
+                       VersionVector version);
+    ~AlternativeService();
 
     bool operator==(const AlternativeService& other) const {
       return protocol_id == other.protocol_id && host == other.host &&
-             port == other.port && max_age == other.max_age && p == other.p;
+             port == other.port && version == other.version &&
+             max_age == other.max_age && probability == other.probability;
     }
   };
+  // An empty vector means alternative services should be cleared for given
+  // origin.  Note that the wire format for this is the string "clear", not an
+  // empty value (which is invalid).
   typedef std::vector<AlternativeService> AlternativeServiceVector;
 
   friend class test::SpdyAltSvcWireFormatPeer;
@@ -76,7 +85,7 @@ class NET_EXPORT_PRIVATE SpdyAltSvcWireFormat {
                                      uint32* value);
   static bool ParseProbability(StringPiece::const_iterator c,
                                StringPiece::const_iterator end,
-                               double* p);
+                               double* probability);
 };
 
 }  // namespace net

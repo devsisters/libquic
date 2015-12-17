@@ -24,7 +24,7 @@ extern "C" {
 
 /* Authenticated Encryption with Additional Data.
  *
- * AEAD couples confidentiality and integrity in a single primtive. AEAD
+ * AEAD couples confidentiality and integrity in a single primitive. AEAD
  * algorithms take a key and then can seal and open individual messages. Each
  * message has a unique, per-message nonce and, optionally, additional data
  * which is authenticated but not included in the ciphertext.
@@ -98,8 +98,22 @@ OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_128_gcm(void);
 /* EVP_aead_aes_256_gcm is AES-256 in Galois Counter Mode. */
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_256_gcm(void);
 
-/* EVP_aead_chacha20_poly1305 is an AEAD built from ChaCha20 and Poly1305. */
+/* EVP_aead_chacha20_poly1305_old is an AEAD built from ChaCha20 and
+ * Poly1305 that is used in the experimental ChaCha20-Poly1305 TLS cipher
+ * suites. */
+OPENSSL_EXPORT const EVP_AEAD *EVP_aead_chacha20_poly1305_old(void);
+
+/* EVP_aead_chacha20_poly1305 is currently an alias for
+ * |EVP_aead_chacha20_poly1305_old|. In the future, the RFC 7539 version will
+ * take this name. */
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_chacha20_poly1305(void);
+
+/* EVP_aead_chacha20_poly1305_rfc7539 is the AEAD built from ChaCha20 and
+ * Poly1305 as described in RFC 7539.
+ *
+ * WARNING: this function is not ready yet. It will be renamed in the future to
+ * drop the “_rfc7539” suffix. */
+OPENSSL_EXPORT const EVP_AEAD *EVP_aead_chacha20_poly1305_rfc7539(void);
 
 /* EVP_aead_aes_128_key_wrap is AES-128 Key Wrap mode. This should never be
  * used except to interoperate with existing systems that use this mode.
@@ -115,18 +129,28 @@ OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_128_key_wrap(void);
  * See |EVP_aead_aes_128_key_wrap| for details. */
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_256_key_wrap(void);
 
+/* EVP_aead_aes_128_ctr_hmac_sha256 is AES-128 in CTR mode with HMAC-SHA256 for
+ * authentication. The nonce is 12 bytes; the bottom 32-bits are used as the
+ * block counter, thus the maximum plaintext size is 64GB. */
+OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_128_ctr_hmac_sha256(void);
+
+/* EVP_aead_aes_256_ctr_hmac_sha256 is AES-256 in CTR mode with HMAC-SHA256 for
+ * authentication. See |EVP_aead_aes_128_ctr_hmac_sha256| for details. */
+OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_256_ctr_hmac_sha256(void);
+
 /* EVP_has_aes_hardware returns one if we enable hardware support for fast and
  * constant-time AES-GCM. */
 OPENSSL_EXPORT int EVP_has_aes_hardware(void);
 
 
-/* TLS specific AEAD algorithms.
+/* TLS-specific AEAD algorithms.
  *
  * These AEAD primitives do not meet the definition of generic AEADs. They are
- * all specific to TLS in some fashion and should not be used outside of that
- * context. They require an additional data of length 11 (the standard TLS one
- * with the length omitted). They are also stateful, so a given |EVP_AEAD_CTX|
- * may only be used for one of seal or open, but not both. */
+ * all specific to TLS and should not be used outside of that context. They must
+ * be initialized with |EVP_AEAD_CTX_init_with_direction|, are stateful, and may
+ * not be used concurrently. Any nonces are used as IVs, so they must be
+ * unpredictable. They only accept an |ad| parameter of length 11 (the standard
+ * TLS one with length omitted). */
 
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_rc4_md5_tls(void);
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_rc4_sha1_tls(void);
@@ -143,18 +167,23 @@ OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_256_cbc_sha384_tls(void);
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls(void);
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls_implicit_iv(void);
 
+OPENSSL_EXPORT const EVP_AEAD *EVP_aead_null_sha1_tls(void);
 
-/* SSLv3 specific AEAD algorithms.
+
+/* SSLv3-specific AEAD algorithms.
  *
  * These AEAD primitives do not meet the definition of generic AEADs. They are
- * all specific to SSLv3 in some fashion and should not be used outside of that
- * context. */
+ * all specific to SSLv3 and should not be used outside of that context. They
+ * must be initialized with |EVP_AEAD_CTX_init_with_direction|, are stateful,
+ * and may not be used concurrently. They only accept an |ad| parameter of
+ * length 9 (the standard TLS one with length and version omitted). */
 
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_rc4_md5_ssl3(void);
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_rc4_sha1_ssl3(void);
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_128_cbc_sha1_ssl3(void);
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_256_cbc_sha1_ssl3(void);
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_ssl3(void);
+OPENSSL_EXPORT const EVP_AEAD *EVP_aead_null_sha1_ssl3(void);
 
 
 /* Utility functions. */
@@ -211,12 +240,21 @@ enum evp_aead_direction_t {
   evp_aead_seal,
 };
 
-/* EVP_AEAD_CTX_init initializes |ctx| for the given AEAD algorithm from |impl|.
- * The |impl| argument may be NULL to choose the default implementation.
- * Authentication tags may be truncated by passing a size as |tag_len|. A
- * |tag_len| of zero indicates the default tag length and this is defined as
- * EVP_AEAD_DEFAULT_TAG_LENGTH for readability.
- * Returns 1 on success. Otherwise returns 0 and pushes to the error stack. */
+/* EVP_AEAD_CTX_zero sets an uninitialized |ctx| to the zero state. It must be
+ * initialized with |EVP_AEAD_CTX_init| before use. It is safe, but not
+ * necessary, to call |EVP_AEAD_CTX_cleanup| in this state. This may be used for
+ * more uniform cleanup of |EVP_AEAD_CTX|. */
+OPENSSL_EXPORT void EVP_AEAD_CTX_zero(EVP_AEAD_CTX *ctx);
+
+/* EVP_AEAD_CTX_init initializes |ctx| for the given AEAD algorithm. The |impl|
+ * argument is ignored and should be NULL. Authentication tags may be truncated
+ * by passing a size as |tag_len|. A |tag_len| of zero indicates the default
+ * tag length and this is defined as EVP_AEAD_DEFAULT_TAG_LENGTH for
+ * readability.
+ *
+ * Returns 1 on success. Otherwise returns 0 and pushes to the error stack. In
+ * the error case, you do not need to call |EVP_AEAD_CTX_cleanup|, but it's
+ * harmless to do so. */
 OPENSSL_EXPORT int EVP_AEAD_CTX_init(EVP_AEAD_CTX *ctx, const EVP_AEAD *aead,
                                      const uint8_t *key, size_t key_len,
                                      size_t tag_len, ENGINE *impl);
@@ -228,7 +266,9 @@ OPENSSL_EXPORT int EVP_AEAD_CTX_init_with_direction(
     EVP_AEAD_CTX *ctx, const EVP_AEAD *aead, const uint8_t *key, size_t key_len,
     size_t tag_len, enum evp_aead_direction_t dir);
 
-/* EVP_AEAD_CTX_cleanup frees any data allocated by |ctx|. */
+/* EVP_AEAD_CTX_cleanup frees any data allocated by |ctx|. It is a no-op to
+ * call |EVP_AEAD_CTX_cleanup| on a |EVP_AEAD_CTX| that has been |memset| to
+ * all zeros. */
 OPENSSL_EXPORT void EVP_AEAD_CTX_cleanup(EVP_AEAD_CTX *ctx);
 
 /* EVP_AEAD_CTX_seal encrypts and authenticates |in_len| bytes from |in| and
@@ -240,8 +280,8 @@ OPENSSL_EXPORT void EVP_AEAD_CTX_cleanup(EVP_AEAD_CTX *ctx);
  *
  * At most |max_out_len| bytes are written to |out| and, in order to ensure
  * success, |max_out_len| should be |in_len| plus the result of
- * |EVP_AEAD_overhead|. On successful return, |*out_len| is set to the actual
- * number of bytes written.
+ * |EVP_AEAD_max_overhead|. On successful return, |*out_len| is set to the
+ * actual number of bytes written.
  *
  * The length of |nonce|, |nonce_len|, must be equal to the result of
  * |EVP_AEAD_nonce_length| for this AEAD.
@@ -281,6 +321,22 @@ OPENSSL_EXPORT int EVP_AEAD_CTX_open(const EVP_AEAD_CTX *ctx, uint8_t *out,
                                      const uint8_t *nonce, size_t nonce_len,
                                      const uint8_t *in, size_t in_len,
                                      const uint8_t *ad, size_t ad_len);
+
+
+/* Obscure functions. */
+
+/* EVP_AEAD_CTX_get_rc4_state sets |*out_key| to point to an RC4 key structure.
+ * It returns one on success or zero if |ctx| doesn't have an RC4 key. */
+OPENSSL_EXPORT int EVP_AEAD_CTX_get_rc4_state(const EVP_AEAD_CTX *ctx,
+                                              const RC4_KEY **out_key);
+
+/* EVP_AEAD_CTX_get_iv sets |*out_len| to the length of the IV for |ctx| and
+ * sets |*out_iv| to point to that many bytes of the current IV. This is only
+ * meaningful for AEADs with implicit IVs (i.e. CBC mode in SSLv3 and TLS 1.0).
+ *
+ * It returns one on success or zero on error. */
+OPENSSL_EXPORT int EVP_AEAD_CTX_get_iv(const EVP_AEAD_CTX *ctx,
+                                       const uint8_t **out_iv, size_t *out_len);
 
 
 #if defined(__cplusplus)

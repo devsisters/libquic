@@ -45,7 +45,7 @@
 # processes one byte in 8.45 cycles, A9 - in 10.2, A15 - in 7.63,
 # Snapdragon S4 - in 9.33.
 #
-# Câmara, D.; Gouvêa, C. P. L.; López, J. & Dahab, R.: Fast Software
+# CÃ¢mara, D.; GouvÃªa, C. P. L.; LÃ³pez, J. & Dahab, R.: Fast Software
 # Polynomial Multiplication on ARM Processors using the NEON Engine.
 # 
 # http://conradoplg.cryptoland.net/files/2010/12/mocrysen13.pdf
@@ -71,8 +71,20 @@
 # *native* byte order on current platform. See gcm128.c for working
 # example...
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
-open STDOUT,">$output";
+$flavour = shift;
+if ($flavour=~/^\w[\w\-]*\.\w+$/) { $output=$flavour; undef $flavour; }
+else { while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {} }
+
+if ($flavour && $flavour ne "void") {
+    $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+    ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
+    ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
+    die "can't locate arm-xlate.pl";
+
+    open STDOUT,"| \"$^X\" $xlate $flavour $output";
+} else {
+    open STDOUT,">$output";
+}
 
 $Xi="r0";	# argument block
 $Htbl="r1";
@@ -121,13 +133,17 @@ ___
 }
 
 $code=<<___;
-#if defined(__arm__)
-#include "arm_arch.h"
+#include <openssl/arm_arch.h>
 
 .syntax unified
 
 .text
 .code	32
+
+#ifdef  __clang__
+#define ldrplb  ldrbpl
+#define ldrneb  ldrbne
+#endif
 
 .type	rem_4bit,%object
 .align	5
@@ -370,7 +386,8 @@ ___
 }
 
 $code.=<<___;
-#if __ARM_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7
+.arch	armv7-a
 .fpu	neon
 
 .global	gcm_init_neon
@@ -378,9 +395,9 @@ $code.=<<___;
 .type	gcm_init_neon,%function
 .align	4
 gcm_init_neon:
-	vld1.64		$IN#hi,[r1,:64]!	@ load H
+	vld1.64		$IN#hi,[r1]!		@ load H
 	vmov.i8		$t0,#0xe1
-	vld1.64		$IN#lo,[r1,:64]
+	vld1.64		$IN#lo,[r1]
 	vshl.i64	$t0#hi,#57
 	vshr.u64	$t0#lo,#63		@ t0=0xc2....01
 	vdup.8		$t1,$IN#hi[7]
@@ -392,7 +409,7 @@ gcm_init_neon:
 	veor		$IN,$IN,$t0		@ twisted H
 	vstmia		r0,{$IN}
 
-	bx	lr
+	ret					@ bx lr
 .size	gcm_init_neon,.-gcm_init_neon
 
 .global	gcm_gmult_neon
@@ -400,8 +417,8 @@ gcm_init_neon:
 .type	gcm_gmult_neon,%function
 .align	4
 gcm_gmult_neon:
-	vld1.64		$IN#hi,[$Xi,:64]!	@ load Xi
-	vld1.64		$IN#lo,[$Xi,:64]!
+	vld1.64		$IN#hi,[$Xi]!		@ load Xi
+	vld1.64		$IN#lo,[$Xi]!
 	vmov.i64	$k48,#0x0000ffffffffffff
 	vldmia		$Htbl,{$Hlo-$Hhi}	@ load twisted H
 	vmov.i64	$k32,#0x00000000ffffffff
@@ -419,8 +436,8 @@ gcm_gmult_neon:
 .type	gcm_ghash_neon,%function
 .align	4
 gcm_ghash_neon:
-	vld1.64		$Xl#hi,[$Xi,:64]!	@ load Xi
-	vld1.64		$Xl#lo,[$Xi,:64]!
+	vld1.64		$Xl#hi,[$Xi]!		@ load Xi
+	vld1.64		$Xl#lo,[$Xi]!
 	vmov.i64	$k48,#0x0000ffffffffffff
 	vldmia		$Htbl,{$Hlo-$Hhi}	@ load twisted H
 	vmov.i64	$k32,#0x00000000ffffffff
@@ -439,12 +456,12 @@ gcm_ghash_neon:
 	veor		$IN,$Xl			@ inp^=Xi
 .Lgmult_neon:
 ___
-	&clmul64x64	($Xl,$Hlo,"$IN#lo");	# H.lo·Xi.lo
+	&clmul64x64	($Xl,$Hlo,"$IN#lo");	# H.loÂ·Xi.lo
 $code.=<<___;
 	veor		$IN#lo,$IN#lo,$IN#hi	@ Karatsuba pre-processing
 ___
-	&clmul64x64	($Xm,$Hhl,"$IN#lo");	# (H.lo+H.hi)·(Xi.lo+Xi.hi)
-	&clmul64x64	($Xh,$Hhi,"$IN#hi");	# H.hi·Xi.hi
+	&clmul64x64	($Xm,$Hhl,"$IN#lo");	# (H.lo+H.hi)Â·(Xi.lo+Xi.hi)
+	&clmul64x64	($Xh,$Hhi,"$IN#hi");	# H.hiÂ·Xi.hi
 $code.=<<___;
 	veor		$Xm,$Xm,$Xl		@ Karatsuba post-processing
 	veor		$Xm,$Xm,$Xh
@@ -475,10 +492,10 @@ $code.=<<___;
 	vrev64.8	$Xl,$Xl
 #endif
 	sub		$Xi,#16	
-	vst1.64		$Xl#hi,[$Xi,:64]!	@ write out Xi
-	vst1.64		$Xl#lo,[$Xi,:64]
+	vst1.64		$Xl#hi,[$Xi]!		@ write out Xi
+	vst1.64		$Xl#lo,[$Xi]
 
-	bx	lr
+	ret					@ bx lr
 .size	gcm_ghash_neon,.-gcm_ghash_neon
 #endif
 ___
@@ -486,14 +503,13 @@ ___
 $code.=<<___;
 .asciz  "GHASH for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
 .align  2
-
-#endif
 ___
 
 foreach (split("\n",$code)) {
 	s/\`([^\`]*)\`/eval $1/geo;
 
 	s/\bq([0-9]+)#(lo|hi)/sprintf "d%d",2*$1+($2 eq "hi")/geo	or
+	s/\bret\b/bx	lr/go		or
 	s/\bbx\s+lr\b/.word\t0xe12fff1e/go;    # make it possible to compile with -march=armv4
 
 	print $_,"\n";

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -58,7 +59,7 @@ NET_EXPORT bool ParseURLHostnameToNumber(const std::string& hostname,
 
 // Parses an IP address literal (either IPv4 or IPv6) to its numeric value.
 // Returns true on success and fills |ip_number| with the numeric value.
-NET_EXPORT bool ParseIPLiteralToNumber(const std::string& ip_literal,
+NET_EXPORT bool ParseIPLiteralToNumber(const base::StringPiece& ip_literal,
                                        IPAddressNumber* ip_number);
 
 // Converts an IPv4 address to an IPv4-mapped IPv6 address.

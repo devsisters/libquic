@@ -21,7 +21,7 @@ bool NullEncrypter::SetNoncePrefix(StringPiece nonce_prefix) {
   return nonce_prefix.empty();
 }
 
-bool NullEncrypter::EncryptPacket(QuicPacketSequenceNumber /*sequence_number*/,
+bool NullEncrypter::EncryptPacket(QuicPacketNumber /*packet_number*/,
                                   StringPiece associated_data,
                                   StringPiece plaintext,
                                   char* output,

@@ -7,6 +7,8 @@
 #if defined(OS_WIN)
 #include <io.h>
 #include <windows.h>
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 typedef HANDLE FileHandle;
 typedef HANDLE MutexHandle;
 // Windows warns on using write().  It prefers _write().
@@ -14,6 +16,8 @@ typedef HANDLE MutexHandle;
 // Windows doesn't define STDERR_FILENO.  Define it here.
 #define STDERR_FILENO 2
 #elif defined(OS_MACOSX)
+#include <asl.h>
+#include <CoreFoundation/CoreFoundation.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <mach-o/dyld.h>
@@ -28,10 +32,12 @@ typedef HANDLE MutexHandle;
 
 #if defined(OS_POSIX)
 #include <errno.h>
+#include <paths.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #define MAX_PATH PATH_MAX
 typedef FILE* FileHandle;
@@ -54,6 +60,7 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/lock_impl.h"
 #include "base/threading/platform_thread.h"
@@ -176,6 +183,9 @@ PathString GetDefaultLogFile() {
 #endif
 }
 
+// We don't need locks on Windows for atomically appending to files. The OS
+// provides this functionality.
+#if !defined(OS_WIN)
 // This class acts as a wrapper for locking the logging files.
 // LoggingLock::Init() should be called from the main thread before any logging
 // is done. Then whenever logging, be sure to have a local LoggingLock
@@ -196,48 +206,17 @@ class LoggingLock {
     if (initialized)
       return;
     lock_log_file = lock_log;
-    if (lock_log_file == LOCK_LOG_FILE) {
-#if defined(OS_WIN)
-      if (!log_mutex) {
-        std::wstring safe_name;
-        if (new_log_file)
-          safe_name = new_log_file;
-        else
-          safe_name = GetDefaultLogFile();
-        // \ is not a legal character in mutex names so we replace \ with /
-        std::replace(safe_name.begin(), safe_name.end(), '\\', '/');
-        std::wstring t(L"Global\\");
-        t.append(safe_name);
-        log_mutex = ::CreateMutex(nullptr, FALSE, t.c_str());
 
-        if (log_mutex == nullptr) {
-#if DEBUG
-          // Keep the error code for debugging
-          int error = GetLastError();  // NOLINT
-          base::debug::BreakDebugger();
-#endif
-          // Return nicely without putting initialized to true.
-          return;
-        }
-      }
-#endif
-    } else {
+    if (lock_log_file != LOCK_LOG_FILE)
       log_lock = new base::internal::LockImpl();
-    }
+
     initialized = true;
   }
 
  private:
   static void LockLogging() {
     if (lock_log_file == LOCK_LOG_FILE) {
-#if defined(OS_WIN)
-      ::WaitForSingleObject(log_mutex, INFINITE);
-      // WaitForSingleObject could have returned WAIT_ABANDONED. We don't
-      // abort the process here. UI tests might be crashy sometimes,
-      // and aborting the test binary only makes the problem worse.
-      // We also don't use LOG macros because that might lead to an infinite
-      // loop. For more info see http://crbug.com/18028.
-#elif defined(OS_POSIX)
+#if defined(OS_POSIX)
       pthread_mutex_lock(&log_mutex);
 #endif
     } else {
@@ -248,9 +227,7 @@ class LoggingLock {
 
   static void UnlockLogging() {
     if (lock_log_file == LOCK_LOG_FILE) {
-#if defined(OS_WIN)
-      ReleaseMutex(log_mutex);
-#elif defined(OS_POSIX)
+#if defined(OS_POSIX)
       pthread_mutex_unlock(&log_mutex);
 #endif
     } else {
@@ -265,9 +242,7 @@ class LoggingLock {
 
   // When we don't use a lock, we are using a global mutex. We need to do this
   // because LockFileEx is not thread safe.
-#if defined(OS_WIN)
-  static MutexHandle log_mutex;
-#elif defined(OS_POSIX)
+#if defined(OS_POSIX)
   static pthread_mutex_t log_mutex;
 #endif
 
@@ -282,12 +257,11 @@ base::internal::LockImpl* LoggingLock::log_lock = nullptr;
 // static
 LogLockingState LoggingLock::lock_log_file = LOCK_LOG_FILE;
 
-#if defined(OS_WIN)
-// static
-MutexHandle LoggingLock::log_mutex = nullptr;
-#elif defined(OS_POSIX)
+#if defined(OS_POSIX)
 pthread_mutex_t LoggingLock::log_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
+
+#endif  // OS_WIN
 
 // Called by logging functions to ensure that |g_log_file| is initialized
 // and can be used for writing. Returns false if the file could not be
@@ -304,12 +278,23 @@ bool InitializeLogFileHandle() {
 
   if ((g_logging_destination & LOG_TO_FILE) != 0) {
 #if defined(OS_WIN)
-    g_log_file = CreateFile(g_log_file_name->c_str(), GENERIC_WRITE,
+    // The FILE_APPEND_DATA access mask ensures that the file is atomically
+    // appended to across accesses from multiple threads.
+    // https://msdn.microsoft.com/en-us/library/windows/desktop/aa364399(v=vs.85).aspx
+    // https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
+    g_log_file = CreateFile(g_log_file_name->c_str(), FILE_APPEND_DATA,
                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                             OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (g_log_file == INVALID_HANDLE_VALUE || g_log_file == nullptr) {
       // try the current directory
-      g_log_file = CreateFile(L".\\debug.log", GENERIC_WRITE,
+      base::FilePath file_path;
+      if (!base::GetCurrentDirectory(&file_path))
+        return false;
+
+      *g_log_file_name = file_path.Append(
+          FILE_PATH_LITERAL("debug.log")).value();
+
+      g_log_file = CreateFile(g_log_file_name->c_str(), FILE_APPEND_DATA,
                               FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                               OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
       if (g_log_file == INVALID_HANDLE_VALUE || g_log_file == nullptr) {
@@ -317,7 +302,6 @@ bool InitializeLogFileHandle() {
         return false;
       }
     }
-    SetFilePointer(g_log_file, 0, 0, FILE_END);
 #elif defined(OS_POSIX)
     g_log_file = fopen(g_log_file_name->c_str(), "a");
     if (g_log_file == nullptr)
@@ -380,8 +364,10 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   if ((g_logging_destination & LOG_TO_FILE) == 0)
     return true;
 
+#if !defined(OS_WIN)
   LoggingLock::Init(settings.lock_log, settings.log_file);
   LoggingLock logging_lock;
+#endif
 
   // Calling InitLogging twice or after some log call has already opened the
   // default log file will re-initialize to the new options.
@@ -468,38 +454,8 @@ void DisplayDebugMessageInDialog(const std::string& str) {
     return;
 
 #if defined(OS_WIN)
-  // For Windows programs, it's possible that the message loop is
-  // messed up on a fatal error, and creating a MessageBox will cause
-  // that message loop to be run. Instead, we try to spawn another
-  // process that displays its command line. We look for "Debug
-  // Message.exe" in the same directory as the application. If it
-  // exists, we use it, otherwise, we use a regular message box.
-  wchar_t prog_name[MAX_PATH];
-  GetModuleFileNameW(nullptr, prog_name, MAX_PATH);
-  wchar_t* backslash = wcsrchr(prog_name, '\\');
-  if (backslash)
-    backslash[1] = 0;
-  wcscat_s(prog_name, MAX_PATH, L"debug_message.exe");
-
-  std::wstring cmdline = base::UTF8ToWide(str);
-  if (cmdline.empty())
-    return;
-
-  STARTUPINFO startup_info;
-  memset(&startup_info, 0, sizeof(startup_info));
-  startup_info.cb = sizeof(startup_info);
-
-  PROCESS_INFORMATION process_info;
-  if (CreateProcessW(prog_name, &cmdline[0], nullptr, nullptr, false, 0,
-                     nullptr, nullptr, &startup_info, &process_info)) {
-    WaitForSingleObject(process_info.hProcess, INFINITE);
-    CloseHandle(process_info.hThread);
-    CloseHandle(process_info.hProcess);
-  } else {
-    // debug process broken, let's just do a message box
-    MessageBoxW(nullptr, &cmdline[0], L"Fatal error",
-                MB_OK | MB_ICONHAND | MB_TOPMOST);
-  }
+  MessageBoxW(nullptr, base::UTF8ToUTF16(str).c_str(), L"Fatal error",
+              MB_OK | MB_ICONHAND | MB_TOPMOST);
 #else
   // We intentionally don't implement a dialog on other platforms.
   // You can just look at stderr.
@@ -521,6 +477,12 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
   Init(file, line);
 }
 
+LogMessage::LogMessage(const char* file, int line, const char* condition)
+    : severity_(LOG_FATAL), file_(file), line_(line) {
+  Init(file, line);
+  stream_ << "Check failed: " << condition << ". ";
+}
+
 LogMessage::LogMessage(const char* file, int line, std::string* result)
     : severity_(LOG_FATAL), file_(file), line_(line) {
   Init(file, line);
@@ -537,9 +499,9 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity,
 }
 
 LogMessage::~LogMessage() {
-#if !defined(NDEBUG) && !defined(OS_NACL) && !defined(__UCLIBC__)
-  if (severity_ == LOG_FATAL) {
-    // Include a stack trace on a fatal.
+#if !defined(OFFICIAL_BUILD) && !defined(OS_NACL) && !defined(__UCLIBC__)
+  if (severity_ == LOG_FATAL && !base::debug::BeingDebugged()) {
+    // Include a stack trace on a fatal, unless a debugger is attached.
     base::debug::StackTrace trace;
     stream_ << std::endl;  // Newline to separate from log message.
     trace.OutputToStream(&stream_);
@@ -559,6 +521,121 @@ LogMessage::~LogMessage() {
   if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
 #if defined(OS_WIN)
     OutputDebugStringA(str_newline.c_str());
+#elif defined(OS_MACOSX)
+    // In LOG_TO_SYSTEM_DEBUG_LOG mode, log messages are always written to
+    // stderr. If stderr is /dev/null, also log via ASL (Apple System Log). If
+    // there's something weird about stderr, assume that log messages are going
+    // nowhere and log via ASL too. Messages logged via ASL show up in
+    // Console.app.
+    //
+    // Programs started by launchd, as UI applications normally are, have had
+    // stderr connected to /dev/null since OS X 10.8. Prior to that, stderr was
+    // a pipe to launchd, which logged what it received (see log_redirect_fd in
+    // 10.7.5 launchd-392.39/launchd/src/launchd_core_logic.c).
+    //
+    // Another alternative would be to determine whether stderr is a pipe to
+    // launchd and avoid logging via ASL only in that case. See 10.7.5
+    // CF-635.21/CFUtilities.c also_do_stderr(). This would result in logging to
+    // both stderr and ASL even in tests, where it's undesirable to log to the
+    // system log at all.
+    //
+    // Note that the ASL client by default discards messages whose levels are
+    // below ASL_LEVEL_NOTICE. It's possible to change that with
+    // asl_set_filter(), but this is pointless because syslogd normally applies
+    // the same filter.
+    const bool log_via_asl = []() {
+      struct stat stderr_stat;
+      if (fstat(fileno(stderr), &stderr_stat) == -1) {
+        return true;
+      }
+      if (!S_ISCHR(stderr_stat.st_mode)) {
+        return false;
+      }
+
+      struct stat dev_null_stat;
+      if (stat(_PATH_DEVNULL, &dev_null_stat) == -1) {
+        return true;
+      }
+
+      return !S_ISCHR(dev_null_stat.st_mode) ||
+             stderr_stat.st_rdev == dev_null_stat.st_rdev;
+    }();
+
+    if (log_via_asl) {
+      // Log roughly the same way that CFLog() and NSLog() would. See 10.10.5
+      // CF-1153.18/CFUtilities.c __CFLogCString().
+      //
+      // The ASL facility is set to the main bundle ID if available. Otherwise,
+      // "com.apple.console" is used.
+      CFBundleRef main_bundle = CFBundleGetMainBundle();
+      CFStringRef main_bundle_id_cf =
+          main_bundle ? CFBundleGetIdentifier(main_bundle) : nullptr;
+      std::string asl_facility =
+          main_bundle_id_cf ? base::SysCFStringRefToUTF8(main_bundle_id_cf)
+                            : std::string("com.apple.console");
+
+      class ASLClient {
+       public:
+        explicit ASLClient(const std::string& asl_facility)
+            : client_(asl_open(nullptr,
+                               asl_facility.c_str(),
+                               ASL_OPT_NO_DELAY)) {}
+        ~ASLClient() { asl_close(client_); }
+
+        aslclient get() const { return client_; }
+
+       private:
+        aslclient client_;
+        DISALLOW_COPY_AND_ASSIGN(ASLClient);
+      } asl_client(asl_facility);
+
+      class ASLMessage {
+       public:
+        ASLMessage() : message_(asl_new(ASL_TYPE_MSG)) {}
+        ~ASLMessage() { asl_free(message_); }
+
+        aslmsg get() const { return message_; }
+
+       private:
+        aslmsg message_;
+        DISALLOW_COPY_AND_ASSIGN(ASLMessage);
+      } asl_message;
+
+      // By default, messages are only readable by the admin group. Explicitly
+      // make them readable by the user generating the messages.
+      char euid_string[12];
+      snprintf(euid_string, arraysize(euid_string), "%d", geteuid());
+      asl_set(asl_message.get(), ASL_KEY_READ_UID, euid_string);
+
+      // Map Chrome log severities to ASL log levels.
+      const char* const asl_level_string = [](LogSeverity severity) {
+        // ASL_LEVEL_* are ints, but ASL needs equivalent strings. This
+        // non-obvious two-step macro trick achieves what's needed.
+        // https://gcc.gnu.org/onlinedocs/cpp/Stringification.html
+#define ASL_LEVEL_STR(level) ASL_LEVEL_STR_X(level)
+#define ASL_LEVEL_STR_X(level) #level
+        switch (severity) {
+          case LOG_INFO:
+            return ASL_LEVEL_STR(ASL_LEVEL_INFO);
+          case LOG_WARNING:
+            return ASL_LEVEL_STR(ASL_LEVEL_WARNING);
+          case LOG_ERROR:
+            return ASL_LEVEL_STR(ASL_LEVEL_ERR);
+          case LOG_FATAL:
+            return ASL_LEVEL_STR(ASL_LEVEL_CRIT);
+          default:
+            return severity < 0 ? ASL_LEVEL_STR(ASL_LEVEL_DEBUG)
+                                : ASL_LEVEL_STR(ASL_LEVEL_NOTICE);
+        }
+#undef ASL_LEVEL_STR
+#undef ASL_LEVEL_STR_X
+      }(severity_);
+      asl_set(asl_message.get(), ASL_KEY_LEVEL, asl_level_string);
+
+      asl_set(asl_message.get(), ASL_KEY_MSG, str_newline.c_str());
+
+      asl_send(asl_client.get(), asl_message.get());
+    }
 #elif defined(OS_ANDROID)
     android_LogPriority priority =
         (severity_ < 0) ? ANDROID_LOG_VERBOSE : ANDROID_LOG_UNKNOWN;
@@ -597,11 +674,12 @@ LogMessage::~LogMessage() {
     // to do this at the same time, there will be a race condition to create
     // the lock. This is why InitLogging should be called from the main
     // thread at the beginning of execution.
+#if !defined(OS_WIN)
     LoggingLock::Init(LOCK_LOG_FILE, nullptr);
     LoggingLock logging_lock;
+#endif
     if (InitializeLogFileHandle()) {
 #if defined(OS_WIN)
-      SetFilePointer(g_log_file, 0, 0, SEEK_END);
       DWORD num_written;
       WriteFile(g_log_file,
                 static_cast<const void*>(str_newline.c_str()),
@@ -633,7 +711,11 @@ LogMessage::~LogMessage() {
       // information, and displaying message boxes when the application is
       // hosed can cause additional problems.
 #ifndef NDEBUG
-      DisplayDebugMessageInDialog(stream_.str());
+      if (!base::debug::BeingDebugged()) {
+        // Displaying a dialog is unnecessary when debugging and can complicate
+        // debugging.
+        DisplayDebugMessageInDialog(stream_.str());
+      }
 #endif
       // Crash the process to generate a dump.
       base::debug::BreakDebugger();
@@ -757,7 +839,9 @@ ErrnoLogMessage::~ErrnoLogMessage() {
 #endif  // defined(OS_WIN)
 
 void CloseLogFile() {
+#if !defined(OS_WIN)
   LoggingLock logging_lock;
+#endif
   CloseLogFileUnlocked();
 }
 
@@ -796,6 +880,10 @@ void RawLog(int level, const char* message) {
 #undef write
 
 #if defined(OS_WIN)
+bool IsLoggingToFileEnabled() {
+  return g_logging_destination & LOG_TO_FILE;
+}
+
 std::wstring GetLogFileFullPath() {
   if (g_log_file_name)
     return *g_log_file_name;

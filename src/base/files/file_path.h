@@ -124,6 +124,15 @@
 #define FILE_PATH_USES_WIN_SEPARATORS
 #endif  // OS_WIN
 
+// To print path names portably use PRIsFP (based on PRIuS and friends from
+// C99 and format_macros.h) like this:
+// base::StringPrintf("Path is %" PRIsFP ".\n", path.value().c_str());
+#if defined(OS_POSIX)
+#define PRIsFP "s"
+#elif defined(OS_WIN)
+#define PRIsFP "ls"
+#endif  // OS_WIN
+
 namespace base {
 
 class Pickle;

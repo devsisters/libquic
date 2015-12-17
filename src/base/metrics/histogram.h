@@ -181,6 +181,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                 Sample expected_maximum,
                                 size_t expected_bucket_count) const override;
   void Add(Sample value) override;
+  void AddCount(Sample value, int count) override;
   scoped_ptr<HistogramSamples> SnapshotSamples() const override;
   void AddSamples(const HistogramSamples& samples) override;
   bool AddSamplesFromPickle(base::PickleIterator* iter) override;
@@ -218,11 +219,12 @@ class BASE_EXPORT Histogram : public HistogramBase {
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptBucketBounds);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, NameMatchTest);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, AddCountTest);
 
   friend class StatisticsRecorder;  // To allow it to delete duplicates.
   friend class StatisticsRecorderTest;
 
-  friend BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
+  friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
       base::PickleIterator* iter);
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
@@ -347,7 +349,7 @@ class BASE_EXPORT LinearHistogram : public Histogram {
   bool PrintEmptyBucket(size_t index) const override;
 
  private:
-  friend BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
+  friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
       base::PickleIterator* iter);
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
@@ -377,7 +379,7 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
  private:
   BooleanHistogram(const std::string& name, const BucketRanges* ranges);
 
-  friend BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
+  friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
       base::PickleIterator* iter);
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
@@ -425,7 +427,7 @@ class BASE_EXPORT CustomHistogram : public Histogram {
   double GetBucketSize(Count current, size_t i) const override;
 
  private:
-  friend BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
+  friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
       base::PickleIterator* iter);
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 

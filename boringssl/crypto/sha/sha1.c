@@ -69,11 +69,11 @@
 
 int SHA1_Init(SHA_CTX *sha) {
   memset(sha, 0, sizeof(SHA_CTX));
-  sha->h0 = 0x67452301UL;
-  sha->h1 = 0xefcdab89UL;
-  sha->h2 = 0x98badcfeUL;
-  sha->h3 = 0x10325476UL;
-  sha->h4 = 0xc3d2e1f0UL;
+  sha->h[0] = 0x67452301UL;
+  sha->h[1] = 0xefcdab89UL;
+  sha->h[2] = 0x98badcfeUL;
+  sha->h[3] = 0x10325476UL;
+  sha->h[4] = 0xc3d2e1f0UL;
   return 1;
 }
 
@@ -96,21 +96,20 @@ uint8_t *SHA1(const uint8_t *data, size_t len, uint8_t *out) {
 
 #define DATA_ORDER_IS_BIG_ENDIAN
 
-#define HASH_LONG               uint32_t
 #define HASH_CTX                SHA_CTX
 #define HASH_CBLOCK             64
 #define HASH_MAKE_STRING(c, s) \
   do {                         \
-    unsigned long ll;          \
-    ll = (c)->h0;              \
+    uint32_t ll;               \
+    ll = (c)->h[0];            \
     (void) HOST_l2c(ll, (s));  \
-    ll = (c)->h1;              \
+    ll = (c)->h[1];            \
     (void) HOST_l2c(ll, (s));  \
-    ll = (c)->h2;              \
+    ll = (c)->h[2];            \
     (void) HOST_l2c(ll, (s));  \
-    ll = (c)->h3;              \
+    ll = (c)->h[3];            \
     (void) HOST_l2c(ll, (s));  \
-    ll = (c)->h4;              \
+    ll = (c)->h[4];            \
     (void) HOST_l2c(ll, (s));  \
   } while (0)
 
@@ -124,7 +123,7 @@ uint8_t *SHA1(const uint8_t *data, size_t len, uint8_t *out) {
 #ifndef SHA1_ASM
 static
 #endif
-void sha1_block_data_order(SHA_CTX *c, const void *p, size_t num);
+void sha1_block_data_order(uint32_t *state, const uint8_t *data, size_t num);
 
 #include "../digest/md32_common.h"
 
@@ -186,111 +185,67 @@ void sha1_block_data_order(SHA_CTX *c, const void *p, size_t num);
 #define X(i)	XX##i
 
 #if !defined(SHA1_ASM)
-static void HASH_BLOCK_DATA_ORDER(SHA_CTX *c, const void *p, size_t num) {
-  const uint8_t *data = p;
-  register unsigned MD32_REG_T A, B, C, D, E, T, l;
-  unsigned MD32_REG_T XX0, XX1, XX2, XX3, XX4, XX5, XX6, XX7, XX8, XX9, XX10,
+static void sha1_block_data_order(uint32_t *state, const uint8_t *data,
+                                  size_t num) {
+  register uint32_t A, B, C, D, E, T, l;
+  uint32_t XX0, XX1, XX2, XX3, XX4, XX5, XX6, XX7, XX8, XX9, XX10,
       XX11, XX12, XX13, XX14, XX15;
 
-  A = c->h0;
-  B = c->h1;
-  C = c->h2;
-  D = c->h3;
-  E = c->h4;
+  A = state[0];
+  B = state[1];
+  C = state[2];
+  D = state[3];
+  E = state[4];
 
   for (;;) {
-    const union {
-      long one;
-      char little;
-    } is_endian = {1};
-
-    if (!is_endian.little && ((size_t)p % 4) == 0) {
-      const uint32_t *W = (const uint32_t *)data;
-
-      X(0) = W[0];
-      X(1) = W[1];
-      BODY_00_15(0, A, B, C, D, E, T, X(0));
-      X(2) = W[2];
-      BODY_00_15(1, T, A, B, C, D, E, X(1));
-      X(3) = W[3];
-      BODY_00_15(2, E, T, A, B, C, D, X(2));
-      X(4) = W[4];
-      BODY_00_15(3, D, E, T, A, B, C, X(3));
-      X(5) = W[5];
-      BODY_00_15(4, C, D, E, T, A, B, X(4));
-      X(6) = W[6];
-      BODY_00_15(5, B, C, D, E, T, A, X(5));
-      X(7) = W[7];
-      BODY_00_15(6, A, B, C, D, E, T, X(6));
-      X(8) = W[8];
-      BODY_00_15(7, T, A, B, C, D, E, X(7));
-      X(9) = W[9];
-      BODY_00_15(8, E, T, A, B, C, D, X(8));
-      X(10) = W[10];
-      BODY_00_15(9, D, E, T, A, B, C, X(9));
-      X(11) = W[11];
-      BODY_00_15(10, C, D, E, T, A, B, X(10));
-      X(12) = W[12];
-      BODY_00_15(11, B, C, D, E, T, A, X(11));
-      X(13) = W[13];
-      BODY_00_15(12, A, B, C, D, E, T, X(12));
-      X(14) = W[14];
-      BODY_00_15(13, T, A, B, C, D, E, X(13));
-      X(15) = W[15];
-      BODY_00_15(14, E, T, A, B, C, D, X(14));
-      BODY_00_15(15, D, E, T, A, B, C, X(15));
-
-      data += HASH_CBLOCK;
-    } else {
-      (void)HOST_c2l(data, l);
-      X(0) = l;
-      (void)HOST_c2l(data, l);
-      X(1) = l;
-      BODY_00_15(0, A, B, C, D, E, T, X(0));
-      (void)HOST_c2l(data, l);
-      X(2) = l;
-      BODY_00_15(1, T, A, B, C, D, E, X(1));
-      (void)HOST_c2l(data, l);
-      X(3) = l;
-      BODY_00_15(2, E, T, A, B, C, D, X(2));
-      (void)HOST_c2l(data, l);
-      X(4) = l;
-      BODY_00_15(3, D, E, T, A, B, C, X(3));
-      (void)HOST_c2l(data, l);
-      X(5) = l;
-      BODY_00_15(4, C, D, E, T, A, B, X(4));
-      (void)HOST_c2l(data, l);
-      X(6) = l;
-      BODY_00_15(5, B, C, D, E, T, A, X(5));
-      (void)HOST_c2l(data, l);
-      X(7) = l;
-      BODY_00_15(6, A, B, C, D, E, T, X(6));
-      (void)HOST_c2l(data, l);
-      X(8) = l;
-      BODY_00_15(7, T, A, B, C, D, E, X(7));
-      (void)HOST_c2l(data, l);
-      X(9) = l;
-      BODY_00_15(8, E, T, A, B, C, D, X(8));
-      (void)HOST_c2l(data, l);
-      X(10) = l;
-      BODY_00_15(9, D, E, T, A, B, C, X(9));
-      (void)HOST_c2l(data, l);
-      X(11) = l;
-      BODY_00_15(10, C, D, E, T, A, B, X(10));
-      (void)HOST_c2l(data, l);
-      X(12) = l;
-      BODY_00_15(11, B, C, D, E, T, A, X(11));
-      (void)HOST_c2l(data, l);
-      X(13) = l;
-      BODY_00_15(12, A, B, C, D, E, T, X(12));
-      (void)HOST_c2l(data, l);
-      X(14) = l;
-      BODY_00_15(13, T, A, B, C, D, E, X(13));
-      (void)HOST_c2l(data, l);
-      X(15) = l;
-      BODY_00_15(14, E, T, A, B, C, D, X(14));
-      BODY_00_15(15, D, E, T, A, B, C, X(15));
-    }
+    (void)HOST_c2l(data, l);
+    X(0) = l;
+    (void)HOST_c2l(data, l);
+    X(1) = l;
+    BODY_00_15(0, A, B, C, D, E, T, X(0));
+    (void)HOST_c2l(data, l);
+    X(2) = l;
+    BODY_00_15(1, T, A, B, C, D, E, X(1));
+    (void)HOST_c2l(data, l);
+    X(3) = l;
+    BODY_00_15(2, E, T, A, B, C, D, X(2));
+    (void)HOST_c2l(data, l);
+    X(4) = l;
+    BODY_00_15(3, D, E, T, A, B, C, X(3));
+    (void)HOST_c2l(data, l);
+    X(5) = l;
+    BODY_00_15(4, C, D, E, T, A, B, X(4));
+    (void)HOST_c2l(data, l);
+    X(6) = l;
+    BODY_00_15(5, B, C, D, E, T, A, X(5));
+    (void)HOST_c2l(data, l);
+    X(7) = l;
+    BODY_00_15(6, A, B, C, D, E, T, X(6));
+    (void)HOST_c2l(data, l);
+    X(8) = l;
+    BODY_00_15(7, T, A, B, C, D, E, X(7));
+    (void)HOST_c2l(data, l);
+    X(9) = l;
+    BODY_00_15(8, E, T, A, B, C, D, X(8));
+    (void)HOST_c2l(data, l);
+    X(10) = l;
+    BODY_00_15(9, D, E, T, A, B, C, X(9));
+    (void)HOST_c2l(data, l);
+    X(11) = l;
+    BODY_00_15(10, C, D, E, T, A, B, X(10));
+    (void)HOST_c2l(data, l);
+    X(12) = l;
+    BODY_00_15(11, B, C, D, E, T, A, X(11));
+    (void)HOST_c2l(data, l);
+    X(13) = l;
+    BODY_00_15(12, A, B, C, D, E, T, X(12));
+    (void)HOST_c2l(data, l);
+    X(14) = l;
+    BODY_00_15(13, T, A, B, C, D, E, X(13));
+    (void)HOST_c2l(data, l);
+    X(15) = l;
+    BODY_00_15(14, E, T, A, B, C, D, X(14));
+    BODY_00_15(15, D, E, T, A, B, C, X(15));
 
     BODY_16_19(16, C, D, E, T, A, B, X(0), X(0), X(2), X(8), X(13));
     BODY_16_19(17, B, C, D, E, T, A, X(1), X(1), X(3), X(9), X(14));
@@ -361,21 +316,21 @@ static void HASH_BLOCK_DATA_ORDER(SHA_CTX *c, const void *p, size_t num) {
     BODY_60_79(78, A, B, C, D, E, T, X(14), X(0), X(6), X(11));
     BODY_60_79(79, T, A, B, C, D, E, X(15), X(1), X(7), X(12));
 
-    c->h0 = (c->h0 + E) & 0xffffffffL;
-    c->h1 = (c->h1 + T) & 0xffffffffL;
-    c->h2 = (c->h2 + A) & 0xffffffffL;
-    c->h3 = (c->h3 + B) & 0xffffffffL;
-    c->h4 = (c->h4 + C) & 0xffffffffL;
+    state[0] = (state[0] + E) & 0xffffffffL;
+    state[1] = (state[1] + T) & 0xffffffffL;
+    state[2] = (state[2] + A) & 0xffffffffL;
+    state[3] = (state[3] + B) & 0xffffffffL;
+    state[4] = (state[4] + C) & 0xffffffffL;
 
     if (--num == 0) {
       break;
     }
 
-    A = c->h0;
-    B = c->h1;
-    C = c->h2;
-    D = c->h3;
-    E = c->h4;
+    A = state[0];
+    B = state[1];
+    C = state[2];
+    D = state[3];
+    E = state[4];
   }
 }
 #endif

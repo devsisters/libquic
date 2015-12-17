@@ -28,7 +28,7 @@ namespace base {
 
 class HistogramSamples;
 
-class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
+class BASE_EXPORT SparseHistogram : public HistogramBase {
  public:
   // If there's one with same name, return the existing one. If not, create a
   // new one.
@@ -42,6 +42,7 @@ class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
                                 Sample expected_maximum,
                                 size_t expected_bucket_count) const override;
   void Add(Sample value) override;
+  void AddCount(Sample value, int count) override;
   void AddSamples(const HistogramSamples& samples) override;
   bool AddSamplesFromPickle(base::PickleIterator* iter) override;
   scoped_ptr<HistogramSamples> SnapshotSamples() const override;
@@ -56,7 +57,7 @@ class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
   // Clients should always use FactoryGet to create SparseHistogram.
   explicit SparseHistogram(const std::string& name);
 
-  friend BASE_EXPORT_PRIVATE HistogramBase* DeserializeHistogramInfo(
+  friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
       base::PickleIterator* iter);
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 

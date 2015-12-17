@@ -14,10 +14,12 @@
 
 #include <openssl/crypto.h>
 
+#include <openssl/cpu.h>
+
 #include "internal.h"
 
 
-#if !defined(OPENSSL_NO_ASM) && \
+#if !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_STATIC_ARMCAP) && \
     (defined(OPENSSL_X86) || defined(OPENSSL_X86_64) || \
      defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64))
 /* x86, x86_64 and the ARMs need to record the result of a cpuid call for the
@@ -55,9 +57,29 @@
 uint32_t OPENSSL_ia32cap_P[4] = {0};
 #elif defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
 
-#include "arm_arch.h"
+#include <openssl/arm_arch.h>
 
-#if defined(__ARM_NEON__)
+#if defined(OPENSSL_STATIC_ARMCAP)
+
+uint32_t OPENSSL_armcap_P =
+#if defined(OPENSSL_STATIC_ARMCAP_NEON) || defined(__ARM_NEON__)
+    ARMV7_NEON | ARMV7_NEON_FUNCTIONAL |
+#endif
+#if defined(OPENSSL_STATIC_ARMCAP_AES)
+    ARMV8_AES |
+#endif
+#if defined(OPENSSL_STATIC_ARMCAP_SHA1)
+    ARMV8_SHA1 |
+#endif
+#if defined(OPENSSL_STATIC_ARMCAP_SHA256)
+    ARMV8_SHA256 |
+#endif
+#if defined(OPENSSL_STATIC_ARMCAP_PMULL)
+    ARMV8_PMULL |
+#endif
+    0;
+
+#elif defined(__ARM_NEON__)
 uint32_t OPENSSL_armcap_P = ARMV7_NEON | ARMV7_NEON_FUNCTIONAL;
 #else
 uint32_t OPENSSL_armcap_P = ARMV7_NEON_FUNCTIONAL;
@@ -102,3 +124,17 @@ void CRYPTO_library_init(void) {
   do_library_init();
 #endif
 }
+
+const char *SSLeay_version(int unused) {
+  return "BoringSSL";
+}
+
+unsigned long SSLeay(void) {
+  return OPENSSL_VERSION_NUMBER;
+}
+
+int CRYPTO_malloc_init(void) {
+  return 1;
+}
+
+void ENGINE_load_builtin_engines(void) {}

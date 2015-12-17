@@ -63,7 +63,10 @@
 #include <openssl/err.h>
 #include <openssl/lhash.h>
 #include <openssl/mem.h>
+#include <openssl/thread.h>
 #include <openssl/x509.h>
+
+#include "../internal.h"
 
 
 typedef struct lookup_dir_hashes_st
@@ -95,7 +98,7 @@ static void free_dir(X509_LOOKUP *lu);
 static int add_cert_dir(BY_DIR *ctx,const char *dir,int type);
 static int get_cert_by_subject(X509_LOOKUP *xl,int type,X509_NAME *name,
 	X509_OBJECT *ret);
-X509_LOOKUP_METHOD x509_dir_lookup=
+static X509_LOOKUP_METHOD x509_dir_lookup=
 	{
 	"Load certs from files in a directory",
 	new_dir,		/* new */
@@ -136,7 +139,7 @@ static int dir_ctrl(X509_LOOKUP *ctx, int cmd, const char *argp, long argl,
 					X509_FILETYPE_PEM);
 			if (!ret)
 				{
-				OPENSSL_PUT_ERROR(X509, dir_ctrl, X509_R_LOADING_CERT_DIR);
+				OPENSSL_PUT_ERROR(X509, X509_R_LOADING_CERT_DIR);
 				}
 			}
 		else
@@ -205,7 +208,7 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
 
 	if (dir == NULL || !*dir)
 	    {
-	    OPENSSL_PUT_ERROR(X509, add_cert_dir, X509_R_INVALID_DIRECTORY);
+	    OPENSSL_PUT_ERROR(X509, X509_R_INVALID_DIRECTORY);
 	    return 0;
 	    }
 
@@ -234,7 +237,7 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
 				ctx->dirs = sk_BY_DIR_ENTRY_new_null();
 				if (!ctx->dirs)
 					{
-					OPENSSL_PUT_ERROR(X509, add_cert_dir, ERR_R_MALLOC_FAILURE);
+					OPENSSL_PUT_ERROR(X509, ERR_R_MALLOC_FAILURE);
 					return 0;
 					}
 				}
@@ -260,6 +263,10 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
 		} while (*p++ != '\0');
 	return 1;
 	}
+
+/* g_ent_hashes_lock protects the |hashes| member of all |BY_DIR_ENTRY|
+ * objects. */
+static struct CRYPTO_STATIC_MUTEX g_ent_hashes_lock = CRYPTO_STATIC_MUTEX_INIT;
 
 static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 	     X509_OBJECT *ret)
@@ -304,13 +311,13 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 		}
 	else
 		{
-		OPENSSL_PUT_ERROR(X509, get_cert_by_subject, X509_R_WRONG_LOOKUP_TYPE);
+		OPENSSL_PUT_ERROR(X509, X509_R_WRONG_LOOKUP_TYPE);
 		goto finish;
 		}
 
 	if ((b=BUF_MEM_new()) == NULL)
 		{
-		OPENSSL_PUT_ERROR(X509, get_cert_by_subject, ERR_R_BUF_LIB);
+		OPENSSL_PUT_ERROR(X509, ERR_R_BUF_LIB);
 		goto finish;
 		}
 	
@@ -330,13 +337,13 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 			j=strlen(ent->dir)+1+8+6+1+1;
 			if (!BUF_MEM_grow(b,j))
 				{
-				OPENSSL_PUT_ERROR(X509, get_cert_by_subject, ERR_R_MALLOC_FAILURE);
+				OPENSSL_PUT_ERROR(X509, ERR_R_MALLOC_FAILURE);
 				goto finish;
 				}
 			if (type == X509_LU_CRL && ent->hashes)
 				{
 				htmp.hash = h;
-				CRYPTO_r_lock(CRYPTO_LOCK_X509_STORE);
+				CRYPTO_STATIC_MUTEX_lock_read(&g_ent_hashes_lock);
 				if (sk_BY_DIR_HASH_find(ent->hashes, &idx, &htmp))
 					{
 					hent = sk_BY_DIR_HASH_value(ent->hashes, idx);
@@ -347,7 +354,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 					hent = NULL;
 					k=0;
 					}
-				CRYPTO_r_unlock(CRYPTO_LOCK_X509_STORE);
+				CRYPTO_STATIC_MUTEX_unlock(&g_ent_hashes_lock);
 				}
 			else
 				{
@@ -417,19 +424,19 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 
 			/* we have added it to the cache so now pull
 			 * it out again */
-			CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
+			CRYPTO_MUTEX_lock_write(&xl->store_ctx->objs_lock);
 			tmp = NULL;
 			if (sk_X509_OBJECT_find(xl->store_ctx->objs, &idx, &stmp)) {
 				tmp=sk_X509_OBJECT_value(xl->store_ctx->objs,idx);
 			}
-			CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
+			CRYPTO_MUTEX_unlock(&xl->store_ctx->objs_lock);
 
 
 			/* If a CRL, update the last file suffix added for this */
 
 			if (type == X509_LU_CRL)
 				{
-				CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
+				CRYPTO_STATIC_MUTEX_lock_write(&g_ent_hashes_lock);
 				/* Look for entry again in case another thread added
 				 * an entry first.
 				 */
@@ -444,7 +451,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 					hent = OPENSSL_malloc(sizeof(BY_DIR_HASH));
 					if (hent == NULL)
 						{
-						CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
+						CRYPTO_STATIC_MUTEX_unlock(&g_ent_hashes_lock);
 						ok = 0;
 						goto finish;
 						}
@@ -452,7 +459,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 					hent->suffix = k;
 					if (!sk_BY_DIR_HASH_push(ent->hashes, hent))
 						{
-						CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
+						CRYPTO_STATIC_MUTEX_unlock(&g_ent_hashes_lock);
 						OPENSSL_free(hent);
 						ok = 0;
 						goto finish;
@@ -461,8 +468,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 				else if (hent->suffix < k)
 					hent->suffix = k;
 
-				CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
-
+				CRYPTO_STATIC_MUTEX_unlock(&g_ent_hashes_lock);
 				}
 
 			if (tmp != NULL)

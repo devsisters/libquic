@@ -33,6 +33,7 @@ QuicConnectionStats::QuicConnectionStats()
       min_rtt_us(0),
       srtt_us(0),
       max_packet_size(0),
+      max_received_packet_size(0),
       estimated_bandwidth(QuicBandwidth::Zero()),
       packets_reordered(0),
       max_sequence_reordering(0),

@@ -36,26 +36,25 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
     ~EntropyTracker();
 
     // Compute the XOR of the entropy of all received packets up to
-    // and including sequence_number.
+    // and including packet_number.
     // Requires that either:
-    //   sequence_number == largest_observed_
+    //   packet_number == largest_observed_
     // or:
-    //   sequence_number > first_gap_ &&
-    //   sequence_number < largest_observed_ &&
-    //   sequence_number in packets_entropy_
-    QuicPacketEntropyHash EntropyHash(
-        QuicPacketSequenceNumber sequence_number) const;
+    //   packet_number > first_gap_ &&
+    //   packet_number < largest_observed_ &&
+    //   packet_number in packets_entropy_
+    QuicPacketEntropyHash EntropyHash(QuicPacketNumber packet_number) const;
 
-    // Record the received entropy hash against |sequence_number|.
+    // Record the received entropy hash against |packet_number|.
     // Performs garbage collection to advance first_gap_ if
-    // sequence_number == first_gap_.
-    void RecordPacketEntropyHash(QuicPacketSequenceNumber sequence_number,
+    // packet_number == first_gap_.
+    void RecordPacketEntropyHash(QuicPacketNumber packet_number,
                                  QuicPacketEntropyHash entropy_hash);
 
-    // Sets the entropy hash up to but not including a sequence number based
+    // Sets the entropy hash up to but not including a packet number based
     // on the hash provided by a StopWaiting frame.  Clears older packet
     // entropy entries and performs garbage collection up to the first gap.
-    void SetCumulativeEntropyUpTo(QuicPacketSequenceNumber sequence_number,
+    void SetCumulativeEntropyUpTo(QuicPacketNumber packet_number,
                                   QuicPacketEntropyHash entropy_hash);
 
     size_t size() const { return packets_entropy_.size(); }
@@ -63,8 +62,8 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
    private:
     friend class test::EntropyTrackerPeer;
 
-    // A deque indexed by sequence number storing the packet's hash and whether
-    // a hash was recorded for that sequence number.
+    // A deque indexed by packet number storing the packet's hash and whether
+    // a hash was recorded for that packet number.
     typedef std::deque<std::pair<QuicPacketEntropyHash, bool>>
         ReceivedEntropyHashes;
 
@@ -72,8 +71,8 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
     // longer needed to compute EntropyHash.
     void AdvanceFirstGapAndGarbageCollectEntropyMap();
 
-    // Map of received sequence numbers to their corresponding entropy.
-    // Stores an entry for every received packet whose sequence_number is larger
+    // Map of received packet numbers to their corresponding entropy.
+    // Stores an entry for every received packet whose packet_number is larger
     // than first_gap_.  Packets without the entropy bit set have an entropy
     // value of 0.
     ReceivedEntropyHashes packets_entropy_;
@@ -81,17 +80,17 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
     // Cumulative hash of entropy of all received packets.
     QuicPacketEntropyHash packets_entropy_hash_;
 
-    // Sequence number of the first packet that we do not know the entropy of.
+    // packet number of the first packet that we do not know the entropy of.
     // If there are no gaps in the received packet sequence,
     // packets_entropy_ will be empty and first_gap_ will be equal to
     // 'largest_observed_ + 1' since that's the first packet for which
     // entropy is unknown.  If there are gaps, packets_entropy_ will
-    // contain entries for all received packets with sequence_number >
+    // contain entries for all received packets with packet_number >
     // first_gap_.
-    QuicPacketSequenceNumber first_gap_;
+    QuicPacketNumber first_gap_;
 
-    // Sequence number of the largest observed packet.
-    QuicPacketSequenceNumber largest_observed_;
+    // packet number of the largest observed packet.
+    QuicPacketNumber largest_observed_;
 
     DISALLOW_COPY_AND_ASSIGN(EntropyTracker);
   };
@@ -107,13 +106,13 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
                             const QuicPacketHeader& header,
                             QuicTime receipt_time);
 
-  void RecordPacketRevived(QuicPacketSequenceNumber sequence_number);
+  void RecordPacketRevived(QuicPacketNumber packet_number);
 
-  // Checks whether |sequence_number| is missing and less than largest observed.
-  bool IsMissing(QuicPacketSequenceNumber sequence_number);
+  // Checks whether |packet_number| is missing and less than largest observed.
+  bool IsMissing(QuicPacketNumber packet_number);
 
-  // Checks if we're still waiting for the packet with |sequence_number|.
-  bool IsAwaitingPacket(QuicPacketSequenceNumber sequence_number);
+  // Checks if we're still waiting for the packet with |packet_number|.
+  bool IsAwaitingPacket(QuicPacketNumber packet_number);
 
   // Update the |ack_frame| for an outgoing ack.
   void UpdateReceivedPacketInfo(QuicAckFrame* ack_frame,
@@ -123,7 +122,7 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
   // Called by QuicFramer, when the outgoing ack gets truncated, to recalculate
   // the received entropy hash for the truncated ack frame.
   QuicPacketEntropyHash EntropyHash(
-      QuicPacketSequenceNumber sequence_number) const override;
+      QuicPacketNumber packet_number) const override;
 
   // Updates internal state based on |stop_waiting|.
   void UpdatePacketInformationSentByPeer(
@@ -136,7 +135,7 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
   // Returns the number of packets being tracked in the EntropyTracker.
   size_t NumTrackedPackets() const;
 
-  QuicPacketSequenceNumber peer_least_packet_awaiting_ack() {
+  QuicPacketNumber peer_least_packet_awaiting_ack() {
     return peer_least_packet_awaiting_ack_;
   }
 
@@ -145,29 +144,27 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
   friend class test::QuicReceivedPacketManagerPeer;
 
   // Deletes all missing packets before least unacked. The connection won't
-  // process any packets with sequence number before |least_unacked| that it
+  // process any packets with packet number before |least_unacked| that it
   // received after this call. Returns true if there were missing packets before
   // |least_unacked| unacked, false otherwise.
-  bool DontWaitForPacketsBefore(QuicPacketSequenceNumber least_unacked);
+  bool DontWaitForPacketsBefore(QuicPacketNumber least_unacked);
 
   // Tracks entropy hashes of received packets.
   EntropyTracker entropy_tracker_;
 
-  // Least sequence number of the the packet sent by the peer for which it
+  // Least packet number of the the packet sent by the peer for which it
   // hasn't received an ack.
-  QuicPacketSequenceNumber peer_least_packet_awaiting_ack_;
+  QuicPacketNumber peer_least_packet_awaiting_ack_;
 
   // Received packet information used to produce acks.
   QuicAckFrame ack_frame_;
 
-  // The time we received the largest_observed sequence number, or zero if
-  // no sequence numbers have been received since UpdateReceivedPacketInfo.
+  // The time we received the largest_observed packet number, or zero if
+  // no packet numbers have been received since UpdateReceivedPacketInfo.
   // Needed for calculating delta_time_largest_observed.
   QuicTime time_largest_observed_;
 
   QuicConnectionStats* stats_;
-
-  PacketTimeList received_packet_times_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicReceivedPacketManager);
 };

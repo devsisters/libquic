@@ -19,14 +19,10 @@ class NET_EXPORT_PRIVATE QuicServerId {
  public:
   QuicServerId();
   QuicServerId(const HostPortPair& host_port_pair,
-               bool is_https,
                PrivacyMode privacy_mode);
+  QuicServerId(const std::string& host, uint16 port);
   QuicServerId(const std::string& host,
                uint16 port,
-               bool is_https);
-  QuicServerId(const std::string& host,
-               uint16 port,
-               bool is_https,
                PrivacyMode privacy_mode);
   ~QuicServerId();
 
@@ -34,9 +30,14 @@ class NET_EXPORT_PRIVATE QuicServerId {
   bool operator<(const QuicServerId& other) const;
   bool operator==(const QuicServerId& other) const;
 
+#if 0
+  // Creates a QuicServerId from a string formatted in same manner as
+  // ToString().
+  static QuicServerId FromString(const std::string& str);
+#endif
+
   // ToString() will convert the QuicServerId to "scheme:hostname:port" or
-  // "scheme:hostname:port/private". "scheme" would either be "http" or "https"
-  // based on |is_https|.
+  // "scheme:hostname:port/private". "scheme" will be "https".
   std::string ToString() const;
 
   // Used in Chromium, but not in the server.
@@ -46,13 +47,10 @@ class NET_EXPORT_PRIVATE QuicServerId {
 
   uint16 port() const { return host_port_pair_.port(); }
 
-  bool is_https() const { return is_https_; }
-
   PrivacyMode privacy_mode() const { return privacy_mode_; }
 
  private:
   HostPortPair host_port_pair_;
-  bool is_https_;
   PrivacyMode privacy_mode_;
 };
 

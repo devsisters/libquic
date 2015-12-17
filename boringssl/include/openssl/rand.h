@@ -22,8 +22,10 @@ extern "C" {
 #endif
 
 
-/* RAND_bytes writes |len| bytes of random data to |buf|. It returns one on
- * success and zero on otherwise. */
+/* Random number generation. */
+
+
+/* RAND_bytes writes |len| bytes of random data to |buf| and returns one. */
 OPENSSL_EXPORT int RAND_bytes(uint8_t *buf, size_t len);
 
 /* RAND_cleanup frees any resources used by the RNG. This is not safe if other
@@ -31,19 +33,77 @@ OPENSSL_EXPORT int RAND_bytes(uint8_t *buf, size_t len);
 OPENSSL_EXPORT void RAND_cleanup(void);
 
 
+/* Obscure functions. */
+
+#if !defined(OPENSSL_WINDOWS)
+/* RAND_set_urandom_fd causes the module to use a copy of |fd| for system
+ * randomness rather opening /dev/urandom internally. The caller retains
+ * ownership of |fd| and is at liberty to close it at any time. This is useful
+ * if, due to a sandbox, /dev/urandom isn't available. If used, it must be
+ * called before the first call to |RAND_bytes|, and it is mutually exclusive
+ * with |RAND_enable_fork_unsafe_buffering|.
+ *
+ * |RAND_set_urandom_fd| does not buffer any entropy, so it is safe to call
+ * |fork| at any time after calling |RAND_set_urandom_fd|. */
+OPENSSL_EXPORT void RAND_set_urandom_fd(int fd);
+
+/* RAND_enable_fork_unsafe_buffering enables efficient buffered reading of
+ * /dev/urandom. It adds an overhead of a few KB of memory per thread. It must
+ * be called before the first call to |RAND_bytes| and it is mutually exclusive
+ * with calls to |RAND_set_urandom_fd|.
+ *
+ * If |fd| is non-negative then a copy of |fd| will be used rather than opening
+ * /dev/urandom internally. Like |RAND_set_urandom_fd|, the caller retains
+ * ownership of |fd|. If |fd| is negative then /dev/urandom will be opened and
+ * any error from open(2) crashes the address space.
+ *
+ * It has an unusual name because the buffer is unsafe across calls to |fork|.
+ * Hence, this function should never be called by libraries. */
+OPENSSL_EXPORT void RAND_enable_fork_unsafe_buffering(int fd);
+#endif
+
+
 /* Deprecated functions */
 
 /* RAND_pseudo_bytes is a wrapper around |RAND_bytes|. */
 OPENSSL_EXPORT int RAND_pseudo_bytes(uint8_t *buf, size_t len);
 
-/* RAND_seed does nothing. */
+/* RAND_seed reads a single byte of random data to ensure that any file
+ * descriptors etc are opened. */
 OPENSSL_EXPORT void RAND_seed(const void *buf, int num);
+
+/* RAND_load_file returns a nonnegative number. */
+OPENSSL_EXPORT int RAND_load_file(const char *path, long num);
 
 /* RAND_add does nothing. */
 OPENSSL_EXPORT void RAND_add(const void *buf, int num, double entropy);
 
+/* RAND_egd returns 255. */
+OPENSSL_EXPORT int RAND_egd(const char *);
+
 /* RAND_poll returns one. */
 OPENSSL_EXPORT int RAND_poll(void);
+
+/* RAND_status returns one. */
+OPENSSL_EXPORT int RAND_status(void);
+
+/* rand_meth_st is typedefed to |RAND_METHOD| in base.h. It isn't used; it
+ * exists only to be the return type of |RAND_SSLeay|. It's
+ * external so that variables of this type can be initialized. */
+struct rand_meth_st {
+  void (*seed) (const void *buf, int num);
+  int (*bytes) (uint8_t *buf, size_t num);
+  void (*cleanup) (void);
+  void (*add) (const void *buf, int num, double entropy);
+  int (*pseudorand) (uint8_t *buf, size_t num);
+  int (*status) (void);
+};
+
+/* RAND_SSLeay returns a pointer to a dummy |RAND_METHOD|. */
+OPENSSL_EXPORT RAND_METHOD *RAND_SSLeay(void);
+
+/* RAND_set_rand_method does nothing. */
+OPENSSL_EXPORT void RAND_set_rand_method(const RAND_METHOD *);
 
 
 #if defined(__cplusplus)

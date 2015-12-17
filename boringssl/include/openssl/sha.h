@@ -98,7 +98,22 @@ OPENSSL_EXPORT uint8_t *SHA1(const uint8_t *data, size_t len, uint8_t *out);
 OPENSSL_EXPORT void SHA1_Transform(SHA_CTX *sha, const uint8_t *block);
 
 struct sha_state_st {
-  uint32_t h0, h1, h2, h3, h4;
+#if !defined(ANDROID)
+  uint32_t h[5];
+#else
+  /* wpa_supplicant accesses |h0|..|h4| so we must support those names
+   * for compatibility with it until it can be updated. */
+  union {
+    uint32_t h[5];
+    struct {
+      uint32_t h0;
+      uint32_t h1;
+      uint32_t h2;
+      uint32_t h3;
+      uint32_t h4;
+    };
+  };
+#endif
   uint32_t Nl, Nh;
   uint32_t data[16];
   unsigned int num;
@@ -120,7 +135,8 @@ OPENSSL_EXPORT int SHA224_Init(SHA256_CTX *sha);
 OPENSSL_EXPORT int SHA224_Update(SHA256_CTX *sha, const void *data, size_t len);
 
 /* SHA224_Final adds the final padding to |sha| and writes the resulting digest
- * to |md|, which must have at least |SHA224_DIGEST_LENGTH| bytes of space. */
+ * to |md|, which must have at least |SHA224_DIGEST_LENGTH| bytes of space. It
+ * returns one on success and zero on programmer error. */
 OPENSSL_EXPORT int SHA224_Final(uint8_t *md, SHA256_CTX *sha);
 
 /* SHA224 writes the digest of |len| bytes from |data| to |out| and returns
@@ -144,7 +160,8 @@ OPENSSL_EXPORT int SHA256_Init(SHA256_CTX *sha);
 OPENSSL_EXPORT int SHA256_Update(SHA256_CTX *sha, const void *data, size_t len);
 
 /* SHA256_Final adds the final padding to |sha| and writes the resulting digest
- * to |md|, which must have at least |SHA256_DIGEST_LENGTH| bytes of space. */
+ * to |md|, which must have at least |SHA256_DIGEST_LENGTH| bytes of space. It
+ * returns one on success and zero on programmer error. */
 OPENSSL_EXPORT int SHA256_Final(uint8_t *md, SHA256_CTX *sha);
 
 /* SHA256 writes the digest of |len| bytes from |data| to |out| and returns
@@ -179,7 +196,8 @@ OPENSSL_EXPORT int SHA384_Init(SHA512_CTX *sha);
 OPENSSL_EXPORT int SHA384_Update(SHA512_CTX *sha, const void *data, size_t len);
 
 /* SHA384_Final adds the final padding to |sha| and writes the resulting digest
- * to |md|, which must have at least |SHA384_DIGEST_LENGTH| bytes of space. */
+ * to |md|, which must have at least |SHA384_DIGEST_LENGTH| bytes of space. It
+ * returns one on success and zero on programmer error. */
 OPENSSL_EXPORT int SHA384_Final(uint8_t *md, SHA512_CTX *sha);
 
 /* SHA384 writes the digest of |len| bytes from |data| to |out| and returns
@@ -207,7 +225,8 @@ OPENSSL_EXPORT int SHA512_Init(SHA512_CTX *sha);
 OPENSSL_EXPORT int SHA512_Update(SHA512_CTX *sha, const void *data, size_t len);
 
 /* SHA512_Final adds the final padding to |sha| and writes the resulting digest
- * to |md|, which must have at least |SHA512_DIGEST_LENGTH| bytes of space. */
+ * to |md|, which must have at least |SHA512_DIGEST_LENGTH| bytes of space. It
+ * returns one on success and zero on programmer error. */
 OPENSSL_EXPORT int SHA512_Final(uint8_t *md, SHA512_CTX *sha);
 
 /* SHA512 writes the digest of |len| bytes from |data| to |out| and returns

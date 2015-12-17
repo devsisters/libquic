@@ -726,9 +726,9 @@ struct StaticDescriptorInitializer_google_2fprotobuf_2fdescriptor_2eproto {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int FileDescriptorSet::kFileFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 FileDescriptorSet::FileDescriptorSet()
   : ::google::protobuf::Message() {
@@ -932,7 +932,7 @@ void FileDescriptorSet::Swap(FileDescriptorSet* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int FileDescriptorProto::kNameFieldNumber;
 const int FileDescriptorProto::kPackageFieldNumber;
 const int FileDescriptorProto::kDependencyFieldNumber;
@@ -944,7 +944,7 @@ const int FileDescriptorProto::kServiceFieldNumber;
 const int FileDescriptorProto::kExtensionFieldNumber;
 const int FileDescriptorProto::kOptionsFieldNumber;
 const int FileDescriptorProto::kSourceCodeInfoFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 FileDescriptorProto::FileDescriptorProto()
   : ::google::protobuf::Message() {
@@ -1629,10 +1629,10 @@ void FileDescriptorProto::Swap(FileDescriptorProto* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int DescriptorProto_ExtensionRange::kStartFieldNumber;
 const int DescriptorProto_ExtensionRange::kEndFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 DescriptorProto_ExtensionRange::DescriptorProto_ExtensionRange()
   : ::google::protobuf::Message() {
@@ -1877,7 +1877,7 @@ void DescriptorProto_ExtensionRange::Swap(DescriptorProto_ExtensionRange* other)
 
 // -------------------------------------------------------------------
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int DescriptorProto::kNameFieldNumber;
 const int DescriptorProto::kFieldFieldNumber;
 const int DescriptorProto::kExtensionFieldNumber;
@@ -1885,7 +1885,7 @@ const int DescriptorProto::kNestedTypeFieldNumber;
 const int DescriptorProto::kEnumTypeFieldNumber;
 const int DescriptorProto::kExtensionRangeFieldNumber;
 const int DescriptorProto::kOptionsFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 DescriptorProto::DescriptorProto()
   : ::google::protobuf::Message() {
@@ -2392,7 +2392,7 @@ bool FieldDescriptorProto_Type_IsValid(int value) {
   }
 }
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const FieldDescriptorProto_Type FieldDescriptorProto::TYPE_DOUBLE;
 const FieldDescriptorProto_Type FieldDescriptorProto::TYPE_FLOAT;
 const FieldDescriptorProto_Type FieldDescriptorProto::TYPE_INT64;
@@ -2414,7 +2414,7 @@ const FieldDescriptorProto_Type FieldDescriptorProto::TYPE_SINT64;
 const FieldDescriptorProto_Type FieldDescriptorProto::Type_MIN;
 const FieldDescriptorProto_Type FieldDescriptorProto::Type_MAX;
 const int FieldDescriptorProto::Type_ARRAYSIZE;
-#endif  // _MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 const ::google::protobuf::EnumDescriptor* FieldDescriptorProto_Label_descriptor() {
   protobuf_AssignDescriptorsOnce();
   return FieldDescriptorProto_Label_descriptor_;
@@ -2430,15 +2430,15 @@ bool FieldDescriptorProto_Label_IsValid(int value) {
   }
 }
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const FieldDescriptorProto_Label FieldDescriptorProto::LABEL_OPTIONAL;
 const FieldDescriptorProto_Label FieldDescriptorProto::LABEL_REQUIRED;
 const FieldDescriptorProto_Label FieldDescriptorProto::LABEL_REPEATED;
 const FieldDescriptorProto_Label FieldDescriptorProto::Label_MIN;
 const FieldDescriptorProto_Label FieldDescriptorProto::Label_MAX;
 const int FieldDescriptorProto::Label_ARRAYSIZE;
-#endif  // _MSC_VER
-#ifndef _MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int FieldDescriptorProto::kNameFieldNumber;
 const int FieldDescriptorProto::kNumberFieldNumber;
 const int FieldDescriptorProto::kLabelFieldNumber;
@@ -2447,7 +2447,7 @@ const int FieldDescriptorProto::kTypeNameFieldNumber;
 const int FieldDescriptorProto::kExtendeeFieldNumber;
 const int FieldDescriptorProto::kDefaultValueFieldNumber;
 const int FieldDescriptorProto::kOptionsFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 FieldDescriptorProto::FieldDescriptorProto()
   : ::google::protobuf::Message() {
@@ -3014,11 +3014,11 @@ void FieldDescriptorProto::Swap(FieldDescriptorProto* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int EnumDescriptorProto::kNameFieldNumber;
 const int EnumDescriptorProto::kValueFieldNumber;
 const int EnumDescriptorProto::kOptionsFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 EnumDescriptorProto::EnumDescriptorProto()
   : ::google::protobuf::Message() {
@@ -3330,11 +3330,11 @@ void EnumDescriptorProto::Swap(EnumDescriptorProto* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int EnumValueDescriptorProto::kNameFieldNumber;
 const int EnumValueDescriptorProto::kNumberFieldNumber;
 const int EnumValueDescriptorProto::kOptionsFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 EnumValueDescriptorProto::EnumValueDescriptorProto()
   : ::google::protobuf::Message() {
@@ -3643,11 +3643,11 @@ void EnumValueDescriptorProto::Swap(EnumValueDescriptorProto* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int ServiceDescriptorProto::kNameFieldNumber;
 const int ServiceDescriptorProto::kMethodFieldNumber;
 const int ServiceDescriptorProto::kOptionsFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 ServiceDescriptorProto::ServiceDescriptorProto()
   : ::google::protobuf::Message() {
@@ -3959,12 +3959,12 @@ void ServiceDescriptorProto::Swap(ServiceDescriptorProto* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int MethodDescriptorProto::kNameFieldNumber;
 const int MethodDescriptorProto::kInputTypeFieldNumber;
 const int MethodDescriptorProto::kOutputTypeFieldNumber;
 const int MethodDescriptorProto::kOptionsFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 MethodDescriptorProto::MethodDescriptorProto()
   : ::google::protobuf::Message() {
@@ -4361,15 +4361,15 @@ bool FileOptions_OptimizeMode_IsValid(int value) {
   }
 }
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const FileOptions_OptimizeMode FileOptions::SPEED;
 const FileOptions_OptimizeMode FileOptions::CODE_SIZE;
 const FileOptions_OptimizeMode FileOptions::LITE_RUNTIME;
 const FileOptions_OptimizeMode FileOptions::OptimizeMode_MIN;
 const FileOptions_OptimizeMode FileOptions::OptimizeMode_MAX;
 const int FileOptions::OptimizeMode_ARRAYSIZE;
-#endif  // _MSC_VER
-#ifndef _MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int FileOptions::kJavaPackageFieldNumber;
 const int FileOptions::kJavaOuterClassnameFieldNumber;
 const int FileOptions::kJavaMultipleFilesFieldNumber;
@@ -4381,7 +4381,7 @@ const int FileOptions::kCcGenericServicesFieldNumber;
 const int FileOptions::kJavaGenericServicesFieldNumber;
 const int FileOptions::kPyGenericServicesFieldNumber;
 const int FileOptions::kUninterpretedOptionFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 FileOptions::FileOptions()
   : ::google::protobuf::Message() {
@@ -5050,11 +5050,11 @@ void FileOptions::Swap(FileOptions* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int MessageOptions::kMessageSetWireFormatFieldNumber;
 const int MessageOptions::kNoStandardDescriptorAccessorFieldNumber;
 const int MessageOptions::kUninterpretedOptionFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 MessageOptions::MessageOptions()
   : ::google::protobuf::Message() {
@@ -5371,15 +5371,15 @@ bool FieldOptions_CType_IsValid(int value) {
   }
 }
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const FieldOptions_CType FieldOptions::STRING;
 const FieldOptions_CType FieldOptions::CORD;
 const FieldOptions_CType FieldOptions::STRING_PIECE;
 const FieldOptions_CType FieldOptions::CType_MIN;
 const FieldOptions_CType FieldOptions::CType_MAX;
 const int FieldOptions::CType_ARRAYSIZE;
-#endif  // _MSC_VER
-#ifndef _MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int FieldOptions::kCtypeFieldNumber;
 const int FieldOptions::kPackedFieldNumber;
 const int FieldOptions::kLazyFieldNumber;
@@ -5387,7 +5387,7 @@ const int FieldOptions::kDeprecatedFieldNumber;
 const int FieldOptions::kExperimentalMapKeyFieldNumber;
 const int FieldOptions::kWeakFieldNumber;
 const int FieldOptions::kUninterpretedOptionFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 FieldOptions::FieldOptions()
   : ::google::protobuf::Message() {
@@ -5864,10 +5864,10 @@ void FieldOptions::Swap(FieldOptions* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int EnumOptions::kAllowAliasFieldNumber;
 const int EnumOptions::kUninterpretedOptionFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 EnumOptions::EnumOptions()
   : ::google::protobuf::Message() {
@@ -6132,9 +6132,9 @@ void EnumOptions::Swap(EnumOptions* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int EnumValueOptions::kUninterpretedOptionFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 EnumValueOptions::EnumValueOptions()
   : ::google::protobuf::Message() {
@@ -6357,9 +6357,9 @@ void EnumValueOptions::Swap(EnumValueOptions* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int ServiceOptions::kUninterpretedOptionFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 ServiceOptions::ServiceOptions()
   : ::google::protobuf::Message() {
@@ -6582,9 +6582,9 @@ void ServiceOptions::Swap(ServiceOptions* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int MethodOptions::kUninterpretedOptionFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 MethodOptions::MethodOptions()
   : ::google::protobuf::Message() {
@@ -6807,10 +6807,10 @@ void MethodOptions::Swap(MethodOptions* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int UninterpretedOption_NamePart::kNamePartFieldNumber;
 const int UninterpretedOption_NamePart::kIsExtensionFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 UninterpretedOption_NamePart::UninterpretedOption_NamePart()
   : ::google::protobuf::Message() {
@@ -7071,7 +7071,7 @@ void UninterpretedOption_NamePart::Swap(UninterpretedOption_NamePart* other) {
 
 // -------------------------------------------------------------------
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int UninterpretedOption::kNameFieldNumber;
 const int UninterpretedOption::kIdentifierValueFieldNumber;
 const int UninterpretedOption::kPositiveIntValueFieldNumber;
@@ -7079,7 +7079,7 @@ const int UninterpretedOption::kNegativeIntValueFieldNumber;
 const int UninterpretedOption::kDoubleValueFieldNumber;
 const int UninterpretedOption::kStringValueFieldNumber;
 const int UninterpretedOption::kAggregateValueFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 UninterpretedOption::UninterpretedOption()
   : ::google::protobuf::Message() {
@@ -7563,12 +7563,12 @@ void UninterpretedOption::Swap(UninterpretedOption* other) {
 
 // ===================================================================
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int SourceCodeInfo_Location::kPathFieldNumber;
 const int SourceCodeInfo_Location::kSpanFieldNumber;
 const int SourceCodeInfo_Location::kLeadingCommentsFieldNumber;
 const int SourceCodeInfo_Location::kTrailingCommentsFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 SourceCodeInfo_Location::SourceCodeInfo_Location()
   : ::google::protobuf::Message() {
@@ -7977,9 +7977,9 @@ void SourceCodeInfo_Location::Swap(SourceCodeInfo_Location* other) {
 
 // -------------------------------------------------------------------
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int SourceCodeInfo::kLocationFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 SourceCodeInfo::SourceCodeInfo()
   : ::google::protobuf::Message() {

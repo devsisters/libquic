@@ -65,6 +65,10 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
+#include "../internal.h"
+
+
+static CRYPTO_EX_DATA_CLASS g_ex_data_class = CRYPTO_EX_DATA_CLASS_INIT;
 
 ASN1_SEQUENCE_enc(X509_CINF, enc, 0) = {
 	ASN1_EXP_OPT(X509_CINF, version, ASN1_INTEGER, 0),
@@ -100,7 +104,7 @@ static int x509_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 		ret->akid = NULL;
 		ret->aux = NULL;
 		ret->crldp = NULL;
-		CRYPTO_new_ex_data(CRYPTO_EX_INDEX_X509, ret, &ret->ex_data);
+		CRYPTO_new_ex_data(&g_ex_data_class, ret, &ret->ex_data);
 		break;
 
 		case ASN1_OP_D2I_POST:
@@ -109,7 +113,7 @@ static int x509_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 		break;
 
 		case ASN1_OP_FREE_POST:
-		CRYPTO_free_ex_data(CRYPTO_EX_INDEX_X509, ret, &ret->ex_data);
+		CRYPTO_free_ex_data(&g_ex_data_class, ret, &ret->ex_data);
 		X509_CERT_AUX_free(ret->aux);
 		ASN1_OCTET_STRING_free(ret->skid);
 		AUTHORITY_KEYID_free(ret->akid);
@@ -127,7 +131,7 @@ static int x509_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 
 }
 
-ASN1_SEQUENCE_ref(X509, x509_cb, CRYPTO_LOCK_X509) = {
+ASN1_SEQUENCE_ref(X509, x509_cb) = {
 	ASN1_SIMPLE(X509, cert_info, X509_CINF),
 	ASN1_SIMPLE(X509, sig_alg, X509_ALGOR),
 	ASN1_SIMPLE(X509, signature, ASN1_BIT_STRING)
@@ -138,15 +142,20 @@ IMPLEMENT_ASN1_DUP_FUNCTION(X509)
 
 X509 *X509_up_ref(X509 *x)
 	{
-	CRYPTO_add(&x->references, 1, CRYPTO_LOCK_X509);
+	CRYPTO_refcount_inc(&x->references);
 	return x;
 	}
 
 int X509_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func)
         {
-	return CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509, argl, argp,
-				new_func, dup_func, free_func);
+	int index;
+	if (!CRYPTO_get_ex_new_index(&g_ex_data_class, &index, argl, argp,
+			new_func, dup_func, free_func))
+		{
+		return -1;
+		}
+	return index;
         }
 
 int X509_set_ex_data(X509 *r, int idx, void *arg)
@@ -169,20 +178,29 @@ void *X509_get_ex_data(X509 *r, int idx)
 
 X509 *d2i_X509_AUX(X509 **a, const unsigned char **pp, long length)
 {
-	const unsigned char *q;
+	const unsigned char *q = *pp;
 	X509 *ret;
-	/* Save start position */
-	q = *pp;
-	ret = d2i_X509(a, pp, length);
+	int freeret = 0;
+
+	if (!a || *a == NULL)
+		freeret = 1;
+	ret = d2i_X509(a, &q, length);
 	/* If certificate unreadable then forget it */
 	if(!ret) return NULL;
 	/* update length */
-	length -= *pp - q;
-	if(!length) return ret;
-	if(!d2i_X509_CERT_AUX(&ret->aux, pp, length)) goto err;
+	length -= q - *pp;
+	/* Parse auxiliary information if there is any. */
+	if (length > 0 && !d2i_X509_CERT_AUX(&ret->aux, &q, length))
+		goto err;
+	*pp = q;
 	return ret;
 	err:
-	X509_free(ret);
+	if (freeret)
+		{
+		X509_free(ret);
+		if (a)
+			*a = NULL;
+		}
 	return NULL;
 }
 

@@ -5,11 +5,9 @@
 #ifndef NET_QUIC_QUIC_SPDY_SESSION_H_
 #define NET_QUIC_QUIC_SPDY_SESSION_H_
 
-#include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
-#include "net/quic/quic_data_stream.h"
 #include "net/quic/quic_headers_stream.h"
 #include "net/quic/quic_session.h"
+#include "net/quic/quic_spdy_stream.h"
 
 namespace net {
 
@@ -45,23 +43,26 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   // If |fin| is true, then no more data will be sent for the stream |id|.
   // If provided, |ack_notifier_delegate| will be registered to be notified when
   // we have seen ACKs for all packets resulting from this call.
-  size_t WriteHeaders(
-      QuicStreamId id,
-      const SpdyHeaderBlock& headers,
-      bool fin,
-      QuicPriority priority,
-      QuicAckNotifier::DelegateInterface* ack_notifier_delegate);
+  size_t WriteHeaders(QuicStreamId id,
+                      const SpdyHeaderBlock& headers,
+                      bool fin,
+                      QuicPriority priority,
+                      QuicAckListenerInterface* ack_notifier_delegate);
 
   QuicHeadersStream* headers_stream() { return headers_stream_.get(); }
 
+  // Called when Head of Line Blocking happens in the headers stream.
+  // |delta| indicates how long that piece of data has been blocked.
+  virtual void OnHeadersHeadOfLineBlocking(QuicTime::Delta delta);
+
  protected:
   // Override CreateIncomingDynamicStream() and CreateOutgoingDynamicStream()
-  // with QuicDataStream return type to make sure that all data streams are
-  // QuicDataStreams.
-  QuicDataStream* CreateIncomingDynamicStream(QuicStreamId id) override = 0;
-  QuicDataStream* CreateOutgoingDynamicStream() override = 0;
+  // with QuicSpdyStream return type to make sure that all data streams are
+  // QuicSpdyStreams.
+  QuicSpdyStream* CreateIncomingDynamicStream(QuicStreamId id) override = 0;
+  QuicSpdyStream* CreateOutgoingDynamicStream() override = 0;
 
-  QuicDataStream* GetSpdyDataStream(const QuicStreamId stream_id);
+  QuicSpdyStream* GetSpdyDataStream(const QuicStreamId stream_id);
 
  private:
   friend class test::QuicSpdySessionPeer;

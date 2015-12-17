@@ -18,7 +18,7 @@ namespace net {
 class CachedNetworkParameters;
 class CryptoHandshakeMessage;
 class QuicCryptoServerConfig;
-class QuicCryptoServerStream;
+class QuicCryptoServerStreamBase;
 class QuicSession;
 
 namespace test {
@@ -28,88 +28,89 @@ class QuicCryptoServerStreamPeer;
 
 // Receives a notification when the server hello (SHLO) has been ACKed by the
 // peer. At this point we disable HANDSHAKE_MODE in the sent packet manager.
-class NET_EXPORT_PRIVATE ServerHelloNotifier : public
-    QuicAckNotifier::DelegateInterface {
+class NET_EXPORT_PRIVATE ServerHelloNotifier : public QuicAckListenerInterface {
  public:
-  explicit ServerHelloNotifier(QuicCryptoServerStream* stream)
+  explicit ServerHelloNotifier(QuicCryptoServerStreamBase* stream)
       : server_stream_(stream) {}
 
-  // QuicAckNotifier::DelegateInterface implementation
-  void OnAckNotification(int num_retransmitted_packets,
-                         int num_retransmitted_bytes,
-                         QuicTime::Delta delta_largest_observed) override;
+  void OnPacketAcked(int acked_bytes,
+                     QuicTime::Delta delta_largest_observed) override;
+
+  void OnPacketRetransmitted(int retransmitted_bytes) override;
 
  private:
   ~ServerHelloNotifier() override {}
 
-  QuicCryptoServerStream* server_stream_;
+  QuicCryptoServerStreamBase* server_stream_;
 
   DISALLOW_COPY_AND_ASSIGN(ServerHelloNotifier);
 };
 
-class NET_EXPORT_PRIVATE QuicCryptoServerStream : public QuicCryptoStream {
+// TODO(alyssar) see what can be moved out of QuicCryptoServerStream with
+// various code and test refactoring.
+class NET_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
+ public:
+  // |crypto_config| must outlive the stream.
+  explicit QuicCryptoServerStreamBase(QuicSession* session)
+      : QuicCryptoStream(session) {}
+  ~QuicCryptoServerStreamBase() override {}
+
+  // Cancel any outstanding callbacks, such as asynchronous validation of client
+  // hello.
+  virtual void CancelOutstandingCallbacks() = 0;
+
+  // GetBase64SHA256ClientChannelID sets |*output| to the base64 encoded,
+  // SHA-256 hash of the client's ChannelID key and returns true, if the client
+  // presented a ChannelID. Otherwise it returns false.
+  virtual bool GetBase64SHA256ClientChannelID(std::string* output) const = 0;
+
+  virtual int NumServerConfigUpdateMessagesSent() const = 0;
+
+  // Sends the latest server config and source-address token to the client.
+  virtual void SendServerConfigUpdate(
+      const CachedNetworkParameters* cached_network_params) = 0;
+
+  // Called by the ServerHello AckNotifier once the SHLO has been ACKed by the
+  // client.
+  virtual void OnServerHelloAcked() = 0;
+
+  // These are all accessors and setters to their respective counters.
+  virtual uint8 NumHandshakeMessages() const = 0;
+  virtual uint8 NumHandshakeMessagesWithServerNonces() const = 0;
+  virtual bool UseStatelessRejectsIfPeerSupported() const = 0;
+  virtual bool PeerSupportsStatelessRejects() const = 0;
+  virtual void SetPeerSupportsStatelessRejects(bool set) = 0;
+  virtual const CachedNetworkParameters* PreviousCachedNetworkParams()
+      const = 0;
+  virtual void SetPreviousCachedNetworkParams(
+      CachedNetworkParameters cached_network_params) = 0;
+};
+
+class NET_EXPORT_PRIVATE QuicCryptoServerStream
+    : public QuicCryptoServerStreamBase {
  public:
   // |crypto_config| must outlive the stream.
   QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
                          QuicSession* session);
   ~QuicCryptoServerStream() override;
 
-  // Cancel any outstanding callbacks, such as asynchronous validation of client
-  // hello.
-  void CancelOutstandingCallbacks();
-
-  // CryptoFramerVisitorInterface implementation
+  // From QuicCryptoServerStreamBase
+  void CancelOutstandingCallbacks() override;
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;
-
-  // GetBase64SHA256ClientChannelID sets |*output| to the base64 encoded,
-  // SHA-256 hash of the client's ChannelID key and returns true, if the client
-  // presented a ChannelID. Otherwise it returns false.
-  bool GetBase64SHA256ClientChannelID(std::string* output) const;
-
-  uint8 num_handshake_messages() const { return num_handshake_messages_; }
-
-  uint8 num_handshake_messages_with_server_nonces() const {
-    return num_handshake_messages_with_server_nonces_;
-  }
-
-  int num_server_config_update_messages_sent() const {
-    return num_server_config_update_messages_sent_;
-  }
-
-  // Sends the latest server config and source-address token to the client.
-  virtual void SendServerConfigUpdate(
-      const CachedNetworkParameters* cached_network_params);
-
-  // Called by the ServerHello AckNotifier once the SHLO has been ACKed by the
-  // client.
-  void OnServerHelloAcked();
-
-  void set_previous_cached_network_params(
-      CachedNetworkParameters cached_network_params);
-
-  const CachedNetworkParameters* previous_cached_network_params() const;
-
-  bool use_stateless_rejects_if_peer_supported() const {
-    return use_stateless_rejects_if_peer_supported_;
-  }
-
-  // Used by the quic dispatcher to indicate that this crypto server
-  // stream should use stateless rejects, so long as stateless rejects
-  // are supported by the client.
-  void set_use_stateless_rejects_if_peer_supported(
-      bool use_stateless_rejects_if_peer_supported) {
-    use_stateless_rejects_if_peer_supported_ =
-        use_stateless_rejects_if_peer_supported;
-  }
-
-  bool peer_supports_stateless_rejects() const {
-    return peer_supports_stateless_rejects_;
-  }
-
-  void set_peer_supports_stateless_rejects(
-      bool peer_supports_stateless_rejects) {
-    peer_supports_stateless_rejects_ = peer_supports_stateless_rejects;
-  }
+  bool GetBase64SHA256ClientChannelID(std::string* output) const override;
+  void SendServerConfigUpdate(
+      const CachedNetworkParameters* cached_network_params) override;
+  void OnServerHelloAcked() override;
+  uint8 NumHandshakeMessages() const override;
+  uint8 NumHandshakeMessagesWithServerNonces() const override;
+  int NumServerConfigUpdateMessagesSent() const override;
+  const CachedNetworkParameters* PreviousCachedNetworkParams() const override;
+  bool UseStatelessRejectsIfPeerSupported() const override;
+  bool PeerSupportsStatelessRejects() const override;
+  void SetPeerSupportsStatelessRejects(
+      bool peer_supports_stateless_rejects) override;
+  void SetPreviousCachedNetworkParams(
+      CachedNetworkParameters cached_network_params) override;
 
  protected:
   virtual QuicErrorCode ProcessClientHello(
@@ -161,6 +162,10 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStream : public QuicCryptoStream {
 
   // crypto_config_ contains crypto parameters for the handshake.
   const QuicCryptoServerConfig* crypto_config_;
+
+  // Server's certificate chain and signature of the server config, as provided
+  // by ProofSource::GetProof.
+  QuicCryptoProof crypto_proof_;
 
   // Pointer to the active callback that will receive the result of
   // the client hello validation request and forward it to

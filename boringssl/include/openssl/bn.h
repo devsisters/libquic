@@ -124,7 +124,9 @@
 #define OPENSSL_HEADER_BN_H
 
 #include <openssl/base.h>
+#include <openssl/thread.h>
 
+#include <inttypes.h>  /* for PRIu64 and friends */
 #include <stdio.h>  /* for FILE* */
 
 #if defined(__cplusplus)
@@ -137,13 +139,24 @@ extern "C" {
  * will allow you to work with numbers until you run out of memory. */
 
 
-/* BN_ULONG is the native word size when working with big integers. */
+/* BN_ULONG is the native word size when working with big integers.
+ *
+ * Note: on some platforms, inttypes.h does not define print format macros in
+ * C++ unless |__STDC_FORMAT_MACROS| defined. As this is a public header, bn.h
+ * does not define |__STDC_FORMAT_MACROS| itself. C++ source files which use the
+ * FMT macros must define it externally. */
 #if defined(OPENSSL_64_BIT)
 #define BN_ULONG uint64_t
 #define BN_BITS2 64
+#define BN_DEC_FMT1	"%" PRIu64
+#define BN_DEC_FMT2	"%019" PRIu64
+#define BN_HEX_FMT1	"%" PRIx64
 #elif defined(OPENSSL_32_BIT)
 #define BN_ULONG uint32_t
 #define BN_BITS2 32
+#define BN_DEC_FMT1	"%" PRIu32
+#define BN_DEC_FMT2	"%09" PRIu32
+#define BN_HEX_FMT1	"%" PRIx32
 #else
 #error "Must define either OPENSSL_32_BIT or OPENSSL_64_BIT"
 #endif
@@ -169,7 +182,8 @@ OPENSSL_EXPORT void BN_clear_free(BIGNUM *bn);
  * allocated BIGNUM on success or NULL otherwise. */
 OPENSSL_EXPORT BIGNUM *BN_dup(const BIGNUM *src);
 
-/* BN_copy sets |dest| equal to |src| and returns |dest|. */
+/* BN_copy sets |dest| equal to |src| and returns |dest| or NULL on allocation
+ * failure. */
 OPENSSL_EXPORT BIGNUM *BN_copy(BIGNUM *dest, const BIGNUM *src);
 
 /* BN_clear sets |bn| to zero and erases the old data. */
@@ -284,6 +298,21 @@ OPENSSL_EXPORT int BN_print_fp(FILE *fp, const BIGNUM *a);
 OPENSSL_EXPORT BN_ULONG BN_get_word(const BIGNUM *bn);
 
 
+/* ASN.1 functions. */
+
+/* BN_cbs2unsigned parses a non-negative DER INTEGER from |cbs| writes the
+ * result to |ret|. It returns one on success and zero on failure. */
+OPENSSL_EXPORT int BN_cbs2unsigned(CBS *cbs, BIGNUM *ret);
+
+/* BN_cbs2unsigned_buggy acts like |BN_cbs2unsigned| but tolerates some invalid
+ * encodings. Do not use this function. */
+OPENSSL_EXPORT int BN_cbs2unsigned_buggy(CBS *cbs, BIGNUM *ret);
+
+/* BN_bn2cbb marshals |bn| as a non-negative DER INTEGER and appends the result
+ * to |cbb|. It returns one on success and zero on failure. */
+OPENSSL_EXPORT int BN_bn2cbb(CBB *cbb, const BIGNUM *bn);
+
+
 /* Internal functions.
  *
  * These functions are useful for code that is doing low-level manipulations of
@@ -297,7 +326,7 @@ OPENSSL_EXPORT void bn_correct_top(BIGNUM *bn);
 /* bn_wexpand ensures that |bn| has at least |words| works of space without
  * altering its value. It returns one on success or zero on allocation
  * failure. */
-OPENSSL_EXPORT BIGNUM *bn_wexpand(BIGNUM *bn, unsigned words);
+OPENSSL_EXPORT BIGNUM *bn_wexpand(BIGNUM *bn, size_t words);
 
 
 /* BIGNUM pools.
@@ -473,7 +502,8 @@ OPENSSL_EXPORT BN_ULONG BN_mod_word(const BIGNUM *a, BN_ULONG w);
   BN_div(NULL, (rem), (numerator), (divisor), (ctx))
 
 /* BN_nnmod is a non-negative modulo function. It acts like |BN_mod|, but 0 <=
- * |rem| < |divisor| is always true. */
+ * |rem| < |divisor| is always true. It returns one on success and zero on
+ * error. */
 OPENSSL_EXPORT int BN_nnmod(BIGNUM *rem, const BIGNUM *numerator,
                             const BIGNUM *divisor, BN_CTX *ctx);
 
@@ -502,7 +532,7 @@ OPENSSL_EXPORT int BN_mod_sub_quick(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
 OPENSSL_EXPORT int BN_mod_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
                               const BIGNUM *m, BN_CTX *ctx);
 
-/* BN_mod_mul sets |r| = |a|^2 mod |m|. It returns one on success and zero
+/* BN_mod_sqr sets |r| = |a|^2 mod |m|. It returns one on success and zero
  * on error. */
 OPENSSL_EXPORT int BN_mod_sqr(BIGNUM *r, const BIGNUM *a, const BIGNUM *m,
                               BN_CTX *ctx);
@@ -534,15 +564,15 @@ OPENSSL_EXPORT BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p,
 
 /* Random and prime number generation. */
 
-/* BN_rand sets |rnd| to a random number of length |bits|. If |top| is zero,
- * the most-significant bit will be set. If |top| is one, the two most
- * significant bits will be set.
+/* BN_rand sets |rnd| to a random number of length |bits|. If |top| is zero, the
+ * most-significant bit, if any, will be set. If |top| is one, the two most
+ * significant bits, if any, will be set.
  *
  * If |top| is -1 then no extra action will be taken and |BN_num_bits(rnd)| may
  * not equal |bits| if the most significant bits randomly ended up as zeros.
  *
- * If |bottom| is non-zero, the least-significant bit will be set. The function
- * returns one on success or zero otherwise. */
+ * If |bottom| is non-zero, the least-significant bit, if any, will be set. The
+ * function returns one on success or zero otherwise. */
 OPENSSL_EXPORT int BN_rand(BIGNUM *rnd, int bits, int top, int bottom);
 
 /* BN_pseudo_rand is an alias for |BN_rand|. */
@@ -680,6 +710,14 @@ OPENSSL_EXPORT int BN_gcd(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
 OPENSSL_EXPORT BIGNUM *BN_mod_inverse(BIGNUM *out, const BIGNUM *a,
                                       const BIGNUM *n, BN_CTX *ctx);
 
+/* BN_mod_inverse_ex acts like |BN_mod_inverse| except that, when it returns
+ * zero, it will set |*out_no_inverse| to one if the failure was caused because
+ * |a| has no inverse mod |n|. Otherwise it will set |*out_no_inverse| to
+ * zero. */
+OPENSSL_EXPORT BIGNUM *BN_mod_inverse_ex(BIGNUM *out, int *out_no_inverse,
+                                         const BIGNUM *a, const BIGNUM *n,
+                                         BN_CTX *ctx);
+
 /* BN_kronecker returns the Kronecker symbol of |a| and |b| (which is -1, 0 or
  * 1), or -2 on error. */
 OPENSSL_EXPORT int BN_kronecker(const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
@@ -693,32 +731,26 @@ OPENSSL_EXPORT int BN_kronecker(const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
 /* BN_MONT_CTX_new returns a fresh BN_MONT_CTX or NULL on allocation failure. */
 OPENSSL_EXPORT BN_MONT_CTX *BN_MONT_CTX_new(void);
 
-/* BN_MONT_CTX_init initialises a stack allocated |BN_MONT_CTX|. */
-OPENSSL_EXPORT void BN_MONT_CTX_init(BN_MONT_CTX *mont);
-
-/* BN_MONT_CTX_free frees the contexts of |mont| and, if it was originally
- * allocated with |BN_MONT_CTX_new|, |mont| itself. */
+/* BN_MONT_CTX_free frees memory associated with |mont|. */
 OPENSSL_EXPORT void BN_MONT_CTX_free(BN_MONT_CTX *mont);
 
 /* BN_MONT_CTX_copy sets |to| equal to |from|. It returns |to| on success or
  * NULL on error. */
 OPENSSL_EXPORT BN_MONT_CTX *BN_MONT_CTX_copy(BN_MONT_CTX *to,
-                                             BN_MONT_CTX *from);
+                                             const BN_MONT_CTX *from);
 
 /* BN_MONT_CTX_set sets up a Montgomery context given the modulus, |mod|. It
  * returns one on success and zero on error. */
 OPENSSL_EXPORT int BN_MONT_CTX_set(BN_MONT_CTX *mont, const BIGNUM *mod,
                                    BN_CTX *ctx);
 
-/* BN_MONT_CTX_set_locked takes the lock indicated by |lock| and checks whether
- * |*pmont| is NULL. If so, it creates a new |BN_MONT_CTX| and sets the modulus
- * for it to |mod|. It then stores it as |*pmont| and returns it, or NULL on
- * error.
+/* BN_MONT_CTX_set_locked takes |lock| and checks whether |*pmont| is NULL. If
+ * so, it creates a new |BN_MONT_CTX| and sets the modulus for it to |mod|. It
+ * then stores it as |*pmont| and returns it, or NULL on error.
  *
  * If |*pmont| is already non-NULL then the existing value is returned. */
-OPENSSL_EXPORT BN_MONT_CTX *BN_MONT_CTX_set_locked(BN_MONT_CTX **pmont,
-                                                   int lock, const BIGNUM *mod,
-                                                   BN_CTX *ctx);
+BN_MONT_CTX *BN_MONT_CTX_set_locked(BN_MONT_CTX **pmont, CRYPTO_MUTEX *lock,
+                                    const BIGNUM *mod, BN_CTX *bn_ctx);
 
 /* BN_to_montgomery sets |ret| equal to |a| in the Montgomery domain. It
  * returns one on success and zero on error. */
@@ -755,19 +787,39 @@ OPENSSL_EXPORT int BN_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
 
 OPENSSL_EXPORT int BN_mod_exp_mont(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
                                    const BIGNUM *m, BN_CTX *ctx,
-                                   BN_MONT_CTX *m_ctx);
+                                   const BN_MONT_CTX *mont);
 
 OPENSSL_EXPORT int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a,
                                              const BIGNUM *p, const BIGNUM *m,
-                                             BN_CTX *ctx, BN_MONT_CTX *in_mont);
+                                             BN_CTX *ctx,
+                                             const BN_MONT_CTX *mont);
 
 OPENSSL_EXPORT int BN_mod_exp_mont_word(BIGNUM *r, BN_ULONG a, const BIGNUM *p,
                                         const BIGNUM *m, BN_CTX *ctx,
-                                        BN_MONT_CTX *m_ctx);
+                                        const BN_MONT_CTX *mont);
 OPENSSL_EXPORT int BN_mod_exp2_mont(BIGNUM *r, const BIGNUM *a1,
                                     const BIGNUM *p1, const BIGNUM *a2,
                                     const BIGNUM *p2, const BIGNUM *m,
-                                    BN_CTX *ctx, BN_MONT_CTX *m_ctx);
+                                    BN_CTX *ctx, const BN_MONT_CTX *mont);
+
+
+/* Deprecated functions */
+
+/* BN_bn2mpi serialises the value of |in| to |out|, using a format that consists
+ * of the number's length in bytes represented as a 4-byte big-endian number,
+ * and the number itself in big-endian format, where the most significant bit
+ * signals a negative number. (The representation of numbers with the MSB set is
+ * prefixed with null byte). |out| must have sufficient space available; to
+ * find the needed amount of space, call the function with |out| set to NULL. */
+OPENSSL_EXPORT size_t BN_bn2mpi(const BIGNUM *in, uint8_t *out);
+
+/* BN_mpi2bn parses |len| bytes from |in| and returns the resulting value. The
+ * bytes at |in| are expected to be in the format emitted by |BN_bn2mpi|.
+ *
+ * If |out| is NULL then a fresh |BIGNUM| is allocated and returned, otherwise
+ * |out| is reused and returned. On error, NULL is returned and the error queue
+ * is updated. */
+OPENSSL_EXPORT BIGNUM *BN_mpi2bn(const uint8_t *in, size_t len, BIGNUM *out);
 
 
 /* Private functions */
@@ -784,11 +836,7 @@ struct bignum_st {
 struct bn_mont_ctx_st {
   BIGNUM RR; /* used to convert to montgomery form */
   BIGNUM N;  /* The modulus */
-  BIGNUM Ni; /* R*(1/R mod N) - N*Ni = 1
-              * (Ni is only stored for bignum algorithm) */
-  BN_ULONG n0[2]; /* least significant word(s) of Ni;
-                     (type changed with 0.9.9, was "BN_ULONG n0;" before) */
-  int flags;
+  BN_ULONG n0[2]; /* least significant words of (R*Ri-1)/N */
   int ri;    /* number of bits in R */
 };
 
@@ -815,31 +863,6 @@ OPENSSL_EXPORT BIGNUM *get_rfc3526_prime_1536(BIGNUM *bn);
 }  /* extern C */
 #endif
 
-#define BN_F_BN_CTX_get 100
-#define BN_F_BN_CTX_new 101
-#define BN_F_BN_CTX_start 102
-#define BN_F_BN_bn2dec 103
-#define BN_F_BN_bn2hex 104
-#define BN_F_BN_div 105
-#define BN_F_BN_div_recp 106
-#define BN_F_BN_exp 107
-#define BN_F_BN_generate_dsa_nonce 108
-#define BN_F_BN_generate_prime_ex 109
-#define BN_F_BN_mod_exp2_mont 110
-#define BN_F_BN_mod_exp_mont 111
-#define BN_F_BN_mod_exp_mont_consttime 112
-#define BN_F_BN_mod_exp_mont_word 113
-#define BN_F_BN_mod_inverse 114
-#define BN_F_BN_mod_inverse_no_branch 115
-#define BN_F_BN_mod_lshift_quick 116
-#define BN_F_BN_mod_sqrt 117
-#define BN_F_BN_new 118
-#define BN_F_BN_rand 119
-#define BN_F_BN_rand_range 120
-#define BN_F_BN_sqrt 121
-#define BN_F_BN_usub 122
-#define BN_F_bn_wexpand 123
-#define BN_F_mod_exp_recp 124
 #define BN_R_ARG2_LT_ARG3 100
 #define BN_R_BAD_RECIPROCAL 101
 #define BN_R_BIGNUM_TOO_LONG 102
@@ -857,5 +880,7 @@ OPENSSL_EXPORT BIGNUM *get_rfc3526_prime_1536(BIGNUM *bn);
 #define BN_R_P_IS_NOT_PRIME 114
 #define BN_R_TOO_MANY_ITERATIONS 115
 #define BN_R_TOO_MANY_TEMPORARY_VARIABLES 116
+#define BN_R_BAD_ENCODING 117
+#define BN_R_ENCODE_ERROR 118
 
 #endif  /* OPENSSL_HEADER_BN_H */

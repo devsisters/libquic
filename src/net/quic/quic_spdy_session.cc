@@ -22,7 +22,7 @@ void QuicSpdySession::Initialize() {
   if (perspective() == Perspective::IS_SERVER) {
     set_largest_peer_created_stream_id(kHeadersStreamId);
   } else {
-    QuicStreamId headers_stream_id = GetNextStreamId();
+    QuicStreamId headers_stream_id = GetNextOutgoingStreamId();
     DCHECK_EQ(headers_stream_id, kHeadersStreamId);
   }
 
@@ -33,7 +33,7 @@ void QuicSpdySession::Initialize() {
 
 void QuicSpdySession::OnStreamHeaders(QuicStreamId stream_id,
                                       StringPiece headers_data) {
-  QuicDataStream* stream = GetSpdyDataStream(stream_id);
+  QuicSpdyStream* stream = GetSpdyDataStream(stream_id);
   if (!stream) {
     // It's quite possible to receive headers after a stream has been reset.
     return;
@@ -43,7 +43,7 @@ void QuicSpdySession::OnStreamHeaders(QuicStreamId stream_id,
 
 void QuicSpdySession::OnStreamHeadersPriority(QuicStreamId stream_id,
                                               QuicPriority priority) {
-  QuicDataStream* stream = GetSpdyDataStream(stream_id);
+  QuicSpdyStream* stream = GetSpdyDataStream(stream_id);
   if (!stream) {
     // It's quite possible to receive headers after a stream has been reset.
     return;
@@ -54,7 +54,7 @@ void QuicSpdySession::OnStreamHeadersPriority(QuicStreamId stream_id,
 void QuicSpdySession::OnStreamHeadersComplete(QuicStreamId stream_id,
                                               bool fin,
                                               size_t frame_len) {
-  QuicDataStream* stream = GetSpdyDataStream(stream_id);
+  QuicSpdyStream* stream = GetSpdyDataStream(stream_id);
   if (!stream) {
     // It's quite possible to receive headers after a stream has been reset.
     return;
@@ -67,14 +67,18 @@ size_t QuicSpdySession::WriteHeaders(
     const SpdyHeaderBlock& headers,
     bool fin,
     QuicPriority priority,
-    QuicAckNotifier::DelegateInterface* ack_notifier_delegate) {
+    QuicAckListenerInterface* ack_notifier_delegate) {
   return headers_stream_->WriteHeaders(id, headers, fin, priority,
                                        ack_notifier_delegate);
 }
 
-QuicDataStream* QuicSpdySession::GetSpdyDataStream(
+void QuicSpdySession::OnHeadersHeadOfLineBlocking(QuicTime::Delta delta) {
+  // Implemented in Chromium for stats tracking.
+}
+
+QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(
     const QuicStreamId stream_id) {
-  return static_cast<QuicDataStream*>(GetDynamicStream(stream_id));
+  return static_cast<QuicSpdyStream*>(GetOrCreateDynamicStream(stream_id));
 }
 
 }  // namespace net

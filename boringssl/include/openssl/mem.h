@@ -1,4 +1,5 @@
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com) * All rights reserved.
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
+ * All rights reserved.
  *
  * This package is an SSL implementation written
  * by Eric Young (eay@cryptsoft.com).
@@ -58,6 +59,7 @@
 
 #include <openssl/base.h>
 
+#include <stdlib.h>
 #include <stdarg.h>
 
 #if defined(__cplusplus)

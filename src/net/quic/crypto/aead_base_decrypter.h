@@ -12,12 +12,6 @@
 #include "net/quic/crypto/scoped_evp_aead_ctx.h"
 #else
 #include <pkcs11t.h>
-#include <seccomon.h>
-typedef struct PK11SymKeyStr PK11SymKey;
-typedef SECStatus (*PK11_DecryptFunction)(
-      PK11SymKey* symKey, CK_MECHANISM_TYPE mechanism, SECItem* param,
-      unsigned char* out, unsigned int* outLen, unsigned int maxLen,
-      const unsigned char* enc, unsigned encLen);
 #endif
 
 namespace net {
@@ -32,7 +26,6 @@ class NET_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
                     size_t nonce_prefix_size);
 #else
   AeadBaseDecrypter(CK_MECHANISM_TYPE aead_mechanism,
-                    PK11_DecryptFunction pk11_decrypt,
                     size_t key_size,
                     size_t auth_tag_size,
                     size_t nonce_prefix_size);
@@ -42,7 +35,7 @@ class NET_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
   // QuicDecrypter implementation
   bool SetKey(base::StringPiece key) override;
   bool SetNoncePrefix(base::StringPiece nonce_prefix) override;
-  bool DecryptPacket(QuicPacketSequenceNumber sequence_number,
+  bool DecryptPacket(QuicPacketNumber packet_number,
                      const base::StringPiece& associated_data,
                      const base::StringPiece& ciphertext,
                      char* output,
@@ -63,11 +56,7 @@ class NET_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
     unsigned int len;
     union {
       CK_GCM_PARAMS gcm_params;
-#if !defined(USE_NSS_CERTS)
-      // USE_NSS_CERTS implies we are using system NSS rather than our copy of
-      // NSS. The system NSS <pkcs11n.h> header doesn't define this type yet.
       CK_NSS_AEAD_PARAMS nss_aead_params;
-#endif
     } data;
   };
 
@@ -82,7 +71,6 @@ class NET_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
   const EVP_AEAD* const aead_alg_;
 #else
   const CK_MECHANISM_TYPE aead_mechanism_;
-  const PK11_DecryptFunction pk11_decrypt_;
 #endif
   const size_t key_size_;
   const size_t auth_tag_size_;

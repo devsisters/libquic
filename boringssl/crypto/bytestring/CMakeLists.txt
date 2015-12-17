@@ -1,4 +1,4 @@
-include_directories(. .. ../../include)
+include_directories(../../include)
 
 add_library(
   bytestring
@@ -13,7 +13,10 @@ add_library(
 add_executable(
   bytestring_test
 
-  bytestring_test.c
+  bytestring_test.cc
+
+  $<TARGET_OBJECTS:test_support>
 )
 
 target_link_libraries(bytestring_test crypto)
+add_dependencies(all_tests bytestring_test)

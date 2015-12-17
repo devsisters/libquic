@@ -1,4 +1,4 @@
-include_directories(. .. ../../include)
+include_directories(../../include)
 
 add_custom_command(
   OUTPUT err_data.c
@@ -8,10 +8,8 @@ add_custom_command(
   asn1.errordata
   bio.errordata
   bn.errordata
-  buf.errordata
   cipher.errordata
   conf.errordata
-  crypto.errordata
   dh.errordata
   digest.errordata
   dsa.errordata
@@ -38,13 +36,15 @@ add_library(
 
   err.c
   err_data.c
-  err_impl.c
 )
 
 add_executable(
   err_test
 
-  err_test.c
+  err_test.cc
+
+  $<TARGET_OBJECTS:test_support>
 )
 
 target_link_libraries(err_test crypto)
+add_dependencies(all_tests err_test)

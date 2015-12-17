@@ -110,39 +110,63 @@
 #define OPENSSL_HEADER_CRYPTO_INTERNAL_H
 
 #include <openssl/ex_data.h>
+#include <openssl/thread.h>
+
+#if defined(OPENSSL_NO_THREADS)
+#elif defined(OPENSSL_WINDOWS)
+#pragma warning(push, 3)
+#include <windows.h>
+#pragma warning(pop)
+#else
+#include <pthread.h>
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 
-/* st_CRYPTO_EX_DATA_IMPL contains an ex_data implementation. See the comments
- * in ex_data.h for details of the behaviour of each of the functions. */
-struct st_CRYPTO_EX_DATA_IMPL {
-  int (*new_class)(void);
-  void (*cleanup)(void);
-
-  int (*get_new_index)(int class_value, long argl, void *argp,
-                       CRYPTO_EX_new *new_func, CRYPTO_EX_dup *dup_func,
-                       CRYPTO_EX_free *free_func);
-  int (*new_ex_data)(int class_value, void *obj, CRYPTO_EX_DATA *ad);
-  int (*dup_ex_data)(int class_value, CRYPTO_EX_DATA *to,
-                     const CRYPTO_EX_DATA *from);
-  void (*free_ex_data)(int class_value, void *obj, CRYPTO_EX_DATA *ad);
-};
-
-
+/* MSVC's C4701 warning about the use of *potentially*--as opposed to
+ * *definitely*--uninitialized values sometimes has false positives. Usually
+ * the false positives can and should be worked around by simplifying the
+ * control flow. When that is not practical, annotate the function containing
+ * the code that triggers the warning with
+ * OPENSSL_SUPPRESS_POTENTIALLY_UNINITIALIZED_WARNINGS after its parameters:
+ *
+ *    void f() OPENSSL_SUPPRESS_POTENTIALLY_UNINITIALIZED_WARNINGS {
+ *       ...
+ *    }
+ *
+ * Note that MSVC's control flow analysis seems to operate on a whole-function
+ * basis, so the annotation must be placed on the entire function, not just a
+ * block within the function. */
 #if defined(_MSC_VER)
-#define OPENSSL_U64(x) x##UI64
+#define OPENSSL_SUPPRESS_POTENTIALLY_UNINITIALIZED_WARNINGS \
+        __pragma(warning(suppress:4701))
 #else
-
-#if defined(OPENSSL_64_BIT)
-#define OPENSSL_U64(x) x##UL
-#else
-#define OPENSSL_U64(x) x##ULL
+#define OPENSSL_SUPPRESS_POTENTIALLY_UNINITIALIZED_WARNINGS
 #endif
 
-#endif  /* defined(_MSC_VER) */
+/* MSVC will sometimes correctly detect unreachable code and issue a warning,
+ * which breaks the build since we treat errors as warnings, in some rare cases
+ * where we want to allow the dead code to continue to exist. In these
+ * situations, annotate the function containing the unreachable code with
+ * OPENSSL_SUPPRESS_UNREACHABLE_CODE_WARNINGS after its parameters:
+ *
+ *    void f() OPENSSL_SUPPRESS_UNREACHABLE_CODE_WARNINGS {
+ *       ...
+ *    }
+ *
+ * Note that MSVC's reachability analysis seems to operate on a whole-function
+ * basis, so the annotation must be placed on the entire function, not just a
+ * block within the function. */
+#if defined(_MSC_VER)
+#define OPENSSL_SUPPRESS_UNREACHABLE_CODE_WARNINGS \
+        __pragma(warning(suppress:4702))
+#else
+#define OPENSSL_SUPPRESS_UNREACHABLE_CODE_WARNINGS
+#endif
+
 
 #if defined(OPENSSL_X86) || defined(OPENSSL_X86_64) || defined(OPENSSL_ARM) || \
     defined(OPENSSL_AARCH64)
@@ -293,6 +317,216 @@ static inline uint8_t constant_time_select_8(uint8_t mask, uint8_t a,
 static inline int constant_time_select_int(unsigned int mask, int a, int b) {
   return (int)(constant_time_select(mask, (unsigned)(a), (unsigned)(b)));
 }
+
+
+/* Thread-safe initialisation. */
+
+#if defined(OPENSSL_NO_THREADS)
+typedef uint32_t CRYPTO_once_t;
+#define CRYPTO_ONCE_INIT 0
+#elif defined(OPENSSL_WINDOWS)
+typedef LONG CRYPTO_once_t;
+#define CRYPTO_ONCE_INIT 0
+#else
+typedef pthread_once_t CRYPTO_once_t;
+#define CRYPTO_ONCE_INIT PTHREAD_ONCE_INIT
+#endif
+
+/* CRYPTO_once calls |init| exactly once per process. This is thread-safe: if
+ * concurrent threads call |CRYPTO_once| with the same |CRYPTO_once_t| argument
+ * then they will block until |init| completes, but |init| will have only been
+ * called once.
+ *
+ * The |once| argument must be a |CRYPTO_once_t| that has been initialised with
+ * the value |CRYPTO_ONCE_INIT|. */
+OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
+
+
+/* Reference counting. */
+
+/* CRYPTO_REFCOUNT_MAX is the value at which the reference count saturates. */
+#define CRYPTO_REFCOUNT_MAX 0xffffffff
+
+/* CRYPTO_refcount_inc atomically increments the value at |*count| unless the
+ * value would overflow. It's safe for multiple threads to concurrently call
+ * this or |CRYPTO_refcount_dec_and_test_zero| on the same
+ * |CRYPTO_refcount_t|. */
+OPENSSL_EXPORT void CRYPTO_refcount_inc(CRYPTO_refcount_t *count);
+
+/* CRYPTO_refcount_dec_and_test_zero tests the value at |*count|:
+ *   if it's zero, it crashes the address space.
+ *   if it's the maximum value, it returns zero.
+ *   otherwise, it atomically decrements it and returns one iff the resulting
+ *       value is zero.
+ *
+ * It's safe for multiple threads to concurrently call this or
+ * |CRYPTO_refcount_inc| on the same |CRYPTO_refcount_t|. */
+OPENSSL_EXPORT int CRYPTO_refcount_dec_and_test_zero(CRYPTO_refcount_t *count);
+
+
+/* Locks.
+ *
+ * Two types of locks are defined: |CRYPTO_MUTEX|, which can be used in
+ * structures as normal, and |struct CRYPTO_STATIC_MUTEX|, which can be used as
+ * a global lock. A global lock must be initialised to the value
+ * |CRYPTO_STATIC_MUTEX_INIT|.
+ *
+ * |CRYPTO_MUTEX| can appear in public structures and so is defined in
+ * thread.h.
+ *
+ * The global lock is a different type because there's no static initialiser
+ * value on Windows for locks, so global locks have to be coupled with a
+ * |CRYPTO_once_t| to ensure that the lock is setup before use. This is done
+ * automatically by |CRYPTO_STATIC_MUTEX_lock_*|. */
+
+#if defined(OPENSSL_NO_THREADS)
+struct CRYPTO_STATIC_MUTEX {};
+#define CRYPTO_STATIC_MUTEX_INIT {}
+#elif defined(OPENSSL_WINDOWS)
+struct CRYPTO_STATIC_MUTEX {
+  CRYPTO_once_t once;
+  CRITICAL_SECTION lock;
+};
+#define CRYPTO_STATIC_MUTEX_INIT { CRYPTO_ONCE_INIT, { 0 } }
+#else
+struct CRYPTO_STATIC_MUTEX {
+  pthread_rwlock_t lock;
+};
+#define CRYPTO_STATIC_MUTEX_INIT { PTHREAD_RWLOCK_INITIALIZER }
+#endif
+
+/* CRYPTO_MUTEX_init initialises |lock|. If |lock| is a static variable, use a
+ * |CRYPTO_STATIC_MUTEX|. */
+OPENSSL_EXPORT void CRYPTO_MUTEX_init(CRYPTO_MUTEX *lock);
+
+/* CRYPTO_MUTEX_lock_read locks |lock| such that other threads may also have a
+ * read lock, but none may have a write lock. (On Windows, read locks are
+ * actually fully exclusive.) */
+OPENSSL_EXPORT void CRYPTO_MUTEX_lock_read(CRYPTO_MUTEX *lock);
+
+/* CRYPTO_MUTEX_lock_write locks |lock| such that no other thread has any type
+ * of lock on it. */
+OPENSSL_EXPORT void CRYPTO_MUTEX_lock_write(CRYPTO_MUTEX *lock);
+
+/* CRYPTO_MUTEX_unlock unlocks |lock|. */
+OPENSSL_EXPORT void CRYPTO_MUTEX_unlock(CRYPTO_MUTEX *lock);
+
+/* CRYPTO_MUTEX_cleanup releases all resources held by |lock|. */
+OPENSSL_EXPORT void CRYPTO_MUTEX_cleanup(CRYPTO_MUTEX *lock);
+
+/* CRYPTO_STATIC_MUTEX_lock_read locks |lock| such that other threads may also
+ * have a read lock, but none may have a write lock. The |lock| variable does
+ * not need to be initialised by any function, but must have been statically
+ * initialised with |CRYPTO_STATIC_MUTEX_INIT|. */
+OPENSSL_EXPORT void CRYPTO_STATIC_MUTEX_lock_read(
+    struct CRYPTO_STATIC_MUTEX *lock);
+
+/* CRYPTO_STATIC_MUTEX_lock_write locks |lock| such that no other thread has
+ * any type of lock on it.  The |lock| variable does not need to be initialised
+ * by any function, but must have been statically initialised with
+ * |CRYPTO_STATIC_MUTEX_INIT|. */
+OPENSSL_EXPORT void CRYPTO_STATIC_MUTEX_lock_write(
+    struct CRYPTO_STATIC_MUTEX *lock);
+
+/* CRYPTO_STATIC_MUTEX_unlock unlocks |lock|. */
+OPENSSL_EXPORT void CRYPTO_STATIC_MUTEX_unlock(
+    struct CRYPTO_STATIC_MUTEX *lock);
+
+
+/* Thread local storage. */
+
+/* thread_local_data_t enumerates the types of thread-local data that can be
+ * stored. */
+typedef enum {
+  OPENSSL_THREAD_LOCAL_ERR = 0,
+  OPENSSL_THREAD_LOCAL_RAND,
+  OPENSSL_THREAD_LOCAL_URANDOM_BUF,
+  OPENSSL_THREAD_LOCAL_TEST,
+  NUM_OPENSSL_THREAD_LOCALS,
+} thread_local_data_t;
+
+/* thread_local_destructor_t is the type of a destructor function that will be
+ * called when a thread exits and its thread-local storage needs to be freed. */
+typedef void (*thread_local_destructor_t)(void *);
+
+/* CRYPTO_get_thread_local gets the pointer value that is stored for the
+ * current thread for the given index, or NULL if none has been set. */
+OPENSSL_EXPORT void *CRYPTO_get_thread_local(thread_local_data_t value);
+
+/* CRYPTO_set_thread_local sets a pointer value for the current thread at the
+ * given index. This function should only be called once per thread for a given
+ * |index|: rather than update the pointer value itself, update the data that
+ * is pointed to.
+ *
+ * The destructor function will be called when a thread exits to free this
+ * thread-local data. All calls to |CRYPTO_set_thread_local| with the same
+ * |index| should have the same |destructor| argument. The destructor may be
+ * called with a NULL argument if a thread that never set a thread-local
+ * pointer for |index|, exits. The destructor may be called concurrently with
+ * different arguments.
+ *
+ * This function returns one on success or zero on error. If it returns zero
+ * then |destructor| has been called with |value| already. */
+OPENSSL_EXPORT int CRYPTO_set_thread_local(
+    thread_local_data_t index, void *value,
+    thread_local_destructor_t destructor);
+
+
+/* ex_data */
+
+typedef struct crypto_ex_data_func_st CRYPTO_EX_DATA_FUNCS;
+
+/* CRYPTO_EX_DATA_CLASS tracks the ex_indices registered for a type which
+ * supports ex_data. It should defined as a static global within the module
+ * which defines that type. */
+typedef struct {
+  struct CRYPTO_STATIC_MUTEX lock;
+  STACK_OF(CRYPTO_EX_DATA_FUNCS) *meth;
+  /* num_reserved is one if the ex_data index zero is reserved for legacy
+   * |TYPE_get_app_data| functions. */
+  uint8_t num_reserved;
+} CRYPTO_EX_DATA_CLASS;
+
+#define CRYPTO_EX_DATA_CLASS_INIT {CRYPTO_STATIC_MUTEX_INIT, NULL, 0}
+#define CRYPTO_EX_DATA_CLASS_INIT_WITH_APP_DATA \
+    {CRYPTO_STATIC_MUTEX_INIT, NULL, 1}
+
+/* CRYPTO_get_ex_new_index allocates a new index for |ex_data_class| and writes
+ * it to |*out_index|. Each class of object should provide a wrapper function
+ * that uses the correct |CRYPTO_EX_DATA_CLASS|. It returns one on success and
+ * zero otherwise. */
+OPENSSL_EXPORT int CRYPTO_get_ex_new_index(CRYPTO_EX_DATA_CLASS *ex_data_class,
+                                           int *out_index, long argl,
+                                           void *argp, CRYPTO_EX_new *new_func,
+                                           CRYPTO_EX_dup *dup_func,
+                                           CRYPTO_EX_free *free_func);
+
+/* CRYPTO_set_ex_data sets an extra data pointer on a given object. Each class
+ * of object should provide a wrapper function. */
+OPENSSL_EXPORT int CRYPTO_set_ex_data(CRYPTO_EX_DATA *ad, int index, void *val);
+
+/* CRYPTO_get_ex_data returns an extra data pointer for a given object, or NULL
+ * if no such index exists. Each class of object should provide a wrapper
+ * function. */
+OPENSSL_EXPORT void *CRYPTO_get_ex_data(const CRYPTO_EX_DATA *ad, int index);
+
+/* CRYPTO_new_ex_data initialises a newly allocated |CRYPTO_EX_DATA| which is
+ * embedded inside of |obj| which is of class |ex_data_class|. Returns one on
+ * success and zero otherwise. */
+OPENSSL_EXPORT int CRYPTO_new_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
+                                      void *obj, CRYPTO_EX_DATA *ad);
+
+/* CRYPTO_dup_ex_data duplicates |from| into a freshly allocated
+ * |CRYPTO_EX_DATA|, |to|. Both of which are inside objects of the given
+ * class. It returns one on success and zero otherwise. */
+OPENSSL_EXPORT int CRYPTO_dup_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
+                                      CRYPTO_EX_DATA *to,
+                                      const CRYPTO_EX_DATA *from);
+
+/* CRYPTO_free_ex_data frees |ad|, which is embedded inside |obj|, which is an
+ * object of the given class. */
+OPENSSL_EXPORT void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
+                                        void *obj, CRYPTO_EX_DATA *ad);
 
 
 #if defined(__cplusplus)

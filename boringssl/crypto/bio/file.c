@@ -88,7 +88,7 @@
 #define BIO_FP_APPEND 0x08
 
 static FILE *open_file(const char *filename, const char *mode) {
-#if defined(_WIN32) && defined(CP_UTF8)
+#if defined(OPENSSL_WINDOWS) && defined(CP_UTF8)
   int sz, len_0 = (int)strlen(filename) + 1;
   DWORD flags;
 
@@ -129,13 +129,13 @@ BIO *BIO_new_file(const char *filename, const char *mode) {
 
   file = open_file(filename, mode);
   if (file == NULL) {
-    OPENSSL_PUT_SYSTEM_ERROR(fopen);
+    OPENSSL_PUT_SYSTEM_ERROR();
 
     ERR_add_error_data(5, "fopen('", filename, "','", mode, "')");
     if (errno == ENOENT) {
-      OPENSSL_PUT_ERROR(BIO, BIO_new_file, BIO_R_NO_SUCH_FILE);
+      OPENSSL_PUT_ERROR(BIO, BIO_R_NO_SUCH_FILE);
     } else {
-      OPENSSL_PUT_ERROR(BIO, BIO_new_file, BIO_R_SYS_LIB);
+      OPENSSL_PUT_ERROR(BIO, BIO_R_SYS_LIB);
     }
     return NULL;
   }
@@ -182,20 +182,19 @@ static int file_free(BIO *bio) {
 }
 
 static int file_read(BIO *b, char *out, int outl) {
-  int ret = 0;
-
   if (!b->init) {
     return 0;
   }
 
-  ret = fread(out, 1, outl, (FILE *)b->ptr);
+  size_t ret = fread(out, 1, outl, (FILE *)b->ptr);
   if (ret == 0 && ferror((FILE *)b->ptr)) {
-    OPENSSL_PUT_SYSTEM_ERROR(fread);
-    OPENSSL_PUT_ERROR(BIO, file_read, ERR_R_SYS_LIB);
-    ret = -1;
+    OPENSSL_PUT_SYSTEM_ERROR();
+    OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
+    return -1;
   }
 
-  return ret;
+  /* fread reads at most |outl| bytes, so |ret| fits in an int. */
+  return (int)ret;
 }
 
 static int file_write(BIO *b, const char *in, int inl) {
@@ -253,15 +252,15 @@ static long file_ctrl(BIO *b, int cmd, long num, void *ptr) {
       } else if (num & BIO_FP_READ) {
         BUF_strlcpy(p, "r", sizeof(p));
       } else {
-        OPENSSL_PUT_ERROR(BIO, file_ctrl, BIO_R_BAD_FOPEN_MODE);
+        OPENSSL_PUT_ERROR(BIO, BIO_R_BAD_FOPEN_MODE);
         ret = 0;
         break;
       }
       fp = open_file(ptr, p);
       if (fp == NULL) {
-        OPENSSL_PUT_SYSTEM_ERROR(fopen);
+        OPENSSL_PUT_SYSTEM_ERROR();
         ERR_add_error_data(5, "fopen('", ptr, "','", p, "')");
-        OPENSSL_PUT_ERROR(BIO, file_ctrl, ERR_R_SYS_LIB);
+        OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
         ret = 0;
         break;
       }

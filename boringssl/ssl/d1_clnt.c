@@ -112,25 +112,30 @@
  * [including the GNU Public Licence.]
  */
 
+#include <openssl/ssl.h>
+
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <openssl/bn.h>
 #include <openssl/buf.h>
 #include <openssl/dh.h>
 #include <openssl/evp.h>
+#include <openssl/err.h>
 #include <openssl/md5.h>
 #include <openssl/mem.h>
 #include <openssl/obj.h>
 #include <openssl/rand.h>
 
-#include "ssl_locl.h"
+#include "internal.h"
+
 
 static int dtls1_get_hello_verify(SSL *s);
 
 int dtls1_connect(SSL *s) {
   BUF_MEM *buf = NULL;
-  void (*cb)(const SSL *ssl, int type, int val) = NULL;
+  void (*cb)(const SSL *ssl, int type, int value) = NULL;
   int ret = -1;
   int new_state, state, skip = 0;
 
@@ -153,13 +158,7 @@ int dtls1_connect(SSL *s) {
     state = s->state;
 
     switch (s->state) {
-      case SSL_ST_RENEGOTIATE:
-        s->renegotiate = 1;
-        s->state = SSL_ST_CONNECT;
-        s->ctx->stats.sess_connect_renegotiate++;
-      /* break */
       case SSL_ST_CONNECT:
-      case SSL_ST_BEFORE | SSL_ST_CONNECT:
         if (cb != NULL) {
           cb(s, SSL_CB_HANDSHAKE_START, 1);
         }
@@ -175,8 +174,7 @@ int dtls1_connect(SSL *s) {
           buf = NULL;
         }
 
-        if (!ssl3_setup_buffers(s) ||
-            !ssl_init_wbio_buffer(s, 0)) {
+        if (!ssl_init_wbio_buffer(s, 0)) {
           ret = -1;
           goto end;
         }
@@ -184,7 +182,6 @@ int dtls1_connect(SSL *s) {
         /* don't push the buffering BIO quite yet */
 
         s->state = SSL3_ST_CW_CLNT_HELLO_A;
-        s->ctx->stats.sess_connect++;
         s->init_num = 0;
         s->d1->send_cookie = 0;
         s->hit = 0;
@@ -193,14 +190,6 @@ int dtls1_connect(SSL *s) {
       case SSL3_ST_CW_CLNT_HELLO_A:
       case SSL3_ST_CW_CLNT_HELLO_B:
         s->shutdown = 0;
-
-        /* every DTLS ClientHello resets Finished MAC */
-        if (!ssl3_init_finished_mac(s)) {
-          OPENSSL_PUT_ERROR(SSL, dtls1_connect, ERR_R_INTERNAL_ERROR);
-          ret = -1;
-          goto end;
-        }
-
         dtls1_start_timer(s);
         ret = ssl3_send_client_hello(s);
         if (ret <= 0) {
@@ -267,12 +256,22 @@ int dtls1_connect(SSL *s) {
           if (s->s3->tmp.certificate_status_expected) {
             s->state = SSL3_ST_CR_CERT_STATUS_A;
           } else {
-            s->state = SSL3_ST_CR_KEY_EXCH_A;
+            s->state = SSL3_ST_VERIFY_SERVER_CERT;
           }
         } else {
           skip = 1;
           s->state = SSL3_ST_CR_KEY_EXCH_A;
         }
+        s->init_num = 0;
+        break;
+
+      case SSL3_ST_VERIFY_SERVER_CERT:
+        ret = ssl3_verify_server_cert(s);
+        if (ret <= 0) {
+          goto end;
+        }
+
+        s->state = SSL3_ST_CR_KEY_EXCH_A;
         s->init_num = 0;
         break;
 
@@ -284,13 +283,6 @@ int dtls1_connect(SSL *s) {
         }
         s->state = SSL3_ST_CR_CERT_REQ_A;
         s->init_num = 0;
-
-        /* at this point we check that we have the
-         * required stuff from the server */
-        if (!ssl3_check_cert_and_algorithm(s)) {
-          ret = -1;
-          goto end;
-        }
         break;
 
       case SSL3_ST_CR_CERT_REQ_A:
@@ -353,6 +345,7 @@ int dtls1_connect(SSL *s) {
 
       case SSL3_ST_CW_CERT_VRFY_A:
       case SSL3_ST_CW_CERT_VRFY_B:
+      case SSL3_ST_CW_CERT_VRFY_C:
         dtls1_start_timer(s);
         ret = ssl3_send_cert_verify(s);
         if (ret <= 0) {
@@ -384,8 +377,6 @@ int dtls1_connect(SSL *s) {
           ret = -1;
           goto end;
         }
-
-        dtls1_reset_seq_numbers(s, SSL3_CC_WRITE);
         break;
 
       case SSL3_ST_CW_FINISHED_A:
@@ -432,7 +423,7 @@ int dtls1_connect(SSL *s) {
         if (ret <= 0) {
           goto end;
         }
-        s->state = SSL3_ST_CR_KEY_EXCH_A;
+        s->state = SSL3_ST_VERIFY_SERVER_CERT;
         s->init_num = 0;
         break;
 
@@ -473,16 +464,11 @@ int dtls1_connect(SSL *s) {
         ssl_free_wbio_buffer(s);
 
         s->init_num = 0;
-        s->renegotiate = 0;
-        s->new_session = 0;
+        s->s3->initial_handshake_complete = 1;
 
         ssl_update_cache(s, SSL_SESS_CACHE_CLIENT);
-        if (s->hit) {
-          s->ctx->stats.sess_hit++;
-        }
 
         ret = 1;
-        s->ctx->stats.sess_connect_good++;
 
         if (cb != NULL) {
           cb(s, SSL_CB_HANDSHAKE_DONE, 1);
@@ -494,7 +480,7 @@ int dtls1_connect(SSL *s) {
         goto end;
 
       default:
-        OPENSSL_PUT_ERROR(SSL, dtls1_connect, SSL_R_UNKNOWN_STATE);
+        OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_STATE);
         ret = -1;
         goto end;
     }
@@ -514,9 +500,7 @@ int dtls1_connect(SSL *s) {
 end:
   s->in_handshake--;
 
-  if (buf != NULL) {
-    BUF_MEM_free(buf);
-  }
+  BUF_MEM_free(buf);
   if (cb != NULL) {
     cb(s, SSL_CB_CONNECT_EXIT, ret);
   }
@@ -551,7 +535,7 @@ static int dtls1_get_hello_verify(SSL *s) {
       !CBS_get_u8_length_prefixed(&hello_verify_request, &cookie) ||
       CBS_len(&hello_verify_request) != 0) {
     al = SSL_AD_DECODE_ERROR;
-    OPENSSL_PUT_ERROR(SSL, ssl3_get_cert_status, SSL_R_DECODE_ERROR);
+    OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
     goto f_err;
   }
 

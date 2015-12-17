@@ -77,7 +77,7 @@ bool AeadBaseEncrypter::Encrypt(StringPiece nonce,
                                 StringPiece associated_data,
                                 StringPiece plaintext,
                                 unsigned char* output) {
-  if (nonce.size() != nonce_prefix_size_ + sizeof(QuicPacketSequenceNumber)) {
+  if (nonce.size() != nonce_prefix_size_ + sizeof(QuicPacketNumber)) {
     return false;
   }
 
@@ -96,7 +96,7 @@ bool AeadBaseEncrypter::Encrypt(StringPiece nonce,
   return true;
 }
 
-bool AeadBaseEncrypter::EncryptPacket(QuicPacketSequenceNumber sequence_number,
+bool AeadBaseEncrypter::EncryptPacket(QuicPacketNumber packet_number,
                                       StringPiece associated_data,
                                       StringPiece plaintext,
                                       char* output,
@@ -107,11 +107,10 @@ bool AeadBaseEncrypter::EncryptPacket(QuicPacketSequenceNumber sequence_number,
     return false;
   }
   // TODO(ianswett): Introduce a check to ensure that we don't encrypt with the
-  // same sequence number twice.
-  const size_t nonce_size = nonce_prefix_size_ + sizeof(sequence_number);
+  // same packet number twice.
+  const size_t nonce_size = nonce_prefix_size_ + sizeof(packet_number);
   memcpy(output, nonce_prefix_, nonce_prefix_size_);
-  memcpy(output + nonce_prefix_size_, &sequence_number,
-         sizeof(sequence_number));
+  memcpy(output + nonce_prefix_size_, &packet_number, sizeof(packet_number));
   if (!Encrypt(StringPiece(output, nonce_size), associated_data, plaintext,
                reinterpret_cast<unsigned char*>(output))) {
     return false;

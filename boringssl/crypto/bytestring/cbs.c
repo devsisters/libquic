@@ -52,10 +52,8 @@ size_t CBS_len(const CBS *cbs) {
 }
 
 int CBS_stow(const CBS *cbs, uint8_t **out_ptr, size_t *out_len) {
-  if (*out_ptr != NULL) {
-    OPENSSL_free(*out_ptr);
-    *out_ptr = NULL;
-  }
+  OPENSSL_free(*out_ptr);
+  *out_ptr = NULL;
   *out_len = 0;
 
   if (cbs->len == 0) {
@@ -139,6 +137,15 @@ int CBS_get_bytes(CBS *cbs, CBS *out, size_t len) {
   return 1;
 }
 
+int CBS_copy_bytes(CBS *cbs, uint8_t *out, size_t len) {
+  const uint8_t *v;
+  if (!cbs_get(cbs, &v, len)) {
+    return 0;
+  }
+  memcpy(out, v, len);
+  return 1;
+}
+
 static int cbs_get_length_prefixed(CBS *cbs, CBS *out, size_t len_len) {
   uint32_t len;
   if (!cbs_get_u(cbs, &len, len_len)) {
@@ -159,8 +166,8 @@ int CBS_get_u24_length_prefixed(CBS *cbs, CBS *out) {
   return cbs_get_length_prefixed(cbs, out, 3);
 }
 
-int CBS_get_any_asn1_element(CBS *cbs, CBS *out, unsigned *out_tag,
-                             size_t *out_header_len) {
+static int cbs_get_any_asn1_element(CBS *cbs, CBS *out, unsigned *out_tag,
+                                    size_t *out_header_len, int ber_ok) {
   uint8_t tag, length_byte;
   CBS header = *cbs;
   CBS throwaway;
@@ -195,9 +202,11 @@ int CBS_get_any_asn1_element(CBS *cbs, CBS *out, unsigned *out_tag,
     const size_t num_bytes = length_byte & 0x7f;
     uint32_t len32;
 
-    if ((tag & CBS_ASN1_CONSTRUCTED) != 0 && num_bytes == 0) {
+    if (ber_ok && (tag & CBS_ASN1_CONSTRUCTED) != 0 && num_bytes == 0) {
       /* indefinite length */
-      *out_header_len = 2;
+      if (out_header_len != NULL) {
+        *out_header_len = 2;
+      }
       return CBS_get_bytes(cbs, out, 2);
     }
 
@@ -229,6 +238,18 @@ int CBS_get_any_asn1_element(CBS *cbs, CBS *out, unsigned *out_tag,
   return CBS_get_bytes(cbs, out, len);
 }
 
+int CBS_get_any_asn1_element(CBS *cbs, CBS *out, unsigned *out_tag,
+                                    size_t *out_header_len) {
+  return cbs_get_any_asn1_element(cbs, out, out_tag, out_header_len,
+                                  0 /* DER only */);
+}
+
+int CBS_get_any_ber_asn1_element(CBS *cbs, CBS *out, unsigned *out_tag,
+                                 size_t *out_header_len) {
+  return cbs_get_any_asn1_element(cbs, out, out_tag, out_header_len,
+                                  1 /* BER allowed */);
+}
+
 static int cbs_get_asn1(CBS *cbs, CBS *out, unsigned tag_value,
                         int skip_header) {
   size_t header_len;
@@ -240,12 +261,7 @@ static int cbs_get_asn1(CBS *cbs, CBS *out, unsigned tag_value,
   }
 
   if (!CBS_get_any_asn1_element(cbs, out, &tag, &header_len) ||
-      tag != tag_value ||
-      (header_len > 0 &&
-       /* This ensures that the tag is either zero length or
-        * indefinite-length. */
-       CBS_len(out) == header_len &&
-       CBS_data(out)[header_len - 1] == 0x80)) {
+      tag != tag_value) {
     return 0;
   }
 
@@ -291,7 +307,12 @@ int CBS_get_asn1_uint64(CBS *cbs, uint64_t *out) {
   }
 
   if ((data[0] & 0x80) != 0) {
-    /* negative number */
+    /* Negative number. */
+    return 0;
+  }
+
+  if (data[0] == 0 && len > 1 && (data[1] & 0x80) == 0) {
+    /* Extra leading zeros. */
     return 0;
   }
 
@@ -308,14 +329,19 @@ int CBS_get_asn1_uint64(CBS *cbs, uint64_t *out) {
 }
 
 int CBS_get_optional_asn1(CBS *cbs, CBS *out, int *out_present, unsigned tag) {
+  int present = 0;
+
   if (CBS_peek_asn1_tag(cbs, tag)) {
     if (!CBS_get_asn1(cbs, out, tag)) {
       return 0;
     }
-    *out_present = 1;
-  } else {
-    *out_present = 0;
+    present = 1;
   }
+
+  if (out_present != NULL) {
+    *out_present = present;
+  }
+
   return 1;
 }
 

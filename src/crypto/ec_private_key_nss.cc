@@ -15,7 +15,6 @@ extern "C" {
 #include <pk11pub.h>
 #include <secmod.h>
 
-#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "crypto/nss_util.h"
@@ -24,34 +23,6 @@ extern "C" {
 #include "crypto/third_party/nss/chromium-nss.h"
 
 namespace {
-
-PK11SlotInfo* GetTempKeySlot() {
-  return PK11_GetInternalSlot();
-}
-
-class EllipticCurveSupportChecker {
- public:
-  EllipticCurveSupportChecker() {
-    // NOTE: we can do this check here only because we use the NSS internal
-    // slot.  If we support other slots in the future, checking whether they
-    // support ECDSA may block NSS, and the value may also change as devices are
-    // inserted/removed, so we would need to re-check on every use.
-    crypto::EnsureNSSInit();
-    crypto::ScopedPK11Slot slot(GetTempKeySlot());
-    supported_ = PK11_DoesMechanism(slot.get(), CKM_EC_KEY_PAIR_GEN) &&
-        PK11_DoesMechanism(slot.get(), CKM_ECDSA);
-  }
-
-  bool Supported() {
-    return supported_;
-  }
-
- private:
-  bool supported_;
-};
-
-static base::LazyInstance<EllipticCurveSupportChecker>::Leaky
-    g_elliptic_curve_supported = LAZY_INSTANCE_INITIALIZER;
 
 // Copied from rsa_private_key_nss.cc.
 static bool ReadAttribute(SECKEYPrivateKey* key,
@@ -82,15 +53,10 @@ ECPrivateKey::~ECPrivateKey() {
 }
 
 // static
-bool ECPrivateKey::IsSupported() {
-  return g_elliptic_curve_supported.Get().Supported();
-}
-
-// static
 ECPrivateKey* ECPrivateKey::Create() {
   EnsureNSSInit();
 
-  ScopedPK11Slot slot(GetTempKeySlot());
+  ScopedPK11Slot slot(PK11_GetInternalSlot());
   if (!slot)
     return nullptr;
 
@@ -140,7 +106,7 @@ ECPrivateKey* ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(
     const std::vector<uint8>& subject_public_key_info) {
   EnsureNSSInit();
 
-  ScopedPK11Slot slot(GetTempKeySlot());
+  ScopedPK11Slot slot(PK11_GetInternalSlot());
   if (!slot)
     return nullptr;
 

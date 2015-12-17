@@ -68,21 +68,26 @@
 #include <openssl/thread.h>
 
 #include "obj_dat.h"
+#include "../internal.h"
 
-/* These globals are protected by CRYPTO_LOCK_OBJ. */
+
+static struct CRYPTO_STATIC_MUTEX global_added_lock = CRYPTO_STATIC_MUTEX_INIT;
+/* These globals are protected by |global_added_lock|. */
 static LHASH_OF(ASN1_OBJECT) *global_added_by_data = NULL;
 static LHASH_OF(ASN1_OBJECT) *global_added_by_nid = NULL;
 static LHASH_OF(ASN1_OBJECT) *global_added_by_short_name = NULL;
 static LHASH_OF(ASN1_OBJECT) *global_added_by_long_name = NULL;
 
+static struct CRYPTO_STATIC_MUTEX global_next_nid_lock =
+    CRYPTO_STATIC_MUTEX_INIT;
 static unsigned global_next_nid = NUM_NID;
 
 static int obj_next_nid(void) {
   int ret;
 
-  CRYPTO_w_lock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_lock_write(&global_next_nid_lock);
   ret = global_next_nid++;
-  CRYPTO_w_unlock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_unlock(&global_next_nid_lock);
 
   return ret;
 }
@@ -103,7 +108,7 @@ ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o) {
 
   r = ASN1_OBJECT_new();
   if (r == NULL) {
-    OPENSSL_PUT_ERROR(OBJ, OBJ_dup, ERR_R_ASN1_LIB);
+    OPENSSL_PUT_ERROR(OBJ, ERR_R_ASN1_LIB);
     return NULL;
   }
   r->ln = r->sn = NULL;
@@ -130,7 +135,7 @@ ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o) {
 
   if (o->sn != NULL) {
     sn = OPENSSL_strdup(o->sn);
-    if (sn) {
+    if (sn == NULL) {
       goto err;
     }
   }
@@ -144,16 +149,10 @@ ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o) {
   return r;
 
 err:
-  OPENSSL_PUT_ERROR(OBJ, OBJ_dup, ERR_R_MALLOC_FAILURE);
-  if (ln != NULL) {
-    OPENSSL_free(ln);
-  }
-  if (sn != NULL) {
-    OPENSSL_free(sn);
-  }
-  if (data != NULL) {
-    OPENSSL_free(data);
-  }
+  OPENSSL_PUT_ERROR(OBJ, ERR_R_MALLOC_FAILURE);
+  OPENSSL_free(ln);
+  OPENSSL_free(sn);
+  OPENSSL_free(data);
   OPENSSL_free(r);
   return NULL;
 }
@@ -168,18 +167,18 @@ int OBJ_cmp(const ASN1_OBJECT *a, const ASN1_OBJECT *b) {
   return memcmp(a->data, b->data, a->length);
 }
 
-/* nids_cmp is called to search the kNIDsInOIDOrder array. The |key| argument
- * is an |ASN1_OBJECT|* that we're looking for and |element| is a pointer to an
+/* obj_cmp is called to search the kNIDsInOIDOrder array. The |key| argument is
+ * an |ASN1_OBJECT|* that we're looking for and |element| is a pointer to an
  * unsigned int in the array. */
 static int obj_cmp(const void *key, const void *element) {
-  int j;
-  unsigned nid = *((unsigned*) element);
+  unsigned nid = *((const unsigned*) element);
   const ASN1_OBJECT *a = key;
   const ASN1_OBJECT *b = &kObjects[nid];
 
-  j = a->length - b->length;
-  if (j) {
-    return j;
+  if (a->length < b->length) {
+    return -1;
+  } else if (a->length > b->length) {
+    return 1;
   }
   return memcmp(a->data, b->data, a->length);
 }
@@ -195,17 +194,17 @@ int OBJ_obj2nid(const ASN1_OBJECT *obj) {
     return obj->nid;
   }
 
-  CRYPTO_r_lock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_lock_read(&global_added_lock);
   if (global_added_by_data != NULL) {
     ASN1_OBJECT *match;
 
     match = lh_ASN1_OBJECT_retrieve(global_added_by_data, obj);
     if (match != NULL) {
-      CRYPTO_r_unlock(CRYPTO_LOCK_OBJ);
+      CRYPTO_STATIC_MUTEX_unlock(&global_added_lock);
       return match->nid;
     }
   }
-  CRYPTO_r_unlock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_unlock(&global_added_lock);
 
   nid_ptr = bsearch(obj, kNIDsInOIDOrder, NUM_OBJ, sizeof(unsigned), obj_cmp);
   if (nid_ptr == NULL) {
@@ -237,18 +236,18 @@ static int short_name_cmp(const void *key, const void *element) {
 int OBJ_sn2nid(const char *short_name) {
   const unsigned int *nid_ptr;
 
-  CRYPTO_r_lock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_lock_read(&global_added_lock);
   if (global_added_by_short_name != NULL) {
     ASN1_OBJECT *match, template;
 
     template.sn = short_name;
     match = lh_ASN1_OBJECT_retrieve(global_added_by_short_name, &template);
     if (match != NULL) {
-      CRYPTO_r_unlock(CRYPTO_LOCK_OBJ);
+      CRYPTO_STATIC_MUTEX_unlock(&global_added_lock);
       return match->nid;
     }
   }
-  CRYPTO_r_unlock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_unlock(&global_added_lock);
 
   nid_ptr = bsearch(short_name, kNIDsInShortNameOrder, NUM_SN, sizeof(unsigned), short_name_cmp);
   if (nid_ptr == NULL) {
@@ -271,18 +270,18 @@ static int long_name_cmp(const void *key, const void *element) {
 int OBJ_ln2nid(const char *long_name) {
   const unsigned int *nid_ptr;
 
-  CRYPTO_r_lock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_lock_read(&global_added_lock);
   if (global_added_by_long_name != NULL) {
     ASN1_OBJECT *match, template;
 
     template.ln = long_name;
     match = lh_ASN1_OBJECT_retrieve(global_added_by_long_name, &template);
     if (match != NULL) {
-      CRYPTO_r_unlock(CRYPTO_LOCK_OBJ);
+      CRYPTO_STATIC_MUTEX_unlock(&global_added_lock);
       return match->nid;
     }
   }
-  CRYPTO_r_unlock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_unlock(&global_added_lock);
 
   nid_ptr = bsearch(long_name, kNIDsInLongNameOrder, NUM_LN, sizeof(unsigned), long_name_cmp);
   if (nid_ptr == NULL) {
@@ -324,21 +323,21 @@ const ASN1_OBJECT *OBJ_nid2obj(int nid) {
     return &kObjects[nid];
   }
 
-  CRYPTO_r_lock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_lock_read(&global_added_lock);
   if (global_added_by_nid != NULL) {
     ASN1_OBJECT *match, template;
 
     template.nid = nid;
     match = lh_ASN1_OBJECT_retrieve(global_added_by_nid, &template);
     if (match != NULL) {
-      CRYPTO_r_unlock(CRYPTO_LOCK_OBJ);
+      CRYPTO_STATIC_MUTEX_unlock(&global_added_lock);
       return match;
     }
   }
-  CRYPTO_r_unlock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_unlock(&global_added_lock);
 
 err:
-  OPENSSL_PUT_ERROR(OBJ, OBJ_nid2obj, OBJ_R_UNKNOWN_NID);
+  OPENSSL_PUT_ERROR(OBJ, OBJ_R_UNKNOWN_NID);
   return NULL;
 }
 
@@ -389,7 +388,7 @@ ASN1_OBJECT *OBJ_txt2obj(const char *s, int dont_search_names) {
 
   buf = OPENSSL_malloc(total_len);
   if (buf == NULL) {
-    OPENSSL_PUT_ERROR(OBJ, OBJ_txt2obj, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(OBJ, ERR_R_MALLOC_FAILURE);
     return NULL;
   }
 
@@ -543,15 +542,11 @@ int OBJ_obj2txt(char *out, int out_len, const ASN1_OBJECT *obj, int dont_return_
     }
   }
 
-  if (bl) {
-    BN_free(bl);
-  }
+  BN_free(bl);
   return n;
 
 err:
-  if (bl) {
-    BN_free(bl);
-  }
+  BN_free(bl);
   return -1;
 }
 
@@ -600,7 +595,7 @@ static int obj_add_object(ASN1_OBJECT *obj) {
   obj->flags &= ~(ASN1_OBJECT_FLAG_DYNAMIC | ASN1_OBJECT_FLAG_DYNAMIC_STRINGS |
                   ASN1_OBJECT_FLAG_DYNAMIC_DATA);
 
-  CRYPTO_w_lock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_lock_write(&global_added_lock);
   if (global_added_by_nid == NULL) {
     global_added_by_nid = lh_ASN1_OBJECT_new(hash_nid, cmp_nid);
     global_added_by_data = lh_ASN1_OBJECT_new(hash_data, cmp_data);
@@ -623,7 +618,7 @@ static int obj_add_object(ASN1_OBJECT *obj) {
   if (obj->ln != NULL) {
     ok &= lh_ASN1_OBJECT_insert(global_added_by_long_name, &old_object, obj);
   }
-  CRYPTO_w_unlock(CRYPTO_LOCK_OBJ);
+  CRYPTO_STATIC_MUTEX_unlock(&global_added_lock);
 
   return ok;
 }
@@ -641,7 +636,7 @@ int OBJ_create(const char *oid, const char *short_name, const char *long_name) {
 
   buf = OPENSSL_malloc(len);
   if (buf == NULL) {
-    OPENSSL_PUT_ERROR(OBJ, OBJ_create, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(OBJ, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
@@ -662,12 +657,8 @@ int OBJ_create(const char *oid, const char *short_name, const char *long_name) {
   op = NULL;
 
 err:
-  if (op != NULL) {
-    ASN1_OBJECT_free(op);
-  }
-  if (buf != NULL) {
-    OPENSSL_free(buf);
-  }
+  ASN1_OBJECT_free(op);
+  OPENSSL_free(buf);
 
   return ret;
 }

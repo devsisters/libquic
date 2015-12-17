@@ -48,10 +48,11 @@ BASE_EXPORT FilePath GetXDGUserDirectory(const char* dir_name,
 enum DesktopEnvironment {
   DESKTOP_ENVIRONMENT_OTHER,
   DESKTOP_ENVIRONMENT_GNOME,
-  // KDE3 and KDE4 are sufficiently different that we count
-  // them as two different desktop environments here.
+  // KDE3, KDE4 and KDE5 are sufficiently different that we count
+  // them as different desktop environments here.
   DESKTOP_ENVIRONMENT_KDE3,
   DESKTOP_ENVIRONMENT_KDE4,
+  DESKTOP_ENVIRONMENT_KDE5,
   DESKTOP_ENVIRONMENT_UNITY,
   DESKTOP_ENVIRONMENT_XFCE,
 };

@@ -13,9 +13,9 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
+#include "net/base/ip_address_number.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
-#include "net/base/net_util.h"
 #include "net/quic/crypto/crypto_handshake.h"
 #include "net/quic/crypto/crypto_handshake_message.h"
 #include "net/quic/crypto/crypto_protocol.h"
@@ -50,8 +50,6 @@ struct ClientHelloInfo {
 
   // Outputs from EvaluateClientHello.
   bool valid_source_address_token;
-  bool client_nonce_well_formed;
-  bool unique;
   base::StringPiece sni;
   base::StringPiece client_nonce;
   base::StringPiece server_nonce;
@@ -127,6 +125,9 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
     // channel_id_enabled controls whether the server config will indicate
     // support for ChannelIDs.
     bool channel_id_enabled;
+    // token_binding_enabled controls whether the server config will indicate
+    // support for Token Binding.
+    bool token_binding_enabled;
     // id contains the server config id for the resulting config. If empty, a
     // random id is generated.
     std::string id;
@@ -145,9 +146,12 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   //     into a KDF before use. In tests, use TESTING.
   // |server_nonce_entropy|: an entropy source used to generate the orbit and
   //     key for server nonces, which are always local to a given instance of a
-  //     server.
+  //     server. Not owned.
+  // |proof_source|: provides certificate chains and signatures. This class
+  //     takes ownership of |proof_source|.
   QuicCryptoServerConfig(base::StringPiece source_address_token_secret,
-                         QuicRandom* server_nonce_entropy);
+                         QuicRandom* server_nonce_entropy,
+                         ProofSource* proof_source);
   ~QuicCryptoServerConfig();
 
   // TESTING is a magic parameter for passing to the constructor in tests.
@@ -201,15 +205,23 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // client_hello: the incoming client hello message.
   // client_ip: the IP address of the client, which is used to generate and
   //     validate source-address tokens.
+  // server_ip: the IP address of the server. The IP address may be used for
+  //     certificate selection.
+  // version: protocol version used for this connection.
   // clock: used to validate client nonces and ephemeral keys.
+  // crypto_proof: output structure containing the crypto proof used in reply to
+  // a proof demand.
   // done_cb: single-use callback that accepts an opaque
   //     ValidatedClientHelloMsg token that holds information about
   //     the client hello.  The callback will always be called exactly
   //     once, either under the current call stack, or after the
   //     completion of an asynchronous operation.
   void ValidateClientHello(const CryptoHandshakeMessage& client_hello,
-                           IPAddressNumber client_ip,
+                           const IPAddressNumber& client_ip,
+                           const IPAddressNumber& server_ip,
+                           QuicVersion version,
                            const QuicClock* clock,
+                           QuicCryptoProof* crypto_proof,
                            ValidateClientHelloResultCallback* done_cb) const;
 
   // ProcessClientHello processes |client_hello| and decides whether to accept
@@ -223,20 +235,20 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   //     information about it.
   // connection_id: the ConnectionId for the connection, which is used in key
   //     derivation.
-  // server_ip: the IP address and port of the server. The IP address may be
-  //     used for certificate selection.
+  // server_ip: the IP address of the server. The IP address may be used for
+  //     certificate selection.
   // client_address: the IP address and port of the client. The IP address is
   //     used to generate and validate source-address tokens.
   // version: version of the QUIC protocol in use for this connection
   // supported_versions: versions of the QUIC protocol that this server
   //     supports.
-  // initial_flow_control_window: size of initial flow control window this
-  //     server uses for new streams.
   // clock: used to validate client nonces and ephemeral keys.
   // rand: an entropy source
   // params: the state of the handshake. This may be updated with a server
   //     nonce when we send a rejection. After a successful handshake, this will
   //     contain the state of the connection.
+  // crypto_proof: output structure containing the crypto proof used in reply to
+  //     a proof demand.
   // out: the resulting handshake message (either REJ or SHLO)
   // error_details: used to store a string describing any error.
   QuicErrorCode ProcessClientHello(
@@ -251,6 +263,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
       const QuicClock* clock,
       QuicRandom* rand,
       QuicCryptoNegotiatedParameters* params,
+      QuicCryptoProof* crypto_proof,
       CryptoHandshakeMessage* out,
       std::string* error_details) const;
 
@@ -261,6 +274,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   //
   // |cached_network_params| is optional, and can be nullptr.
   bool BuildServerConfigUpdateMessage(
+      QuicVersion version,
       const SourceAddressTokens& previous_source_address_tokens,
       const IPAddressNumber& server_ip,
       const IPAddressNumber& client_ip,
@@ -269,10 +283,6 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
       const QuicCryptoNegotiatedParameters& params,
       const CachedNetworkParameters* cached_network_params,
       CryptoHandshakeMessage* out) const;
-
-  // SetProofSource installs |proof_source| as the ProofSource for handshakes.
-  // This object takes ownership of |proof_source|.
-  void SetProofSource(ProofSource* proof_source);
 
   // SetEphemeralKeySource installs an object that can cache ephemeral keys for
   // a short period of time. This object takes ownership of
@@ -332,11 +342,12 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // uniqueness.
   void set_server_nonce_strike_register_window_secs(uint32 window_secs);
 
+  // set_enable_serving_sct enables or disables serving signed cert timestamp
+  // (RFC6962) in server hello.
+  void set_enable_serving_sct(bool enable_serving_sct);
+
   // Set and take ownership of the callback to invoke on primary config changes.
   void AcquirePrimaryConfigChangedCb(PrimaryConfigChangedCallback* cb);
-
-  // Returns true if this config has a |proof_source_|.
-  bool HasProofSource() const;
 
   // Returns the number of configs this object owns.
   int NumberOfConfigs() const;
@@ -426,13 +437,16 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // whether it can be shown to be fresh (i.e. not a replay). The results are
   // written to |info|.
   void EvaluateClientHello(
+      const IPAddressNumber& server_ip,
+      QuicVersion version,
       const uint8* primary_orbit,
       scoped_refptr<Config> requested_config,
+      QuicCryptoProof* crypto_proof,
       ValidateClientHelloResultCallback::Result* client_hello_state,
       ValidateClientHelloResultCallback* done_cb) const;
 
   // BuildRejection sets |out| to be a REJ message in reply to |client_hello|.
-  void BuildRejection(const IPAddressNumber& server_ip,
+  void BuildRejection(QuicVersion version,
                       const Config& config,
                       const CryptoHandshakeMessage& client_hello,
                       const ClientHelloInfo& info,
@@ -441,6 +455,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
                       QuicConnectionId server_designated_connection_id,
                       QuicRandom* rand,
                       QuicCryptoNegotiatedParameters* params,
+                      const QuicCryptoProof& crypto_proof,
                       CryptoHandshakeMessage* out) const;
 
   // ParseConfigProtobuf parses the given config protobuf and returns a
@@ -506,6 +521,22 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
       base::StringPiece echoed_server_nonce,
       QuicWallTime now) const;
 
+  // ValidateExpectedLeafCertificate checks the |client_hello| to see if it has
+  // an XLCT tag, and if so, verifies that its value matches the hash of the
+  // server's leaf certificate. The certs field of |crypto_proof| is used to
+  // compare against the XLCT value.  This method returns true if the XLCT tag
+  // is not present, or if the XLCT tag is present and valid. It returns false
+  // otherwise.
+  bool ValidateExpectedLeafCertificate(
+      const CryptoHandshakeMessage& client_hello,
+      const QuicCryptoProof& crypto_proof) const;
+
+  // ParseProofDemand reads the PDMD field from the client hello and sets the
+  // |x509_ecdsa_supported| and |x509_supported| output parameters.
+  void ParseProofDemand(const CryptoHandshakeMessage& client_hello,
+                        bool* x509_supported,
+                        bool* x509_ecdsa_supported) const;
+
   // replay_protection_ controls whether the server enforces that handshakes
   // aren't replays.
   bool replay_protection_;
@@ -570,6 +601,9 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   uint32 source_address_token_lifetime_secs_;
   uint32 server_nonce_strike_register_max_entries_;
   uint32 server_nonce_strike_register_window_secs_;
+
+  // Enable serving SCT or not.
+  bool enable_serving_sct_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicCryptoServerConfig);
 };

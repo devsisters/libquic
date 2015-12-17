@@ -119,7 +119,7 @@ CanonHostInfo::Family IPv4ComponentToNumber(const CHAR* spec,
     base_prefix_len++;
 
   // Put the component, minus any base prefix, into a NULL-terminated buffer so
-  // we can call the standard library.  Because leading zeros have already been
+  // we can call the standard library. Because leading zeros have already been
   // discarded, filling the entire buffer is guaranteed to trigger the 32-bit
   // overflow check.
   const int kMaxComponentLen = 16;
@@ -134,7 +134,7 @@ CanonHostInfo::Family IPv4ComponentToNumber(const CHAR* spec,
     if (!IsCharOfType(input, base))
       return CanonHostInfo::NEUTRAL;
 
-    // Fill the buffer, if there's space remaining.  This check allows us to
+    // Fill the buffer, if there's space remaining. This check allows us to
     // verify that all characters are numeric, even those that don't fit.
     if (dest_i < kMaxComponentLen)
       buf[dest_i++] = input;
@@ -150,7 +150,7 @@ CanonHostInfo::Family IPv4ComponentToNumber(const CHAR* spec,
   if (num > std::numeric_limits<uint32_t>::max())
     return CanonHostInfo::BROKEN;
 
-  // No overflow.  Success!
+  // No overflow. Success!
   *number = static_cast<uint32_t>(num);
   return CanonHostInfo::IPV4;
 }
@@ -171,7 +171,7 @@ CanonHostInfo::Family DoIPv4AddressToNumber(const CHAR* spec,
   uint32_t component_values[4];
   int existing_components = 0;
 
-  // Set to true if one or more components are BROKEN.  BROKEN is only
+  // Set to true if one or more components are BROKEN. BROKEN is only
   // returned if all components are IPV4 or BROKEN, so, for example,
   // 12345678912345.de returns NEUTRAL rather than broken.
   bool broken = false;
@@ -441,7 +441,7 @@ bool CheckIPv6ComponentsSize(const IPv6Parsed& parsed,
   return true;
 }
 
-// Converts a hex comonent into a number. This cannot fail since the caller has
+// Converts a hex component into a number. This cannot fail since the caller has
 // already verified that each character in the string was a hex digit, and
 // that there were no more than 4 characters.
 template <typename CHAR>
@@ -578,7 +578,7 @@ bool DoCanonicalizeIPv6Address(const CHAR* spec,
       }
     }
 
-    // No invalid characters.  Could still be IPv4 or a hostname.
+    // No invalid characters. Could still be IPv4 or a hostname.
     host_info->family = CanonHostInfo::NEUTRAL;
     return false;
   }

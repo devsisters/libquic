@@ -9,9 +9,7 @@
 #include "base/basictypes.h"
 #include "net/base/net_export.h"
 
-#if 0
 class GURL;
-#endif
 
 namespace net {
 
@@ -23,10 +21,8 @@ class NET_EXPORT HostPortPair {
   // If |in_host| represents an IPv6 address, it should not bracket the address.
   HostPortPair(const std::string& in_host, uint16_t in_port);
 
-#if 0
   // Creates a HostPortPair for the origin of |url|.
   static HostPortPair FromURL(const GURL& url);
-#endif
 
   // Creates a HostPortPair from an IPEndPoint.
   static HostPortPair FromIPEndPoint(const IPEndPoint& ipe);

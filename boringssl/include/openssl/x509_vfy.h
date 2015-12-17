@@ -1,4 +1,3 @@
-/* crypto/x509/x509_vfy.h */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -67,6 +66,7 @@
 
 #include <openssl/bio.h>
 #include <openssl/lhash.h>
+#include <openssl/thread.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -183,6 +183,7 @@ struct x509_store_st
 	/* The following is a cache of trusted certs */
 	int cache; 	/* if true, stash any hits */
 	STACK_OF(X509_OBJECT) *objs;	/* Cache of all objects */
+	CRYPTO_MUTEX objs_lock;
 
 	/* These are external lookup methods */
 	STACK_OF(X509_LOOKUP) *get_cert_methods;
@@ -202,8 +203,7 @@ struct x509_store_st
 	STACK_OF(X509_CRL) * (*lookup_crls)(X509_STORE_CTX *ctx, X509_NAME *nm);
 	int (*cleanup)(X509_STORE_CTX *ctx);
 
-	CRYPTO_EX_DATA ex_data;
-	int references;
+	CRYPTO_refcount_t references;
 	} /* X509_STORE */;
 
 OPENSSL_EXPORT int X509_STORE_set_depth(X509_STORE *store, int depth);

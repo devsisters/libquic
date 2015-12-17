@@ -59,6 +59,14 @@ bool EscapeSpecialCodePoint(uint32 code_point, std::string* dest) {
     case '<':
       dest->append("\\u003C");
       break;
+    // Escape the "Line Separator" and "Paragraph Separator" characters, since
+    // they should be treated like a new line \r or \n.
+    case 0x2028:
+      dest->append("\\u2028");
+      break;
+    case 0x2029:
+      dest->append("\\u2029");
+      break;
     default:
       return false;
   }

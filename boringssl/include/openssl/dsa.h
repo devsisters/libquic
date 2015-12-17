@@ -64,6 +64,7 @@
 
 #include <openssl/engine.h>
 #include <openssl/ex_data.h>
+#include <openssl/thread.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -78,9 +79,6 @@ extern "C" {
 
 /* DSA_new returns a new, empty DSA object or NULL on error. */
 OPENSSL_EXPORT DSA *DSA_new(void);
-
-/* DSA_new_method acts the same as |DH_new| but takes an explicit |ENGINE|. */
-OPENSSL_EXPORT DSA *DSA_new_method(const ENGINE *engine);
 
 /* DSA_free decrements the reference count of |dsa| and frees it if the
  * reference count drops to zero. */
@@ -301,7 +299,7 @@ OPENSSL_EXPORT DH *DSA_dup_DH(const DSA *dsa);
 
 /* ex_data functions.
  *
- * These functions are wrappers. See |ex_data.h| for details. */
+ * See |ex_data.h| for details. */
 
 OPENSSL_EXPORT int DSA_get_ex_new_index(long argl, void *argp,
                                         CRYPTO_EX_new *new_func,
@@ -310,31 +308,6 @@ OPENSSL_EXPORT int DSA_get_ex_new_index(long argl, void *argp,
 OPENSSL_EXPORT int DSA_set_ex_data(DSA *d, int idx, void *arg);
 OPENSSL_EXPORT void *DSA_get_ex_data(const DSA *d, int idx);
 
-
-struct dsa_method {
-  struct openssl_method_common_st common;
-
-  void *app_data;
-
-  int (*init)(DSA *dsa);
-  int (*finish)(DSA *dsa);
-
-  DSA_SIG *(*sign)(const uint8_t *digest, size_t digest_len, DSA *dsa);
-
-  int (*sign_setup)(const DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp, BIGNUM **rp,
-                    const uint8_t *digest, size_t digest_len);
-
-  int (*verify)(int *out_valid, const uint8_t *digest, size_t digest_len,
-                DSA_SIG *sig, const DSA *dsa);
-
-  /* generate_parameters, if non-NULL, is used to generate DSA parameters. */
-  int (*generate_parameters)(DSA *dsa, unsigned bits, const uint8_t *seed,
-                             size_t seed_len, int *counter_ret,
-                             unsigned long *h_ret, BN_GENCB *cb);
-
-  /* keygen, if non-NULL, is used to generate DSA keys. */
-  int (*keygen)(DSA *dsa);
-};
 
 struct dsa_st {
   long version;
@@ -351,12 +324,10 @@ struct dsa_st {
 
   int flags;
   /* Normally used to cache montgomery values */
+  CRYPTO_MUTEX method_mont_p_lock;
   BN_MONT_CTX *method_mont_p;
-  int references;
+  CRYPTO_refcount_t references;
   CRYPTO_EX_DATA ex_data;
-  DSA_METHOD *meth;
-  /* functional reference if 'meth' is ENGINE-provided */
-  ENGINE *engine;
 };
 
 
@@ -364,11 +335,6 @@ struct dsa_st {
 }  /* extern C */
 #endif
 
-#define DSA_F_DSA_new_method 100
-#define DSA_F_dsa_sig_cb 101
-#define DSA_F_sign 102
-#define DSA_F_sign_setup 103
-#define DSA_F_verify 104
 #define DSA_R_BAD_Q_VALUE 100
 #define DSA_R_MISSING_PARAMETERS 101
 #define DSA_R_MODULUS_TOO_LARGE 102

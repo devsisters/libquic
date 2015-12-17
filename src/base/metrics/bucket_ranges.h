@@ -21,7 +21,6 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
-#include "base/gtest_prod_util.h"
 #include "base/metrics/histogram_base.h"
 
 namespace base {
@@ -72,7 +71,7 @@ class BASE_EXPORT BucketRanges {
 
 //////////////////////////////////////////////////////////////////////////////
 // Expose only for test.
-BASE_EXPORT_PRIVATE extern const uint32 kCrcTable[256];
+BASE_EXPORT extern const uint32 kCrcTable[256];
 
 }  // namespace base
 

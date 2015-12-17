@@ -62,14 +62,14 @@ bool CachedNetworkParameters_PreviousConnectionState_IsValid(int value) {
   }
 }
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const CachedNetworkParameters_PreviousConnectionState CachedNetworkParameters::SLOW_START;
 const CachedNetworkParameters_PreviousConnectionState CachedNetworkParameters::CONGESTION_AVOIDANCE;
 const CachedNetworkParameters_PreviousConnectionState CachedNetworkParameters::PreviousConnectionState_MIN;
 const CachedNetworkParameters_PreviousConnectionState CachedNetworkParameters::PreviousConnectionState_MAX;
 const int CachedNetworkParameters::PreviousConnectionState_ARRAYSIZE;
 #endif  // _MSC_VER
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int CachedNetworkParameters::kServingRegionFieldNumber;
 const int CachedNetworkParameters::kBandwidthEstimateBytesPerSecondFieldNumber;
 const int CachedNetworkParameters::kMaxBandwidthEstimateBytesPerSecondFieldNumber;

@@ -145,6 +145,14 @@ class CheckedNumeric {
     return CheckedNumeric<T>(value, validity);
   }
 
+  // This function is available only for integral types. It returns an unsigned
+  // integer of the same width as the source type, containing the absolute value
+  // of the source, and properly handling signed min.
+  CheckedNumeric<typename UnsignedOrFloatForSize<T>::type> UnsignedAbs() const {
+    return CheckedNumeric<typename UnsignedOrFloatForSize<T>::type>(
+        CheckedUnsignedAbs(state_.value()), state_.validity());
+  }
+
   CheckedNumeric& operator++() {
     *this += 1;
     return *this;
@@ -188,6 +196,16 @@ class CheckedNumeric {
   static const CheckedNumeric<T>& cast(const CheckedNumeric<T>& u) { return u; }
 
  private:
+  template <typename NumericType>
+  struct UnderlyingType {
+    using type = NumericType;
+  };
+
+  template <typename NumericType>
+  struct UnderlyingType<CheckedNumeric<NumericType>> {
+    using type = NumericType;
+  };
+
   CheckedNumericState<T> state_;
 };
 
@@ -224,7 +242,8 @@ class CheckedNumeric {
   template <typename T>                                                       \
   template <typename Src>                                                     \
   CheckedNumeric<T>& CheckedNumeric<T>::operator COMPOUND_OP(Src rhs) {       \
-    *this = CheckedNumeric<T>::cast(*this) OP CheckedNumeric<Src>::cast(rhs); \
+    *this = CheckedNumeric<T>::cast(*this)                                    \
+        OP CheckedNumeric<typename UnderlyingType<Src>::type>::cast(rhs);     \
     return *this;                                                             \
   }                                                                           \
   /* Binary arithmetic operator for CheckedNumeric of different type. */      \

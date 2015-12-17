@@ -55,6 +55,18 @@ const QuicTag kQBIC = TAG('Q', 'B', 'I', 'C');   // TCP cubic
 // Connection options (COPT) values
 const QuicTag kAFCW = TAG('A', 'F', 'C', 'W');   // Auto-tune flow control
                                                  // receive windows.
+const QuicTag kIFW5 = TAG('I', 'F', 'W', '5');   // Set initial size
+                                                 // of stream flow control
+                                                 // receive window to
+                                                 // 32KB. (2^5 KB).
+const QuicTag kIFW6 = TAG('I', 'F', 'W', '6');   // Set initial size
+                                                 // of stream flow control
+                                                 // receive window to
+                                                 // 64KB. (2^6 KB).
+const QuicTag kIFW7 = TAG('I', 'F', 'W', '7');   // Set initial size
+                                                 // of stream flow control
+                                                 // receive window to
+                                                 // 128KB. (2^7 KB).
 const QuicTag kTBBR = TAG('T', 'B', 'B', 'R');   // Reduced Buffer Bloat TCP
 const QuicTag kRENO = TAG('R', 'E', 'N', 'O');   // Reno Congestion Control
 const QuicTag kBYTE = TAG('B', 'Y', 'T', 'E');   // TCP cubic or reno in bytes
@@ -70,6 +82,8 @@ const QuicTag kTIME = TAG('T', 'I', 'M', 'E');   // Time based loss detection
 const QuicTag kMIN1 = TAG('M', 'I', 'N', '1');   // Min CWND of 1 packet
 const QuicTag kMIN4 = TAG('M', 'I', 'N', '4');   // Min CWND of 4 packets,
                                                  // with a min rate of 1 BDP.
+const QuicTag kTLPR = TAG('T', 'L', 'P', 'R');   // Tail loss probe delay of
+                                                 // 0.5RTT.
 
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the
@@ -78,12 +92,21 @@ const QuicTag kTCID = TAG('T', 'C', 'I', 'D');   // Connection ID truncation.
 
 // FEC options
 const QuicTag kFHDR = TAG('F', 'H', 'D', 'R');   // FEC protect headers
+const QuicTag kFSTR = TAG('F', 'S', 'T', 'R');   // FEC protect all streams
 // Set FecSendPolicy for sending FEC packet only when FEC alarm goes off.
 const QuicTag kFSPA = TAG('F', 'S', 'P', 'A');
+// Run an experiment that sets FecTimeOut alarm to 0.25RTT.
+// TODO(rtenneti): Delete it after the experiment.
+const QuicTag kFRTT = TAG('F', 'R', 'T', 'T');
 
 // Enable bandwidth resumption experiment.
 const QuicTag kBWRE = TAG('B', 'W', 'R', 'E');  // Bandwidth resumption.
 const QuicTag kBWMX = TAG('B', 'W', 'M', 'X');  // Max bandwidth resumption.
+const QuicTag kBWRS = TAG('B', 'W', 'R', 'S');  // Server bandwidth resumption.
+
+// Enable path MTU discovery experiment.
+const QuicTag kMTUH = TAG('M', 'T', 'U', 'H');  // High-target MTU discovery.
+const QuicTag kMTUL = TAG('M', 'T', 'U', 'L');  // Low-target MTU discovery.
 
 // Proof types (i.e. certificate types)
 // NOTE: although it would be silly to do so, specifying both kX509 and kX59R
@@ -95,7 +118,7 @@ const QuicTag kX59R = TAG('X', '5', '9', 'R');   // X.509 certificate, RSA keys
 const QuicTag kCHID = TAG('C', 'H', 'I', 'D');   // Channel ID.
 
 // Client hello tags
-const QuicTag kVER  = TAG('V', 'E', 'R', '\0');  // Version (new)
+const QuicTag kVER  = TAG('V', 'E', 'R', '\0');  // Version
 const QuicTag kNONC = TAG('N', 'O', 'N', 'C');   // The client's nonce
 const QuicTag kKEXS = TAG('K', 'E', 'X', 'S');   // Key exchange methods
 const QuicTag kAEAD = TAG('A', 'E', 'A', 'D');   // Authenticated
@@ -123,6 +146,8 @@ const QuicTag kSFCW = TAG('S', 'F', 'C', 'W');   // Initial stream flow control
 const QuicTag kCFCW = TAG('C', 'F', 'C', 'W');   // Initial session/connection
                                                  // flow control receive window.
 const QuicTag kUAID = TAG('U', 'A', 'I', 'D');   // Client's User Agent ID.
+const QuicTag kXLCT = TAG('X', 'L', 'C', 'T');   // Expected leaf certificate.
+const QuicTag kTBKP = TAG('T', 'B', 'K', 'P');   // Token Binding key params.
 
 // Rejection tags
 const QuicTag kRREJ = TAG('R', 'R', 'E', 'J');   // Reasons for server sending
@@ -138,7 +163,7 @@ const QuicTag kCIDS = TAG('C', 'I', 'D', 'S');   // ChannelID signature
 
 // Public reset tags
 const QuicTag kRNON = TAG('R', 'N', 'O', 'N');   // Public reset nonce proof
-const QuicTag kRSEQ = TAG('R', 'S', 'E', 'Q');   // Rejected sequence number
+const QuicTag kRSEQ = TAG('R', 'S', 'E', 'Q');   // Rejected packet number
 
 // Universal tags
 const QuicTag kPAD  = TAG('P', 'A', 'D', '\0');  // Padding
@@ -164,6 +189,8 @@ const QuicTag kSourceAddressTokenTag =
     TAG('S', 'T', 'K', 0);  // Source-address token
 const QuicTag kCertificateTag =
     TAG('C', 'R', 'T', 255);  // Certificate chain
+const QuicTag kCertificateSCTTag =
+    TAG('C', 'S', 'C', 'T');  // Signed cert timestamp (RFC6962) of leaf cert.
 
 #undef TAG
 

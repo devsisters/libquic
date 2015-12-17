@@ -43,6 +43,14 @@ scoped_ptr<Value> SystemMetrics::ToValue() const {
   return res.Pass();
 }
 
+ProcessMetrics* ProcessMetrics::CreateCurrentProcessMetrics() {
+#if !defined(OS_MACOSX) || defined(OS_IOS)
+  return CreateProcessMetrics(base::GetCurrentProcessHandle());
+#else
+  return CreateProcessMetrics(base::GetCurrentProcessHandle(), nullptr);
+#endif  // !defined(OS_MACOSX) || defined(OS_IOS)
+}
+
 double ProcessMetrics::GetPlatformIndependentCPUUsage() {
 #if defined(OS_WIN)
   return GetCPUUsage() * processor_count_;

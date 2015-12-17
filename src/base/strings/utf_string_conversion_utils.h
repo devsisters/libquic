@@ -60,7 +60,6 @@ BASE_EXPORT bool ReadUnicodeCharacter(const wchar_t* src,
 
 // Appends a UTF-8 character to the given 8-bit string.  Returns the number of
 // bytes written.
-// TODO(brettw) Bug 79631: This function should not be exposed.
 BASE_EXPORT size_t WriteUnicodeCharacter(uint32 code_point,
                                          std::string* output);
 

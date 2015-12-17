@@ -110,14 +110,17 @@
 
 #include <string.h>
 
+#include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/thread.h>
 
 #include "internal.h"
+#include "../internal.h"
 
 
-#if !defined(OPENSSL_NO_ASM) && \
-    (defined(OPENSSL_X86) || defined(OPENSSL_X86_64))
+#if !defined(OPENSSL_NO_ASM) &&                         \
+    (defined(OPENSSL_X86) || defined(OPENSSL_X86_64) || \
+     defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64))
 #define OPENSSL_BN_ASM_MONT
 #endif
 
@@ -128,16 +131,11 @@ BN_MONT_CTX *BN_MONT_CTX_new(void) {
     return NULL;
   }
 
-  BN_MONT_CTX_init(ret);
-  ret->flags = BN_FLG_MALLOCED;
-  return ret;
-}
+  memset(ret, 0, sizeof(BN_MONT_CTX));
+  BN_init(&ret->RR);
+  BN_init(&ret->N);
 
-void BN_MONT_CTX_init(BN_MONT_CTX *mont) {
-  memset(mont, 0, sizeof(BN_MONT_CTX));
-  BN_init(&mont->RR);
-  BN_init(&mont->N);
-  BN_init(&mont->Ni);
+  return ret;
 }
 
 void BN_MONT_CTX_free(BN_MONT_CTX *mont) {
@@ -147,20 +145,16 @@ void BN_MONT_CTX_free(BN_MONT_CTX *mont) {
 
   BN_free(&mont->RR);
   BN_free(&mont->N);
-  BN_free(&mont->Ni);
-  if (mont->flags & BN_FLG_MALLOCED) {
-    OPENSSL_free(mont);
-  }
+  OPENSSL_free(mont);
 }
 
-BN_MONT_CTX *BN_MONT_CTX_copy(BN_MONT_CTX *to, BN_MONT_CTX *from) {
+BN_MONT_CTX *BN_MONT_CTX_copy(BN_MONT_CTX *to, const BN_MONT_CTX *from) {
   if (to == from) {
     return to;
   }
 
   if (!BN_copy(&to->RR, &from->RR) ||
-      !BN_copy(&to->N, &from->N) ||
-      !BN_copy(&to->Ni, &from->Ni)) {
+      !BN_copy(&to->N, &from->N)) {
     return NULL;
   }
   to->ri = from->ri;
@@ -174,6 +168,11 @@ int BN_MONT_CTX_set(BN_MONT_CTX *mont, const BIGNUM *mod, BN_CTX *ctx) {
   BIGNUM *Ri, *R;
   BIGNUM tmod;
   BN_ULONG buf[2];
+
+  if (BN_is_zero(mod)) {
+    OPENSSL_PUT_ERROR(BN, BN_R_DIV_BY_ZERO);
+    return 0;
+  }
 
   BN_CTX_start(ctx);
   Ri = BN_CTX_get(ctx);
@@ -292,44 +291,36 @@ err:
   return ret;
 }
 
-BN_MONT_CTX *BN_MONT_CTX_set_locked(BN_MONT_CTX **pmont, int lock,
-                                    const BIGNUM *mod, BN_CTX *ctx) {
-  BN_MONT_CTX *ret;
+BN_MONT_CTX *BN_MONT_CTX_set_locked(BN_MONT_CTX **pmont, CRYPTO_MUTEX *lock,
+                                    const BIGNUM *mod, BN_CTX *bn_ctx) {
+  CRYPTO_MUTEX_lock_read(lock);
+  BN_MONT_CTX *ctx = *pmont;
+  CRYPTO_MUTEX_unlock(lock);
 
-  CRYPTO_r_lock(lock);
-  ret = *pmont;
-  CRYPTO_r_unlock(lock);
-  if (ret) {
-    return ret;
+  if (ctx) {
+    return ctx;
   }
 
-  /* We don't want to serialise globally while doing our lazy-init math in
-   * BN_MONT_CTX_set. That punishes threads that are doing independent
-   * things. Instead, punish the case where more than one thread tries to
-   * lazy-init the same 'pmont', by having each do the lazy-init math work
-   * independently and only use the one from the thread that wins the race
-   * (the losers throw away the work they've done). */
-  ret = BN_MONT_CTX_new();
-  if (!ret) {
-    return NULL;
-  }
-  if (!BN_MONT_CTX_set(ret, mod, ctx)) {
-    BN_MONT_CTX_free(ret);
-    return NULL;
+  CRYPTO_MUTEX_lock_write(lock);
+  ctx = *pmont;
+  if (ctx) {
+    goto out;
   }
 
-  /* The locked compare-and-set, after the local work is done. */
-  CRYPTO_w_lock(lock);
-  if (*pmont) {
-    BN_MONT_CTX_free(ret);
-    ret = *pmont;
-  } else {
-    *pmont = ret;
+  ctx = BN_MONT_CTX_new();
+  if (ctx == NULL) {
+    goto out;
   }
+  if (!BN_MONT_CTX_set(ctx, mod, bn_ctx)) {
+    BN_MONT_CTX_free(ctx);
+    ctx = NULL;
+    goto out;
+  }
+  *pmont = ctx;
 
-  CRYPTO_w_unlock(lock);
-
-  return ret;
+out:
+  CRYPTO_MUTEX_unlock(lock);
+  return ctx;
 }
 
 int BN_to_montgomery(BIGNUM *ret, const BIGNUM *a, const BN_MONT_CTX *mont,

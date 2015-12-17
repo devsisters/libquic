@@ -12,9 +12,8 @@
 #include "net/quic/crypto/quic_encrypter.h"
 #include "net/quic/crypto/quic_random.h"
 #include "net/quic/quic_time.h"
-#if 0
+#include "net/quic/quic_utils.h"
 #include "url/url_canon.h"
-#endif
 
 using base::StringPiece;
 using std::numeric_limits;
@@ -183,6 +182,81 @@ bool CryptoUtils::ExportKeyingMaterial(StringPiece subkey_secret,
                     0 /* no subkey secret */);
   hkdf.client_write_key().CopyToString(result);
   return true;
+}
+
+// static
+uint64 CryptoUtils::ComputeLeafCertHash(const std::string& cert) {
+  return QuicUtils::FNV1a_64_Hash(cert.data(), cert.size());
+}
+
+QuicErrorCode CryptoUtils::ValidateServerHello(
+    const CryptoHandshakeMessage& server_hello,
+    const QuicVersionVector& negotiated_versions,
+    string* error_details) {
+  DCHECK(error_details != nullptr);
+
+  if (server_hello.tag() != kSHLO) {
+    *error_details = "Bad tag";
+    return QUIC_INVALID_CRYPTO_MESSAGE_TYPE;
+  }
+
+  const QuicTag* supported_version_tags;
+  size_t num_supported_versions;
+
+  if (server_hello.GetTaglist(kVER, &supported_version_tags,
+                              &num_supported_versions) != QUIC_NO_ERROR) {
+    *error_details = "server hello missing version list";
+    return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
+  }
+  if (!negotiated_versions.empty()) {
+    bool mismatch = num_supported_versions != negotiated_versions.size();
+    for (size_t i = 0; i < num_supported_versions && !mismatch; ++i) {
+      mismatch = QuicTagToQuicVersion(supported_version_tags[i]) !=
+                 negotiated_versions[i];
+    }
+    // The server sent a list of supported versions, and the connection
+    // reports that there was a version negotiation during the handshake.
+    // Ensure that these two lists are identical.
+    if (mismatch) {
+      *error_details = "Downgrade attack detected";
+      return QUIC_VERSION_NEGOTIATION_MISMATCH;
+    }
+  }
+  return QUIC_NO_ERROR;
+}
+
+QuicErrorCode CryptoUtils::ValidateClientHello(
+    const CryptoHandshakeMessage& client_hello,
+    QuicVersion version,
+    const QuicVersionVector& supported_versions,
+    string* error_details) {
+  if (client_hello.tag() != kCHLO) {
+    *error_details = "Bad tag";
+    return QUIC_INVALID_CRYPTO_MESSAGE_TYPE;
+  }
+
+  // If the client's preferred version is not the version we are currently
+  // speaking, then the client went through a version negotiation.  In this
+  // case, we need to make sure that we actually do not support this version
+  // and that it wasn't a downgrade attack.
+  QuicTag client_version_tag;
+  if (client_hello.GetUint32(kVER, &client_version_tag) != QUIC_NO_ERROR) {
+    *error_details = "client hello missing version list";
+    return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
+  }
+  QuicVersion client_version = QuicTagToQuicVersion(client_version_tag);
+  if (client_version != version) {
+    // Just because client_version is a valid version enum doesn't mean that
+    // this server actually supports that version, so we check to see if
+    // it's actually in the supported versions list.
+    for (size_t i = 0; i < supported_versions.size(); ++i) {
+      if (client_version == supported_versions[i]) {
+        *error_details = "Downgrade attack detected";
+        return QUIC_VERSION_NEGOTIATION_MISMATCH;
+      }
+    }
+  }
+  return QUIC_NO_ERROR;
 }
 
 }  // namespace net

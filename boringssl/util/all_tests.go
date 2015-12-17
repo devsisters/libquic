@@ -22,69 +22,24 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
 // TODO(davidben): Link tests with the malloc shim and port -malloc-test to this runner.
 
 var (
-	useValgrind = flag.Bool("valgrind", false, "If true, run code under valgrind")
-	buildDir    = flag.String("build-dir", "build", "The build directory to run the tests from.")
-	jsonOutput  = flag.String("json-output", "", "The file to output JSON results to.")
+	useValgrind     = flag.Bool("valgrind", false, "If true, run code under valgrind")
+	useGDB          = flag.Bool("gdb", false, "If true, run BoringSSL code under gdb")
+	buildDir        = flag.String("build-dir", "build", "The build directory to run the tests from.")
+	jsonOutput      = flag.String("json-output", "", "The file to output JSON results to.")
+	mallocTest      = flag.Int64("malloc-test", -1, "If non-negative, run each test with each malloc in turn failing from the given number onwards.")
+	mallocTestDebug = flag.Bool("malloc-test-debug", false, "If true, ask each test to abort rather than fail a malloc. This can be used with a specific value for --malloc-test to identity the malloc failing that is causing problems.")
 )
 
 type test []string
-
-var tests = []test{
-	{"crypto/base64/base64_test"},
-	{"crypto/bio/bio_test"},
-	{"crypto/bn/bn_test"},
-	{"crypto/bytestring/bytestring_test"},
-	{"crypto/cipher/aead_test", "aes-128-gcm", "crypto/cipher/test/aes_128_gcm_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-128-key-wrap", "crypto/cipher/test/aes_128_key_wrap_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-256-gcm", "crypto/cipher/test/aes_256_gcm_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-256-key-wrap", "crypto/cipher/test/aes_256_key_wrap_tests.txt"},
-	{"crypto/cipher/aead_test", "chacha20-poly1305", "crypto/cipher/test/chacha20_poly1305_tests.txt"},
-	{"crypto/cipher/aead_test", "rc4-md5-tls", "crypto/cipher/test/rc4_md5_tls_tests.txt"},
-	{"crypto/cipher/aead_test", "rc4-sha1-tls", "crypto/cipher/test/rc4_sha1_tls_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-128-cbc-sha1-tls", "crypto/cipher/test/aes_128_cbc_sha1_tls_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-128-cbc-sha1-tls-implicit-iv", "crypto/cipher/test/aes_128_cbc_sha1_tls_implicit_iv_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-128-cbc-sha256-tls", "crypto/cipher/test/aes_128_cbc_sha256_tls_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-256-cbc-sha1-tls", "crypto/cipher/test/aes_256_cbc_sha1_tls_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-256-cbc-sha1-tls-implicit-iv", "crypto/cipher/test/aes_256_cbc_sha1_tls_implicit_iv_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-256-cbc-sha256-tls", "crypto/cipher/test/aes_256_cbc_sha256_tls_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-256-cbc-sha384-tls", "crypto/cipher/test/aes_256_cbc_sha384_tls_tests.txt"},
-	{"crypto/cipher/aead_test", "des-ede3-cbc-sha1-tls", "crypto/cipher/test/des_ede3_cbc_sha1_tls_tests.txt"},
-	{"crypto/cipher/aead_test", "des-ede3-cbc-sha1-tls-implicit-iv", "crypto/cipher/test/des_ede3_cbc_sha1_tls_implicit_iv_tests.txt"},
-	{"crypto/cipher/aead_test", "rc4-md5-ssl3", "crypto/cipher/test/rc4_md5_ssl3_tests.txt"},
-	{"crypto/cipher/aead_test", "rc4-sha1-ssl3", "crypto/cipher/test/rc4_sha1_ssl3_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-128-cbc-sha1-ssl3", "crypto/cipher/test/aes_128_cbc_sha1_ssl3_tests.txt"},
-	{"crypto/cipher/aead_test", "aes-256-cbc-sha1-ssl3", "crypto/cipher/test/aes_256_cbc_sha1_ssl3_tests.txt"},
-	{"crypto/cipher/aead_test", "des-ede3-cbc-sha1-ssl3", "crypto/cipher/test/des_ede3_cbc_sha1_ssl3_tests.txt"},
-	{"crypto/cipher/cipher_test", "crypto/cipher/test/cipher_test.txt"},
-	{"crypto/constant_time_test"},
-	{"crypto/dh/dh_test"},
-	{"crypto/digest/digest_test"},
-	{"crypto/dsa/dsa_test"},
-	{"crypto/ec/ec_test"},
-	{"crypto/ec/example_mul"},
-	{"crypto/ecdsa/ecdsa_test"},
-	{"crypto/err/err_test"},
-	{"crypto/evp/evp_test"},
-	{"crypto/evp/pbkdf_test"},
-	{"crypto/hkdf/hkdf_test"},
-	{"crypto/hmac/hmac_test"},
-	{"crypto/lhash/lhash_test"},
-	{"crypto/modes/gcm_test"},
-	{"crypto/pkcs8/pkcs12_test"},
-	{"crypto/rsa/rsa_test"},
-	{"crypto/x509/pkcs7_test"},
-	{"crypto/x509v3/tab_test"},
-	{"crypto/x509v3/v3name_test"},
-	{"ssl/pqueue/pqueue_test"},
-	{"ssl/ssl_test"},
-}
 
 // testOutput is a representation of Chromium's JSON test result format. See
 // https://www.chromium.org/developers/the-json-test-results-format
@@ -98,8 +53,9 @@ type testOutput struct {
 }
 
 type testResult struct {
-	Actual   string `json:"actual"`
-	Expected string `json:"expected"`
+	Actual       string `json:"actual"`
+	Expected     string `json:"expected"`
+	IsUnexpected bool   `json:"is_unexpected"`
 }
 
 func newTestOutput() *testOutput {
@@ -116,7 +72,11 @@ func (t *testOutput) addResult(name, result string) {
 	if _, found := t.Tests[name]; found {
 		panic(name)
 	}
-	t.Tests[name] = testResult{Actual: result, Expected: "PASS"}
+	t.Tests[name] = testResult{
+		Actual:       result,
+		Expected:     "PASS",
+		IsUnexpected: result != "PASS",
+	}
 	t.NumFailuresByType[result]++
 }
 
@@ -145,25 +105,59 @@ func valgrindOf(dbAttach bool, path string, args ...string) *exec.Cmd {
 	return exec.Command("valgrind", valgrindArgs...)
 }
 
-func runTest(test test) (passed bool, err error) {
+func gdbOf(path string, args ...string) *exec.Cmd {
+	xtermArgs := []string{"-e", "gdb", "--args"}
+	xtermArgs = append(xtermArgs, path)
+	xtermArgs = append(xtermArgs, args...)
+
+	return exec.Command("xterm", xtermArgs...)
+}
+
+type moreMallocsError struct{}
+
+func (moreMallocsError) Error() string {
+	return "child process did not exhaust all allocation calls"
+}
+
+var errMoreMallocs = moreMallocsError{}
+
+func runTestOnce(test test, mallocNumToFail int64) (passed bool, err error) {
 	prog := path.Join(*buildDir, test[0])
 	args := test[1:]
 	var cmd *exec.Cmd
 	if *useValgrind {
 		cmd = valgrindOf(false, prog, args...)
+	} else if *useGDB {
+		cmd = gdbOf(prog, args...)
 	} else {
 		cmd = exec.Command(prog, args...)
 	}
 	var stdoutBuf bytes.Buffer
+	var stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = &stderrBuf
+	if mallocNumToFail >= 0 {
+		cmd.Env = os.Environ()
+		cmd.Env = append(cmd.Env, "MALLOC_NUMBER_TO_FAIL="+strconv.FormatInt(mallocNumToFail, 10))
+		if *mallocTestDebug {
+			cmd.Env = append(cmd.Env, "MALLOC_ABORT_ON_FAIL=1")
+		}
+		cmd.Env = append(cmd.Env, "_MALLOC_CHECK=1")
+	}
 
 	if err := cmd.Start(); err != nil {
 		return false, err
 	}
 	if err := cmd.Wait(); err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			if exitError.Sys().(syscall.WaitStatus).ExitStatus() == 88 {
+				return false, errMoreMallocs
+			}
+		}
+		fmt.Print(string(stderrBuf.Bytes()))
 		return false, err
 	}
+	fmt.Print(string(stderrBuf.Bytes()))
 
 	// Account for Windows line-endings.
 	stdout := bytes.Replace(stdoutBuf.Bytes(), []byte("\r\n"), []byte("\n"), -1)
@@ -175,21 +169,71 @@ func runTest(test test) (passed bool, err error) {
 	return false, nil
 }
 
-// shortTestName returns the short name of a test. It assumes that any argument
-// which ends in .txt is a path to a data file and not relevant to the test's
-// uniqueness.
+func runTest(test test) (bool, error) {
+	if *mallocTest < 0 {
+		return runTestOnce(test, -1)
+	}
+
+	for mallocNumToFail := int64(*mallocTest); ; mallocNumToFail++ {
+		if passed, err := runTestOnce(test, mallocNumToFail); err != errMoreMallocs {
+			if err != nil {
+				err = fmt.Errorf("at malloc %d: %s", mallocNumToFail, err)
+			}
+			return passed, err
+		}
+	}
+}
+
+// shortTestName returns the short name of a test. Except for evp_test, it
+// assumes that any argument which ends in .txt is a path to a data file and not
+// relevant to the test's uniqueness.
 func shortTestName(test test) string {
 	var args []string
 	for _, arg := range test {
-		if !strings.HasSuffix(arg, ".txt") {
+		if test[0] == "crypto/evp/evp_test" || !strings.HasSuffix(arg, ".txt") {
 			args = append(args, arg)
 		}
 	}
 	return strings.Join(args, " ")
 }
 
+// setWorkingDirectory walks up directories as needed until the current working
+// directory is the top of a BoringSSL checkout.
+func setWorkingDirectory() {
+	for i := 0; i < 64; i++ {
+		if _, err := os.Stat("BUILDING.md"); err == nil {
+			return
+		}
+		os.Chdir("..")
+	}
+
+	panic("Couldn't find BUILDING.md in a parent directory!")
+}
+
+func parseTestConfig(filename string) ([]test, error) {
+	in, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer in.Close()
+
+	decoder := json.NewDecoder(in)
+	var result []test
+	if err := decoder.Decode(&result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func main() {
 	flag.Parse()
+	setWorkingDirectory()
+
+	tests, err := parseTestConfig("util/all_tests.json")
+	if err != nil {
+		fmt.Printf("Failed to parse input: %s\n", err)
+		os.Exit(1)
+	}
 
 	testOutput := newTestOutput()
 	var failed []test
@@ -211,18 +255,19 @@ func main() {
 		}
 	}
 
-	if len(failed) == 0 {
-		fmt.Printf("\nAll tests passed!\n")
-	} else {
-		fmt.Printf("\n%d of %d tests failed:\n", len(failed), len(tests))
-		for _, test := range failed {
-			fmt.Printf("\t%s\n", strings.Join([]string(test), " "))
-		}
-	}
-
 	if *jsonOutput != "" {
 		if err := testOutput.writeTo(*jsonOutput); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		}
 	}
+
+	if len(failed) > 0 {
+		fmt.Printf("\n%d of %d tests failed:\n", len(failed), len(tests))
+		for _, test := range failed {
+			fmt.Printf("\t%s\n", strings.Join([]string(test), " "))
+		}
+		os.Exit(1)
+	}
+
+	fmt.Printf("\nAll tests passed!\n")
 }

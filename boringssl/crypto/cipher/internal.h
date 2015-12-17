@@ -60,54 +60,15 @@
 #include <openssl/base.h>
 
 #include <openssl/aead.h>
-#include <openssl/asn1t.h>
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 
-struct evp_cipher_st {
-  /* type contains a NID identifing the cipher. (For example, NID_rc4.) */
-  int nid;
-
-  /* block_size contains the block size, in bytes, of the cipher, or 1 for a
-   * stream cipher. */
-  unsigned block_size;
-
-  /* key_len contains the key size, in bytes, for the cipher. If the cipher
-   * takes a variable key size then this contains the default size. */
-  unsigned key_len;
-
-  /* iv_len contains the IV size, in bytes, or zero if inapplicable. */
-  unsigned iv_len;
-
-  /* ctx_size contains the size, in bytes, of the per-key context for this
-   * cipher. */
-  unsigned ctx_size;
-
-  /* flags contains the OR of a number of flags. See |EVP_CIPH_*|. */
-  uint32_t flags;
-
-  /* app_data is a pointer to opaque, user data. */
-  void *app_data;
-
-  int (*init)(EVP_CIPHER_CTX *ctx, const uint8_t *key, const uint8_t *iv,
-              int enc);
-
-  int (*cipher)(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                size_t inl);
-
-  void (*cleanup)(EVP_CIPHER_CTX *);
-
-  int (*ctrl)(EVP_CIPHER_CTX *, int type, int arg, void *ptr);
-};
-
 /* EVP_CIPH_MODE_MASK contains the bits of |flags| that represent the mode. */
 #define EVP_CIPH_MODE_MASK 0x3f
 
-
-struct evp_aead_ctx_st;
 
 /* EVP_AEAD represents a specific AEAD algorithm. */
 struct evp_aead_st {
@@ -116,22 +77,28 @@ struct evp_aead_st {
   uint8_t overhead;
   uint8_t max_tag_len;
 
-  int (*init)(struct evp_aead_ctx_st *, const uint8_t *key,
-              size_t key_len, size_t tag_len);
-  int (*init_with_direction)(struct evp_aead_ctx_st *, const uint8_t *key,
-			     size_t key_len, size_t tag_len,
-			     enum evp_aead_direction_t dir);
-  void (*cleanup)(struct evp_aead_ctx_st *);
+  /* init initialises an |EVP_AEAD_CTX|. If this call returns zero then
+   * |cleanup| will not be called for that context. */
+  int (*init)(EVP_AEAD_CTX *, const uint8_t *key, size_t key_len,
+              size_t tag_len);
+  int (*init_with_direction)(EVP_AEAD_CTX *, const uint8_t *key, size_t key_len,
+                             size_t tag_len, enum evp_aead_direction_t dir);
+  void (*cleanup)(EVP_AEAD_CTX *);
 
-  int (*seal)(const struct evp_aead_ctx_st *ctx, uint8_t *out,
-              size_t *out_len, size_t max_out_len, const uint8_t *nonce,
-              size_t nonce_len, const uint8_t *in, size_t in_len,
-              const uint8_t *ad, size_t ad_len);
+  int (*seal)(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
+              size_t max_out_len, const uint8_t *nonce, size_t nonce_len,
+              const uint8_t *in, size_t in_len, const uint8_t *ad,
+              size_t ad_len);
 
-  int (*open)(const struct evp_aead_ctx_st *ctx, uint8_t *out,
-              size_t *out_len, size_t max_out_len, const uint8_t *nonce,
-              size_t nonce_len, const uint8_t *in, size_t in_len,
-              const uint8_t *ad, size_t ad_len);
+  int (*open)(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
+              size_t max_out_len, const uint8_t *nonce, size_t nonce_len,
+              const uint8_t *in, size_t in_len, const uint8_t *ad,
+              size_t ad_len);
+
+  int (*get_rc4_state)(const EVP_AEAD_CTX *ctx, const RC4_KEY **out_key);
+
+  int (*get_iv)(const EVP_AEAD_CTX *ctx, const uint8_t **out_iv,
+                size_t *out_len);
 };
 
 

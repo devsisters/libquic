@@ -75,87 +75,79 @@
 
 
 int ECDH_compute_key(void *out, size_t outlen, const EC_POINT *pub_key,
-                     EC_KEY *priv_key, void *(*KDF)(const void *in, size_t inlen,
-                                                void *out, size_t *outlen)) {
-  BN_CTX *ctx;
-  EC_POINT *tmp = NULL;
-  BIGNUM *x = NULL, *y = NULL;
-  const BIGNUM *priv;
-  const EC_GROUP *group;
-  int ret = -1;
-  size_t buflen;
-  uint8_t *buf = NULL;
+                     EC_KEY *priv_key,
+                     void *(*kdf)(const void *in, size_t inlen, void *out,
+                                  size_t *outlen)) {
+  const BIGNUM *const priv = EC_KEY_get0_private_key(priv_key);
+  if (priv == NULL) {
+    OPENSSL_PUT_ERROR(ECDH, ECDH_R_NO_PRIVATE_VALUE);
+    return -1;
+  }
 
-  if ((ctx = BN_CTX_new()) == NULL) {
-    goto err;
+  BN_CTX *ctx = BN_CTX_new();
+  if (ctx == NULL) {
+    return -1;
   }
   BN_CTX_start(ctx);
-  x = BN_CTX_get(ctx);
-  y = BN_CTX_get(ctx);
 
-  priv = EC_KEY_get0_private_key(priv_key);
-  if (priv == NULL) {
-    OPENSSL_PUT_ERROR(ECDH, ECDH_compute_key, ECDH_R_NO_PRIVATE_VALUE);
-    goto err;
-  }
+  int ret = -1;
+  size_t buflen = 0;
+  uint8_t *buf = NULL;
 
-  group = EC_KEY_get0_group(priv_key);
-
-  tmp = EC_POINT_new(group);
+  const EC_GROUP *const group = EC_KEY_get0_group(priv_key);
+  EC_POINT *tmp = EC_POINT_new(group);
   if (tmp == NULL) {
-    OPENSSL_PUT_ERROR(ECDH, ECDH_compute_key, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(ECDH, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
   if (!EC_POINT_mul(group, tmp, NULL, pub_key, priv, ctx)) {
-    OPENSSL_PUT_ERROR(ECDH, ECDH_compute_key, ECDH_R_POINT_ARITHMETIC_FAILURE);
+    OPENSSL_PUT_ERROR(ECDH, ECDH_R_POINT_ARITHMETIC_FAILURE);
     goto err;
   }
 
-  if (!EC_POINT_get_affine_coordinates_GFp(group, tmp, x, y, ctx)) {
-    OPENSSL_PUT_ERROR(ECDH, ECDH_compute_key, ECDH_R_POINT_ARITHMETIC_FAILURE);
+  BIGNUM *x = BN_CTX_get(ctx);
+  if (!x) {
+    OPENSSL_PUT_ERROR(ECDH, ERR_R_MALLOC_FAILURE);
+    goto err;
+  }
+
+  if (!EC_POINT_get_affine_coordinates_GFp(group, tmp, x, NULL, ctx)) {
+    OPENSSL_PUT_ERROR(ECDH, ECDH_R_POINT_ARITHMETIC_FAILURE);
     goto err;
   }
 
   buflen = (EC_GROUP_get_degree(group) + 7) / 8;
   buf = OPENSSL_malloc(buflen);
   if (buf == NULL) {
-    OPENSSL_PUT_ERROR(ECDH, ECDH_compute_key, ERR_R_MALLOC_FAILURE);
+    OPENSSL_PUT_ERROR(ECDH, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
   if (!BN_bn2bin_padded(buf, buflen, x)) {
-    OPENSSL_PUT_ERROR(ECDH, ECDH_compute_key, ERR_R_INTERNAL_ERROR);
+    OPENSSL_PUT_ERROR(ECDH, ERR_R_INTERNAL_ERROR);
     goto err;
   }
 
-  if (KDF != 0) {
-    if (KDF(buf, buflen, out, &outlen) == NULL) {
-      OPENSSL_PUT_ERROR(ECDH, ECDH_compute_key, ECDH_R_KDF_FAILED);
+  if (kdf != NULL) {
+    if (kdf(buf, buflen, out, &outlen) == NULL) {
+      OPENSSL_PUT_ERROR(ECDH, ECDH_R_KDF_FAILED);
       goto err;
     }
-    ret = outlen;
   } else {
     /* no KDF, just copy as much as we can */
-    if (outlen > buflen) {
+    if (buflen < outlen) {
       outlen = buflen;
     }
     memcpy(out, buf, outlen);
-    ret = outlen;
   }
 
+  ret = outlen;
+
 err:
-  if (tmp) {
-    EC_POINT_free(tmp);
-  }
-  if (ctx) {
-    BN_CTX_end(ctx);
-  }
-  if (ctx) {
-    BN_CTX_free(ctx);
-  }
-  if (buf) {
-    OPENSSL_free(buf);
-  }
+  OPENSSL_free(buf);
+  EC_POINT_free(tmp);
+  BN_CTX_end(ctx);
+  BN_CTX_free(ctx);
   return ret;
 }

@@ -24,7 +24,8 @@ QuicTime QuicClock::Now() const {
 }
 
 QuicWallTime QuicClock::WallNow() const {
-  return QuicWallTime::FromUNIXSeconds(base::Time::Now().ToTimeT());
+  return QuicWallTime::FromUNIXMicroseconds(base::Time::Now().ToJavaTime() *
+                                            1000);
 }
 
 }  // namespace net

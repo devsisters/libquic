@@ -30,6 +30,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string16.h"
+#include "base/strings/string_piece.h"
 
 namespace base {
 
@@ -208,6 +209,9 @@ class BASE_EXPORT BinaryValue: public Value {
 // are |std::string|s and should be UTF-8 encoded.
 class BASE_EXPORT DictionaryValue : public Value {
  public:
+  // Returns |value| if it is a dictionary, nullptr otherwise.
+  static scoped_ptr<DictionaryValue> From(scoped_ptr<Value> value);
+
   DictionaryValue();
   ~DictionaryValue() override;
 
@@ -270,8 +274,8 @@ class BASE_EXPORT DictionaryValue : public Value {
   // Otherwise, it will return false and |out_value| will be untouched.
   // Note that the dictionary always owns the value that's returned.
   // |out_value| is optional and will only be set if non-NULL.
-  bool Get(const std::string& path, const Value** out_value) const;
-  bool Get(const std::string& path, Value** out_value);
+  bool Get(StringPiece path, const Value** out_value) const;
+  bool Get(StringPiece path, Value** out_value);
 
   // These are convenience forms of Get().  The value will be retrieved
   // and the return value will be true if the path is valid and the value at
@@ -287,9 +291,9 @@ class BASE_EXPORT DictionaryValue : public Value {
   bool GetStringASCII(const std::string& path, std::string* out_value) const;
   bool GetBinary(const std::string& path, const BinaryValue** out_value) const;
   bool GetBinary(const std::string& path, BinaryValue** out_value);
-  bool GetDictionary(const std::string& path,
+  bool GetDictionary(StringPiece path,
                      const DictionaryValue** out_value) const;
-  bool GetDictionary(const std::string& path, DictionaryValue** out_value);
+  bool GetDictionary(StringPiece path, DictionaryValue** out_value);
   bool GetList(const std::string& path, const ListValue** out_value) const;
   bool GetList(const std::string& path, ListValue** out_value);
 
@@ -385,6 +389,9 @@ class BASE_EXPORT ListValue : public Value {
  public:
   typedef ValueVector::iterator iterator;
   typedef ValueVector::const_iterator const_iterator;
+
+  // Returns |value| if it is a list, nullptr otherwise.
+  static scoped_ptr<ListValue> From(scoped_ptr<Value> value);
 
   ListValue();
   ~ListValue() override;
@@ -524,7 +531,8 @@ class BASE_EXPORT ValueDeserializer {
   // error_code will be set with the underlying error.
   // If |error_message| is non-null, it will be filled in with a formatted
   // error message including the location of the error if appropriate.
-  virtual Value* Deserialize(int* error_code, std::string* error_str) = 0;
+  virtual scoped_ptr<Value> Deserialize(int* error_code,
+                                        std::string* error_str) = 0;
 };
 
 // Stream operator so Values can be used in assertion statements.  In order that

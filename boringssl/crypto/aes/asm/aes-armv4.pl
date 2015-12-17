@@ -32,8 +32,20 @@
 # Profiler-assisted and platform-specific optimization resulted in 16%
 # improvement on Cortex A8 core and ~21.5 cycles per byte.
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
-open STDOUT,">$output";
+$flavour = shift;
+if ($flavour=~/^\w[\w\-]*\.\w+$/) { $output=$flavour; undef $flavour; }
+else { while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {} }
+
+if ($flavour && $flavour ne "void") {
+    $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+    ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
+    ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
+    die "can't locate arm-xlate.pl";
+
+    open STDOUT,"| \"$^X\" $xlate $flavour $output";
+} else {
+    open STDOUT,">$output";
+}
 
 $s0="r0";
 $s1="r1";
@@ -53,7 +65,7 @@ $rounds="r12";
 $code=<<___;
 #if defined(__arm__)
 #ifndef __KERNEL__
-# include "arm_arch.h"
+# include <openssl/arm_arch.h>
 #else
 # define __ARM_ARCH__ __LINUX_ARM_ARCH__
 #endif
@@ -63,7 +75,7 @@ $code=<<___;
 .code	32
 #else
 .syntax	unified
-# ifdef __thumb2__
+# if defined(__thumb2__) && !defined(__APPLE__)
 .thumb
 # else
 .code	32
@@ -189,9 +201,13 @@ asm_AES_encrypt:
 	adr	r3,asm_AES_encrypt
 #endif
 	stmdb   sp!,{r1,r4-r12,lr}
+#ifdef	__APPLE__
+	adr	$tbl,AES_Te
+#else
+	sub	$tbl,r3,#asm_AES_encrypt-AES_Te	@ Te
+#endif
 	mov	$rounds,r0		@ inp
 	mov	$key,r2
-	sub	$tbl,r3,#asm_AES_encrypt-AES_Te	@ Te
 #if __ARM_ARCH__<7
 	ldrb	$s0,[$rounds,#3]	@ load input data in endian-neutral
 	ldrb	$t1,[$rounds,#2]	@ manner...
@@ -460,11 +476,15 @@ _armv4_AES_set_encrypt_key:
 	bne	.Labrt
 
 .Lok:	stmdb   sp!,{r4-r12,lr}
-	sub	$tbl,r3,#_armv4_AES_set_encrypt_key-AES_Te-1024	@ Te4
-
 	mov	$rounds,r0		@ inp
 	mov	lr,r1			@ bits
 	mov	$key,r2			@ key
+
+#ifdef	__APPLE__
+	adr	$tbl,AES_Te+1024				@ Te4
+#else
+	sub	$tbl,r3,#_armv4_AES_set_encrypt_key-AES_Te-1024	@ Te4
+#endif
 
 #if __ARM_ARCH__<7
 	ldrb	$s0,[$rounds,#3]	@ load input data in endian-neutral
@@ -718,8 +738,8 @@ _armv4_AES_set_encrypt_key:
 .Ldone:	mov	r0,#0
 	ldmia   sp!,{r4-r12,lr}
 .Labrt:
-#if defined(__thumb2__) && __ARM_ARCH__>=7
-	.short	0x4770			@ bx lr in Thumb2 encoding
+#if __ARM_ARCH__>=5
+	ret				@ bx lr
 #else
 	tst	lr,#1
 	moveq	pc,lr			@ be binary compatible with V4, yet
@@ -961,9 +981,13 @@ asm_AES_decrypt:
 	adr	r3,asm_AES_decrypt
 #endif
 	stmdb   sp!,{r1,r4-r12,lr}
+#ifdef	__APPLE__
+	adr	$tbl,AES_Td
+#else
+	sub	$tbl,r3,#asm_AES_decrypt-AES_Td	@ Td
+#endif
 	mov	$rounds,r0		@ inp
 	mov	$key,r2
-	sub	$tbl,r3,#asm_AES_decrypt-AES_Td		@ Td
 #if __ARM_ARCH__<7
 	ldrb	$s0,[$rounds,#3]	@ load input data in endian-neutral
 	ldrb	$t1,[$rounds,#2]	@ manner...
@@ -1211,6 +1235,7 @@ _armv4_AES_decrypt:
 ___
 
 $code =~ s/\bbx\s+lr\b/.word\t0xe12fff1e/gm;	# make it possible to compile with -march=armv4
+$code =~ s/\bret\b/bx\tlr/gm;
 
 open SELF,$0;
 while(<SELF>) {

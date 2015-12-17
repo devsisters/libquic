@@ -6,8 +6,6 @@
 
 #include <pk11pub.h>
 
-#include "base/logging.h"
-
 using base::StringPiece;
 
 namespace net {
@@ -19,36 +17,11 @@ const size_t kNoncePrefixSize = 0;
 
 }  // namespace
 
-#if defined(USE_NSS_CERTS)
-
-// System NSS doesn't support ChaCha20+Poly1305 yet.
-
 ChaCha20Poly1305Decrypter::ChaCha20Poly1305Decrypter()
-    : AeadBaseDecrypter(CKM_INVALID_MECHANISM, nullptr, kKeySize,
-                        kAuthTagSize, kNoncePrefixSize) {
-  NOTIMPLEMENTED();
-}
-
-ChaCha20Poly1305Decrypter::~ChaCha20Poly1305Decrypter() {}
-
-// static
-bool ChaCha20Poly1305Decrypter::IsSupported() {
-  return false;
-}
-
-void ChaCha20Poly1305Decrypter::FillAeadParams(
-    StringPiece nonce,
-    const StringPiece& associated_data,
-    size_t auth_tag_size,
-    AeadParams* aead_params) const {
-  NOTIMPLEMENTED();
-}
-
-#else  // defined(USE_NSS_CERTS)
-
-ChaCha20Poly1305Decrypter::ChaCha20Poly1305Decrypter()
-    : AeadBaseDecrypter(CKM_NSS_CHACHA20_POLY1305, PK11_Decrypt, kKeySize,
-                        kAuthTagSize, kNoncePrefixSize) {
+    : AeadBaseDecrypter(CKM_NSS_CHACHA20_POLY1305,
+                        kKeySize,
+                        kAuthTagSize,
+                        kNoncePrefixSize) {
   static_assert(kKeySize <= kMaxKeySize, "key size too big");
   static_assert(kNoncePrefixSize <= kMaxNoncePrefixSize,
                 "nonce prefix size too big");
@@ -77,6 +50,18 @@ void ChaCha20Poly1305Decrypter::FillAeadParams(
   nss_aead_params->ulTagLen = auth_tag_size;
 }
 
-#endif  // defined(USE_NSS_CERTS)
+const char* ChaCha20Poly1305Decrypter::cipher_name() const {
+  // TODO(rtenneti): Use TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305 instead of
+  // hard coded string.
+  // return TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305;
+  return "ECDHE-RSA-CHACHA20-POLY1305";
+}
+
+uint32 ChaCha20Poly1305Decrypter::cipher_id() const {
+  // TODO(rtenneti): when Chromium requires NSS 3.15.2 or later, use
+  // TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305 instead of 0xCC13.
+  // "OR" 0x03000000 to match OpenSSL/BoringSSL implementations.
+  return 0x03000000 | 0xCC13;
+}
 
 }  // namespace net

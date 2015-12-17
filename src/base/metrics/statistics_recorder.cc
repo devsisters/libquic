@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
+#include "base/stl_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/values.h"
@@ -61,6 +62,15 @@ HistogramBase* StatisticsRecorder::RegisterOrDeleteDuplicate(
       if (histograms_->end() == it) {
         (*histograms_)[HistogramNameRef(name)] = histogram;
         ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
+        // If there are callbacks for this histogram, we set the kCallbackExists
+        // flag.
+        auto callback_iterator = callbacks_->find(name);
+        if (callback_iterator != callbacks_->end()) {
+          if (!callback_iterator->second.is_null())
+            histogram->SetFlags(HistogramBase::kCallbackExists);
+          else
+            histogram->ClearFlags(HistogramBase::kCallbackExists);
+        }
         histogram_to_return = histogram;
       } else if (histogram == it->second) {
         // The histogram was registered before.
@@ -225,6 +235,58 @@ HistogramBase* StatisticsRecorder::FindHistogram(const std::string& name) {
   return it->second;
 }
 
+// static
+bool StatisticsRecorder::SetCallback(
+    const std::string& name,
+    const StatisticsRecorder::OnSampleCallback& cb) {
+  DCHECK(!cb.is_null());
+  if (lock_ == NULL)
+    return false;
+  base::AutoLock auto_lock(*lock_);
+  if (histograms_ == NULL)
+    return false;
+
+  if (ContainsKey(*callbacks_, name))
+    return false;
+  callbacks_->insert(std::make_pair(name, cb));
+
+  auto histogram_iterator = histograms_->find(HistogramNameRef(name));
+  if (histogram_iterator != histograms_->end())
+    histogram_iterator->second->SetFlags(HistogramBase::kCallbackExists);
+
+  return true;
+}
+
+// static
+void StatisticsRecorder::ClearCallback(const std::string& name) {
+  if (lock_ == NULL)
+    return;
+  base::AutoLock auto_lock(*lock_);
+  if (histograms_ == NULL)
+    return;
+
+  callbacks_->erase(name);
+
+  // We also clear the flag from the histogram (if it exists).
+  auto histogram_iterator = histograms_->find(HistogramNameRef(name));
+  if (histogram_iterator != histograms_->end())
+    histogram_iterator->second->ClearFlags(HistogramBase::kCallbackExists);
+}
+
+// static
+StatisticsRecorder::OnSampleCallback StatisticsRecorder::FindCallback(
+    const std::string& name) {
+  if (lock_ == NULL)
+    return OnSampleCallback();
+  base::AutoLock auto_lock(*lock_);
+  if (histograms_ == NULL)
+    return OnSampleCallback();
+
+  auto callback_iterator = callbacks_->find(name);
+  return callback_iterator != callbacks_->end() ? callback_iterator->second
+                                                : OnSampleCallback();
+}
+
 // private static
 void StatisticsRecorder::GetSnapshot(const std::string& query,
                                      Histograms* snapshot) {
@@ -256,6 +318,7 @@ StatisticsRecorder::StatisticsRecorder() {
   }
   base::AutoLock auto_lock(*lock_);
   histograms_ = new HistogramMap;
+  callbacks_ = new CallbackMap;
   ranges_ = new RangesMap;
 
   if (VLOG_IS_ON(1))
@@ -274,14 +337,17 @@ StatisticsRecorder::~StatisticsRecorder() {
 
   // Clean up.
   scoped_ptr<HistogramMap> histograms_deleter;
+  scoped_ptr<CallbackMap> callbacks_deleter;
   scoped_ptr<RangesMap> ranges_deleter;
   // We don't delete lock_ on purpose to avoid having to properly protect
   // against it going away after we checked for NULL in the static methods.
   {
     base::AutoLock auto_lock(*lock_);
     histograms_deleter.reset(histograms_);
+    callbacks_deleter.reset(callbacks_);
     ranges_deleter.reset(ranges_);
     histograms_ = NULL;
+    callbacks_ = NULL;
     ranges_ = NULL;
   }
   // We are going to leak the histograms and the ranges.
@@ -290,6 +356,8 @@ StatisticsRecorder::~StatisticsRecorder() {
 
 // static
 StatisticsRecorder::HistogramMap* StatisticsRecorder::histograms_ = NULL;
+// static
+StatisticsRecorder::CallbackMap* StatisticsRecorder::callbacks_ = NULL;
 // static
 StatisticsRecorder::RangesMap* StatisticsRecorder::ranges_ = NULL;
 // static

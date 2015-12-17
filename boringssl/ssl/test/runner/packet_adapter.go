@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package runner
 
 import (
 	"encoding/binary"
@@ -28,13 +28,22 @@ const opcodeTimeoutAck = byte('t')
 
 type packetAdaptor struct {
 	net.Conn
+	debug *recordingConn
 }
 
 // newPacketAdaptor wraps a reliable streaming net.Conn into a reliable
 // packet-based net.Conn. The stream contains packets and control commands,
 // distinguished by a one byte opcode.
 func newPacketAdaptor(conn net.Conn) *packetAdaptor {
-	return &packetAdaptor{conn}
+	return &packetAdaptor{conn, nil}
+}
+
+func (p *packetAdaptor) log(message string, data []byte) {
+	if p.debug == nil {
+		return
+	}
+
+	p.debug.LogSpecial(message, data)
 }
 
 func (p *packetAdaptor) readOpcode() (byte, error) {
@@ -63,7 +72,7 @@ func (p *packetAdaptor) Read(b []byte) (int, error) {
 		return 0, err
 	}
 	if opcode != opcodePacket {
-		return 0, fmt.Errorf("unexpected opcode '%s'", opcode)
+		return 0, fmt.Errorf("unexpected opcode '%d'", opcode)
 	}
 	out, err := p.readPacketBody()
 	if err != nil {
@@ -87,6 +96,8 @@ func (p *packetAdaptor) Write(b []byte) (int, error) {
 // for acknowledgement of the timeout, buffering any packets received since
 // then. The packets are then returned.
 func (p *packetAdaptor) SendReadTimeout(d time.Duration) ([][]byte, error) {
+	p.log("Simulating read timeout: " + d.String(), nil)
+
 	payload := make([]byte, 1+8)
 	payload[0] = opcodeTimeout
 	binary.BigEndian.PutUint64(payload[1:], uint64(d.Nanoseconds()))
@@ -94,7 +105,7 @@ func (p *packetAdaptor) SendReadTimeout(d time.Duration) ([][]byte, error) {
 		return nil, err
 	}
 
-	packets := make([][]byte, 0)
+	var packets [][]byte
 	for {
 		opcode, err := p.readOpcode()
 		if err != nil {
@@ -102,6 +113,7 @@ func (p *packetAdaptor) SendReadTimeout(d time.Duration) ([][]byte, error) {
 		}
 		switch opcode {
 		case opcodeTimeoutAck:
+			p.log("Received timeout ACK", nil)
 			// Done! Return the packets buffered and continue.
 			return packets, nil
 		case opcodePacket:
@@ -110,9 +122,10 @@ func (p *packetAdaptor) SendReadTimeout(d time.Duration) ([][]byte, error) {
 			if err != nil {
 				return nil, err
 			}
+			p.log("Simulating dropped packet", packet)
 			packets = append(packets, packet)
 		default:
-			return nil, fmt.Errorf("unexpected opcode '%s'", opcode)
+			return nil, fmt.Errorf("unexpected opcode '%d'", opcode)
 		}
 	}
 }

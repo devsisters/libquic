@@ -1,4 +1,3 @@
-/* ssl/tls1.h */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -148,11 +147,10 @@
  * OTHERWISE.
  */
 
-#ifndef HEADER_TLS1_H
-#define HEADER_TLS1_H
+#ifndef OPENSSL_HEADER_TLS1_H
+#define OPENSSL_HEADER_TLS1_H
 
-#include <openssl/buf.h>
-#include <openssl/stack.h>
+#include <openssl/base.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -160,24 +158,6 @@ extern "C" {
 
 
 #define TLS1_ALLOW_EXPERIMENTAL_CIPHERSUITES 0
-
-#define TLS1_2_VERSION 0x0303
-#define TLS1_2_VERSION_MAJOR 0x03
-#define TLS1_2_VERSION_MINOR 0x03
-
-#define TLS1_1_VERSION 0x0302
-#define TLS1_1_VERSION_MAJOR 0x03
-#define TLS1_1_VERSION_MINOR 0x02
-
-#define TLS1_VERSION 0x0301
-#define TLS1_VERSION_MAJOR 0x03
-#define TLS1_VERSION_MINOR 0x01
-
-#define TLS1_get_version(s) \
-  ((s->version >> 8) == TLS1_VERSION_MAJOR ? s->version : 0)
-
-#define TLS1_get_client_version(s) \
-  ((s->client_version >> 8) == TLS1_VERSION_MAJOR ? s->client_version : 0)
 
 #define TLS1_AD_DECRYPTION_FAILED 21
 #define TLS1_AD_RECORD_OVERFLOW 22
@@ -227,7 +207,7 @@ extern "C" {
 #define TLSEXT_TYPE_signature_algorithms 13
 
 /* ExtensionType value from RFC5764 */
-#define TLSEXT_TYPE_use_srtp 14
+#define TLSEXT_TYPE_srtp 14
 
 /* ExtensionType value from RFC5620 */
 #define TLSEXT_TYPE_heartbeat 15
@@ -235,10 +215,7 @@ extern "C" {
 /* ExtensionType value from RFC7301 */
 #define TLSEXT_TYPE_application_layer_protocol_negotiation 16
 
-/* ExtensionType value for TLS padding extension.
- * http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml
- * http://tools.ietf.org/html/draft-agl-tls-padding-03
- */
+/* ExtensionType value from RFC7685 */
 #define TLSEXT_TYPE_padding 21
 
 /* https://tools.ietf.org/html/draft-ietf-tls-session-hash-01 */
@@ -257,11 +234,8 @@ extern "C" {
 #define TLSEXT_TYPE_next_proto_neg 13172
 
 /* This is not an IANA defined extension number */
-#define TLSEXT_TYPE_channel_id 30031
-#define TLSEXT_TYPE_channel_id_new 30032
+#define TLSEXT_TYPE_channel_id 30032
 
-/* NameType value from RFC 3546 */
-#define TLSEXT_NAMETYPE_host_name 0
 /* status request value from RFC 3546 */
 #define TLSEXT_STATUSTYPE_ocsp 1
 
@@ -296,71 +270,15 @@ extern "C" {
 
 #define TLSEXT_MAXLEN_host_name 255
 
-OPENSSL_EXPORT const char *SSL_get_servername(const SSL *s, const int type);
-OPENSSL_EXPORT int SSL_get_servername_type(const SSL *s);
-/* SSL_export_keying_material exports a value derived from the master secret,
- * as specified in RFC 5705. It writes |olen| bytes to |out| given a label and
- * optional context. (Since a zero length context is allowed, the |use_context|
- * flag controls whether a context is included.)
- *
- * It returns 1 on success and zero otherwise. */
-OPENSSL_EXPORT int SSL_export_keying_material(SSL *s, uint8_t *out, size_t olen,
-                                              const char *label, size_t llen,
-                                              const uint8_t *p, size_t plen,
-                                              int use_context);
-
-OPENSSL_EXPORT int SSL_get_sigalgs(SSL *s, int idx, int *psign, int *phash,
-                                   int *psignandhash, uint8_t *rsig,
-                                   uint8_t *rhash);
-
-OPENSSL_EXPORT int SSL_get_shared_sigalgs(SSL *s, int idx, int *psign,
-                                          int *phash, int *psignandhash,
-                                          uint8_t *rsig, uint8_t *rhash);
-
-#define SSL_set_tlsext_host_name(s, name)                              \
-  SSL_ctrl(s, SSL_CTRL_SET_TLSEXT_HOSTNAME, TLSEXT_NAMETYPE_host_name, \
-           (char *)name)
-
-#define SSL_set_tlsext_debug_callback(ssl, cb) \
-  SSL_callback_ctrl(ssl, SSL_CTRL_SET_TLSEXT_DEBUG_CB, (void (*)(void))cb)
-
-#define SSL_set_tlsext_debug_arg(ssl, arg) \
-  SSL_ctrl(ssl, SSL_CTRL_SET_TLSEXT_DEBUG_ARG, 0, (void *)arg)
-
-#define SSL_CTX_set_tlsext_servername_callback(ctx, cb)         \
-  SSL_CTX_callback_ctrl(ctx, SSL_CTRL_SET_TLSEXT_SERVERNAME_CB, \
-                        (void (*)(void))cb)
-
-#define SSL_TLSEXT_ERR_OK 0
-#define SSL_TLSEXT_ERR_ALERT_WARNING 1
-#define SSL_TLSEXT_ERR_ALERT_FATAL 2
-#define SSL_TLSEXT_ERR_NOACK 3
-
-#define SSL_CTX_set_tlsext_servername_arg(ctx, arg) \
-  SSL_CTX_ctrl(ctx, SSL_CTRL_SET_TLSEXT_SERVERNAME_ARG, 0, (void *)arg)
-
-#define SSL_CTX_get_tlsext_ticket_keys(ctx, keys, keylen) \
-  SSL_CTX_ctrl((ctx), SSL_CTRL_GET_TLSEXT_TICKET_KEYS, (keylen), (keys))
-#define SSL_CTX_set_tlsext_ticket_keys(ctx, keys, keylen) \
-  SSL_CTX_ctrl((ctx), SSL_CTRL_SET_TLSEXT_TICKET_KEYS, (keylen), (keys))
-
-#define SSL_CTX_set_tlsext_status_cb(ssl, cb)                   \
-  SSL_CTX_callback_ctrl(ssl, SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB, \
-                        (void (*)(void))cb)
-
-#define SSL_CTX_set_tlsext_status_arg(ssl, arg) \
-  SSL_CTX_ctrl(ssl, SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG, 0, (void *)arg)
-
-#define SSL_CTX_set_tlsext_ticket_key_cb(ssl, cb)               \
-  SSL_CTX_callback_ctrl(ssl, SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB, \
-                        (void (*)(void))cb)
-
-
 /* PSK ciphersuites from 4279 */
 #define TLS1_CK_PSK_WITH_RC4_128_SHA                    0x0300008A
 #define TLS1_CK_PSK_WITH_3DES_EDE_CBC_SHA               0x0300008B
 #define TLS1_CK_PSK_WITH_AES_128_CBC_SHA                0x0300008C
 #define TLS1_CK_PSK_WITH_AES_256_CBC_SHA                0x0300008D
+
+/* PSK ciphersuites from RFC 5489 */
+#define TLS1_CK_ECDHE_PSK_WITH_AES_128_CBC_SHA          0x0300C035
+#define TLS1_CK_ECDHE_PSK_WITH_AES_256_CBC_SHA          0x0300C036
 
 /* Additional TLS ciphersuites from expired Internet Draft
  * draft-ietf-tls-56-bit-ciphersuites-01.txt
@@ -509,12 +427,15 @@ OPENSSL_EXPORT int SSL_get_shared_sigalgs(SSL *s, int idx, int *psign,
 #define TLS1_CK_ECDH_RSA_WITH_AES_128_GCM_SHA256 0x0300C031
 #define TLS1_CK_ECDH_RSA_WITH_AES_256_GCM_SHA384 0x0300C032
 
-#define TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305 0x0300CC13
-#define TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305 0x0300CC14
-#define TLS1_CK_DHE_RSA_CHACHA20_POLY1305 0x0300CC15
+#define TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD 0x0300CC13
+#define TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD 0x0300CC14
 
-/* Non-standard ECDHE PSK ciphersuites */
-#define TLS1_CK_ECDHE_PSK_WITH_AES_128_GCM_SHA256 0x0300CAFE
+/* TODO(davidben): Remove these once WebRTC is no longer using them, so they
+ * may point to the future RFC 7539 variant. */
+#define TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305 \
+    TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD
+#define TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305 \
+    TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD
 
 /* XXX
  * Inconsistency alert:
@@ -583,6 +504,10 @@ OPENSSL_EXPORT int SSL_get_shared_sigalgs(SSL *s, int idx, int *psign,
 #define TLS1_TXT_PSK_WITH_3DES_EDE_CBC_SHA "PSK-3DES-EDE-CBC-SHA"
 #define TLS1_TXT_PSK_WITH_AES_128_CBC_SHA "PSK-AES128-CBC-SHA"
 #define TLS1_TXT_PSK_WITH_AES_256_CBC_SHA "PSK-AES256-CBC-SHA"
+
+/* PSK ciphersuites from RFC 5489 */
+#define TLS1_TXT_ECDHE_PSK_WITH_AES_128_CBC_SHA "ECDHE-PSK-AES128-CBC-SHA"
+#define TLS1_TXT_ECDHE_PSK_WITH_AES_256_CBC_SHA "ECDHE-PSK-AES256-CBC-SHA"
 
 /* SRP ciphersuite from RFC 5054 */
 #define TLS1_TXT_SRP_SHA_WITH_3DES_EDE_CBC_SHA "SRP-3DES-EDE-CBC-SHA"
@@ -672,14 +597,14 @@ OPENSSL_EXPORT int SSL_get_shared_sigalgs(SSL *s, int idx, int *psign,
 #define TLS1_TXT_ECDH_RSA_WITH_AES_128_GCM_SHA256 "ECDH-RSA-AES128-GCM-SHA256"
 #define TLS1_TXT_ECDH_RSA_WITH_AES_256_GCM_SHA384 "ECDH-RSA-AES256-GCM-SHA384"
 
-#define TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305 "ECDHE-RSA-CHACHA20-POLY1305"
-#define TLS1_TXT_ECDHE_ECDSA_WITH_CHACHA20_POLY1305 \
+#define TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305_OLD \
+  "ECDHE-RSA-CHACHA20-POLY1305"
+#define TLS1_TXT_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_OLD \
   "ECDHE-ECDSA-CHACHA20-POLY1305"
-#define TLS1_TXT_DHE_RSA_WITH_CHACHA20_POLY1305 "DHE-RSA-CHACHA20-POLY1305"
 
-/* Non-standard ECDHE PSK ciphersuites */
-#define TLS1_TXT_ECDHE_PSK_WITH_AES_128_GCM_SHA256 \
-  "ECDHE-PSK-WITH-AES-128-GCM-SHA256"
+/* TODO(davidben): Remove this once QUIC has switched to the '_OLD' name. */
+#define TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305 \
+    TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305_OLD
 
 #define TLS_CT_RSA_SIGN 1
 #define TLS_CT_DSS_SIGN 2
@@ -709,6 +634,7 @@ OPENSSL_EXPORT int SSL_get_shared_sigalgs(SSL *s, int idx, int *psign,
 
 
 #ifdef  __cplusplus
-}
+}  /* extern C */
 #endif
-#endif
+
+#endif  /* OPENSSL_HEADER_TLS1_H */

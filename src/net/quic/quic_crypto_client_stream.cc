@@ -5,9 +5,6 @@
 #include "net/quic/quic_crypto_client_stream.h"
 
 #include "base/metrics/histogram_macros.h"
-#if 0
-#include "base/profiler/scoped_tracker.h"
-#endif
 #include "net/quic/crypto/crypto_protocol.h"
 #include "net/quic/crypto/crypto_utils.h"
 #include "net/quic/crypto/null_encrypter.h"
@@ -19,6 +16,10 @@
 using std::string;
 
 namespace net {
+
+QuicCryptoClientStreamBase::QuicCryptoClientStreamBase(
+    QuicClientSessionBase* session)
+    : QuicCryptoStream(session) {}
 
 QuicCryptoClientStream::ChannelIDSourceCallbackImpl::
 ChannelIDSourceCallbackImpl(QuicCryptoClientStream* stream)
@@ -80,7 +81,7 @@ QuicCryptoClientStream::QuicCryptoClientStream(
     QuicClientSessionBase* session,
     ProofVerifyContext* verify_context,
     QuicCryptoClientConfig* crypto_config)
-    : QuicCryptoStream(session),
+    : QuicCryptoClientStreamBase(session),
       next_state_(STATE_IDLE),
       num_client_hellos_(0),
       crypto_config_(crypto_config),
@@ -106,7 +107,7 @@ QuicCryptoClientStream::~QuicCryptoClientStream() {
 
 void QuicCryptoClientStream::OnHandshakeMessage(
     const CryptoHandshakeMessage& message) {
-  QuicCryptoStream::OnHandshakeMessage(message);
+  QuicCryptoClientStreamBase::OnHandshakeMessage(message);
 
   if (message.tag() == kSCUP) {
     if (!handshake_confirmed()) {
@@ -154,10 +155,8 @@ void QuicCryptoClientStream::HandleServerConfigUpdateMessage(
   QuicCryptoClientConfig::CachedState* cached =
       crypto_config_->LookupOrCreate(server_id_);
   QuicErrorCode error = crypto_config_->ProcessServerConfigUpdate(
-      server_config_update,
-      session()->connection()->clock()->WallNow(),
-      cached,
-      &crypto_negotiated_params_,
+      server_config_update, session()->connection()->clock()->WallNow(),
+      session()->connection()->version(), cached, &crypto_negotiated_params_,
       &error_details);
 
   if (error != QUIC_NO_ERROR) {
@@ -173,13 +172,6 @@ void QuicCryptoClientStream::HandleServerConfigUpdateMessage(
   next_state_ = STATE_INITIALIZE_SCUP;
   DoHandshakeLoop(nullptr);
 }
-
-// kMaxClientHellos is the maximum number of times that we'll send a client
-// hello. The value 3 accounts for:
-//   * One failure due to an incorrect or missing source-address token.
-//   * One failure due the server's certificate chain being unavailible and the
-//     server being unwilling to send it without a valid source-address token.
-static const int kMaxClientHellos = 3;
 
 void QuicCryptoClientStream::DoHandshakeLoop(
     const CryptoHandshakeMessage* in) {
@@ -197,7 +189,7 @@ void QuicCryptoClientStream::DoHandshakeLoop(
         DoInitialize(cached);
         break;
       case STATE_SEND_CHLO:
-        DoSendCHLO(in, cached);
+        DoSendCHLO(cached);
         return;  // return waiting to hear from server.
       case STATE_RECV_REJ:
         DoReceiveREJ(in, cached);
@@ -233,8 +225,7 @@ void QuicCryptoClientStream::DoHandshakeLoop(
 
 void QuicCryptoClientStream::DoInitialize(
     QuicCryptoClientConfig::CachedState* cached) {
-  if (!cached->IsEmpty() && !cached->signature().empty() &&
-      server_id_.is_https()) {
+  if (!cached->IsEmpty() && !cached->signature().empty()) {
     // Note that we verify the proof even if the cached proof is valid.
     // This allows us to respond to CA trust changes or certificate
     // expiration because it may have been a while since we last verified
@@ -248,7 +239,6 @@ void QuicCryptoClientStream::DoInitialize(
 }
 
 void QuicCryptoClientStream::DoSendCHLO(
-    const CryptoHandshakeMessage* in,
     QuicCryptoClientConfig::CachedState* cached) {
   if (stateless_reject_received_) {
     // If we've gotten to this point, we've sent at least one hello
@@ -365,13 +355,6 @@ void QuicCryptoClientStream::DoSendCHLO(
 void QuicCryptoClientStream::DoReceiveREJ(
     const CryptoHandshakeMessage* in,
     QuicCryptoClientConfig::CachedState* cached) {
-#if 0
-  // TODO(rtenneti): Remove ScopedTracker below once crbug.com/422516 is fixed.
-  tracked_objects::ScopedTracker tracking_profile(
-      FROM_HERE_WITH_EXPLICIT_FUNCTION(
-          "422516 QuicCryptoClientStream::DoReceiveREJ"));
-#endif
-
   // We sent a dummy CHLO because we didn't have enough information to
   // perform a handshake, or we sent a full hello that the server
   // rejected. Here we hope to have a REJ that contains the information
@@ -385,8 +368,9 @@ void QuicCryptoClientStream::DoReceiveREJ(
   stateless_reject_received_ = in->tag() == kSREJ;
   string error_details;
   QuicErrorCode error = crypto_config_->ProcessRejection(
-      *in, session()->connection()->clock()->WallNow(), cached,
-      server_id_.is_https(), &crypto_negotiated_params_, &error_details);
+      *in, session()->connection()->clock()->WallNow(),
+      session()->connection()->version(), cached, &crypto_negotiated_params_,
+      &error_details);
 
   if (error != QUIC_NO_ERROR) {
     next_state_ = STATE_NONE;
@@ -394,10 +378,7 @@ void QuicCryptoClientStream::DoReceiveREJ(
     return;
   }
   if (!cached->proof_valid()) {
-    if (!server_id_.is_https()) {
-      // We don't check the certificates for insecure QUIC connections.
-      SetCachedProofValid(cached);
-    } else if (!cached->signature().empty()) {
+    if (!cached->signature().empty()) {
       // Note that we only verify the proof if the cached proof is not
       // valid. If the cached proof is valid here, someone else must have
       // just added the server config to the cache and verified the proof,
@@ -423,14 +404,9 @@ QuicAsyncStatus QuicCryptoClientStream::DoVerifyProof(
   verify_ok_ = false;
 
   QuicAsyncStatus status = verifier->VerifyProof(
-      server_id_.host(),
-      cached->server_config(),
-      cached->certs(),
-      cached->signature(),
-      verify_context_.get(),
-      &verify_error_details_,
-      &verify_details_,
-      proof_verify_callback);
+      server_id_.host(), cached->server_config(), cached->certs(),
+      cached->cert_sct(), cached->signature(), verify_context_.get(),
+      &verify_error_details_, &verify_details_, proof_verify_callback);
 
   switch (status) {
     case QUIC_PENDING:
@@ -451,10 +427,15 @@ QuicAsyncStatus QuicCryptoClientStream::DoVerifyProof(
 void QuicCryptoClientStream::DoVerifyProofComplete(
     QuicCryptoClientConfig::CachedState* cached) {
   if (!verify_ok_) {
-    next_state_ = STATE_NONE;
     if (verify_details_.get()) {
       client_session()->OnProofVerifyDetailsAvailable(*verify_details_);
     }
+    if (num_client_hellos_ == 0) {
+      cached->Clear();
+      next_state_ = STATE_INITIALIZE;
+      return;
+    }
+    next_state_ = STATE_NONE;
     UMA_HISTOGRAM_BOOLEAN("Net.QuicVerifyProofFailed.HandshakeConfirmed",
                           handshake_confirmed());
     CloseConnectionWithDetails(
@@ -562,8 +543,9 @@ void QuicCryptoClientStream::DoReceiveSHLO(
   string error_details;
   QuicErrorCode error = crypto_config_->ProcessServerHello(
       *in, session()->connection()->connection_id(),
-      session()->connection()->server_supported_versions(),
-      cached, &crypto_negotiated_params_, &error_details);
+      session()->connection()->version(),
+      session()->connection()->server_supported_versions(), cached,
+      &crypto_negotiated_params_, &error_details);
 
   if (error != QUIC_NO_ERROR) {
     CloseConnectionWithDetails(error, "Server hello invalid: " + error_details);
@@ -597,11 +579,7 @@ void QuicCryptoClientStream::DoReceiveSHLO(
 void QuicCryptoClientStream::DoInitializeServerConfigUpdate(
     QuicCryptoClientConfig::CachedState* cached) {
   bool update_ignored = false;
-  if (!server_id_.is_https()) {
-    // We don't check the certificates for insecure QUIC connections.
-    SetCachedProofValid(cached);
-    next_state_ = STATE_NONE;
-  } else if (!cached->IsEmpty() && !cached->signature().empty()) {
+  if (!cached->IsEmpty() && !cached->signature().empty()) {
     // Note that we verify the proof even if the cached proof is valid.
     DCHECK(crypto_config_->proof_verifier());
     next_state_ = STATE_VERIFY_PROOF;
@@ -621,8 +599,7 @@ void QuicCryptoClientStream::SetCachedProofValid(
 
 bool QuicCryptoClientStream::RequiresChannelID(
     QuicCryptoClientConfig::CachedState* cached) {
-  if (!server_id_.is_https() ||
-      server_id_.privacy_mode() == PRIVACY_MODE_ENABLED ||
+  if (server_id_.privacy_mode() == PRIVACY_MODE_ENABLED ||
       !crypto_config_->channel_id_source()) {
     return false;
   }

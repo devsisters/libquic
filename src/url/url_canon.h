@@ -285,7 +285,7 @@ URL_EXPORT bool CanonicalizeScheme(const base::char16* spec,
 // User info: username/password. If present, this will add the delimiters so
 // the output will be "<username>:<password>@" or "<username>@". Empty
 // username/password pairs, or empty passwords, will get converted to
-// nonexistant in the canonical version.
+// nonexistent in the canonical version.
 //
 // The components for the username and password refer to ranges in the
 // respective source strings. Usually, these will be the same string, which
@@ -317,13 +317,13 @@ struct CanonHostInfo {
 
   // This field summarizes how the input was classified by the canonicalizer.
   enum Family {
-    NEUTRAL,   // - Doesn't resemble an IP address.  As far as the IP
+    NEUTRAL,   // - Doesn't resemble an IP address. As far as the IP
                //   canonicalizer is concerned, it should be treated as a
                //   hostname.
-    BROKEN,    // - Almost an IP, but was not canonicalized.  This could be an
+    BROKEN,    // - Almost an IP, but was not canonicalized. This could be an
                //   IPv4 address where truncation occurred, or something
                //   containing the special characters :[] which did not parse
-               //   as an IPv6 address.  Never attempt to connect to this
+               //   as an IPv6 address. Never attempt to connect to this
                //   address, because it might actually succeed!
     IPV4,      // - Successfully canonicalized as an IPv4 address.
     IPV6,      // - Successfully canonicalized as an IPv6 address.
@@ -331,7 +331,7 @@ struct CanonHostInfo {
   Family family;
 
   // If |family| is IPV4, then this is the number of nonempty dot-separated
-  // components in the input text, from 1 to 4.  If |family| is not IPV4,
+  // components in the input text, from 1 to 4. If |family| is not IPV4,
   // this value is undefined.
   int num_ipv4_components;
 
@@ -355,7 +355,7 @@ struct CanonHostInfo {
 
 // Host.
 //
-// The 8-bit version requires UTF-8 encoding.  Use this version when you only
+// The 8-bit version requires UTF-8 encoding. Use this version when you only
 // need to know whether canonicalization succeeded.
 URL_EXPORT bool CanonicalizeHost(const char* spec,
                                  const Component& host,
@@ -368,7 +368,7 @@ URL_EXPORT bool CanonicalizeHost(const base::char16* spec,
 
 // Extended version of CanonicalizeHost, which returns additional information.
 // Use this when you need to know whether the hostname was an IP address.
-// A successful return is indicated by host_info->family != BROKEN.  See the
+// A successful return is indicated by host_info->family != BROKEN. See the
 // definition of CanonHostInfo above for details.
 URL_EXPORT void CanonicalizeHostVerbose(const char* spec,
                                         const Component& host,
@@ -554,7 +554,7 @@ URL_EXPORT bool CanonicalizePathURL(const base::char16* spec,
                                     CanonOutput* output,
                                     Parsed* new_parsed);
 
-// Use for mailto URLs. This "canonicalizes" the url into a path and query
+// Use for mailto URLs. This "canonicalizes" the URL into a path and query
 // component. It does not attempt to merge "to" fields. It uses UTF-8 for
 // the query encoding if there is a query. This is because a mailto URL is
 // really intended for an external mail program, and the encoding of a page,
@@ -578,9 +578,9 @@ URL_EXPORT bool CanonicalizeMailtoURL(const base::char16* spec,
 // treated on the same code path as regular canonicalization (the same string
 // for each component).
 //
-// A Parsed structure usually goes along with this. Those
-// components identify offsets within these strings, so that they can all be
-// in the same string, or spread arbitrarily across different ones.
+// A Parsed structure usually goes along with this. Those components identify
+// offsets within these strings, so that they can all be in the same string,
+// or spread arbitrarily across different ones.
 //
 // This structures does not own any data. It is the caller's responsibility to
 // ensure that the data the pointers point to stays in scope and is not
@@ -725,7 +725,7 @@ class Replacements {
   }
   bool IsRefOverridden() const { return sources_.ref != NULL; }
 
-  // Getters for the itnernal data. See the variables below for how the
+  // Getters for the internal data. See the variables below for how the
   // information is encoded.
   const URLComponentSource<CHAR>& sources() const { return sources_; }
   const Parsed& components() const { return components_; }
@@ -863,7 +863,7 @@ URL_EXPORT bool IsRelativeURL(const char* base,
 // The base URL should be canonical and have a host (may be empty for file
 // URLs) and a path. If it doesn't have these, we can't resolve relative
 // URLs off of it and will return the base as the output with an error flag.
-// Becausee it is canonical is should also be ASCII.
+// Because it is canonical is should also be ASCII.
 //
 // The query charset converter follows the same rules as CanonicalizeQuery.
 //

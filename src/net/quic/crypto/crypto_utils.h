@@ -12,6 +12,7 @@
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/quic/crypto/crypto_handshake.h"
+#include "net/quic/crypto/crypto_handshake_message.h"
 #include "net/quic/crypto/crypto_protocol.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_time.h"
@@ -69,6 +70,32 @@ class NET_EXPORT_PRIVATE CryptoUtils {
                                    base::StringPiece context,
                                    size_t result_len,
                                    std::string* result);
+
+  // Computes the FNV-1a hash of the provided DER-encoded cert for use in the
+  // XLCT tag.
+  static uint64 ComputeLeafCertHash(const std::string& cert);
+
+  // Validates that |server_hello| is actually an SHLO message and that it is
+  // not part of a downgrade attack.
+  //
+  // Returns QUIC_NO_ERROR if this is the case or returns the appropriate error
+  // code and sets |error_details|.
+  static QuicErrorCode ValidateServerHello(
+      const CryptoHandshakeMessage& server_hello,
+      const QuicVersionVector& negotiated_versions,
+      std::string* error_details);
+
+  // Validates that |client_hello| is actually a CHLO and that this is not part
+  // of a downgrade attack.
+  // This includes verifiying versions and detecting downgrade attacks.
+  //
+  // Returns QUIC_NO_ERROR if this is the case or returns the appropriate error
+  // code and sets |error_details|.
+  static QuicErrorCode ValidateClientHello(
+      const CryptoHandshakeMessage& client_hello,
+      QuicVersion version,
+      const QuicVersionVector& supported_versions,
+      std::string* error_details);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CryptoUtils);

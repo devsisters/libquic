@@ -112,25 +112,28 @@
  * [including the GNU Public Licence.]
  */
 
+#include <openssl/ssl.h>
+
 #include <assert.h>
 #include <stdio.h>
 
 #include <openssl/bn.h>
 #include <openssl/buf.h>
 #include <openssl/dh.h>
+#include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/md5.h>
 #include <openssl/obj.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
 
-#include "ssl_locl.h"
+#include "internal.h"
 
 
 int dtls1_accept(SSL *s) {
   BUF_MEM *buf = NULL;
-  void (*cb)(const SSL *ssl, int type, int val) = NULL;
-  unsigned long alg_a;
+  void (*cb)(const SSL *ssl, int type, int value) = NULL;
+  uint32_t alg_a;
   int ret = -1;
   int new_state, state, skip = 0;
 
@@ -149,21 +152,11 @@ int dtls1_accept(SSL *s) {
 
   s->in_handshake++;
 
-  if (s->cert == NULL) {
-    OPENSSL_PUT_ERROR(SSL, dtls1_accept, SSL_R_NO_CERTIFICATE_SET);
-    return -1;
-  }
-
   for (;;) {
     state = s->state;
 
     switch (s->state) {
-      case SSL_ST_RENEGOTIATE:
-        s->renegotiate = 1;
-        /* s->state=SSL_ST_ACCEPT; */
-
       case SSL_ST_ACCEPT:
-      case SSL_ST_BEFORE | SSL_ST_ACCEPT:
         if (cb != NULL) {
           cb(s, SSL_CB_HANDSHAKE_START, 1);
         }
@@ -178,58 +171,20 @@ int dtls1_accept(SSL *s) {
           buf = NULL;
         }
 
-        if (!ssl3_setup_buffers(s)) {
+        s->init_num = 0;
+
+        if (!ssl_init_wbio_buffer(s, 1)) {
           ret = -1;
           goto end;
         }
 
-        s->init_num = 0;
-
-        if (s->state != SSL_ST_RENEGOTIATE) {
-          if (!ssl_init_wbio_buffer(s, 1)) {
-            ret = -1;
-            goto end;
-          }
-
-          if (!ssl3_init_finished_mac(s)) {
-            OPENSSL_PUT_ERROR(SSL, dtls1_accept, ERR_R_INTERNAL_ERROR);
-            ret = -1;
-            goto end;
-          }
-
-          s->state = SSL3_ST_SR_CLNT_HELLO_A;
-          s->ctx->stats.sess_accept++;
-        } else {
-          /* s->state == SSL_ST_RENEGOTIATE, * we will just send a
-           * HelloRequest */
-          s->ctx->stats.sess_accept_renegotiate++;
-          s->state = SSL3_ST_SW_HELLO_REQ_A;
-        }
-
-        break;
-
-      case SSL3_ST_SW_HELLO_REQ_A:
-      case SSL3_ST_SW_HELLO_REQ_B:
-        s->shutdown = 0;
-        dtls1_clear_record_buffer(s);
-        dtls1_start_timer(s);
-        ret = ssl3_send_hello_request(s);
-        if (ret <= 0) {
-          goto end;
-        }
-        s->s3->tmp.next_state = SSL3_ST_SR_CLNT_HELLO_A;
-        s->state = SSL3_ST_SW_FLUSH;
-        s->init_num = 0;
-
-        if (!ssl3_init_finished_mac(s)) {
-          OPENSSL_PUT_ERROR(SSL, dtls1_accept, ERR_R_INTERNAL_ERROR);
+        if (!ssl3_init_handshake_buffer(s)) {
+          OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
           ret = -1;
           goto end;
         }
-        break;
 
-      case SSL3_ST_SW_HELLO_REQ_C:
-        s->state = SSL_ST_OK;
+        s->state = SSL3_ST_SR_CLNT_HELLO_A;
         break;
 
       case SSL3_ST_SR_CLNT_HELLO_A:
@@ -248,7 +203,6 @@ int dtls1_accept(SSL *s) {
 
       case SSL3_ST_SW_SRVR_HELLO_A:
       case SSL3_ST_SW_SRVR_HELLO_B:
-        s->renegotiate = 2;
         dtls1_start_timer(s);
         ret = ssl3_send_server_hello(s);
         if (ret <= 0) {
@@ -287,8 +241,19 @@ int dtls1_accept(SSL *s) {
         s->init_num = 0;
         break;
 
+      case SSL3_ST_SW_CERT_STATUS_A:
+      case SSL3_ST_SW_CERT_STATUS_B:
+        ret = ssl3_send_certificate_status(s);
+        if (ret <= 0) {
+          goto end;
+        }
+        s->state = SSL3_ST_SW_KEY_EXCH_A;
+        s->init_num = 0;
+        break;
+
       case SSL3_ST_SW_KEY_EXCH_A:
       case SSL3_ST_SW_KEY_EXCH_B:
+      case SSL3_ST_SW_KEY_EXCH_C:
         alg_a = s->s3->tmp.new_cipher->algorithm_auth;
 
         /* Send a ServerKeyExchange message if:
@@ -316,36 +281,17 @@ int dtls1_accept(SSL *s) {
 
       case SSL3_ST_SW_CERT_REQ_A:
       case SSL3_ST_SW_CERT_REQ_B:
-        if (/* don't request cert unless asked for it: */
-            !(s->verify_mode & SSL_VERIFY_PEER) ||
-            /* if SSL_VERIFY_CLIENT_ONCE is set,
-             * don't request cert during re-negotiation: */
-            ((s->session->peer != NULL) &&
-             (s->verify_mode & SSL_VERIFY_CLIENT_ONCE)) ||
-            /* never request cert in anonymous ciphersuites
-             * (see section "Certificate request" in SSL 3 drafts
-             * and in RFC 2246): */
-            ((s->s3->tmp.new_cipher->algorithm_auth & SSL_aNULL) &&
-             /* ... except when the application insists on verification
-              * (against the specs, but s3_clnt.c accepts this for SSL 3) */
-             !(s->verify_mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)) ||
-            /* With normal PSK Certificates and
-             * Certificate Requests are omitted */
-            (s->s3->tmp.new_cipher->algorithm_mkey & SSL_kPSK)) {
-          /* no cert request */
-          skip = 1;
-          s->s3->tmp.cert_request = 0;
-          s->state = SSL3_ST_SW_SRVR_DONE_A;
-        } else {
-          s->s3->tmp.cert_request = 1;
+        if (s->s3->tmp.cert_request) {
           dtls1_start_timer(s);
           ret = ssl3_send_certificate_request(s);
           if (ret <= 0) {
             goto end;
           }
-          s->state = SSL3_ST_SW_SRVR_DONE_A;
-          s->init_num = 0;
+        } else {
+          skip = 1;
         }
+        s->state = SSL3_ST_SW_SRVR_DONE_A;
+        s->init_num = 0;
         break;
 
       case SSL3_ST_SW_SRVR_DONE_A:
@@ -384,6 +330,7 @@ int dtls1_accept(SSL *s) {
 
       case SSL3_ST_SR_KEY_EXCH_A:
       case SSL3_ST_SR_KEY_EXCH_B:
+      case SSL3_ST_SR_KEY_EXCH_C:
         ret = ssl3_get_client_key_exchange(s);
         if (ret <= 0) {
           goto end;
@@ -454,8 +401,6 @@ int dtls1_accept(SSL *s) {
           ret = -1;
           goto end;
         }
-
-        dtls1_reset_seq_numbers(s, SSL3_CC_WRITE);
         break;
 
       case SSL3_ST_SW_FINISHED_A:
@@ -483,19 +428,12 @@ int dtls1_accept(SSL *s) {
         ssl_free_wbio_buffer(s);
 
         s->init_num = 0;
+        s->s3->initial_handshake_complete = 1;
 
-        if (s->renegotiate == 2) {
-          /* skipped if we just sent a HelloRequest */
-          s->renegotiate = 0;
-          s->new_session = 0;
+        ssl_update_cache(s, SSL_SESS_CACHE_SERVER);
 
-          ssl_update_cache(s, SSL_SESS_CACHE_SERVER);
-
-          s->ctx->stats.sess_accept_good++;
-
-          if (cb != NULL) {
-            cb(s, SSL_CB_HANDSHAKE_DONE, 1);
-          }
+        if (cb != NULL) {
+          cb(s, SSL_CB_HANDSHAKE_DONE, 1);
         }
 
         ret = 1;
@@ -508,7 +446,7 @@ int dtls1_accept(SSL *s) {
         goto end;
 
       default:
-        OPENSSL_PUT_ERROR(SSL, dtls1_accept, SSL_R_UNKNOWN_STATE);
+        OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_STATE);
         ret = -1;
         goto end;
     }
@@ -526,9 +464,7 @@ int dtls1_accept(SSL *s) {
 
 end:
   s->in_handshake--;
-  if (buf != NULL) {
-    BUF_MEM_free(buf);
-  }
+  BUF_MEM_free(buf);
   if (cb != NULL) {
     cb(s, SSL_CB_ACCEPT_EXIT, ret);
   }

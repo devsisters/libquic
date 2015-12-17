@@ -12,7 +12,7 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-package main
+package runner
 
 import (
 	"encoding/json"
@@ -29,11 +29,13 @@ type testOutput struct {
 	SecondsSinceEpoch float64               `json:"seconds_since_epoch"`
 	NumFailuresByType map[string]int        `json:"num_failures_by_type"`
 	Tests             map[string]testResult `json:"tests"`
+	allPassed         bool
 }
 
 type testResult struct {
-	Actual   string `json:"actual"`
-	Expected string `json:"expected"`
+	Actual       string `json:"actual"`
+	Expected     string `json:"expected"`
+	IsUnexpected bool   `json:"is_unexpected"`
 }
 
 func newTestOutput() *testOutput {
@@ -43,6 +45,7 @@ func newTestOutput() *testOutput {
 		SecondsSinceEpoch: float64(time.Now().UnixNano()) / float64(time.Second/time.Nanosecond),
 		NumFailuresByType: make(map[string]int),
 		Tests:             make(map[string]testResult),
+		allPassed:         true,
 	}
 }
 
@@ -50,8 +53,15 @@ func (t *testOutput) addResult(name, result string) {
 	if _, found := t.Tests[name]; found {
 		panic(name)
 	}
-	t.Tests[name] = testResult{Actual: result, Expected: "PASS"}
+	t.Tests[name] = testResult{
+		Actual:       result,
+		Expected:     "PASS",
+		IsUnexpected: result != "PASS",
+	}
 	t.NumFailuresByType[result]++
+	if result != "PASS" {
+		t.allPassed = false
+	}
 }
 
 func (t *testOutput) writeTo(name string) error {

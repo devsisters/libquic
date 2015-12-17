@@ -13,13 +13,13 @@
 // TimeDelta represents a duration of time, internally represented in
 // microseconds.
 //
-// TimeTicks, ThreadTicks, and TraceTicks represent an abstract time that is
-// most of the time incrementing, for use in measuring time durations.
-// Internally, they are represented in microseconds. They can not be converted
-// to a human-readable time, but are guaranteed not to decrease (unlike the Time
-// class). Note that TimeTicks may "stand still" (e.g., if the computer is
-// suspended), and ThreadTicks will "stand still" whenever the thread has been
-// de-scheduled by the operating system.
+// TimeTicks and ThreadTicks represent an abstract time that is most of the time
+// incrementing, for use in measuring time durations. Internally, they are
+// represented in microseconds. They can not be converted to a human-readable
+// time, but are guaranteed not to decrease (unlike the Time class). Note that
+// TimeTicks may "stand still" (e.g., if the computer is suspended), and
+// ThreadTicks will "stand still" whenever the thread has been de-scheduled by
+// the operating system.
 //
 // All time classes are copyable, assignable, and occupy 64-bits per
 // instance. Thus, they can be efficiently passed by-value (as opposed to
@@ -45,12 +45,6 @@
 //
 //   ThreadTicks: Benchmarking how long the current thread has been doing actual
 //                work.
-//
-//   TraceTicks:  This is only meant to be used by the event tracing
-//                infrastructure, and by outside code modules in special
-//                circumstances.  Please be sure to consult a
-//                base/trace_event/OWNER before committing any new code that
-//                uses this.
 
 #ifndef BASE_TIME_TIME_H_
 #define BASE_TIME_TIME_H_
@@ -79,6 +73,8 @@
 // For FILETIME in FromFileTime, until it moves to a new converter class.
 // See TODO(iyengar) below.
 #include <windows.h>
+
+#include "base/gtest_prod_util.h"
 #endif
 
 #include <limits>
@@ -264,6 +260,9 @@ class BASE_EXPORT TimeDelta {
   explicit TimeDelta(int64 delta_us) : delta_(delta_us) {
   }
 
+  // Private method to build a delta from a double.
+  static TimeDelta FromDouble(double value);
+
   // Delta in microseconds.
   int64 delta_;
 };
@@ -416,7 +415,7 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   // To avoid overflow in QPC to Microseconds calculations, since we multiply
   // by kMicrosecondsPerSecond, then the QPC value should not exceed
   // (2^63 - 1) / 1E6. If it exceeds that threshold, we divide then multiply.
-  static const int64 kQPCOverflowThreshold = 0x8637BD05AF7;
+  enum : int64 { kQPCOverflowThreshold = 0x8637BD05AF7 };
 #endif
 
   // Represents an exploded time that can be formatted nicely. This is kind of
@@ -597,7 +596,6 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
 
 // static
 inline TimeDelta TimeDelta::FromDays(int days) {
-  // Preserve max to prevent overflow.
   if (days == std::numeric_limits<int>::max())
     return Max();
   return TimeDelta(days * Time::kMicrosecondsPerDay);
@@ -605,7 +603,6 @@ inline TimeDelta TimeDelta::FromDays(int days) {
 
 // static
 inline TimeDelta TimeDelta::FromHours(int hours) {
-  // Preserve max to prevent overflow.
   if (hours == std::numeric_limits<int>::max())
     return Max();
   return TimeDelta(hours * Time::kMicrosecondsPerHour);
@@ -613,7 +610,6 @@ inline TimeDelta TimeDelta::FromHours(int hours) {
 
 // static
 inline TimeDelta TimeDelta::FromMinutes(int minutes) {
-  // Preserve max to prevent overflow.
   if (minutes == std::numeric_limits<int>::max())
     return Max();
   return TimeDelta(minutes * Time::kMicrosecondsPerMinute);
@@ -621,42 +617,38 @@ inline TimeDelta TimeDelta::FromMinutes(int minutes) {
 
 // static
 inline TimeDelta TimeDelta::FromSeconds(int64 secs) {
-  // Preserve max to prevent overflow.
-  if (secs == std::numeric_limits<int64>::max())
-    return Max();
-  return TimeDelta(secs * Time::kMicrosecondsPerSecond);
+  return TimeDelta(secs) * Time::kMicrosecondsPerSecond;
 }
 
 // static
 inline TimeDelta TimeDelta::FromMilliseconds(int64 ms) {
-  // Preserve max to prevent overflow.
-  if (ms == std::numeric_limits<int64>::max())
-    return Max();
-  return TimeDelta(ms * Time::kMicrosecondsPerMillisecond);
+  return TimeDelta(ms) * Time::kMicrosecondsPerMillisecond;
 }
 
 // static
 inline TimeDelta TimeDelta::FromSecondsD(double secs) {
-  // Preserve max to prevent overflow.
-  if (secs == std::numeric_limits<double>::infinity())
-    return Max();
-  return TimeDelta(static_cast<int64>(secs * Time::kMicrosecondsPerSecond));
+  return FromDouble(secs * Time::kMicrosecondsPerSecond);
 }
 
 // static
 inline TimeDelta TimeDelta::FromMillisecondsD(double ms) {
-  // Preserve max to prevent overflow.
-  if (ms == std::numeric_limits<double>::infinity())
-    return Max();
-  return TimeDelta(static_cast<int64>(ms * Time::kMicrosecondsPerMillisecond));
+  return FromDouble(ms * Time::kMicrosecondsPerMillisecond);
 }
 
 // static
 inline TimeDelta TimeDelta::FromMicroseconds(int64 us) {
-  // Preserve max to prevent overflow.
-  if (us == std::numeric_limits<int64>::max())
-    return Max();
   return TimeDelta(us);
+}
+
+// static
+inline TimeDelta TimeDelta::FromDouble(double value) {
+  double max_magnitude = std::numeric_limits<int64>::max();
+  TimeDelta delta = TimeDelta(static_cast<int64>(value));
+  if (value > max_magnitude)
+    delta = Max();
+  else if (value < -max_magnitude)
+    delta = -Max();
+  return delta;
 }
 
 // For logging use only.
@@ -689,12 +681,14 @@ class BASE_EXPORT TimeTicks : public time_internal::TimeBase<TimeTicks> {
   static TimeTicks FromQPCValue(LONGLONG qpc_value);
 #endif
 
-  // Get the TimeTick value at the time of the UnixEpoch. This is useful when
-  // you need to relate the value of TimeTicks to a real time and date.
-  // Note: Upon first invocation, this function takes a snapshot of the realtime
-  // clock to establish a reference point.  This function will return the same
-  // value for the duration of the application, but will be different in future
-  // application runs.
+  // Get an estimate of the TimeTick value at the time of the UnixEpoch. Because
+  // Time and TimeTicks respond differently to user-set time and NTP
+  // adjustments, this number is only an estimate. Nevertheless, this can be
+  // useful when you need to relate the value of TimeTicks to a real time and
+  // date. Note: Upon first invocation, this function takes a snapshot of the
+  // realtime clock to establish a reference point.  This function will return
+  // the same value for the duration of the application, but will be different
+  // in future application runs.
   static TimeTicks UnixEpoch();
 
   // Returns |this| snapped to the next tick, given a |tick_phase| and
@@ -735,8 +729,18 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
 #if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     (defined(OS_MACOSX) && !defined(OS_IOS)) || defined(OS_ANDROID)
     return true;
+#elif defined(OS_WIN)
+    return IsSupportedWin();
 #else
     return false;
+#endif
+  }
+
+  // Waits until the initialization is completed. Needs to be guarded with a
+  // call to IsSupported().
+  static void WaitUntilInitialized() {
+#if defined(OS_WIN)
+    WaitUntilInitializedWin();
 #endif
   }
 
@@ -744,7 +748,9 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
   // Needs to be guarded with a call to IsSupported(). Use this timer
   // to (approximately) measure how much time the calling thread spent doing
   // actual work vs. being de-scheduled. May return bogus results if the thread
-  // migrates to another CPU between two calls.
+  // migrates to another CPU between two calls. Returns an empty ThreadTicks
+  // object until the initialization is completed. If a clock reading is
+  // absolutely needed, call WaitUntilInitialized() before this method.
   static ThreadTicks Now();
 
  private:
@@ -754,56 +760,23 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
   // and testing.
   explicit ThreadTicks(int64 us) : TimeBase(us) {
   }
+
+#if defined(OS_WIN)
+  FRIEND_TEST_ALL_PREFIXES(TimeTicks, TSCTicksPerSecond);
+
+  // Returns the frequency of the TSC in ticks per second, or 0 if it hasn't
+  // been measured yet. Needs to be guarded with a call to IsSupported().
+  // This method is declared here rather than in the anonymous namespace to
+  // allow testing.
+  static double TSCTicksPerSecond();
+
+  static bool IsSupportedWin();
+  static void WaitUntilInitializedWin();
+#endif
 };
 
 // For logging use only.
 BASE_EXPORT std::ostream& operator<<(std::ostream& os, ThreadTicks time_ticks);
-
-// TraceTicks ----------------------------------------------------------------
-
-// Represents high-resolution system trace clock time.
-class BASE_EXPORT TraceTicks : public time_internal::TimeBase<TraceTicks> {
- public:
-  // We define this even without OS_CHROMEOS for seccomp sandbox testing.
-#if defined(OS_LINUX)
-  // Force definition of the system trace clock; it is a chromeos-only api
-  // at the moment and surfacing it in the right place requires mucking
-  // with glibc et al.
-  static const clockid_t kClockSystemTrace = 11;
-#endif
-
-  TraceTicks() : TimeBase(0) {
-  }
-
-  // Returns the current system trace time or, if not available on this
-  // platform, a high-resolution time value; or a low-resolution time value if
-  // neither are avalable. On systems where a global trace clock is defined,
-  // timestamping TraceEvents's with this value guarantees synchronization
-  // between events collected inside chrome and events collected outside
-  // (e.g. kernel, X server).
-  //
-  // On some platforms, the clock source used for tracing can vary depending on
-  // hardware and/or kernel support.  Do not make any assumptions without
-  // consulting the documentation for this functionality in the time_win.cc,
-  // time_posix.cc, etc. files.
-  //
-  // NOTE: This is only meant to be used by the event tracing infrastructure,
-  // and by outside code modules in special circumstances.  Please be sure to
-  // consult a base/trace_event/OWNER before committing any new code that uses
-  // this.
-  static TraceTicks Now();
-
- private:
-  friend class time_internal::TimeBase<TraceTicks>;
-
-  // Please use Now() to create a new object. This is for internal use
-  // and testing.
-  explicit TraceTicks(int64 us) : TimeBase(us) {
-  }
-};
-
-// For logging use only.
-BASE_EXPORT std::ostream& operator<<(std::ostream& os, TraceTicks time_ticks);
 
 }  // namespace base
 

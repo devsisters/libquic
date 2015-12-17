@@ -42,3 +42,11 @@ in binary size.
 A BUILD.gn file has been added for building with GN.
 
 Cherry-pick pherl changes to make protobuf build on VS2015.
+
+Cherry-pick c3cb53b (fix "sometimes-uninitialized" warning).
+
+Cherry-pick https://github.com/google/protobuf/commit/56a90a2081379a5
+
+Cherry-pick https://github.com/google/protobuf/commit/69d660b39ceabea
+
+Cherry-pick https://github.com/google/protobuf/commit/a74e912a8be1274

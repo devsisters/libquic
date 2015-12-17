@@ -137,14 +137,14 @@ class CommonCertSetsQUIC : public CommonCertSets {
   }
 
   static CommonCertSetsQUIC* GetInstance() {
-    return Singleton<CommonCertSetsQUIC>::get();
+    return base::Singleton<CommonCertSetsQUIC>::get();
   }
 
  private:
   CommonCertSetsQUIC() {}
   ~CommonCertSetsQUIC() override {}
 
-  friend struct DefaultSingletonTraits<CommonCertSetsQUIC>;
+  friend struct base::DefaultSingletonTraits<CommonCertSetsQUIC>;
   DISALLOW_COPY_AND_ASSIGN(CommonCertSetsQUIC);
 };
 

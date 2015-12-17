@@ -15,8 +15,12 @@ const size_t kNoncePrefixSize = 0;
 
 }  // namespace
 
+// QUIC currently uses the draft-agl-tls-chacha20poly1305-04 ChaCha20-Poly1305
+// construction rather than RFC 7539.
 ChaCha20Poly1305Encrypter::ChaCha20Poly1305Encrypter()
-    : AeadBaseEncrypter(EVP_aead_chacha20_poly1305(), kKeySize, kAuthTagSize,
+    : AeadBaseEncrypter(EVP_aead_chacha20_poly1305_old(),
+                        kKeySize,
+                        kAuthTagSize,
                         kNoncePrefixSize) {
   static_assert(kKeySize <= kMaxKeySize, "key size too big");
   static_assert(kNoncePrefixSize <= kMaxNoncePrefixSize,

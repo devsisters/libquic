@@ -136,8 +136,9 @@ bool SpdyFrameBuilder::WriteStringPiece16(const base::StringPiece& value) {
     return false;
   }
 
-  if (!WriteUInt16(static_cast<uint16>(value.size())))
+  if (!WriteUInt16(static_cast<uint16>(value.size()))) {
     return false;
+  }
 
   return WriteBytes(value.data(), static_cast<uint16>(value.size()));
 }

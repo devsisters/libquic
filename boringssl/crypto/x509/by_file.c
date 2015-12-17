@@ -55,17 +55,20 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
+#include <stdlib.h>
+
 #include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/lhash.h>
 #include <openssl/pem.h>
-#include <openssl/x509.h>
+#include <openssl/thread.h>
+
 
 #ifndef OPENSSL_NO_STDIO
 
 static int by_file_ctrl(X509_LOOKUP *ctx, int cmd, const char *argc,
 	long argl, char **ret);
-X509_LOOKUP_METHOD x509_file_lookup=
+static X509_LOOKUP_METHOD x509_file_lookup=
 	{
 	"Load file into cache",
 	NULL,		/* new */
@@ -106,7 +109,7 @@ static int by_file_ctrl(X509_LOOKUP *ctx, int cmd, const char *argp, long argl,
 
 			if (!ok)
 				{
-				OPENSSL_PUT_ERROR(X509, by_file_ctrl, X509_R_LOADING_DEFAULTS);
+				OPENSSL_PUT_ERROR(X509, X509_R_LOADING_DEFAULTS);
 				}
 			}
 		else
@@ -134,7 +137,7 @@ int X509_load_cert_file(X509_LOOKUP *ctx, const char *file, int type)
 
 	if ((in == NULL) || (BIO_read_filename(in,file) <= 0))
 		{
-		OPENSSL_PUT_ERROR(X509, X509_load_cert_file, ERR_R_SYS_LIB);
+		OPENSSL_PUT_ERROR(X509, ERR_R_SYS_LIB);
 		goto err;
 		}
 
@@ -153,7 +156,7 @@ int X509_load_cert_file(X509_LOOKUP *ctx, const char *file, int type)
 					}
 				else
 					{
-					OPENSSL_PUT_ERROR(X509, X509_load_cert_file, ERR_R_PEM_LIB);
+					OPENSSL_PUT_ERROR(X509, ERR_R_PEM_LIB);
 					goto err;
 					}
 				}
@@ -170,7 +173,7 @@ int X509_load_cert_file(X509_LOOKUP *ctx, const char *file, int type)
 		x=d2i_X509_bio(in,NULL);
 		if (x == NULL)
 			{
-			OPENSSL_PUT_ERROR(X509, X509_load_cert_file, ERR_R_ASN1_LIB);
+			OPENSSL_PUT_ERROR(X509, ERR_R_ASN1_LIB);
 			goto err;
 			}
 		i=X509_STORE_add_cert(ctx->store_ctx,x);
@@ -179,7 +182,7 @@ int X509_load_cert_file(X509_LOOKUP *ctx, const char *file, int type)
 		}
 	else
 		{
-		OPENSSL_PUT_ERROR(X509, X509_load_cert_file, X509_R_BAD_X509_FILETYPE);
+		OPENSSL_PUT_ERROR(X509, X509_R_BAD_X509_FILETYPE);
 		goto err;
 		}
 err:
@@ -200,7 +203,7 @@ int X509_load_crl_file(X509_LOOKUP *ctx, const char *file, int type)
 
 	if ((in == NULL) || (BIO_read_filename(in,file) <= 0))
 		{
-		OPENSSL_PUT_ERROR(X509, X509_load_crl_file, ERR_R_SYS_LIB);
+		OPENSSL_PUT_ERROR(X509, ERR_R_SYS_LIB);
 		goto err;
 		}
 
@@ -219,7 +222,7 @@ int X509_load_crl_file(X509_LOOKUP *ctx, const char *file, int type)
 					}
 				else
 					{
-					OPENSSL_PUT_ERROR(X509, X509_load_crl_file, ERR_R_PEM_LIB);
+					OPENSSL_PUT_ERROR(X509, ERR_R_PEM_LIB);
 					goto err;
 					}
 				}
@@ -236,7 +239,7 @@ int X509_load_crl_file(X509_LOOKUP *ctx, const char *file, int type)
 		x=d2i_X509_CRL_bio(in,NULL);
 		if (x == NULL)
 			{
-			OPENSSL_PUT_ERROR(X509, X509_load_crl_file, ERR_R_ASN1_LIB);
+			OPENSSL_PUT_ERROR(X509, ERR_R_ASN1_LIB);
 			goto err;
 			}
 		i=X509_STORE_add_crl(ctx->store_ctx,x);
@@ -245,7 +248,7 @@ int X509_load_crl_file(X509_LOOKUP *ctx, const char *file, int type)
 		}
 	else
 		{
-		OPENSSL_PUT_ERROR(X509, X509_load_crl_file, X509_R_BAD_X509_FILETYPE);
+		OPENSSL_PUT_ERROR(X509, X509_R_BAD_X509_FILETYPE);
 		goto err;
 		}
 err:
@@ -265,13 +268,13 @@ int X509_load_cert_crl_file(X509_LOOKUP *ctx, const char *file, int type)
 		return X509_load_cert_file(ctx, file, type);
 	in = BIO_new_file(file, "r");
 	if(!in) {
-		OPENSSL_PUT_ERROR(X509, X509_load_cert_crl_file, ERR_R_SYS_LIB);
+		OPENSSL_PUT_ERROR(X509, ERR_R_SYS_LIB);
 		return 0;
 	}
 	inf = PEM_X509_INFO_read_bio(in, NULL, NULL, NULL);
 	BIO_free(in);
 	if(!inf) {
-		OPENSSL_PUT_ERROR(X509, X509_load_cert_crl_file, ERR_R_PEM_LIB);
+		OPENSSL_PUT_ERROR(X509, ERR_R_PEM_LIB);
 		return 0;
 	}
 	for(i = 0; i < sk_X509_INFO_num(inf); i++) {

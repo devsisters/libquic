@@ -131,7 +131,8 @@ const char * const FieldDescriptor::kLabelToName[MAX_LABEL + 1] = {
   "repeated",  // LABEL_REPEATED
 };
 
-#ifndef _MSC_VER  // MSVC doesn't need these and won't even accept them.
+// MSVC prior to VC 2015 doesn't need these and won't even accept them.
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int FieldDescriptor::kMaxNumber;
 const int FieldDescriptor::kFirstReservedNumber;
 const int FieldDescriptor::kLastReservedNumber;

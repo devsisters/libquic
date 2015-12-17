@@ -80,14 +80,14 @@ extern "C" {
 
 
 /* ECDH_compute_key calculates the shared key between |pub_key| and |priv_key|.
- * If |KDF| is not NULL, then it is called with the bytes of the shared key and
- * the parameter |out|. When |KDF| returns, the value of |*outlen| becomes the
+ * If |kdf| is not NULL, then it is called with the bytes of the shared key and
+ * the parameter |out|. When |kdf| returns, the value of |*outlen| becomes the
  * return value. Otherwise, as many bytes of the shared key as will fit are
  * copied directly to, at most, |outlen| bytes at |out|. It returns the number
  * of bytes written to |out|, or -1 on error. */
 OPENSSL_EXPORT int ECDH_compute_key(void *out, size_t outlen,
                                     const EC_POINT *pub_key, EC_KEY *priv_key,
-                                    void *(*KDF)(const void *in, size_t inlen,
+                                    void *(*kdf)(const void *in, size_t inlen,
                                                  void *out, size_t *outlen));
 
 
@@ -95,7 +95,6 @@ OPENSSL_EXPORT int ECDH_compute_key(void *out, size_t outlen,
 }  /* extern C */
 #endif
 
-#define ECDH_F_ECDH_compute_key 100
 #define ECDH_R_KDF_FAILED 100
 #define ECDH_R_NO_PRIVATE_VALUE 101
 #define ECDH_R_POINT_ARITHMETIC_FAILURE 102

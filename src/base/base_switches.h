@@ -12,10 +12,12 @@
 namespace switches {
 
 extern const char kDisableBreakpad[];
-extern const char kEnableCrashReporter[];
-extern const char kFullMemoryCrashReport[];
-extern const char kEnableLowEndDeviceMode[];
 extern const char kDisableLowEndDeviceMode[];
+extern const char kEnableCrashReporter[];
+extern const char kEnableHeapProfiling[];
+extern const char kEnableLowEndDeviceMode[];
+extern const char kForceFieldTrials[];
+extern const char kFullMemoryCrashReport[];
 extern const char kNoErrorDialogs[];
 extern const char kProfilerTiming[];
 extern const char kProfilerTimingDisabledValue[];
@@ -26,6 +28,10 @@ extern const char kTraceToFileName[];
 extern const char kV[];
 extern const char kVModule[];
 extern const char kWaitForDebugger[];
+
+#if defined(OS_WIN)
+extern const char kDisableUsbKeyboardDetect[];
+#endif
 
 #if defined(OS_POSIX)
 extern const char kEnableCrashReporterForTesting[];

@@ -24,6 +24,7 @@
 #include "net/base/net_export.h"
 #include "net/spdy/spdy_alt_svc_wire_format.h"
 #include "net/spdy/spdy_bitmasks.h"
+#include "net/spdy/spdy_header_block.h"
 
 namespace net {
 
@@ -420,13 +421,15 @@ enum SpdyGoAwayStatus {
 // number between 0 and 3.
 typedef uint8 SpdyPriority;
 
-typedef std::map<std::string, std::string> SpdyNameValueBlock;
-
 typedef uint64 SpdyPingId;
 
 typedef std::string SpdyProtocolId;
 
-enum class SpdyHeaderValidatorType { REQUEST, RESPONSE };
+enum class SpdyHeaderValidatorType {
+  REQUEST,
+  RESPONSE_HEADER,
+  RESPONSE_TRAILER
+};
 
 // TODO(hkhalil): Add direct testing for this? It won't increase coverage any,
 // but is good to do anyway.
@@ -601,33 +604,29 @@ class NET_EXPORT_PRIVATE SpdyFrameWithFinIR : public SpdyFrameWithStreamIdIR {
   DISALLOW_COPY_AND_ASSIGN(SpdyFrameWithFinIR);
 };
 
-// Abstract class intended to be inherited by IRs that contain a name-value
+// Abstract class intended to be inherited by IRs that contain a header
 // block. Implies SpdyFrameWithFinIR.
-class NET_EXPORT_PRIVATE SpdyFrameWithNameValueBlockIR
+class NET_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
     : public NON_EXPORTED_BASE(SpdyFrameWithFinIR) {
  public:
-  const SpdyNameValueBlock& name_value_block() const {
-    return name_value_block_;
-  }
-  void set_name_value_block(const SpdyNameValueBlock& name_value_block) {
+  const SpdyHeaderBlock& header_block() const { return header_block_; }
+  void set_header_block(const SpdyHeaderBlock& header_block) {
     // Deep copy.
-    name_value_block_ = name_value_block;
+    header_block_ = header_block;
   }
   void SetHeader(base::StringPiece name, base::StringPiece value) {
-    name_value_block_[name.as_string()] = value.as_string();
+    header_block_[name] = value;
   }
-  SpdyNameValueBlock* mutable_name_value_block() {
-    return &name_value_block_;
-  }
+  SpdyHeaderBlock* mutable_header_block() { return &header_block_; }
 
  protected:
-  explicit SpdyFrameWithNameValueBlockIR(SpdyStreamId stream_id);
-  ~SpdyFrameWithNameValueBlockIR() override;
+  explicit SpdyFrameWithHeaderBlockIR(SpdyStreamId stream_id);
+  ~SpdyFrameWithHeaderBlockIR() override;
 
  private:
-  SpdyNameValueBlock name_value_block_;
+  SpdyHeaderBlock header_block_;
 
-  DISALLOW_COPY_AND_ASSIGN(SpdyFrameWithNameValueBlockIR);
+  DISALLOW_COPY_AND_ASSIGN(SpdyFrameWithHeaderBlockIR);
 };
 
 class NET_EXPORT_PRIVATE SpdyDataIR
@@ -681,11 +680,10 @@ class NET_EXPORT_PRIVATE SpdyDataIR
   DISALLOW_COPY_AND_ASSIGN(SpdyDataIR);
 };
 
-class NET_EXPORT_PRIVATE SpdySynStreamIR
-    : public SpdyFrameWithNameValueBlockIR {
+class NET_EXPORT_PRIVATE SpdySynStreamIR : public SpdyFrameWithHeaderBlockIR {
  public:
   explicit SpdySynStreamIR(SpdyStreamId stream_id)
-      : SpdyFrameWithNameValueBlockIR(stream_id),
+      : SpdyFrameWithHeaderBlockIR(stream_id),
         associated_to_stream_id_(0),
         priority_(0),
         unidirectional_(false) {}
@@ -712,10 +710,10 @@ class NET_EXPORT_PRIVATE SpdySynStreamIR
   DISALLOW_COPY_AND_ASSIGN(SpdySynStreamIR);
 };
 
-class NET_EXPORT_PRIVATE SpdySynReplyIR : public SpdyFrameWithNameValueBlockIR {
+class NET_EXPORT_PRIVATE SpdySynReplyIR : public SpdyFrameWithHeaderBlockIR {
  public:
   explicit SpdySynReplyIR(SpdyStreamId stream_id)
-      : SpdyFrameWithNameValueBlockIR(stream_id) {}
+      : SpdyFrameWithHeaderBlockIR(stream_id) {}
 
   void Visit(SpdyFrameVisitor* visitor) const override;
 
@@ -725,8 +723,7 @@ class NET_EXPORT_PRIVATE SpdySynReplyIR : public SpdyFrameWithNameValueBlockIR {
 
 class NET_EXPORT_PRIVATE SpdyRstStreamIR : public SpdyFrameWithStreamIdIR {
  public:
-  SpdyRstStreamIR(SpdyStreamId stream_id, SpdyRstStreamStatus status,
-                  base::StringPiece description);
+  SpdyRstStreamIR(SpdyStreamId stream_id, SpdyRstStreamStatus status);
 
   ~SpdyRstStreamIR() override;
 
@@ -737,13 +734,10 @@ class NET_EXPORT_PRIVATE SpdyRstStreamIR : public SpdyFrameWithStreamIdIR {
     status_ = status;
   }
 
-  base::StringPiece description() const { return description_; }
-
   void Visit(SpdyFrameVisitor* visitor) const override;
 
  private:
   SpdyRstStreamStatus status_;
-  base::StringPiece description_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyRstStreamIR);
 };
@@ -840,10 +834,10 @@ class NET_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
   DISALLOW_COPY_AND_ASSIGN(SpdyGoAwayIR);
 };
 
-class NET_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithNameValueBlockIR {
+class NET_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
  public:
   explicit SpdyHeadersIR(SpdyStreamId stream_id)
-      : SpdyFrameWithNameValueBlockIR(stream_id) {}
+      : SpdyFrameWithHeaderBlockIR(stream_id) {}
 
   void Visit(SpdyFrameVisitor* visitor) const override;
 
@@ -910,11 +904,10 @@ class NET_EXPORT_PRIVATE SpdyBlockedIR
   DISALLOW_COPY_AND_ASSIGN(SpdyBlockedIR);
 };
 
-class NET_EXPORT_PRIVATE SpdyPushPromiseIR
-    : public SpdyFrameWithNameValueBlockIR {
+class NET_EXPORT_PRIVATE SpdyPushPromiseIR : public SpdyFrameWithHeaderBlockIR {
  public:
   SpdyPushPromiseIR(SpdyStreamId stream_id, SpdyStreamId promised_stream_id)
-      : SpdyFrameWithNameValueBlockIR(stream_id),
+      : SpdyFrameWithHeaderBlockIR(stream_id),
         promised_stream_id_(promised_stream_id),
         padded_(false),
         padding_payload_len_(0) {}
@@ -944,11 +937,10 @@ class NET_EXPORT_PRIVATE SpdyPushPromiseIR
 // TODO(jgraettinger): This representation needs review. SpdyContinuationIR
 // needs to frame a portion of a single, arbitrarily-broken encoded buffer.
 class NET_EXPORT_PRIVATE SpdyContinuationIR
-    : public SpdyFrameWithNameValueBlockIR {
+    : public SpdyFrameWithHeaderBlockIR {
  public:
   explicit SpdyContinuationIR(SpdyStreamId stream_id)
-      : SpdyFrameWithNameValueBlockIR(stream_id),
-        end_headers_(false) {}
+      : SpdyFrameWithHeaderBlockIR(stream_id), end_headers_(false) {}
 
   void Visit(SpdyFrameVisitor* visitor) const override;
 
@@ -970,7 +962,7 @@ class NET_EXPORT_PRIVATE SpdyAltSvcIR : public SpdyFrameWithStreamIdIR {
     return altsvc_vector_;
   }
 
-  void set_origin(const std::string origin) { origin_ = origin; }
+  void set_origin(const std::string& origin) { origin_ = origin; }
   void add_altsvc(const SpdyAltSvcWireFormat::AlternativeService& altsvc) {
     altsvc_vector_.push_back(altsvc);
   }

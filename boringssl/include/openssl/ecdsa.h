@@ -106,18 +106,14 @@ OPENSSL_EXPORT ECDSA_SIG *ECDSA_SIG_new(void);
 /* ECDSA_SIG_free frees |sig| its member |BIGNUM|s. */
 OPENSSL_EXPORT void ECDSA_SIG_free(ECDSA_SIG *sig);
 
-/* ECDSA_sign signs |digest_len| bytes from |digest| with |key| and returns the
- * resulting signature structure, or NULL on error.
- *
- * TODO(fork): remove this function. */
+/* ECDSA_do_sign signs |digest_len| bytes from |digest| with |key| and returns
+ * the resulting signature structure, or NULL on error. */
 OPENSSL_EXPORT ECDSA_SIG *ECDSA_do_sign(const uint8_t *digest,
                                         size_t digest_len, EC_KEY *key);
 
-/* ECDSA_verify verifies that |sig| constitutes a valid signature by |key| of
- * |digest|. It returns one on success or zero if the signature is invalid or
- * on error.
- *
- * TODO(fork): remove this function. */
+/* ECDSA_do_verify verifies that |sig| constitutes a valid signature by |key|
+ * of |digest|. It returns one on success or zero if the signature is invalid
+ * or on error. */
 OPENSSL_EXPORT int ECDSA_do_verify(const uint8_t *digest, size_t digest_len,
                                    const ECDSA_SIG *sig, EC_KEY *key);
 
@@ -152,6 +148,34 @@ OPENSSL_EXPORT int ECDSA_sign_ex(int type, const uint8_t *digest,
 
 /* ASN.1 functions. */
 
+/* ECDSA_SIG_parse parses a DER-encoded ECDSA-Sig-Value structure from |cbs| and
+ * advances |cbs|. It returns a newly-allocated |ECDSA_SIG| or NULL on error. */
+OPENSSL_EXPORT ECDSA_SIG *ECDSA_SIG_parse(CBS *cbs);
+
+/* ECDSA_SIG_from_bytes parses |in| as a DER-encoded ECDSA-Sig-Value structure.
+ * It returns a newly-allocated |ECDSA_SIG| structure or NULL on error. */
+OPENSSL_EXPORT ECDSA_SIG *ECDSA_SIG_from_bytes(const uint8_t *in,
+                                               size_t in_len);
+
+/* ECDSA_SIG_marshal marshals |sig| as a DER-encoded ECDSA-Sig-Value and appends
+ * the result to |cbb|. It returns one on success and zero on error. */
+OPENSSL_EXPORT int ECDSA_SIG_marshal(CBB *cbb, const ECDSA_SIG *sig);
+
+/* ECDSA_SIG_to_bytes marshals |sig| as a DER-encoded ECDSA-Sig-Value and, on
+ * success, sets |*out_bytes| to a newly allocated buffer containing the result
+ * and returns one. Otherwise, it returns zero. The result should be freed with
+ * |OPENSSL_free|. */
+OPENSSL_EXPORT int ECDSA_SIG_to_bytes(uint8_t **out_bytes, size_t *out_len,
+                                      const ECDSA_SIG *sig);
+
+/* ECDSA_SIG_max_len returns the maximum length of a DER-encoded ECDSA-Sig-Value
+ * structure for a group whose order is represented in |order_len| bytes, or
+ * zero on overflow. */
+OPENSSL_EXPORT size_t ECDSA_SIG_max_len(size_t order_len);
+
+
+/* Deprecated functions. */
+
 /* d2i_ECDSA_SIG parses an ASN.1, DER-encoded, signature from |len| bytes at
  * |*inp|. If |out| is not NULL then, on exit, a pointer to the result is in
  * |*out|. If |*out| is already non-NULL on entry then the result is written
@@ -172,15 +196,11 @@ OPENSSL_EXPORT int i2d_ECDSA_SIG(const ECDSA_SIG *sig, uint8_t **outp);
 }  /* extern C */
 #endif
 
-#define ECDSA_F_ECDSA_do_sign_ex 100
-#define ECDSA_F_ECDSA_do_verify 101
-#define ECDSA_F_ECDSA_sign_ex 102
-#define ECDSA_F_digest_to_bn 103
-#define ECDSA_F_ecdsa_sign_setup 104
 #define ECDSA_R_BAD_SIGNATURE 100
 #define ECDSA_R_MISSING_PARAMETERS 101
 #define ECDSA_R_NEED_NEW_SETUP_VALUES 102
 #define ECDSA_R_NOT_IMPLEMENTED 103
 #define ECDSA_R_RANDOM_NUMBER_GENERATION_FAILED 104
+#define ECDSA_R_ENCODE_ERROR 105
 
 #endif  /* OPENSSL_HEADER_ECDSA_H */

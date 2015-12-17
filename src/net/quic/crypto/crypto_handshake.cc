@@ -14,10 +14,15 @@ namespace net {
 QuicCryptoNegotiatedParameters::QuicCryptoNegotiatedParameters()
     : key_exchange(0),
       aead(0),
-      x509_ecdsa_supported(false) {
-}
+      token_binding_key_param(0),
+      x509_ecdsa_supported(false),
+      x509_supported(false),
+      sct_supported_by_client(false) {}
 
 QuicCryptoNegotiatedParameters::~QuicCryptoNegotiatedParameters() {}
+
+QuicCryptoProof::QuicCryptoProof() : certs(nullptr) {}
+QuicCryptoProof::~QuicCryptoProof() {}
 
 CrypterPair::CrypterPair() {}
 

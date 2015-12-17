@@ -14,12 +14,10 @@ using base::StringPiece;
 namespace net {
 
 AeadBaseDecrypter::AeadBaseDecrypter(CK_MECHANISM_TYPE aead_mechanism,
-                                     PK11_DecryptFunction pk11_decrypt,
                                      size_t key_size,
                                      size_t auth_tag_size,
                                      size_t nonce_prefix_size)
     : aead_mechanism_(aead_mechanism),
-      pk11_decrypt_(pk11_decrypt),
       key_size_(key_size),
       auth_tag_size_(auth_tag_size),
       nonce_prefix_size_(nonce_prefix_size) {
@@ -47,7 +45,7 @@ bool AeadBaseDecrypter::SetNoncePrefix(StringPiece nonce_prefix) {
   return true;
 }
 
-bool AeadBaseDecrypter::DecryptPacket(QuicPacketSequenceNumber sequence_number,
+bool AeadBaseDecrypter::DecryptPacket(QuicPacketNumber packet_number,
                                       const StringPiece& associated_data,
                                       const StringPiece& ciphertext,
                                       char* output,
@@ -57,11 +55,11 @@ bool AeadBaseDecrypter::DecryptPacket(QuicPacketSequenceNumber sequence_number,
     return false;
   }
 
-  uint8 nonce[sizeof(nonce_prefix_) + sizeof(sequence_number)];
-  const size_t nonce_size = nonce_prefix_size_ + sizeof(sequence_number);
+  uint8 nonce[sizeof(nonce_prefix_) + sizeof(packet_number)];
+  const size_t nonce_size = nonce_prefix_size_ + sizeof(packet_number);
   DCHECK_LE(nonce_size, sizeof(nonce));
   memcpy(nonce, nonce_prefix_, nonce_prefix_size_);
-  memcpy(nonce + nonce_prefix_size_, &sequence_number, sizeof(sequence_number));
+  memcpy(nonce + nonce_prefix_size_, &packet_number, sizeof(packet_number));
 
   // NSS 3.14.x incorrectly requires an output buffer at least as long as
   // the ciphertext (NSS bug
@@ -77,20 +75,12 @@ bool AeadBaseDecrypter::DecryptPacket(QuicPacketSequenceNumber sequence_number,
   key_item.len = key_size_;
   PK11SlotInfo* slot = PK11_GetInternalSlot();
 
-  // TODO(wtc): For an AES-GCM key, the correct value for |key_mechanism| is
-  // CKM_AES_GCM, but because of NSS bug
-  // https://bugzilla.mozilla.org/show_bug.cgi?id=853285, use CKM_AES_ECB as a
-  // workaround. Remove this when we require NSS 3.15.
-  CK_MECHANISM_TYPE key_mechanism = aead_mechanism_;
-  if (key_mechanism == CKM_AES_GCM) {
-    key_mechanism = CKM_AES_ECB;
-  }
-
   // The exact value of the |origin| argument doesn't matter to NSS as long as
   // it's not PK11_OriginFortezzaHack, so pass PK11_OriginUnwrap as a
   // placeholder.
-  crypto::ScopedPK11SymKey aead_key(PK11_ImportSymKey(
-      slot, key_mechanism, PK11_OriginUnwrap, CKA_DECRYPT, &key_item, nullptr));
+  crypto::ScopedPK11SymKey aead_key(
+      PK11_ImportSymKey(slot, aead_mechanism_, PK11_OriginUnwrap, CKA_DECRYPT,
+                        &key_item, nullptr));
   PK11_FreeSlot(slot);
   slot = nullptr;
   if (!aead_key) {
@@ -108,11 +98,11 @@ bool AeadBaseDecrypter::DecryptPacket(QuicPacketSequenceNumber sequence_number,
   param.len = aead_params.len;
 
   unsigned int output_len;
-  if (pk11_decrypt_(aead_key.get(), aead_mechanism_, &param,
-                    reinterpret_cast<uint8*>(output), &output_len,
-                    max_output_length,
-                    reinterpret_cast<const unsigned char*>(ciphertext.data()),
-                    ciphertext.length()) != SECSuccess) {
+  if (PK11_Decrypt(aead_key.get(), aead_mechanism_, &param,
+                   reinterpret_cast<uint8*>(output), &output_len,
+                   max_output_length,
+                   reinterpret_cast<const unsigned char*>(ciphertext.data()),
+                   ciphertext.length()) != SECSuccess) {
     return false;
   }
 

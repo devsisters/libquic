@@ -30,14 +30,14 @@ URL_EXPORT void AppendIPv6Address(const unsigned char address[16],
 // Not all components may exist. If there are only 3 components, for example,
 // the last one will have a length of -1 or 0 to indicate it does not exist.
 //
-// Note that many platform's inet_addr will ignore everything after a space
-// in certain curcumstances if the stuff before the space looks like an IP
+// Note that many platforms' inet_addr will ignore everything after a space
+// in certain circumstances if the stuff before the space looks like an IP
 // address. IE6 is included in this. We do NOT handle this case. In many cases,
 // the browser's canonicalization will get run before this which converts
-// spaces to %20 (in the case of IE7) or rejects them (in the case of
-// Mozilla), so this code path never gets hit. Our host canonicalization will
-// notice these spaces and escape them, which will make IP address finding
-// fail. This seems like better behavior than stripping after a space.
+// spaces to %20 (in the case of IE7) or rejects them (in the case of Mozilla),
+// so this code path never gets hit. Our host canonicalization will notice
+// these spaces and escape them, which will make IP address finding fail. This
+// seems like better behavior than stripping after a space.
 URL_EXPORT bool FindIPv4Components(const char* spec,
                                    const Component& host,
                                    Component components[4]);

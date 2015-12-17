@@ -329,27 +329,6 @@ ThreadTicks ThreadTicks::Now() {
 #endif
 }
 
-// Use the Chrome OS specific system-wide clock.
-#if defined(OS_CHROMEOS)
-// static
-TraceTicks TraceTicks::Now() {
-  struct timespec ts;
-  if (clock_gettime(kClockSystemTrace, &ts) != 0) {
-    // NB: fall-back for a chrome os build running on linux
-    return TraceTicks(ClockNow(CLOCK_MONOTONIC));
-  }
-  return TraceTicks(ConvertTimespecToMicros(ts));
-}
-
-#else  // !defined(OS_CHROMEOS)
-
-// static
-TraceTicks TraceTicks::Now() {
-  return TraceTicks(ClockNow(CLOCK_MONOTONIC));
-}
-
-#endif  // defined(OS_CHROMEOS)
-
 #endif  // !OS_MACOSX
 
 // static

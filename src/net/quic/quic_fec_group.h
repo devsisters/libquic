@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Tracks information about an FEC group, including the packets
-// that have been seen, and the running parity.  Provided the ability
+// that have been seen, and the running parity.  Provides the ability
 // to revive a dropped packet.
 
 #ifndef NET_QUIC_QUIC_FEC_GROUP_H_
@@ -12,65 +12,33 @@
 #include <cstddef>
 
 #include "base/strings/string_piece.h"
+#include "net/quic/quic_fec_group_interface.h"
 #include "net/quic/quic_protocol.h"
 
 namespace net {
 
-class NET_EXPORT_PRIVATE QuicFecGroup {
+class NET_EXPORT_PRIVATE QuicFecGroup : public QuicFecGroupInterface {
  public:
-  QuicFecGroup();
-  ~QuicFecGroup();
+  explicit QuicFecGroup(QuicPacketNumber fec_group_number);
+  virtual ~QuicFecGroup();
 
-  // Updates the FEC group based on the delivery of a data packet decrypted at
-  // |encryption_level|. Returns false if this packet has already been seen,
-  // true otherwise.
+  // Implementation of QuicFecGroupInterface.
   bool Update(EncryptionLevel encryption_level,
               const QuicPacketHeader& header,
-              base::StringPiece decrypted_payload);
-
-  // Updates the FEC group based on the delivery of an FEC packet decrypted at
-  // |encryption_level|. Returns false if this packet has already been seen or
-  // if it does not claim to protect all the packets previously seen in this
-  // group.
+              base::StringPiece decrypted_payload) override;
   bool UpdateFec(EncryptionLevel encryption_level,
-                 QuicPacketSequenceNumber fec_packet_sequence_number,
-                 const QuicFecData& fec);
-
-  // Returns true if a packet can be revived from this FEC group.
-  bool CanRevive() const;
-
-  // Returns true if all packets (FEC and data) from this FEC group have been
-  // seen or revived
-  bool IsFinished() const;
-
-  // Revives the missing packet from this FEC group.  This may return a packet
-  // that is null padded to a greater length than the original packet, but
-  // the framer will handle it correctly.  Returns the length of the data
-  // written to |decrypted_payload|, or 0 if the packet could not be revived.
+                 const QuicPacketHeader& header,
+                 base::StringPiece redundancy) override;
+  bool CanRevive() const override;
+  bool IsFinished() const override;
   size_t Revive(QuicPacketHeader* header,
                 char* decrypted_payload,
-                size_t decrypted_payload_len);
-
-  // Returns true of this FEC group protects any packets with sequence
-  // numbers less than |num|.
-  bool ProtectsPacketsBefore(QuicPacketSequenceNumber num) const;
-
-  const base::StringPiece payload_parity() const {
-    return base::StringPiece(payload_parity_, payload_parity_len_);
-  }
-
-  QuicPacketSequenceNumber min_protected_packet() const {
-    return min_protected_packet_;
-  }
-
-  QuicPacketCount NumReceivedPackets() const {
-    return received_packets_.size();
-  }
-
-  // Returns the effective encryption level of the FEC group.
-  EncryptionLevel effective_encryption_level() const {
-    return effective_encryption_level_;
-  }
+                size_t decrypted_payload_len) override;
+  bool IsWaitingForPacketBefore(QuicPacketNumber num) const override;
+  const base::StringPiece PayloadParity() const override;
+  QuicPacketCount NumReceivedPackets() const override;
+  EncryptionLevel EffectiveEncryptionLevel() const override;
+  QuicFecGroupNumber FecGroupNumber() const override;
 
  private:
   bool UpdateParity(base::StringPiece payload);
@@ -78,16 +46,20 @@ class NET_EXPORT_PRIVATE QuicFecGroup {
   // if the number of missing packets is not known.
   QuicPacketCount NumMissingPackets() const;
 
+  bool has_received_fec_packet() const {
+    return max_protected_packet_ != kInvalidPacketNumber;
+  }
+
   // Set of packets that we have recevied.
-  SequenceNumberSet received_packets_;
-  // Sequence number of the first protected packet in this group (the one
-  // with the lowest packet sequence number).  Will only be set once the FEC
+  PacketNumberSet received_packets_;
+  // packet number of the first protected packet in this group (the one
+  // with the lowest packet number).  Will only be set once the FEC
   // packet has been seen.
-  QuicPacketSequenceNumber min_protected_packet_;
-  // Sequence number of the last protected packet in this group (the one
-  // with the highest packet sequence number).  Will only be set once the FEC
+  const QuicPacketNumber min_protected_packet_;
+  // packet number of the last protected packet in this group (the one
+  // with the highest packet number).  Will only be set once the FEC
   // packet has been seen.
-  QuicPacketSequenceNumber max_protected_packet_;
+  QuicPacketNumber max_protected_packet_;
   // The cumulative parity calculation of all received packets.
   char payload_parity_[kMaxPacketSize];
   size_t payload_parity_len_;

@@ -73,6 +73,7 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/logging.h"
 #include "base/synchronization/lock.h"
 
 namespace base {
@@ -104,7 +105,7 @@ class BASE_EXPORT ConditionVariable {
 #elif defined(OS_POSIX)
   pthread_cond_t condition_;
   pthread_mutex_t* user_mutex_;
-#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
+#if DCHECK_IS_ON()
   base::Lock* user_lock_;     // Needed to adjust shadow lock state on wait.
 #endif
 

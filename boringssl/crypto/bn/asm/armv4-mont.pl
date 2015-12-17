@@ -38,8 +38,20 @@
 # for execution on all NEON-capable processors, because gain on
 # others outweighs the marginal loss on Cortex-A9.
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
-open STDOUT,">$output";
+$flavour = shift;
+if ($flavour=~/^\w[\w\-]*\.\w+$/) { $output=$flavour; undef $flavour; }
+else { while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {} }
+
+if ($flavour && $flavour ne "void") {
+    $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+    ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
+    ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
+    die "can't locate arm-xlate.pl";
+
+    open STDOUT,"| \"$^X\" $xlate $flavour $output";
+} else {
+    open STDOUT,">$output";
+}
 
 $num="r0";	# starts as num argument, but holds &tp[num-1]
 $ap="r1";
@@ -67,15 +79,15 @@ $_n0="$num,#14*4";
 $_num="$num,#15*4";	$_bpend=$_num;
 
 $code=<<___;
-#include "arm_arch.h"
+#include <openssl/arm_arch.h>
 
 .text
 .code	32
 
-#if __ARM_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7
 .align	5
 .LOPENSSL_armcap:
-.word	OPENSSL_armcap_P-bn_mul_mont
+.word	OPENSSL_armcap_P-.Lbn_mul_mont
 #endif
 
 .global	bn_mul_mont
@@ -84,14 +96,18 @@ $code=<<___;
 
 .align	5
 bn_mul_mont:
+.Lbn_mul_mont:
 	ldr	ip,[sp,#4]		@ load num
 	stmdb	sp!,{r0,r2}		@ sp points at argument block
-#if __ARM_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7
 	tst	ip,#7
 	bne	.Lialu
 	adr	r0,bn_mul_mont
 	ldr	r2,.LOPENSSL_armcap
 	ldr	r0,[r0,r2]
+#ifdef	__APPLE__
+	ldr	r0,[r0]
+#endif
 	tst	r0,#1			@ NEON available?
 	ldmia	sp, {r0,r2}
 	beq	.Lialu
@@ -231,9 +247,14 @@ bn_mul_mont:
 	ldmia	sp!,{r4-r12,lr}		@ restore registers
 	add	sp,sp,#2*4		@ skip over {r0,r2}
 	mov	r0,#1
-.Labrt:	tst	lr,#1
+.Labrt:
+#if __ARM_ARCH__>=5
+	ret				@ bx lr
+#else
+	tst	lr,#1
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
+#endif
 .size	bn_mul_mont,.-bn_mul_mont
 ___
 {
@@ -252,7 +273,8 @@ my ($rptr,$aptr,$bptr,$nptr,$n0,$num)=map("r$_",(0..5));
 my ($tinptr,$toutptr,$inner,$outer)=map("r$_",(6..9));
 
 $code.=<<___;
-#if __ARM_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7
+.arch	armv7-a
 .fpu	neon
 
 .type	bn_mul8x_mont_neon,%function
@@ -651,7 +673,7 @@ bn_mul8x_mont_neon:
 	sub	sp,ip,#96
         vldmia  sp!,{d8-d15}
         ldmia   sp!,{r4-r11}
-	bx	lr
+	ret						@ bx lr
 .size	bn_mul8x_mont_neon,.-bn_mul8x_mont_neon
 #endif
 ___
@@ -659,7 +681,7 @@ ___
 $code.=<<___;
 .asciz	"Montgomery multiplication for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
 .align	2
-#if __ARM_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7
 .comm	OPENSSL_armcap_P,4,4
 .hidden	OPENSSL_armcap_P
 #endif
@@ -667,5 +689,6 @@ ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;
 $code =~ s/\bbx\s+lr\b/.word\t0xe12fff1e/gm;	# make it possible to compile with -march=armv4
+$code =~ s/\bret\b/bx	lr/gm;
 print $code;
 close STDOUT;

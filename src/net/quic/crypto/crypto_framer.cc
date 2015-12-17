@@ -252,12 +252,10 @@ QuicErrorCode CryptoFramer::Process(StringPiece input) {
       if (reader.BytesRemaining() < values_len_) {
         break;
       }
-      for (vector<pair<QuicTag, size_t> >::const_iterator
-           it = tags_and_lengths_.begin(); it != tags_and_lengths_.end();
-           it++) {
+      for (const pair<QuicTag, size_t>& item : tags_and_lengths_) {
         StringPiece value;
-        reader.ReadStringPiece(&value, it->second);
-        message_.SetStringPiece(it->first, value);
+        reader.ReadStringPiece(&value, item.second);
+        message_.SetStringPiece(item.first, value);
       }
       visitor_->OnHandshakeMessage(message_);
       Clear();

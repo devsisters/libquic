@@ -20,7 +20,12 @@
 #include <openssl/mem.h>
 
 
+void CBB_zero(CBB *cbb) {
+  memset(cbb, 0, sizeof(CBB));
+}
+
 static int cbb_init(CBB *cbb, uint8_t *buf, size_t cap) {
+  /* This assumes that |cbb| has already been zeroed. */
   struct cbb_buffer_st *base;
 
   base = OPENSSL_malloc(sizeof(struct cbb_buffer_st));
@@ -33,16 +38,15 @@ static int cbb_init(CBB *cbb, uint8_t *buf, size_t cap) {
   base->cap = cap;
   base->can_resize = 1;
 
-  memset(cbb, 0, sizeof(CBB));
   cbb->base = base;
   cbb->is_top_level = 1;
   return 1;
 }
 
 int CBB_init(CBB *cbb, size_t initial_capacity) {
-  uint8_t *buf;
+  CBB_zero(cbb);
 
-  buf = OPENSSL_malloc(initial_capacity);
+  uint8_t *buf = OPENSSL_malloc(initial_capacity);
   if (initial_capacity > 0 && buf == NULL) {
     return 0;
   }
@@ -56,6 +60,8 @@ int CBB_init(CBB *cbb, size_t initial_capacity) {
 }
 
 int CBB_init_fixed(CBB *cbb, uint8_t *buf, size_t len) {
+  CBB_zero(cbb);
+
   if (!cbb_init(cbb, buf, len)) {
     return 0;
   }
@@ -66,7 +72,11 @@ int CBB_init_fixed(CBB *cbb, uint8_t *buf, size_t len) {
 
 void CBB_cleanup(CBB *cbb) {
   if (cbb->base) {
-    if (cbb->base->buf && cbb->base->can_resize) {
+    /* Only top-level |CBB|s are cleaned up. Child |CBB|s are non-owning. They
+     * are implicitly discarded when the parent is flushed or cleaned up. */
+    assert(cbb->is_top_level);
+
+    if (cbb->base->can_resize) {
       OPENSSL_free(cbb->base->buf);
     }
     OPENSSL_free(cbb->base);
@@ -243,6 +253,11 @@ int CBB_flush(CBB *cbb) {
   return 1;
 }
 
+size_t CBB_len(const CBB *cbb) {
+  assert(cbb->child == NULL);
+
+  return cbb->base->len;
+}
 
 static int cbb_add_length_prefixed(CBB *cbb, CBB *out_contents,
                                    size_t len_len) {
@@ -345,6 +360,20 @@ int CBB_add_u24(CBB *cbb, uint32_t value) {
   }
 
   return cbb_buffer_add_u(cbb->base, value, 3);
+}
+
+void CBB_discard_child(CBB *cbb) {
+  if (cbb->child == NULL) {
+    return;
+  }
+
+  cbb->base->len = cbb->offset;
+
+  cbb->child->base = NULL;
+  cbb->child = NULL;
+  cbb->pending_len_len = 0;
+  cbb->pending_is_asn1 = 0;
+  cbb->offset = 0;
 }
 
 int CBB_add_asn1_uint64(CBB *cbb, uint64_t value) {

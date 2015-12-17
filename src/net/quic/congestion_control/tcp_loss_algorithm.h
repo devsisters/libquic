@@ -29,11 +29,10 @@ class NET_EXPORT_PRIVATE TCPLossAlgorithm : public LossDetectionInterface {
   LossDetectionType GetLossDetectionType() const override;
 
   // Uses nack counts to decide when packets are lost.
-  SequenceNumberSet DetectLostPackets(
-      const QuicUnackedPacketMap& unacked_packets,
-      const QuicTime& time,
-      QuicPacketSequenceNumber largest_observed,
-      const RttStats& rtt_stats) override;
+  PacketNumberSet DetectLostPackets(const QuicUnackedPacketMap& unacked_packets,
+                                    const QuicTime& time,
+                                    QuicPacketNumber largest_observed,
+                                    const RttStats& rtt_stats) override;
 
   // Returns a non-zero value when the early retransmit timer is active.
   QuicTime GetLossTimeout() const override;

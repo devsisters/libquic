@@ -70,13 +70,14 @@ set(
 	src/net/quic/quic_protocol.cc
 	src/net/quic/quic_packet_generator.cc
 	src/net/quic/quic_flow_controller.cc
-	src/net/quic/quic_ack_notifier_manager.cc
 	src/net/quic/quic_connection_stats.cc
 	src/net/quic/quic_fec_group.cc
+	src/net/quic/quic_fec_group_interface.cc
 	src/net/quic/quic_data_writer.cc
 	src/net/quic/quic_data_reader.cc
 	src/net/quic/quic_session.cc
 	src/net/quic/quic_spdy_session.cc
+	src/net/quic/quic_spdy_stream.cc
 	src/net/quic/iovector.cc
 	src/net/quic/quic_stream_sequencer.cc
 	src/net/quic/quic_framer.cc
@@ -90,7 +91,7 @@ set(
 	src/net/quic/quic_crypto_stream.cc
 	src/net/quic/quic_socket_address_coder.cc
 	src/net/quic/quic_utils.cc
-	src/net/quic/quic_ack_notifier.cc
+	src/net/quic/quic_frame_list.cc
 	src/net/quic/crypto/quic_crypto_server_config.cc
 	src/net/quic/crypto/crypto_handshake_message.cc
 	src/net/quic/crypto/p256_key_exchange_openssl.cc
@@ -120,7 +121,6 @@ set(
 	src/net/quic/crypto/quic_encrypter.cc
 	src/net/quic/crypto/quic_crypto_client_config.cc
 	src/net/quic/quic_clock.cc
-	src/net/quic/quic_data_stream.cc
 	src/net/quic/quic_alarm.cc
 	src/net/quic/quic_sent_entropy_manager.cc
 	src/net/quic/congestion_control/pacing_sender.cc
@@ -148,6 +148,7 @@ set(
 	src/net/quic/quic_server_id.cc
 	src/net/quic/proto/cached_network_parameters.pb.cc
 	src/net/quic/proto/source_address_token.pb.cc
+	src/net/quic/stream_sequencer_buffer.cc
 
 	src/net/base/int128.cc
 	src/net/base/io_buffer.cc
@@ -155,22 +156,24 @@ set(
 	src/net/base/net_errors.cc
 	src/net/base/ip_endpoint.cc
 	src/net/base/host_port_pair.cc
+	src/net/base/port_util.cc
+	src/net/base/address_family.cc
 
-	src/net/spdy/hpack_string_util.cc
-	src/net/spdy/hpack_output_stream.cc
-	src/net/spdy/hpack_input_stream.cc
 	src/net/spdy/spdy_frame_reader.cc
 	src/net/spdy/spdy_frame_builder.cc
-	src/net/spdy/hpack_decoder.cc
-	src/net/spdy/hpack_header_table.cc
-	src/net/spdy/hpack_entry.cc
-	src/net/spdy/hpack_static_table.cc
-	src/net/spdy/hpack_constants.cc
 	src/net/spdy/spdy_framer.cc
-	src/net/spdy/hpack_encoder.cc
+	src/net/spdy/spdy_header_block.cc
 	src/net/spdy/spdy_protocol.cc
-	src/net/spdy/hpack_huffman_table.cc
 	src/net/spdy/spdy_alt_svc_wire_format.cc
+	src/net/spdy/hpack/hpack_constants.cc
+	src/net/spdy/hpack/hpack_decoder.cc
+	src/net/spdy/hpack/hpack_encoder.cc
+	src/net/spdy/hpack/hpack_entry.cc
+	src/net/spdy/hpack/hpack_header_table.cc
+	src/net/spdy/hpack/hpack_huffman_table.cc
+	src/net/spdy/hpack/hpack_input_stream.cc
+	src/net/spdy/hpack/hpack_output_stream.cc
+	src/net/spdy/hpack/hpack_static_table.cc
 )
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -223,7 +226,6 @@ set(
 	src/base/threading/thread_local_posix.cc
 	src/base/time/time_posix.cc
 	src/base/time/time.cc
-	src/base/synchronization/waitable_event_posix.cc
 	src/base/synchronization/lock.cc
 	src/base/synchronization/lock_impl_posix.cc
 	src/base/synchronization/condition_variable_posix.cc
@@ -242,7 +244,6 @@ set(
 	src/base/debug/stack_trace.cc
 	src/base/debug/debugger.cc
 	src/base/callback_helpers.cc
-	src/base/atomicops_internals_x86_gcc.cc
 	src/base/json/json_string_value_serializer.cc
 	src/base/json/json_parser.cc
 	src/base/json/string_escape.cc
@@ -274,7 +275,6 @@ set(
 	src/base/third_party/dmg_fp/dtoa.cc
 	src/base/third_party/dmg_fp/g_fmt.cc
 	src/base/third_party/icu/icu_utf.cc
-	src/base/hash.cc
 	src/base/command_line.cc
 
 	src/base/third_party/superfasthash/superfasthash.c
@@ -295,6 +295,12 @@ set(
 	src/crypto/secure_util.cc
 )
 
+set(
+	URL_SOURCES
+
+	src/url/url_constants.cc
+)
+
 add_library(
 	quic
 	STATIC
@@ -302,6 +308,9 @@ add_library(
 	${NET_SOURCES}
 	${BASE_SOURCES}
 	${CRYPTO_SOURCES}
+	${URL_SOURCES}
+
+	src/stubs.cc
 
 	src/third_party/modp_b64/modp_b64.cc
 	src/third_party/zlib/gzwrite.c

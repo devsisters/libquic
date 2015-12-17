@@ -39,6 +39,10 @@ class NET_EXPORT_PRIVATE CubicBytes {
                                          QuicByteCount current,
                                          QuicTime::Delta delay_min);
 
+  // Call on ack arrival when sender is unable to use the available congestion
+  // window. Resets Cubic state during quiescence.
+  void OnApplicationLimited();
+
  private:
   static const QuicTime::Delta MaxCubicTimeInterval() {
     return QuicTime::Delta::FromMilliseconds(30);

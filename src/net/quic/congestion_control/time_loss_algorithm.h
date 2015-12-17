@@ -28,11 +28,10 @@ class NET_EXPORT_PRIVATE TimeLossAlgorithm : public LossDetectionInterface {
   // Declares pending packets less than the largest observed lost when it has
   // been 1.25 RTT since they were sent.  Packets larger than the largest
   // observed are retransmitted via TLP.
-  SequenceNumberSet DetectLostPackets(
-      const QuicUnackedPacketMap& unacked_packets,
-      const QuicTime& time,
-      QuicPacketSequenceNumber largest_observed,
-      const RttStats& rtt_stats) override;
+  PacketNumberSet DetectLostPackets(const QuicUnackedPacketMap& unacked_packets,
+                                    const QuicTime& time,
+                                    QuicPacketNumber largest_observed,
+                                    const RttStats& rtt_stats) override;
 
   // Returns the time the next packet will be lost, or zero if there
   // are no nacked pending packets outstanding.

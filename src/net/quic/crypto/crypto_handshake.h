@@ -52,6 +52,8 @@ enum HandshakeFailureReason {
   SERVER_NONCE_NOT_UNIQUE_FAILURE = 10,
   // Server nonce's timestamp is not in the strike register's valid time range.
   SERVER_NONCE_INVALID_TIME_FAILURE = 11,
+  // The server requires handshake confirmation.
+  SERVER_NONCE_REQUIRED_FAILURE = 20,
 
   // Failure reasons for an invalid server config in CHLO.
   //
@@ -75,7 +77,10 @@ enum HandshakeFailureReason {
   // The source-address token has expired.
   SOURCE_ADDRESS_TOKEN_EXPIRED_FAILURE = 19,
 
-  MAX_FAILURE_REASON,
+  // The expected leaf certificate hash could not be validated.
+  INVALID_EXPECTED_LEAF_CERTIFICATE = 21,
+
+  MAX_FAILURE_REASON = 22,
 };
 
 // These errors will be packed into an uint32 and we don't want to set the most
@@ -124,13 +129,29 @@ struct NET_EXPORT_PRIVATE QuicCryptoNegotiatedParameters {
   // bytes of x coordinate, followed by 32 bytes of y coordinate. Both values
   // are big-endian and the pair is a P-256 public key.
   std::string channel_id;
+  QuicTag token_binding_key_param;
 
   // Used when generating proof signature when sending server config updates.
   bool x509_ecdsa_supported;
+  bool x509_supported;
 
   // Used to generate cert chain when sending server config updates.
   std::string client_common_set_hashes;
   std::string client_cached_cert_hashes;
+
+  // Default to false; set to true if the client indicates that it supports sct
+  // by sending CSCT tag with an empty value in client hello.
+  bool sct_supported_by_client;
+};
+
+struct NET_EXPORT_PRIVATE QuicCryptoProof {
+  QuicCryptoProof();
+  ~QuicCryptoProof();
+
+  std::string signature;
+  // QuicCryptoProof does not take ownership of |certs|.
+  const std::vector<std::string>* certs;
+  std::string cert_sct;
 };
 
 // QuicCryptoConfig contains common configuration between clients and servers.
@@ -158,6 +179,10 @@ class NET_EXPORT_PRIVATE QuicCryptoConfig {
   QuicTagVector kexs;
   // Authenticated encryption with associated data (AEAD) algorithms.
   QuicTagVector aead;
+
+  // Supported Token Binding key parameters that can be negotiated in the client
+  // hello.
+  QuicTagVector tb_key_params;
 
   const CommonCertSets* common_cert_sets;
 

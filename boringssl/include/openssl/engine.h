@@ -53,15 +53,6 @@ OPENSSL_EXPORT void ENGINE_free(ENGINE *engine);
  *
  * Set functions return one on success and zero on allocation failure. */
 
-OPENSSL_EXPORT int ENGINE_set_DH_method(ENGINE *engine, const DH_METHOD *method,
-                                        size_t method_size);
-OPENSSL_EXPORT DH_METHOD *ENGINE_get_DH_method(const ENGINE *engine);
-
-OPENSSL_EXPORT int ENGINE_set_DSA_method(ENGINE *engine,
-                                         const DSA_METHOD *method,
-                                         size_t method_size);
-OPENSSL_EXPORT DSA_METHOD *ENGINE_get_DSA_method(const ENGINE *engine);
-
 OPENSSL_EXPORT int ENGINE_set_RSA_method(ENGINE *engine,
                                          const RSA_METHOD *method,
                                          size_t method_size);
@@ -93,7 +84,7 @@ void METHOD_unref(void *method);
 /* openssl_method_common_st contains the common part of all method structures.
  * This must be the first member of all method structures. */
 struct openssl_method_common_st {
-  int references;
+  int references;  /* dummy – not used. */
   char is_static;
 };
 

@@ -56,6 +56,8 @@
 
 #include <openssl/des.h>
 
+#include <stdlib.h>
+
 #include "internal.h"
 
 
@@ -296,10 +298,8 @@ void DES_set_key(const DES_cblock *key, DES_key_schedule *schedule) {
                                   0, 1, 1, 1, 1, 1, 1, 0};
   uint32_t c, d, t, s, t2;
   const uint8_t *in;
-  uint32_t *k;
   int i;
 
-  k = &schedule->ks->deslong[0];
   in = key->bytes;
 
   c2l(in, c);
@@ -342,16 +342,44 @@ void DES_set_key(const DES_cblock *key, DES_key_schedule *schedule) {
 
     /* table contained 0213 4657 */
     t2 = ((t << 16L) | (s & 0x0000ffffL)) & 0xffffffffL;
-    *(k++) = ROTATE(t2, 30) & 0xffffffffL;
+    schedule->subkeys[i][0] = ROTATE(t2, 30) & 0xffffffffL;
 
     t2 = ((s >> 16L) | (t & 0xffff0000L));
-    *(k++) = ROTATE(t2, 26) & 0xffffffffL;
+    schedule->subkeys[i][1] = ROTATE(t2, 26) & 0xffffffffL;
+  }
+}
+
+static const uint8_t kOddParity[256] = {
+    1,   1,   2,   2,   4,   4,   7,   7,   8,   8,   11,  11,  13,  13,  14,
+    14,  16,  16,  19,  19,  21,  21,  22,  22,  25,  25,  26,  26,  28,  28,
+    31,  31,  32,  32,  35,  35,  37,  37,  38,  38,  41,  41,  42,  42,  44,
+    44,  47,  47,  49,  49,  50,  50,  52,  52,  55,  55,  56,  56,  59,  59,
+    61,  61,  62,  62,  64,  64,  67,  67,  69,  69,  70,  70,  73,  73,  74,
+    74,  76,  76,  79,  79,  81,  81,  82,  82,  84,  84,  87,  87,  88,  88,
+    91,  91,  93,  93,  94,  94,  97,  97,  98,  98,  100, 100, 103, 103, 104,
+    104, 107, 107, 109, 109, 110, 110, 112, 112, 115, 115, 117, 117, 118, 118,
+    121, 121, 122, 122, 124, 124, 127, 127, 128, 128, 131, 131, 133, 133, 134,
+    134, 137, 137, 138, 138, 140, 140, 143, 143, 145, 145, 146, 146, 148, 148,
+    151, 151, 152, 152, 155, 155, 157, 157, 158, 158, 161, 161, 162, 162, 164,
+    164, 167, 167, 168, 168, 171, 171, 173, 173, 174, 174, 176, 176, 179, 179,
+    181, 181, 182, 182, 185, 185, 186, 186, 188, 188, 191, 191, 193, 193, 194,
+    194, 196, 196, 199, 199, 200, 200, 203, 203, 205, 205, 206, 206, 208, 208,
+    211, 211, 213, 213, 214, 214, 217, 217, 218, 218, 220, 220, 223, 223, 224,
+    224, 227, 227, 229, 229, 230, 230, 233, 233, 234, 234, 236, 236, 239, 239,
+    241, 241, 242, 242, 244, 244, 247, 247, 248, 248, 251, 251, 253, 253, 254,
+    254
+};
+
+void DES_set_odd_parity(DES_cblock *key) {
+  unsigned i;
+
+  for (i = 0; i < DES_KEY_SZ; i++) {
+    key->bytes[i] = kOddParity[key->bytes[i]];
   }
 }
 
 static void DES_encrypt1(uint32_t *data, const DES_key_schedule *ks, int enc) {
   uint32_t l, r, t, u;
-  const uint32_t *s;
 
   r = data[0];
   l = data[1];
@@ -367,43 +395,42 @@ static void DES_encrypt1(uint32_t *data, const DES_key_schedule *ks, int enc) {
   r = ROTATE(r, 29) & 0xffffffffL;
   l = ROTATE(l, 29) & 0xffffffffL;
 
-  s = ks->ks->deslong;
   /* I don't know if it is worth the effort of loop unrolling the
    * inner loop */
   if (enc) {
-    D_ENCRYPT(l, r, 0);  /*  1 */
-    D_ENCRYPT(r, l, 2);  /*  2 */
-    D_ENCRYPT(l, r, 4);  /*  3 */
-    D_ENCRYPT(r, l, 6);  /*  4 */
-    D_ENCRYPT(l, r, 8);  /*  5 */
-    D_ENCRYPT(r, l, 10); /*  6 */
-    D_ENCRYPT(l, r, 12); /*  7 */
-    D_ENCRYPT(r, l, 14); /*  8 */
-    D_ENCRYPT(l, r, 16); /*  9 */
-    D_ENCRYPT(r, l, 18); /*  10 */
-    D_ENCRYPT(l, r, 20); /*  11 */
-    D_ENCRYPT(r, l, 22); /*  12 */
-    D_ENCRYPT(l, r, 24); /*  13 */
-    D_ENCRYPT(r, l, 26); /*  14 */
-    D_ENCRYPT(l, r, 28); /*  15 */
-    D_ENCRYPT(r, l, 30); /*  16 */
+    D_ENCRYPT(ks, l, r, 0);
+    D_ENCRYPT(ks, r, l, 1);
+    D_ENCRYPT(ks, l, r, 2);
+    D_ENCRYPT(ks, r, l, 3);
+    D_ENCRYPT(ks, l, r, 4);
+    D_ENCRYPT(ks, r, l, 5);
+    D_ENCRYPT(ks, l, r, 6);
+    D_ENCRYPT(ks, r, l, 7);
+    D_ENCRYPT(ks, l, r, 8);
+    D_ENCRYPT(ks, r, l, 9);
+    D_ENCRYPT(ks, l, r, 10);
+    D_ENCRYPT(ks, r, l, 11);
+    D_ENCRYPT(ks, l, r, 12);
+    D_ENCRYPT(ks, r, l, 13);
+    D_ENCRYPT(ks, l, r, 14);
+    D_ENCRYPT(ks, r, l, 15);
   } else {
-    D_ENCRYPT(l, r, 30); /* 16 */
-    D_ENCRYPT(r, l, 28); /* 15 */
-    D_ENCRYPT(l, r, 26); /* 14 */
-    D_ENCRYPT(r, l, 24); /* 13 */
-    D_ENCRYPT(l, r, 22); /* 12 */
-    D_ENCRYPT(r, l, 20); /* 11 */
-    D_ENCRYPT(l, r, 18); /* 10 */
-    D_ENCRYPT(r, l, 16); /*  9 */
-    D_ENCRYPT(l, r, 14); /*  8 */
-    D_ENCRYPT(r, l, 12); /*  7 */
-    D_ENCRYPT(l, r, 10); /*  6 */
-    D_ENCRYPT(r, l, 8);  /*  5 */
-    D_ENCRYPT(l, r, 6);  /*  4 */
-    D_ENCRYPT(r, l, 4);  /*  3 */
-    D_ENCRYPT(l, r, 2);  /*  2 */
-    D_ENCRYPT(r, l, 0);  /*  1 */
+    D_ENCRYPT(ks, l, r, 15);
+    D_ENCRYPT(ks, r, l, 14);
+    D_ENCRYPT(ks, l, r, 13);
+    D_ENCRYPT(ks, r, l, 12);
+    D_ENCRYPT(ks, l, r, 11);
+    D_ENCRYPT(ks, r, l, 10);
+    D_ENCRYPT(ks, l, r, 9);
+    D_ENCRYPT(ks, r, l, 8);
+    D_ENCRYPT(ks, l, r, 7);
+    D_ENCRYPT(ks, r, l, 6);
+    D_ENCRYPT(ks, l, r, 5);
+    D_ENCRYPT(ks, r, l, 4);
+    D_ENCRYPT(ks, l, r, 3);
+    D_ENCRYPT(ks, r, l, 2);
+    D_ENCRYPT(ks, l, r, 1);
+    D_ENCRYPT(ks, r, l, 0);
   }
 
   /* rotate and clear the top bits on machines with 8byte longs */
@@ -417,7 +444,6 @@ static void DES_encrypt1(uint32_t *data, const DES_key_schedule *ks, int enc) {
 
 static void DES_encrypt2(uint32_t *data, const DES_key_schedule *ks, int enc) {
   uint32_t l, r, t, u;
-  const uint32_t *s;
 
   r = data[0];
   l = data[1];
@@ -431,52 +457,50 @@ static void DES_encrypt2(uint32_t *data, const DES_key_schedule *ks, int enc) {
   r = ROTATE(r, 29) & 0xffffffffL;
   l = ROTATE(l, 29) & 0xffffffffL;
 
-  s = ks->ks->deslong;
   /* I don't know if it is worth the effort of loop unrolling the
    * inner loop */
   if (enc) {
-    D_ENCRYPT(l, r, 0);  /*  1 */
-    D_ENCRYPT(r, l, 2);  /*  2 */
-    D_ENCRYPT(l, r, 4);  /*  3 */
-    D_ENCRYPT(r, l, 6);  /*  4 */
-    D_ENCRYPT(l, r, 8);  /*  5 */
-    D_ENCRYPT(r, l, 10); /*  6 */
-    D_ENCRYPT(l, r, 12); /*  7 */
-    D_ENCRYPT(r, l, 14); /*  8 */
-    D_ENCRYPT(l, r, 16); /*  9 */
-    D_ENCRYPT(r, l, 18); /*  10 */
-    D_ENCRYPT(l, r, 20); /*  11 */
-    D_ENCRYPT(r, l, 22); /*  12 */
-    D_ENCRYPT(l, r, 24); /*  13 */
-    D_ENCRYPT(r, l, 26); /*  14 */
-    D_ENCRYPT(l, r, 28); /*  15 */
-    D_ENCRYPT(r, l, 30); /*  16 */
+    D_ENCRYPT(ks, l, r, 0);
+    D_ENCRYPT(ks, r, l, 1);
+    D_ENCRYPT(ks, l, r, 2);
+    D_ENCRYPT(ks, r, l, 3);
+    D_ENCRYPT(ks, l, r, 4);
+    D_ENCRYPT(ks, r, l, 5);
+    D_ENCRYPT(ks, l, r, 6);
+    D_ENCRYPT(ks, r, l, 7);
+    D_ENCRYPT(ks, l, r, 8);
+    D_ENCRYPT(ks, r, l, 9);
+    D_ENCRYPT(ks, l, r, 10);
+    D_ENCRYPT(ks, r, l, 11);
+    D_ENCRYPT(ks, l, r, 12);
+    D_ENCRYPT(ks, r, l, 13);
+    D_ENCRYPT(ks, l, r, 14);
+    D_ENCRYPT(ks, r, l, 15);
   } else {
-    D_ENCRYPT(l, r, 30); /* 16 */
-    D_ENCRYPT(r, l, 28); /* 15 */
-    D_ENCRYPT(l, r, 26); /* 14 */
-    D_ENCRYPT(r, l, 24); /* 13 */
-    D_ENCRYPT(l, r, 22); /* 12 */
-    D_ENCRYPT(r, l, 20); /* 11 */
-    D_ENCRYPT(l, r, 18); /* 10 */
-    D_ENCRYPT(r, l, 16); /*  9 */
-    D_ENCRYPT(l, r, 14); /*  8 */
-    D_ENCRYPT(r, l, 12); /*  7 */
-    D_ENCRYPT(l, r, 10); /*  6 */
-    D_ENCRYPT(r, l, 8);  /*  5 */
-    D_ENCRYPT(l, r, 6);  /*  4 */
-    D_ENCRYPT(r, l, 4);  /*  3 */
-    D_ENCRYPT(l, r, 2);  /*  2 */
-    D_ENCRYPT(r, l, 0);  /*  1 */
+    D_ENCRYPT(ks, l, r, 15);
+    D_ENCRYPT(ks, r, l, 14);
+    D_ENCRYPT(ks, l, r, 13);
+    D_ENCRYPT(ks, r, l, 12);
+    D_ENCRYPT(ks, l, r, 11);
+    D_ENCRYPT(ks, r, l, 10);
+    D_ENCRYPT(ks, l, r, 9);
+    D_ENCRYPT(ks, r, l, 8);
+    D_ENCRYPT(ks, l, r, 7);
+    D_ENCRYPT(ks, r, l, 6);
+    D_ENCRYPT(ks, l, r, 5);
+    D_ENCRYPT(ks, r, l, 4);
+    D_ENCRYPT(ks, l, r, 3);
+    D_ENCRYPT(ks, r, l, 2);
+    D_ENCRYPT(ks, l, r, 1);
+    D_ENCRYPT(ks, r, l, 0);
   }
   /* rotate and clear the top bits on machines with 8byte longs */
   data[0] = ROTATE(l, 3) & 0xffffffffL;
   data[1] = ROTATE(r, 3) & 0xffffffffL;
 }
 
-static void DES_encrypt3(uint32_t *data, const DES_key_schedule *ks1,
-                         const DES_key_schedule *ks2,
-                         const DES_key_schedule *ks3) {
+void DES_encrypt3(uint32_t *data, const DES_key_schedule *ks1,
+                  const DES_key_schedule *ks2, const DES_key_schedule *ks3) {
   uint32_t l, r;
 
   l = data[0];
@@ -494,9 +518,8 @@ static void DES_encrypt3(uint32_t *data, const DES_key_schedule *ks1,
   data[1] = r;
 }
 
-static void DES_decrypt3(uint32_t *data, const DES_key_schedule *ks1,
-                         const DES_key_schedule *ks2,
-                         const DES_key_schedule *ks3) {
+void DES_decrypt3(uint32_t *data, const DES_key_schedule *ks1,
+                  const DES_key_schedule *ks2, const DES_key_schedule *ks3) {
   uint32_t l, r;
 
   l = data[0];
@@ -609,6 +632,29 @@ void DES_ncbc_encrypt(const uint8_t *in, uint8_t *out, size_t len,
   tin[0] = tin[1] = 0;
 }
 
+void DES_ecb3_encrypt(const DES_cblock *input, DES_cblock *output,
+                      const DES_key_schedule *ks1, const DES_key_schedule *ks2,
+                      const DES_key_schedule *ks3, int enc) {
+  uint32_t l0, l1;
+  uint32_t ll[2];
+  const uint8_t *in = input->bytes;
+  uint8_t *out = output->bytes;
+
+  c2l(in, l0);
+  c2l(in, l1);
+  ll[0] = l0;
+  ll[1] = l1;
+  if (enc) {
+    DES_encrypt3(ll, ks1, ks2, ks3);
+  } else {
+    DES_decrypt3(ll, ks1, ks2, ks3);
+  }
+  l0 = ll[0];
+  l1 = ll[1];
+  l2c(l0, out);
+  l2c(l1, out);
+}
+
 void DES_ede3_cbc_encrypt(const uint8_t *in, uint8_t *out, size_t len,
                           const DES_key_schedule *ks1,
                           const DES_key_schedule *ks2,
@@ -707,4 +753,19 @@ void DES_ede3_cbc_encrypt(const uint8_t *in, uint8_t *out, size_t len,
   }
 
   tin[0] = tin[1] = 0;
+}
+
+void DES_ede2_cbc_encrypt(const uint8_t *in, uint8_t *out, size_t len,
+                          const DES_key_schedule *ks1,
+                          const DES_key_schedule *ks2,
+                          DES_cblock *ivec,
+                          int enc) {
+  DES_ede3_cbc_encrypt(in, out, len, ks1, ks2, ks1, ivec, enc);
+}
+
+
+/* Deprecated functions. */
+
+void DES_set_key_unchecked(const DES_cblock *key, DES_key_schedule *schedule) {
+  DES_set_key(key, schedule);
 }

@@ -106,7 +106,7 @@ OPENSSL_EXPORT int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, size_t key_len,
                                 const EVP_MD *md, ENGINE *impl);
 
 /* HMAC_Update hashes |data_len| bytes from |data| into the current HMAC
- * operation in |ctx|. It returns one on success and zero on error. */
+ * operation in |ctx|. It returns one. */
 OPENSSL_EXPORT int HMAC_Update(HMAC_CTX *ctx, const uint8_t *data,
                                size_t data_len);
 
@@ -128,13 +128,6 @@ OPENSSL_EXPORT size_t HMAC_size(const HMAC_CTX *ctx);
  * initialised by calling |HMAC_CTX_init|. It returns one on success and zero
  * on error. */
 OPENSSL_EXPORT int HMAC_CTX_copy_ex(HMAC_CTX *dest, const HMAC_CTX *src);
-
-/* HMAC_CTX_set_flags ORs |flags| into the flags of the underlying digests of
- * |ctx|, which must have been setup by a call to |HMAC_Init_ex|. See
- * |EVP_MD_CTX_set_flags|.
- *
- * TODO(fork): remove? */
-OPENSSL_EXPORT void HMAC_CTX_set_flags(HMAC_CTX *ctx, unsigned long flags);
 
 
 /* Deprecated functions. */

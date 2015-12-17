@@ -31,6 +31,7 @@
 #endif
 
 #include <openssl/bytestring.h>
+#include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs8.h>
 #include <openssl/stack.h>
@@ -46,10 +47,11 @@ typedef ssize_t read_result_t;
 
 static const struct argument kArguments[] = {
     {
-     "-dump", false, "Dump the key and contents of the given file to stdout",
+     "-dump", kOptionalArgument,
+     "Dump the key and contents of the given file to stdout",
     },
     {
-     "", false, "",
+     "", kOptionalArgument, "",
     },
 };
 
@@ -122,12 +124,14 @@ bool DoPKCS12(const std::vector<std::string> &args) {
 
   if (!PKCS12_get_key_and_certs(&key, certs, &pkcs12, password)) {
     fprintf(stderr, "Failed to parse PKCS#12 data:\n");
-    BIO_print_errors_fp(stderr);
+    ERR_print_errors_fp(stderr);
     return false;
   }
 
-  PEM_write_PrivateKey(stdout, key, NULL, NULL, 0, NULL, NULL);
-  EVP_PKEY_free(key);
+  if (key != NULL) {
+    PEM_write_PrivateKey(stdout, key, NULL, NULL, 0, NULL, NULL);
+    EVP_PKEY_free(key);
+  }
 
   for (size_t i = 0; i < sk_X509_num(certs); i++) {
     PEM_write_X509(stdout, sk_X509_value(certs, i));

@@ -17,27 +17,25 @@
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
 
-using base::FilePath;
-using base::MakeAbsoluteFilePath;
-
 namespace base {
-  bool PathProvider(int key, FilePath* result);
+
+bool PathProvider(int key, FilePath* result);
+
 #if defined(OS_WIN)
-  bool PathProviderWin(int key, FilePath* result);
+bool PathProviderWin(int key, FilePath* result);
 #elif defined(OS_MACOSX)
-  bool PathProviderMac(int key, FilePath* result);
+bool PathProviderMac(int key, FilePath* result);
 #elif defined(OS_ANDROID)
-  bool PathProviderAndroid(int key, FilePath* result);
+bool PathProviderAndroid(int key, FilePath* result);
 #elif defined(OS_POSIX)
-  // PathProviderPosix is the default path provider on POSIX OSes other than
-  // Mac and Android.
-  bool PathProviderPosix(int key, FilePath* result);
+// PathProviderPosix is the default path provider on POSIX OSes other than
+// Mac and Android.
+bool PathProviderPosix(int key, FilePath* result);
 #endif
-}  // namespace base
 
 namespace {
 
-typedef base::hash_map<int, FilePath> PathMap;
+typedef hash_map<int, FilePath> PathMap;
 
 // We keep a linked list of providers.  In a debug build we ensure that no two
 // providers claim overlapping keys.
@@ -52,22 +50,22 @@ struct Provider {
 };
 
 Provider base_provider = {
-  base::PathProvider,
+  PathProvider,
   NULL,
 #ifndef NDEBUG
-  base::PATH_START,
-  base::PATH_END,
+  PATH_START,
+  PATH_END,
 #endif
   true
 };
 
 #if defined(OS_WIN)
 Provider base_provider_win = {
-  base::PathProviderWin,
+  PathProviderWin,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_WIN_START,
-  base::PATH_WIN_END,
+  PATH_WIN_START,
+  PATH_WIN_END,
 #endif
   true
 };
@@ -75,11 +73,11 @@ Provider base_provider_win = {
 
 #if defined(OS_MACOSX)
 Provider base_provider_mac = {
-  base::PathProviderMac,
+  PathProviderMac,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_MAC_START,
-  base::PATH_MAC_END,
+  PATH_MAC_START,
+  PATH_MAC_END,
 #endif
   true
 };
@@ -87,11 +85,11 @@ Provider base_provider_mac = {
 
 #if defined(OS_ANDROID)
 Provider base_provider_android = {
-  base::PathProviderAndroid,
+  PathProviderAndroid,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_ANDROID_START,
-  base::PATH_ANDROID_END,
+  PATH_ANDROID_START,
+  PATH_ANDROID_END,
 #endif
   true
 };
@@ -99,11 +97,11 @@ Provider base_provider_android = {
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
 Provider base_provider_posix = {
-  base::PathProviderPosix,
+  PathProviderPosix,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_POSIX_START,
-  base::PATH_POSIX_END,
+  PATH_POSIX_START,
+  PATH_POSIX_END,
 #endif
   true
 };
@@ -111,7 +109,7 @@ Provider base_provider_posix = {
 
 
 struct PathData {
-  base::Lock lock;
+  Lock lock;
   PathMap cache;        // Cache mappings from path key to path value.
   PathMap overrides;    // Track path overrides.
   Provider* providers;  // Linked list of path service providers.
@@ -140,7 +138,7 @@ struct PathData {
   }
 };
 
-static base::LazyInstance<PathData> g_path_data = LAZY_INSTANCE_INITIALIZER;
+static LazyInstance<PathData> g_path_data = LAZY_INSTANCE_INITIALIZER;
 
 static PathData* GetPathData() {
   return g_path_data.Pointer();
@@ -183,15 +181,15 @@ bool PathService::Get(int key, FilePath* result) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
   DCHECK(result);
-  DCHECK_GE(key, base::DIR_CURRENT);
+  DCHECK_GE(key, DIR_CURRENT);
 
   // special case the current directory because it can never be cached
-  if (key == base::DIR_CURRENT)
-    return base::GetCurrentDirectory(result);
+  if (key == DIR_CURRENT)
+    return GetCurrentDirectory(result);
 
   Provider* provider = NULL;
   {
-    base::AutoLock scoped_lock(path_data->lock);
+    AutoLock scoped_lock(path_data->lock);
     if (LockedGetFromCache(key, path_data, result))
       return true;
 
@@ -224,7 +222,7 @@ bool PathService::Get(int key, FilePath* result) {
   }
   *result = path;
 
-  base::AutoLock scoped_lock(path_data->lock);
+  AutoLock scoped_lock(path_data->lock);
   if (!path_data->cache_disabled)
     path_data->cache[key] = path;
 
@@ -245,7 +243,7 @@ bool PathService::OverrideAndCreateIfNeeded(int key,
                                             bool create) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
-  DCHECK_GT(key, base::DIR_CURRENT) << "invalid path key";
+  DCHECK_GT(key, DIR_CURRENT) << "invalid path key";
 
   FilePath file_path = path;
 
@@ -255,8 +253,7 @@ bool PathService::OverrideAndCreateIfNeeded(int key,
     // Make sure the directory exists. We need to do this before we translate
     // this to the absolute path because on POSIX, MakeAbsoluteFilePath fails
     // if called on a non-existent path.
-    if (!base::PathExists(file_path) &&
-        !base::CreateDirectory(file_path))
+    if (!PathExists(file_path) && !CreateDirectory(file_path))
       return false;
   }
 
@@ -268,7 +265,7 @@ bool PathService::OverrideAndCreateIfNeeded(int key,
   }
   DCHECK(file_path.IsAbsolute());
 
-  base::AutoLock scoped_lock(path_data->lock);
+  AutoLock scoped_lock(path_data->lock);
 
   // Clear the cache now. Some of its entries could have depended
   // on the value we are overriding, and are now out of sync with reality.
@@ -284,7 +281,7 @@ bool PathService::RemoveOverride(int key) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
 
-  base::AutoLock scoped_lock(path_data->lock);
+  AutoLock scoped_lock(path_data->lock);
 
   if (path_data->overrides.find(key) == path_data->overrides.end())
     return false;
@@ -315,7 +312,7 @@ void PathService::RegisterProvider(ProviderFunc func, int key_start,
   p->key_end = key_end;
 #endif
 
-  base::AutoLock scoped_lock(path_data->lock);
+  AutoLock scoped_lock(path_data->lock);
 
 #ifndef NDEBUG
   Provider *iter = path_data->providers;
@@ -335,7 +332,9 @@ void PathService::DisableCache() {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
 
-  base::AutoLock scoped_lock(path_data->lock);
+  AutoLock scoped_lock(path_data->lock);
   path_data->cache.clear();
   path_data->cache_disabled = true;
 }
+
+}  // namespace base

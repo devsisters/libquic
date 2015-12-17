@@ -49,6 +49,9 @@
 #include <openssl/aes.h>
 
 #include <assert.h>
+#include <stdlib.h>
+
+#include <openssl/cpu.h>
 
 #include "internal.h"
 
@@ -1033,21 +1036,67 @@ void AES_decrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key) {
 #endif /* ?FULL_UNROLL */
   /* apply last round and
    * map cipher state to byte array block: */
-  s0 = (Td4[(t0 >> 24)] << 24) ^ (Td4[(t3 >> 16) & 0xff] << 16) ^
-       (Td4[(t2 >> 8) & 0xff] << 8) ^ (Td4[(t1) & 0xff]) ^ rk[0];
+  s0 = ((uint32_t)Td4[(t0 >> 24)] << 24) ^
+       ((uint32_t)Td4[(t3 >> 16) & 0xff] << 16) ^
+       ((uint32_t)Td4[(t2 >> 8) & 0xff] << 8) ^
+       ((uint32_t)Td4[(t1) & 0xff]) ^ rk[0];
   PUTU32(out, s0);
-  s1 = (Td4[(t1 >> 24)] << 24) ^ (Td4[(t0 >> 16) & 0xff] << 16) ^
-       (Td4[(t3 >> 8) & 0xff] << 8) ^ (Td4[(t2) & 0xff]) ^ rk[1];
+  s1 = ((uint32_t)Td4[(t1 >> 24)] << 24) ^
+       ((uint32_t)Td4[(t0 >> 16) & 0xff] << 16) ^
+       ((uint32_t)Td4[(t3 >> 8) & 0xff] << 8) ^
+       ((uint32_t)Td4[(t2) & 0xff]) ^ rk[1];
   PUTU32(out + 4, s1);
-  s2 = (Td4[(t2 >> 24)] << 24) ^ (Td4[(t1 >> 16) & 0xff] << 16) ^
-       (Td4[(t0 >> 8) & 0xff] << 8) ^ (Td4[(t3) & 0xff]) ^ rk[2];
+  s2 = ((uint32_t)Td4[(t2 >> 24)] << 24) ^
+       ((uint32_t)Td4[(t1 >> 16) & 0xff] << 16) ^
+       ((uint32_t)Td4[(t0 >> 8) & 0xff] << 8) ^
+       ((uint32_t)Td4[(t3) & 0xff]) ^ rk[2];
   PUTU32(out + 8, s2);
-  s3 = (Td4[(t3 >> 24)] << 24) ^ (Td4[(t2 >> 16) & 0xff] << 16) ^
-       (Td4[(t1 >> 8) & 0xff] << 8) ^ (Td4[(t0) & 0xff]) ^ rk[3];
+  s3 = ((uint32_t)Td4[(t3 >> 24)] << 24) ^
+       ((uint32_t)Td4[(t2 >> 16) & 0xff] << 16) ^
+       ((uint32_t)Td4[(t1 >> 8) & 0xff] << 8) ^
+       ((uint32_t)Td4[(t0) & 0xff]) ^ rk[3];
   PUTU32(out + 12, s3);
 }
 
 #else
+
+#if defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
+
+static int hwaes_capable(void) {
+  return CRYPTO_is_ARMv8_AES_capable();
+}
+
+int aes_v8_set_encrypt_key(const uint8_t *user_key, const int bits,
+                           AES_KEY *key);
+int aes_v8_set_decrypt_key(const uint8_t *user_key, const int bits,
+                           AES_KEY *key);
+void aes_v8_encrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
+void aes_v8_decrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
+
+#else
+
+static int hwaes_capable(void) {
+  return 0;
+}
+
+static int aes_v8_set_encrypt_key(const uint8_t *user_key, int bits, AES_KEY *key) {
+  abort();
+}
+
+static int aes_v8_set_decrypt_key(const uint8_t *user_key, int bits, AES_KEY *key) {
+  abort();
+}
+
+static void aes_v8_encrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key) {
+  abort();
+}
+
+static void aes_v8_decrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key) {
+  abort();
+}
+
+#endif
+
 
 /* In this case several functions are provided by asm code. However, one cannot
  * control asm symbol visibility with command line flags and such so they are
@@ -1056,22 +1105,38 @@ void AES_decrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key) {
 
 void asm_AES_encrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
 void AES_encrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key) {
-  asm_AES_encrypt(in, out, key);
+  if (hwaes_capable()) {
+    aes_v8_encrypt(in, out, key);
+  } else {
+    asm_AES_encrypt(in, out, key);
+  }
 }
 
 void asm_AES_decrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
 void AES_decrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key) {
-  asm_AES_decrypt(in, out, key);
+  if (hwaes_capable()) {
+    aes_v8_decrypt(in, out, key);
+  } else {
+    asm_AES_decrypt(in, out, key);
+  }
 }
 
 int asm_AES_set_encrypt_key(const uint8_t *key, unsigned bits, AES_KEY *aeskey);
 int AES_set_encrypt_key(const uint8_t *key, unsigned bits, AES_KEY *aeskey) {
-  return asm_AES_set_encrypt_key(key, bits, aeskey);
+  if (hwaes_capable()) {
+    return aes_v8_set_encrypt_key(key, bits, aeskey);
+  } else {
+    return asm_AES_set_encrypt_key(key, bits, aeskey);
+  }
 }
 
 int asm_AES_set_decrypt_key(const uint8_t *key, unsigned bits, AES_KEY *aeskey);
 int AES_set_decrypt_key(const uint8_t *key, unsigned bits, AES_KEY *aeskey) {
-  return asm_AES_set_decrypt_key(key, bits, aeskey);
+  if (hwaes_capable()) {
+    return aes_v8_set_decrypt_key(key, bits, aeskey);
+  } else {
+    return asm_AES_set_decrypt_key(key, bits, aeskey);
+  }
 }
 
 #endif  /* OPENSSL_NO_ASM || (!OPENSSL_X86 && !OPENSSL_X86_64 && !OPENSSL_ARM) */

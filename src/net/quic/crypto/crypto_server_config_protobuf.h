@@ -35,9 +35,7 @@ class NET_EXPORT_PRIVATE QuicServerConfigProtobuf {
     std::string private_key() const {
       return private_key_;
     }
-    void set_private_key(std::string key) {
-      private_key_ = key;
-    }
+    void set_private_key(const std::string& key) { private_key_ = key; }
 
    private:
     QuicTag tag_;

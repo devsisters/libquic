@@ -134,20 +134,20 @@ OPENSSL_EXPORT int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type,
 OPENSSL_EXPORT int EVP_DigestInit(EVP_MD_CTX *ctx, const EVP_MD *type);
 
 /* EVP_DigestUpdate hashes |len| bytes from |data| into the hashing operation
- * in |ctx|. It returns one on success and zero otherwise. */
+ * in |ctx|. It returns one. */
 OPENSSL_EXPORT int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *data,
                                     size_t len);
 
-/* EVP_MAX_MD_SIZE is the largest digest size supported. Functions that output
- * a digest generally require the buffer have at least this much space. */
+/* EVP_MAX_MD_SIZE is the largest digest size supported, in bytes.
+ * Functions that output a digest generally require the buffer have
+ * at least this much space. */
 #define EVP_MAX_MD_SIZE 64 /* SHA-512 is the longest so far. */
 
 /* EVP_DigestFinal_ex finishes the digest in |ctx| and writes the output to
  * |md_out|. At most |EVP_MAX_MD_SIZE| bytes are written. If |out_size| is not
- * NULL then |*out_size| is set to the number of bytes written. It returns one
- * on success and zero otherwise. After this call, the hash cannot be updated
- * or finished again until |EVP_DigestInit_ex| is called to start another
- * hashing operation. */
+ * NULL then |*out_size| is set to the number of bytes written. It returns one.
+ * After this call, the hash cannot be updated or finished again until
+ * |EVP_DigestInit_ex| is called to start another hashing operation. */
 OPENSSL_EXPORT int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, uint8_t *md_out,
                                       unsigned int *out_size);
 
@@ -171,11 +171,8 @@ OPENSSL_EXPORT int EVP_Digest(const void *data, size_t len, uint8_t *md_out,
  * These functions allow code to learn details about an abstract hash
  * function. */
 
-/* EVP_MD_type returns a NID identifing |md|. (For example, |NID_md5|.) */
+/* EVP_MD_type returns a NID identifing |md|. (For example, |NID_sha256|.) */
 OPENSSL_EXPORT int EVP_MD_type(const EVP_MD *md);
-
-/* EVP_MD_name returns the short name for |md| or NULL if no name is known. */
-OPENSSL_EXPORT const char *EVP_MD_name(const EVP_MD *md);
 
 /* EVP_MD_flags returns the flags for |md|, which is a set of |EVP_MD_FLAG_*|
  * values, ORed together. */
@@ -184,7 +181,7 @@ OPENSSL_EXPORT uint32_t EVP_MD_flags(const EVP_MD *md);
 /* EVP_MD_size returns the digest size of |md|, in bytes. */
 OPENSSL_EXPORT size_t EVP_MD_size(const EVP_MD *md);
 
-/* EVP_MD_block_size returns the native block-size of |md|. */
+/* EVP_MD_block_size returns the native block-size of |md|, in bytes. */
 OPENSSL_EXPORT size_t EVP_MD_block_size(const EVP_MD *md);
 
 /* EVP_MD_FLAG_PKEY_DIGEST indicates the the digest function is used with a
@@ -208,6 +205,10 @@ OPENSSL_EXPORT int EVP_MD_CTX_copy(EVP_MD_CTX *out, const EVP_MD_CTX *in);
  * compatibility with OpenSSL. */
 OPENSSL_EXPORT int EVP_add_digest(const EVP_MD *digest);
 
+/* EVP_get_digestbyname returns an |EVP_MD| given a human readable name in
+ * |name|, or NULL if the name is unknown. */
+OPENSSL_EXPORT const EVP_MD *EVP_get_digestbyname(const char *);
+
 
 /* Digest operation accessors. */
 
@@ -215,30 +216,18 @@ OPENSSL_EXPORT int EVP_add_digest(const EVP_MD *digest);
  * been set. */
 OPENSSL_EXPORT const EVP_MD *EVP_MD_CTX_md(const EVP_MD_CTX *ctx);
 
-/* EVP_MD_CTX_size returns the digest size of |ctx|. It will crash if a digest
- * hasn't been set on |ctx|. */
+/* EVP_MD_CTX_size returns the digest size of |ctx|, in bytes. It
+ * will crash if a digest hasn't been set on |ctx|. */
 OPENSSL_EXPORT unsigned EVP_MD_CTX_size(const EVP_MD_CTX *ctx);
 
 /* EVP_MD_CTX_block_size returns the block size of the digest function used by
- * |ctx|. It will crash if a digest hasn't been set on |ctx|. */
+ * |ctx|, in bytes. It will crash if a digest hasn't been set on |ctx|. */
 OPENSSL_EXPORT unsigned EVP_MD_CTX_block_size(const EVP_MD_CTX *ctx);
 
 /* EVP_MD_CTX_type returns a NID describing the digest function used by |ctx|.
- * (For example, |NID_md5|.) It will crash if a digest hasn't been set on
+ * (For example, |NID_sha256|.) It will crash if a digest hasn't been set on
  * |ctx|. */
 OPENSSL_EXPORT int EVP_MD_CTX_type(const EVP_MD_CTX *ctx);
-
-/* EVP_MD_CTX_set_flags ORs |flags| into the flags member of |ctx|. */
-OPENSSL_EXPORT void EVP_MD_CTX_set_flags(EVP_MD_CTX *ctx, uint32_t flags);
-
-/* EVP_MD_CTX_clear_flags clears any bits from the flags member of |ctx| that
- * are set in |flags|. */
-OPENSSL_EXPORT void EVP_MD_CTX_clear_flags(EVP_MD_CTX *ctx, uint32_t flags);
-
-/* EVP_MD_CTX_test_flags returns the AND of |flags| and the flags member of
- * |ctx|. */
-OPENSSL_EXPORT uint32_t EVP_MD_CTX_test_flags(const EVP_MD_CTX *ctx,
-                                              uint32_t flags);
 
 
 struct evp_md_pctx_ops;
@@ -246,15 +235,9 @@ struct evp_md_pctx_ops;
 struct env_md_ctx_st {
   /* digest is the underlying digest function, or NULL if not set. */
   const EVP_MD *digest;
-  /* flags is the OR of a number of |EVP_MD_CTX_FLAG_*| values. */
-  uint32_t flags;
   /* md_data points to a block of memory that contains the hash-specific
    * context. */
   void *md_data;
-  /* update is usually copied from |digest->update| but can differ in some
-   * cases, i.e. HMAC.
-   * TODO(davidben): Remove this hook once |EVP_PKEY_HMAC| is gone. */
-  int (*update)(EVP_MD_CTX *ctx, const void *data, size_t count);
 
   /* pctx is an opaque (at this layer) pointer to additional context that
    * EVP_PKEY functions may store in this object. */
@@ -265,18 +248,11 @@ struct env_md_ctx_st {
   const struct evp_md_pctx_ops *pctx_ops;
 } /* EVP_MD_CTX */;
 
-/* EVP_MD_CTX_FLAG_NO_INIT causes the |EVP_MD|'s |init| function not to be
- * called, the |update| member not to be copied from the |EVP_MD| in
- * |EVP_DigestInit_ex| and for |md_data| not to be initialised. */
-#define EVP_MD_CTX_FLAG_NO_INIT 1
-
 
 #if defined(__cplusplus)
 }  /* extern C */
 #endif
 
-#define DIGEST_F_EVP_DigestInit_ex 100
-#define DIGEST_F_EVP_MD_CTX_copy_ex 101
 #define DIGEST_R_INPUT_NOT_INITIALIZED 100
 
 #endif  /* OPENSSL_HEADER_DIGEST_H */

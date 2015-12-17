@@ -17,9 +17,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/template_util.h"
 
-template <typename T>
-class ScopedVector;
-
 namespace base {
 namespace internal {
 class CallbackBase;

@@ -7,7 +7,7 @@
 
 // This file is intended to be included in another C++ file where the character
 // types are defined. This allows us to write mostly generic code, but not have
-// templace bloat because everything is inlined when anybody calls any of our
+// template bloat because everything is inlined when anybody calls any of our
 // functions.
 
 #include <stdlib.h>
@@ -41,7 +41,7 @@ enum SharedCharTypes {
   // Valid in an ASCII-representation of an octal digit.
   CHAR_OCT = 32,
 
-  // Characters that do not require escaping in encodeURIComponent.  Characters
+  // Characters that do not require escaping in encodeURIComponent. Characters
   // that do not have this flag will be escaped; see url_util.cc.
   CHAR_COMPONENT = 64,
 };
@@ -175,7 +175,7 @@ inline void DoAppendUTF8(unsigned char_value, Output* output) {
              output);
     Appender(static_cast<unsigned char>(0x80 | (char_value & 0x3f)),
              output);
-  } else if (char_value <= 0x10FFFF) {  // Max unicode code point.
+  } else if (char_value <= 0x10FFFF) {  // Max Unicode code point.
     // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
     Appender(static_cast<unsigned char>(0xf0 | (char_value >> 18)),
              output);
@@ -199,7 +199,7 @@ inline void AppendCharToOutput(unsigned char ch, CanonOutput* output) {
 }
 
 // Writes the given character to the output as UTF-8. This does NO checking
-// of the validity of the unicode characters; the caller should ensure that
+// of the validity of the Unicode characters; the caller should ensure that
 // the value it is appending is valid to append.
 inline void AppendUTF8Value(unsigned char_value, CanonOutput* output) {
   DoAppendUTF8<CanonOutput, AppendCharToOutput>(char_value, output);
@@ -207,7 +207,7 @@ inline void AppendUTF8Value(unsigned char_value, CanonOutput* output) {
 
 // Writes the given character to the output as UTF-8, escaping ALL
 // characters (even when they are ASCII). This does NO checking of the
-// validity of the unicode characters; the caller should ensure that the value
+// validity of the Unicode characters; the caller should ensure that the value
 // it is appending is valid to append.
 inline void AppendUTF8EscapedValue(unsigned char_value, CanonOutput* output) {
   DoAppendUTF8<CanonOutput, AppendEscapedChar>(char_value, output);
@@ -260,7 +260,7 @@ inline void AppendUTF16Value(unsigned code_point,
 // that any following characters are.
 inline bool AppendUTF8EscapedChar(const base::char16* str, int* begin,
                                   int length, CanonOutput* output) {
-  // UTF-16 input. Readchar16 will handle invalid characters for us and give
+  // UTF-16 input. ReadUTFChar will handle invalid characters for us and give
   // us the kUnicodeReplacementCharacter, so we don't have to do special
   // checking after failure, just pass through the failure to the caller.
   unsigned char_value;

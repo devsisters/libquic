@@ -38,6 +38,9 @@ class NET_EXPORT_PRIVATE RttStats {
   // |num_samples| UpdateRtt calls.
   void SampleNewRecentMinRtt(uint32 num_samples);
 
+  // Called when connection migrates and rtt measurement needs to be reset.
+  void OnConnectionMigration() {}
+
   // Returns the EWMA smoothed RTT for the connection.
   // May return Zero if no valid updates have occurred.
   QuicTime::Delta smoothed_rtt() const {

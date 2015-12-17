@@ -362,11 +362,11 @@ int BN_generate_prime_ex(BIGNUM *ret, int bits, int safe, const BIGNUM *add,
 
   if (bits < 2) {
     /* There are no prime numbers this small. */
-    OPENSSL_PUT_ERROR(BN, BN_generate_prime_ex, BN_R_BITS_TOO_SMALL);
+    OPENSSL_PUT_ERROR(BN, BN_R_BITS_TOO_SMALL);
     return 0;
   } else if (bits == 2 && safe) {
     /* The smallest safe prime (7) is three bits. */
-    OPENSSL_PUT_ERROR(BN, BN_generate_prime_ex, BN_R_BITS_TOO_SMALL);
+    OPENSSL_PUT_ERROR(BN, BN_R_BITS_TOO_SMALL);
     return 0;
   }
 
@@ -515,11 +515,10 @@ int BN_is_prime_fasttest_ex(const BIGNUM *a, int checks, BN_CTX *ctx_passed,
 
   /* A := abs(a) */
   if (a->neg) {
-    BIGNUM *t;
-    if ((t = BN_CTX_get(ctx)) == NULL) {
+    BIGNUM *t = BN_CTX_get(ctx);
+    if (t == NULL || !BN_copy(t, a)) {
       goto err;
     }
-    BN_copy(t, a);
     t->neg = 0;
     A = t;
   } else {
@@ -659,7 +658,13 @@ again:
   /* If bits is so small that it fits into a single word then we
    * additionally don't want to exceed that many bits. */
   if (is_single_word) {
-    BN_ULONG size_limit = (((BN_ULONG)1) << bits) - get_word(rnd) - 1;
+    BN_ULONG size_limit;
+    if (bits == BN_BITS2) {
+      /* Avoid undefined behavior. */
+      size_limit = ~((BN_ULONG)0) - get_word(rnd);
+    } else {
+      size_limit = (((BN_ULONG)1) << bits) - get_word(rnd) - 1;
+    }
     if (size_limit < maxdelta) {
       maxdelta = size_limit;
     }
@@ -705,7 +710,7 @@ loop:
   if (!BN_add_word(rnd, delta)) {
     return 0;
   }
-  if (BN_num_bits(rnd) != bits) {
+  if (BN_num_bits(rnd) != (unsigned)bits) {
     goto again;
   }
 

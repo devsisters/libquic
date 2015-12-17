@@ -15,6 +15,7 @@ class DependencyTree(object):
     def __init__(self, root, excludes, debug=False):
         self.root = root
         self.excludes = set(excludes) if excludes else set()
+        self.excludes_used = set()
         self.debug = debug
 
     def get_dependencies(self, target):
@@ -24,7 +25,11 @@ class DependencyTree(object):
         vis = set()
 
         def enq(new, now):
-            if new not in vis and new not in self.excludes:
+            if new in self.excludes:
+                self.excludes_used.add(new)
+                return
+
+            if new not in vis:
                 vis.add(new)
                 q.append(new)
                 depmap[new] = []
@@ -51,6 +56,11 @@ class DependencyTree(object):
                 enq(dependency, now)
                 # print now, dependency
                 depmap[now].append(dependency)
+
+        unused_excludes = self.excludes - self.excludes_used
+        if unused_excludes:
+            print("Warning: following excludes are not used on `{}`".format(target))
+            print(" - " + "\n - ".join(unused_excludes))
 
         return depmap
 

@@ -11,11 +11,6 @@
 
 namespace net {
 
-namespace {
-const QuicByteCount kStreamReceiveWindowLimit = 16 * 1024 * 1024;   // 16 MB
-const QuicByteCount kSessionReceiveWindowLimit = 24 * 1024 * 1024;  // 24 MB
-}
-
 #define ENDPOINT \
   (perspective_ == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
@@ -176,7 +171,7 @@ void QuicFlowController::MaybeSendWindowUpdate() {
   if (available_window >= threshold) {
     DVLOG(1) << ENDPOINT << "Not sending WindowUpdate for stream " << id_
              << ", available window: " << available_window
-             << ">= threshold: " << threshold;
+             << " >= threshold: " << threshold;
     return;
   }
 
@@ -239,6 +234,18 @@ uint64 QuicFlowController::SendWindowSize() const {
     return 0;
   }
   return send_window_offset_ - bytes_sent_;
+}
+
+void QuicFlowController::UpdateReceiveWindowSize(QuicStreamOffset size) {
+  DVLOG(1) << ENDPOINT << "UpdateReceiveWindowSize for stream " << id_ << ": "
+           << size;
+  if (receive_window_size_ != receive_window_offset_) {
+    LOG(DFATAL) << "receive_window_size_:" << receive_window_size_
+                << " != receive_window_offset:" << receive_window_offset_;
+    return;
+  }
+  receive_window_size_ = size;
+  receive_window_offset_ = size;
 }
 
 }  // namespace net

@@ -34,9 +34,6 @@ class CRYPTO_EXPORT ECPrivateKey {
  public:
   ~ECPrivateKey();
 
-  // Returns whether the system supports elliptic curve cryptography.
-  static bool IsSupported();
-
   // Creates a new random instance. Can return NULL if initialization fails.
   // The created key will use the NIST P-256 curve.
   // TODO(mattm): Add a curve parameter.

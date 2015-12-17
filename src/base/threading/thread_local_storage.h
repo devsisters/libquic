@@ -5,6 +5,7 @@
 #ifndef BASE_THREADING_THREAD_LOCAL_STORAGE_H_
 #define BASE_THREADING_THREAD_LOCAL_STORAGE_H_
 
+#include "base/atomicops.h"
 #include "base/base_export.h"
 #include "base/basictypes.h"
 
@@ -114,10 +115,12 @@ class BASE_EXPORT ThreadLocalStorage {
     // value 'value'.
     void Set(void* value);
 
-    bool initialized() const { return initialized_; }
+    bool initialized() const {
+      return base::subtle::Acquire_Load(&initialized_) != 0;
+    }
 
     // The internals of this struct should be considered private.
-    bool initialized_;
+    base::subtle::Atomic32 initialized_;
     int slot_;
   };
 

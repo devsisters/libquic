@@ -57,6 +57,8 @@
 #ifndef OPENSSL_HEADER_THREAD_H
 #define OPENSSL_HEADER_THREAD_H
 
+#include <sys/types.h>
+
 #include <openssl/base.h>
 
 #if defined(__cplusplus)
@@ -64,180 +66,78 @@ extern "C" {
 #endif
 
 
-/* Functions to support multithreading.
+#if defined(OPENSSL_NO_THREADS)
+typedef struct crypto_mutex_st {} CRYPTO_MUTEX;
+#elif defined(OPENSSL_WINDOWS)
+/* CRYPTO_MUTEX can appear in public header files so we really don't want to
+ * pull in windows.h. It's statically asserted that this structure is large
+ * enough to contain a Windows CRITICAL_SECTION by thread_win.c. */
+typedef union crypto_mutex_st {
+  double alignment;
+  uint8_t padding[4*sizeof(void*) + 2*sizeof(int)];
+} CRYPTO_MUTEX;
+#elif defined(__MACH__) && defined(__APPLE__)
+typedef pthread_rwlock_t CRYPTO_MUTEX;
+#else
+/* It is reasonable to include pthread.h on non-Windows systems, however the
+ * |pthread_rwlock_t| that we need is hidden under feature flags, and we can't
+ * ensure that we'll be able to get it. It's statically asserted that this
+ * structure is large enough to contain a |pthread_rwlock_t| by
+ * thread_pthread.c. */
+typedef union crypto_mutex_st {
+  double alignment;
+  uint8_t padding[3*sizeof(int) + 5*sizeof(unsigned) + 16 + 8];
+} CRYPTO_MUTEX;
+#endif
+
+/* CRYPTO_refcount_t is the type of a reference count.
  *
- * OpenSSL can safely be used in multi-threaded applications provided that at
- * least two callback functions are set with |CRYPTO_set_locking_callback| and
- * |CRYPTO_THREADID_set_callback|.
- *
- * The locking callback performs mutual exclusion. Rather than using a single
- * lock for all, shared data-structures, OpenSSL requires that the locking
- * callback support a fixed (at run-time) number of different locks, given by
- * |CRYPTO_num_locks|.
- *
- * The thread ID callback is called to record the currently executing thread's
- * identifier in a |CRYPTO_THREADID| structure. If this callback is not
- * provided then the address of |errno| is used as the thread identifier. This
- * is sufficient only if the system has a thread-local |errno| value. */
+ * Since some platforms use C11 atomics to access this, it should have the
+ * _Atomic qualifier. However, this header is included by C++ programs as well
+ * as C code that might not set -std=c11. So, in practice, it's not possible to
+ * do that. Instead we statically assert that the size and native alignment of
+ * a plain uint32_t and an _Atomic uint32_t are equal in refcount_c11.c. */
+typedef uint32_t CRYPTO_refcount_t;
 
 
-/* CRYPTO_num_locks returns the number of static locks that the callback
- * function passed to |CRYPTO_set_locking_callback| must be able to handle. */
-OPENSSL_EXPORT int CRYPTO_num_locks(void);
+/* Deprecated functions */
 
-/* CRYPTO_set_locking_callback sets a callback function that implements locking
- * on behalf of OpenSSL. The callback is called whenever OpenSSL needs to lock
- * or unlock a lock, and locks are specified as a number between zero and
- * |CRYPTO_num_locks()-1|.
- *
- * The mode argument to the callback is a bitwise-OR of either CRYPTO_LOCK or
- * CRYPTO_UNLOCK, to denote the action, and CRYPTO_READ or CRYPTO_WRITE, to
- * indicate the type of lock. The |file| and |line| arguments give the location
- * in the OpenSSL source where the locking action originated. */
-OPENSSL_EXPORT void CRYPTO_set_locking_callback(
-    void (*func)(int mode, int lock_num, const char *file, int line));
-
-/* CRYPTO_set_add_lock_callback sets an optional callback which is used when
- * OpenSSL needs to add a fixed amount to an integer. For example, this is used
- * when maintaining reference counts. Normally the reference counts are
- * maintained by performing the addition under a lock but, if this callback
- * has been set, the application is free to implement the operation using
- * faster methods (i.e. atomic operations).
- *
- * The callback is given a pointer to the integer to be altered (|num|), the
- * amount to add to the integer (|amount|, which may be negative), the number
- * of the lock which would have been taken to protect the operation and the
- * position in the OpenSSL code where the operation originated. */
-OPENSSL_EXPORT void CRYPTO_set_add_lock_callback(int (*func)(
-    int *num, int amount, int lock_num, const char *file, int line));
-
-/* CRYPTO_get_lock_name returns the name of the lock given by |lock_num|. This
- * can be used in a locking callback for debugging purposes. */
-OPENSSL_EXPORT const char *CRYPTO_get_lock_name(int lock_num);
-
-
-/* CRYPTO_THREADID identifies a thread in a multithreaded program. This
- * structure should not be used directly. Rather applications should use
- * |CRYPTO_THREADID_set_numeric| and |CRYPTO_THREADID_set_pointer|. */
-typedef struct crypto_threadid_st {
-  void *ptr;
-  unsigned long val;
-} CRYPTO_THREADID;
-
-/* CRYPTO_THREADID_set_callback sets a callback function that stores an
- * identifier of the currently executing thread into |threadid|. The
- * CRYPTO_THREADID structure should not be accessed directly. Rather one of
- * |CRYPTO_THREADID_set_numeric| or |CRYPTO_THREADID_set_pointer| should be
- * used depending on whether thread IDs are numbers or pointers on the host
- * system. */
-OPENSSL_EXPORT int CRYPTO_THREADID_set_callback(
-    void (*threadid_func)(CRYPTO_THREADID *threadid));
-
-OPENSSL_EXPORT void CRYPTO_THREADID_set_numeric(CRYPTO_THREADID *id,
-                                                unsigned long val);
-OPENSSL_EXPORT void CRYPTO_THREADID_set_pointer(CRYPTO_THREADID *id, void *ptr);
-
-
-/* Private functions: */
-
-/* CRYPTO_get_locking_callback returns the callback, if any, that was most
- * recently set using |CRYPTO_set_locking_callback|. */
-void (*CRYPTO_get_locking_callback(void))(int mode, int lock_num,
-                                          const char *file, int line);
-
-/* CRYPTO_get_add_lock_callback returns the callback, if any, that was most
- * recently set using |CRYPTO_set_add_lock_callback|. */
-int (*CRYPTO_get_add_lock_callback(void))(int *num, int amount, int lock_num,
-                                          const char *file, int line);
-
-/* CRYPTO_lock locks or unlocks the lock specified by |lock_num| (one of
- * |CRYPTO_LOCK_*|). Don't call this directly, rather use one of the
- * CRYPTO_[rw]_(un)lock macros. */
-OPENSSL_EXPORT void CRYPTO_lock(int mode, int lock_num, const char *file,
-                                int line);
-
-/* CRYPTO_add_lock adds |amount| to |*pointer|, protected by the lock specified
- * by |lock_num|. It returns the new value of |*pointer|. Don't call this
- * function directly, rather use the |CRYPTO_add_lock| macro.
- *
- * TODO(fork): rename to CRYPTO_add_locked. */
-OPENSSL_EXPORT int CRYPTO_add_lock(int *pointer, int amount, int lock_num,
-                                   const char *file, int line);
-
-
-/* CRYPTO_THREADID_current stores the current thread identifier in |id|. */
-OPENSSL_EXPORT void CRYPTO_THREADID_current(CRYPTO_THREADID *id);
-
-/* CRYPTO_THREADID_cmp returns < 0, 0 or > 0 if |a| is less than, equal to or
- * greater than |b|, respectively. */
-int CRYPTO_THREADID_cmp(const CRYPTO_THREADID *a, const CRYPTO_THREADID *b);
-
-/* CRYPTO_THREADID_cpy sets |*dest| equal to |*src|. */
-void CRYPTO_THREADID_cpy(CRYPTO_THREADID *dest, const CRYPTO_THREADID *src);
-
-/* CRYPTO_THREADID_hash returns a hash of the numeric value of |id|. */
-uint32_t CRYPTO_THREADID_hash(const CRYPTO_THREADID *id);
-
-/* These are the locks used by OpenSSL. These values should match up with the
- * table in thread.c. */
-#define CRYPTO_LOCK_ERR 1
-#define CRYPTO_LOCK_EX_DATA 2
-#define CRYPTO_LOCK_X509 3
-#define CRYPTO_LOCK_X509_INFO 4
-#define CRYPTO_LOCK_X509_PKEY 5
-#define CRYPTO_LOCK_X509_CRL 6
-#define CRYPTO_LOCK_X509_REQ 7
-#define CRYPTO_LOCK_DSA 8
-#define CRYPTO_LOCK_RSA 9
-#define CRYPTO_LOCK_EVP_PKEY 10
-#define CRYPTO_LOCK_X509_STORE 11
-#define CRYPTO_LOCK_SSL_CTX 12
-#define CRYPTO_LOCK_SSL_CERT 13
-#define CRYPTO_LOCK_SSL_SESSION 14
-#define CRYPTO_LOCK_SSL_SESS_CERT 15
-#define CRYPTO_LOCK_SSL 16
-#define CRYPTO_LOCK_SSL_METHOD 17
-#define CRYPTO_LOCK_RAND 18
-#define CRYPTO_LOCK_RAND2 19
-#define CRYPTO_LOCK_MALLOC 20
-#define CRYPTO_LOCK_BIO 21
-#define CRYPTO_LOCK_GETHOSTBYNAME 22
-#define CRYPTO_LOCK_GETSERVBYNAME 23
-#define CRYPTO_LOCK_READDIR 24
-#define CRYPTO_LOCK_RSA_BLINDING 25
-#define CRYPTO_LOCK_DH 26
-#define CRYPTO_LOCK_MALLOC2 27
-#define CRYPTO_LOCK_DSO 28
-#define CRYPTO_LOCK_DYNLOCK 29
-#define CRYPTO_LOCK_ENGINE 30
-#define CRYPTO_LOCK_UI 31
-#define CRYPTO_LOCK_ECDSA 32
-#define CRYPTO_LOCK_EC 33
-#define CRYPTO_LOCK_ECDH 34
-#define CRYPTO_LOCK_BN 35
-#define CRYPTO_LOCK_EC_PRE_COMP 36
-#define CRYPTO_LOCK_STORE 37
-#define CRYPTO_LOCK_COMP 38
-#define CRYPTO_LOCK_FIPS 39
-#define CRYPTO_LOCK_FIPS2 40
-#define CRYPTO_LOCK_OBJ 40
-#define CRYPTO_NUM_LOCKS 42
-
+/* These defines do nothing but are provided to make old code easier to
+ * compile. */
 #define CRYPTO_LOCK 1
 #define CRYPTO_UNLOCK 2
 #define CRYPTO_READ 4
 #define CRYPTO_WRITE 8
 
-#define CRYPTO_w_lock(lock_num) \
-  CRYPTO_lock(CRYPTO_LOCK | CRYPTO_WRITE, lock_num, __FILE__, __LINE__)
-#define CRYPTO_w_unlock(lock_num) \
-  CRYPTO_lock(CRYPTO_UNLOCK | CRYPTO_WRITE, lock_num, __FILE__, __LINE__)
-#define CRYPTO_r_lock(lock_num) \
-  CRYPTO_lock(CRYPTO_LOCK | CRYPTO_READ, lock_num, __FILE__, __LINE__)
-#define CRYPTO_r_unlock(lock_num) \
-  CRYPTO_lock(CRYPTO_UNLOCK | CRYPTO_READ, lock_num, __FILE__, __LINE__)
-#define CRYPTO_add(addr, amount, lock_num) \
-  CRYPTO_add_lock(addr, amount, lock_num, __FILE__, __LINE__)
+/* CRYPTO_num_locks returns one. (This is non-zero that callers who allocate
+ * sizeof(lock) times this value don't get zero and then fail because malloc(0)
+ * returned NULL.) */
+OPENSSL_EXPORT int CRYPTO_num_locks(void);
+
+/* CRYPTO_set_locking_callback does nothing. */
+OPENSSL_EXPORT void CRYPTO_set_locking_callback(
+    void (*func)(int mode, int lock_num, const char *file, int line));
+
+/* CRYPTO_set_add_lock_callback does nothing. */
+OPENSSL_EXPORT void CRYPTO_set_add_lock_callback(int (*func)(
+    int *num, int amount, int lock_num, const char *file, int line));
+
+/* CRYPTO_get_lock_name returns a fixed, dummy string. */
+OPENSSL_EXPORT const char *CRYPTO_get_lock_name(int lock_num);
+
+/* CRYPTO_THREADID_set_callback returns one. */
+OPENSSL_EXPORT int CRYPTO_THREADID_set_callback(
+    void (*threadid_func)(CRYPTO_THREADID *threadid));
+
+/* CRYPTO_THREADID_set_numeric does nothing. */
+OPENSSL_EXPORT void CRYPTO_THREADID_set_numeric(CRYPTO_THREADID *id,
+                                                unsigned long val);
+
+/* CRYPTO_THREADID_set_pointer does nothing. */
+OPENSSL_EXPORT void CRYPTO_THREADID_set_pointer(CRYPTO_THREADID *id, void *ptr);
+
+/* CRYPTO_THREADID_current does nothing. */
+OPENSSL_EXPORT void CRYPTO_THREADID_current(CRYPTO_THREADID *id);
 
 
 /* Private functions.

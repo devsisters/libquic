@@ -9,7 +9,12 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "net/quic/quic_clock.h"
+#include "net/quic/quic_flags.h"
+#include "net/quic/quic_frame_list.h"
+#include "net/quic/quic_protocol.h"
 #include "net/quic/reliable_quic_stream.h"
+#include "net/quic/stream_sequencer_buffer.h"
 
 using std::min;
 using std::numeric_limits;
@@ -17,34 +22,29 @@ using std::string;
 
 namespace net {
 
-QuicStreamSequencer::QuicStreamSequencer(ReliableQuicStream* quic_stream)
+QuicStreamSequencer::QuicStreamSequencer(ReliableQuicStream* quic_stream,
+                                         const QuicClock* clock)
     : stream_(quic_stream),
-      num_bytes_consumed_(0),
       close_offset_(numeric_limits<QuicStreamOffset>::max()),
       blocked_(false),
-      num_bytes_buffered_(0),
       num_frames_received_(0),
       num_duplicate_frames_received_(0),
-      num_early_frames_received_(0) {
+      num_early_frames_received_(0),
+      clock_(clock),
+      ignore_read_data_(false) {
+  if (FLAGS_quic_use_stream_sequencer_buffer) {
+    DVLOG(1) << "Use StreamSequencerBuffer for stream: " << stream_->id();
+    buffered_frames_.reset(
+        new StreamSequencerBuffer(kStreamReceiveWindowLimit));
+  } else {
+    buffered_frames_.reset(new QuicFrameList());
+  }
 }
 
-QuicStreamSequencer::~QuicStreamSequencer() {
-}
+QuicStreamSequencer::~QuicStreamSequencer() {}
 
 void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   ++num_frames_received_;
-  if (IsDuplicate(frame)) {
-    ++num_duplicate_frames_received_;
-    // Silently ignore duplicates.
-    return;
-  }
-
-  if (FrameOverlapsBufferedData(frame)) {
-    stream_->CloseConnectionWithDetails(
-        QUIC_INVALID_STREAM_FRAME, "Stream frame overlaps with buffered data.");
-    return;
-  }
-
   const QuicStreamOffset byte_offset = frame.offset;
   const size_t data_len = frame.data.length();
   if (data_len == 0 && !frame.fin) {
@@ -60,49 +60,42 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
       return;
     }
   }
+  size_t bytes_written;
+  QuicErrorCode result = buffered_frames_->OnStreamData(
+      byte_offset, frame.data, clock_->ApproximateNow(), &bytes_written);
 
-  if (byte_offset > num_bytes_consumed_) {
+  if (result == QUIC_INVALID_STREAM_DATA) {
+    stream_->CloseConnectionWithDetails(
+        QUIC_INVALID_STREAM_FRAME, "Stream frame overlaps with buffered data.");
+    return;
+  }
+  if (result == QUIC_NO_ERROR && bytes_written == 0) {
+    ++num_duplicate_frames_received_;
+    // Silently ignore duplicates.
+    return;
+  }
+
+  if (byte_offset > buffered_frames_->BytesConsumed()) {
     ++num_early_frames_received_;
   }
 
-  // If the frame has arrived in-order then we can process it immediately, only
-  // buffering if the stream is unable to process it.
-  size_t bytes_consumed = 0;
-  if (!blocked_ && byte_offset == num_bytes_consumed_) {
-    DVLOG(1) << "Processing byte offset " << byte_offset;
-    bytes_consumed =
-        stream_->ProcessRawData(frame.data.data(), frame.data.length());
-    num_bytes_consumed_ += bytes_consumed;
-    stream_->AddBytesConsumed(bytes_consumed);
-
-    if (MaybeCloseStream()) {
-      return;
-    }
-    if (bytes_consumed > data_len) {
-      stream_->Reset(QUIC_ERROR_PROCESSING_STREAM);
-      return;
-    } else if (bytes_consumed == data_len) {
-      FlushBufferedFrames();
-      return;  // it's safe to ack this frame.
-    }
+  if (blocked_) {
+    return;
   }
 
-  // Buffer any remaining data to be consumed by the stream when ready.
-  if (bytes_consumed < data_len) {
-    DVLOG(1) << "Buffering stream data at offset " << byte_offset;
-    const size_t remaining_length = data_len - bytes_consumed;
-    buffered_frames_.insert(std::make_pair(
-        byte_offset + bytes_consumed,
-        string(frame.data.data() + bytes_consumed, remaining_length)));
-    num_bytes_buffered_ += remaining_length;
+  if (byte_offset == buffered_frames_->BytesConsumed()) {
+    if (FLAGS_quic_implement_stop_reading && ignore_read_data_) {
+      FlushBufferedFrames();
+    } else {
+      stream_->OnDataAvailable();
+    }
   }
 }
 
 void QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
   const QuicStreamOffset kMaxOffset = numeric_limits<QuicStreamOffset>::max();
 
-  // If we have a scheduled termination or close, any new offset should match
-  // it.
+  // If there is a scheduled close, the new offset should match it.
   if (close_offset_ != kMaxOffset && offset != close_offset_) {
     stream_->Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS);
     return;
@@ -114,174 +107,101 @@ void QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
 }
 
 bool QuicStreamSequencer::MaybeCloseStream() {
-  if (!blocked_ && IsClosed()) {
-    DVLOG(1) << "Passing up termination, as we've processed "
-             << num_bytes_consumed_ << " of " << close_offset_
-             << " bytes.";
-    // Technically it's an error if num_bytes_consumed isn't exactly
-    // equal, but error handling seems silly at this point.
-    stream_->OnFinRead();
-    buffered_frames_.clear();
-    num_bytes_buffered_ = 0;
-    return true;
+  if (blocked_ || !IsClosed()) {
+    return false;
   }
-  return false;
+
+  DVLOG(1) << "Passing up termination, as we've processed "
+           << buffered_frames_->BytesConsumed() << " of " << close_offset_
+           << " bytes.";
+  // This will cause the stream to consume the FIN.
+  // Technically it's an error if |num_bytes_consumed| isn't exactly
+  // equal to |close_offset|, but error handling seems silly at this point.
+  if (FLAGS_quic_implement_stop_reading && ignore_read_data_) {
+    // The sequencer is discarding stream data and must notify the stream on
+    // receipt of a FIN because the consumer won't.
+    stream_->OnFinRead();
+  } else {
+    stream_->OnDataAvailable();
+  }
+  buffered_frames_->Clear();
+  return true;
 }
 
-int QuicStreamSequencer::GetReadableRegions(iovec* iov, size_t iov_len) {
+int QuicStreamSequencer::GetReadableRegions(iovec* iov, size_t iov_len) const {
   DCHECK(!blocked_);
-  FrameMap::iterator it = buffered_frames_.begin();
-  size_t index = 0;
-  QuicStreamOffset offset = num_bytes_consumed_;
-  while (it != buffered_frames_.end() && index < iov_len) {
-    if (it->first != offset) return index;
+  return buffered_frames_->GetReadableRegions(iov, iov_len);
+}
 
-    iov[index].iov_base = static_cast<void*>(
-        const_cast<char*>(it->second.data()));
-    iov[index].iov_len = it->second.size();
-    offset += it->second.size();
-
-    ++index;
-    ++it;
-  }
-  return index;
+bool QuicStreamSequencer::GetReadableRegion(iovec* iov,
+                                            QuicTime* timestamp) const {
+  DCHECK(!blocked_);
+  return buffered_frames_->GetReadableRegion(iov, timestamp);
 }
 
 int QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
   DCHECK(!blocked_);
-  FrameMap::iterator it = buffered_frames_.begin();
-  size_t iov_index = 0;
-  size_t iov_offset = 0;
-  size_t frame_offset = 0;
-  QuicStreamOffset initial_bytes_consumed = num_bytes_consumed_;
-
-  while (iov_index < iov_len &&
-         it != buffered_frames_.end() &&
-         it->first == num_bytes_consumed_) {
-    int bytes_to_read = min(iov[iov_index].iov_len - iov_offset,
-                            it->second.size() - frame_offset);
-
-    char* iov_ptr = static_cast<char*>(iov[iov_index].iov_base) + iov_offset;
-    memcpy(iov_ptr,
-           it->second.data() + frame_offset, bytes_to_read);
-    frame_offset += bytes_to_read;
-    iov_offset += bytes_to_read;
-
-    if (iov[iov_index].iov_len == iov_offset) {
-      // We've filled this buffer.
-      iov_offset = 0;
-      ++iov_index;
-    }
-    if (it->second.size() == frame_offset) {
-      // We've copied this whole frame
-      RecordBytesConsumed(it->second.size());
-      buffered_frames_.erase(it);
-      it = buffered_frames_.begin();
-      frame_offset = 0;
-    }
-  }
-  // We've finished copying.  If we have a partial frame, update it.
-  if (frame_offset != 0) {
-    buffered_frames_.insert(std::make_pair(it->first + frame_offset,
-                                           it->second.substr(frame_offset)));
-    buffered_frames_.erase(buffered_frames_.begin());
-    RecordBytesConsumed(frame_offset);
-  }
-  return static_cast<int>(num_bytes_consumed_ - initial_bytes_consumed);
+  size_t bytes_read = buffered_frames_->Readv(iov, iov_len);
+  stream_->AddBytesConsumed(bytes_read);
+  return static_cast<int>(bytes_read);
 }
 
 bool QuicStreamSequencer::HasBytesToRead() const {
-  FrameMap::const_iterator it = buffered_frames_.begin();
-
-  return it != buffered_frames_.end() && it->first == num_bytes_consumed_;
+  return buffered_frames_->HasBytesToRead();
 }
 
 bool QuicStreamSequencer::IsClosed() const {
-  return num_bytes_consumed_ >= close_offset_;
+  return buffered_frames_->BytesConsumed() >= close_offset_;
 }
 
-bool QuicStreamSequencer::FrameOverlapsBufferedData(
-    const QuicStreamFrame& frame) const {
-  if (buffered_frames_.empty()) {
-    return false;
+void QuicStreamSequencer::MarkConsumed(size_t num_bytes_consumed) {
+  DCHECK(!blocked_);
+  bool result = buffered_frames_->MarkConsumed(num_bytes_consumed);
+  if (!result) {
+    LOG(DFATAL) << "Invalid argument to MarkConsumed."
+                << " expect to consume: " << num_bytes_consumed
+                << ", but not enough bytes available.";
+    stream_->Reset(QUIC_ERROR_PROCESSING_STREAM);
+    return;
   }
-
-  FrameMap::const_iterator next_frame =
-      buffered_frames_.lower_bound(frame.offset);
-  // Duplicate frames should have been dropped in IsDuplicate.
-  DCHECK(next_frame == buffered_frames_.end() ||
-         next_frame->first != frame.offset);
-
-  // If there is a buffered frame with a higher starting offset, then we check
-  // to see if the new frame runs into the higher frame.
-  if (next_frame != buffered_frames_.end() &&
-      (frame.offset + frame.data.size()) > next_frame->first) {
-    DVLOG(1) << "New frame overlaps next frame: " << frame.offset << " + "
-             << frame.data.size() << " > " << next_frame->first;
-    return true;
-  }
-
-  // If there is a buffered frame with a lower starting offset, then we check
-  // to see if the buffered frame runs into the new frame.
-  if (next_frame != buffered_frames_.begin()) {
-    FrameMap::const_iterator preceeding_frame = --next_frame;
-    QuicStreamOffset offset = preceeding_frame->first;
-    uint64 data_length = preceeding_frame->second.length();
-    if ((offset + data_length) > frame.offset) {
-      DVLOG(1) << "Preceeding frame overlaps new frame: " << offset << " + "
-               << data_length << " > " << frame.offset;
-      return true;
-    }
-  }
-  return false;
-}
-
-bool QuicStreamSequencer::IsDuplicate(const QuicStreamFrame& frame) const {
-  // A frame is duplicate if the frame offset is smaller than our bytes consumed
-  // or we have stored the frame in our map.
-  // TODO(pwestin): Is it possible that a new frame contain more data even if
-  // the offset is the same?
-  return frame.offset < num_bytes_consumed_ ||
-      buffered_frames_.find(frame.offset) != buffered_frames_.end();
+  stream_->AddBytesConsumed(num_bytes_consumed);
 }
 
 void QuicStreamSequencer::SetBlockedUntilFlush() {
   blocked_ = true;
 }
 
-void QuicStreamSequencer::FlushBufferedFrames() {
+void QuicStreamSequencer::SetUnblocked() {
   blocked_ = false;
-  FrameMap::iterator it = buffered_frames_.find(num_bytes_consumed_);
-  while (it != buffered_frames_.end()) {
-    DVLOG(1) << "Flushing buffered packet at offset " << it->first;
-    string* data = &it->second;
-    size_t bytes_consumed = stream_->ProcessRawData(data->c_str(),
-                                                    data->size());
-    RecordBytesConsumed(bytes_consumed);
-    if (MaybeCloseStream()) {
-      return;
-    }
-    if (bytes_consumed > data->size()) {
-      stream_->Reset(QUIC_ERROR_PROCESSING_STREAM);  // Programming error
-      return;
-    } else if (bytes_consumed == data->size()) {
-      buffered_frames_.erase(it);
-      it = buffered_frames_.find(num_bytes_consumed_);
-    } else {
-      string new_data = it->second.substr(bytes_consumed);
-      buffered_frames_.erase(it);
-      buffered_frames_.insert(std::make_pair(num_bytes_consumed_, new_data));
-      return;
-    }
+  if (IsClosed() || HasBytesToRead()) {
+    stream_->OnDataAvailable();
   }
+}
+
+void QuicStreamSequencer::StopReading() {
+  if (ignore_read_data_) {
+    return;
+  }
+  ignore_read_data_ = true;
+  FlushBufferedFrames();
+}
+
+void QuicStreamSequencer::FlushBufferedFrames() {
+  DCHECK(ignore_read_data_);
+  size_t bytes_flushed = buffered_frames_->FlushBufferedFrames();
+  DVLOG(1) << "Flushing buffered data at offset "
+           << buffered_frames_->BytesConsumed() << " length " << bytes_flushed
+           << " for stream " << stream_->id();
+  stream_->AddBytesConsumed(bytes_flushed);
   MaybeCloseStream();
 }
 
-void QuicStreamSequencer::RecordBytesConsumed(size_t bytes_consumed) {
-  num_bytes_consumed_ += bytes_consumed;
-  num_bytes_buffered_ -= bytes_consumed;
+size_t QuicStreamSequencer::NumBytesBuffered() const {
+  return buffered_frames_->BytesBuffered();
+}
 
-  stream_->AddBytesConsumed(bytes_consumed);
+QuicStreamOffset QuicStreamSequencer::NumBytesConsumed() const {
+  return buffered_frames_->BytesConsumed();
 }
 
 }  // namespace net

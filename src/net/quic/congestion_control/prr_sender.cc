@@ -40,6 +40,9 @@ QuicTime::Delta PrrSender::TimeUntilSend(
     QuicByteCount congestion_window,
     QuicByteCount bytes_in_flight,
     QuicByteCount slowstart_threshold) const {
+  //   if (FLAGS_?? && bytes_in_flight < congestion_window) {
+  //     return QuicTime::Delta::Zero();
+  //   }
   // Return QuicTime::Zero In order to ensure limited transmit always works.
   if (bytes_sent_since_loss_ == 0 || bytes_in_flight < kMaxSegmentSize) {
     return QuicTime::Delta::Zero();
