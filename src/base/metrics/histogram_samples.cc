@@ -59,30 +59,58 @@ void SampleCountPickleIterator::Get(HistogramBase::Sample* min,
 
 }  // namespace
 
-HistogramSamples::HistogramSamples() : sum_(0), redundant_count_(0) {}
+// Don't try to delegate behavior to the constructor below that accepts a
+// Matadata pointer by passing &local_meta_. Such cannot be reliably passed
+// because it has not yet been constructed -- no member variables have; the
+// class itself is in the middle of being constructed. Using it to
+// initialize meta_ is okay because the object now exists and local_meta_
+// is before meta_ in the construction order.
+HistogramSamples::HistogramSamples(uint64_t id)
+    : meta_(&local_meta_) {
+  meta_->id = id;
+}
+
+HistogramSamples::HistogramSamples(uint64_t id, Metadata* meta)
+    : meta_(meta) {
+  DCHECK(meta_->id == 0 || meta_->id == id);
+  meta_->id = id;
+}
 
 HistogramSamples::~HistogramSamples() {}
 
+// Despite using atomic operations, the increment/add actions below are *not*
+// atomic! Race conditions may cause loss of samples or even completely corrupt
+// the 64-bit sum on 32-bit machines. This is done intentionally to reduce the
+// cost of these operations that could be executed in performance-significant
+//  points of the code.
+//
+// TODO(bcwhite): Gather quantitative information as to the cost of using
+// proper atomic increments and improve either globally or for those histograms
+// that really need it.
+
 void HistogramSamples::Add(const HistogramSamples& other) {
-  sum_ += other.sum();
+  meta_->sum += other.sum();
+
   HistogramBase::Count old_redundant_count =
-      subtle::NoBarrier_Load(&redundant_count_);
-  subtle::NoBarrier_Store(&redundant_count_,
+      subtle::NoBarrier_Load(&meta_->redundant_count);
+  subtle::NoBarrier_Store(&meta_->redundant_count,
       old_redundant_count + other.redundant_count());
   bool success = AddSubtractImpl(other.Iterator().get(), ADD);
   DCHECK(success);
 }
 
 bool HistogramSamples::AddFromPickle(PickleIterator* iter) {
-  int64 sum;
+  int64_t sum;
   HistogramBase::Count redundant_count;
 
   if (!iter->ReadInt64(&sum) || !iter->ReadInt(&redundant_count))
     return false;
-  sum_ += sum;
+
+  meta_->sum += sum;
+
   HistogramBase::Count old_redundant_count =
-      subtle::NoBarrier_Load(&redundant_count_);
-  subtle::NoBarrier_Store(&redundant_count_,
+      subtle::NoBarrier_Load(&meta_->redundant_count);
+  subtle::NoBarrier_Store(&meta_->redundant_count,
                           old_redundant_count + redundant_count);
 
   SampleCountPickleIterator pickle_iter(iter);
@@ -90,18 +118,20 @@ bool HistogramSamples::AddFromPickle(PickleIterator* iter) {
 }
 
 void HistogramSamples::Subtract(const HistogramSamples& other) {
-  sum_ -= other.sum();
+  meta_->sum -= other.sum();
+
   HistogramBase::Count old_redundant_count =
-      subtle::NoBarrier_Load(&redundant_count_);
-  subtle::NoBarrier_Store(&redundant_count_,
+      subtle::NoBarrier_Load(&meta_->redundant_count);
+  subtle::NoBarrier_Store(&meta_->redundant_count,
                           old_redundant_count - other.redundant_count());
   bool success = AddSubtractImpl(other.Iterator().get(), SUBTRACT);
   DCHECK(success);
 }
 
 bool HistogramSamples::Serialize(Pickle* pickle) const {
-  if (!pickle->WriteInt64(sum_) ||
-      !pickle->WriteInt(subtle::NoBarrier_Load(&redundant_count_)))
+  if (!pickle->WriteInt64(meta_->sum))
+    return false;
+  if (!pickle->WriteInt(subtle::NoBarrier_Load(&meta_->redundant_count)))
     return false;
 
   HistogramBase::Sample min;
@@ -119,13 +149,13 @@ bool HistogramSamples::Serialize(Pickle* pickle) const {
   return true;
 }
 
-void HistogramSamples::IncreaseSum(int64 diff) {
-  sum_ += diff;
+void HistogramSamples::IncreaseSum(int64_t diff) {
+  meta_->sum += diff;
 }
 
 void HistogramSamples::IncreaseRedundantCount(HistogramBase::Count diff) {
-  subtle::NoBarrier_Store(&redundant_count_,
-      subtle::NoBarrier_Load(&redundant_count_) + diff);
+  subtle::NoBarrier_Store(&meta_->redundant_count,
+      subtle::NoBarrier_Load(&meta_->redundant_count) + diff);
 }
 
 SampleCountIterator::~SampleCountIterator() {}

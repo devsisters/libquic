@@ -133,6 +133,7 @@ AdvanceFirstGapAndGarbageCollectEntropyMap() {
 
 QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
     : peer_least_packet_awaiting_ack_(0),
+      ack_frame_updated_(false),
       time_largest_observed_(QuicTime::Zero()),
       stats_(stats) {
   ack_frame_.largest_observed = 0;
@@ -147,6 +148,7 @@ void QuicReceivedPacketManager::RecordPacketReceived(
     QuicTime receipt_time) {
   QuicPacketNumber packet_number = header.packet_number;
   DCHECK(IsAwaitingPacket(packet_number));
+  ack_frame_updated_ = true;
 
   // Adds the range of packet numbers from max(largest observed + 1, least
   // awaiting ack) up to packet_number not including packet_number.
@@ -187,6 +189,7 @@ void QuicReceivedPacketManager::RecordPacketReceived(
 void QuicReceivedPacketManager::RecordPacketRevived(
     QuicPacketNumber packet_number) {
   LOG_IF(DFATAL, !IsAwaitingPacket(packet_number));
+  ack_frame_updated_ = true;
   ack_frame_.latest_revived_packet = packet_number;
 }
 
@@ -214,6 +217,7 @@ struct isTooLarge {
 
 void QuicReceivedPacketManager::UpdateReceivedPacketInfo(
     QuicAckFrame* ack_frame, QuicTime approximate_now) {
+  ack_frame_updated_ = false;
   *ack_frame = ack_frame_;
   ack_frame->entropy_hash = EntropyHash(ack_frame_.largest_observed);
 
@@ -273,6 +277,9 @@ void QuicReceivedPacketManager::UpdatePacketInformationSentByPeer(
       // the received entropy hash.
       entropy_tracker_.SetCumulativeEntropyUpTo(stop_waiting.least_unacked,
                                                 stop_waiting.entropy_hash);
+      // Ack frame gets updated because missing packets are updated because of
+      // stop waiting frame.
+      ack_frame_updated_ = true;
     }
     peer_least_packet_awaiting_ack_ = stop_waiting.least_unacked;
   }

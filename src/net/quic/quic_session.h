@@ -154,11 +154,16 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   }
 
   // Returns the number of currently open streams, excluding the reserved
-  // headers and crypto streams.
-  virtual size_t GetNumOpenStreams() const;
-
-  // Same as GetNumOpenStreams(), but never counting unfinished streams.
+  // headers and crypto streams, and never counting unfinished streams.
   virtual size_t GetNumActiveStreams() const;
+
+  // Returns the number of currently open peer initiated streams, excluding the
+  // reserved headers and crypto streams.
+  virtual size_t GetNumOpenIncomingStreams() const;
+
+  // Returns the number of currently open self initiated streams, excluding the
+  // reserved headers and crypto streams.
+  virtual size_t GetNumOpenOutgoingStreams() const;
 
   // Returns the number of "available" streams, the stream ids less than
   // largest_peer_created_stream_id_ that have not yet been opened.
@@ -168,7 +173,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // connection-level flow control but not by its own stream-level flow control.
   // The stream will be given a chance to write when a connection-level
   // WINDOW_UPDATE arrives.
-  void MarkConnectionLevelWriteBlocked(QuicStreamId id, QuicPriority priority);
+  void MarkConnectionLevelWriteBlocked(QuicStreamId id, SpdyPriority priority);
 
   // Returns true if the session has data to be sent, either queued in the
   // connection, or in a write-blocked stream.
@@ -214,7 +219,8 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
 
   // Create a new stream, owned by the caller, to handle a locally-initiated
   // stream.  Returns nullptr if max streams have already been opened.
-  virtual ReliableQuicStream* CreateOutgoingDynamicStream() = 0;
+  virtual ReliableQuicStream* CreateOutgoingDynamicStream(
+      SpdyPriority priority) = 0;
 
   // Return the reserved crypto stream.
   virtual QuicCryptoStream* GetCryptoStream() = 0;
@@ -255,6 +261,19 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
     largest_peer_created_stream_id_ = largest_peer_created_stream_id;
   }
   void set_error(QuicErrorCode error) { error_ = error; }
+  QuicWriteBlockedList* write_blocked_streams() {
+    return &write_blocked_streams_;
+  }
+
+  size_t GetNumDynamicOutgoingStreams() const;
+
+  size_t GetNumDrainingOutgoingStreams() const;
+
+  size_t num_locally_closed_incoming_streams_highest_offset() const {
+    return num_locally_closed_incoming_streams_highest_offset_;
+  }
+
+  size_t GetNumLocallyClosedOutgoingStreamsHighestOffset() const;
 
  private:
   friend class test::QuicSessionPeer;
@@ -286,6 +305,9 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // Called in OnConfigNegotiated for finch trials to measure performance of
   // starting with smaller flow control receive windows and auto-tuning.
   void AdjustInitialFlowControlWindows(size_t stream_window);
+
+  // Return true if given stream is peer initiated.
+  bool IsIncomingStream(QuicStreamId id) const;
 
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
@@ -329,14 +351,21 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
 
   QuicStreamId largest_peer_created_stream_id_;
 
+  // A counter for peer initiated streams which are in the dynamic_stream_map_.
+  size_t num_dynamic_incoming_streams_;
+
+  // A counter for peer initiated streams which are in the draining_streams_.
+  size_t num_draining_incoming_streams_;
+
+  // A counter for peer initiated streams which are in the
+  // locally_closed_streams_highest_offset_.
+  size_t num_locally_closed_incoming_streams_highest_offset_;
+
   // The latched error with which the connection was closed.
   QuicErrorCode error_;
 
   // Used for connection-level flow control.
   QuicFlowController flow_controller_;
-
-  // Indicate if there is pending data for the crypto stream.
-  bool has_pending_handshake_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicSession);
 };

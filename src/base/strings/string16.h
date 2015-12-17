@@ -64,7 +64,8 @@ struct string16_char_traits {
 
   // int_type needs to be able to hold each possible value of char_type, and in
   // addition, the distinct value of eof().
-  COMPILE_ASSERT(sizeof(int_type) > sizeof(char_type), unexpected_type_width);
+  static_assert(sizeof(int_type) > sizeof(char_type),
+                "int must be larger than 16 bits wide");
 
   typedef std::streamoff off_type;
   typedef mbstate_t state_type;

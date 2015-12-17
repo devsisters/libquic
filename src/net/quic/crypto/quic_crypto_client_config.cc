@@ -5,7 +5,6 @@
 #include "net/quic/crypto/quic_crypto_client_config.h"
 
 #include "base/metrics/histogram_macros.h"
-#include "base/metrics/sparse_histogram.h"
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
 #include "net/quic/crypto/cert_compressor.h"
@@ -369,9 +368,7 @@ void QuicCryptoClientConfig::SetDefaults() {
 
   // Authenticated encryption algorithms. Prefer ChaCha20 by default.
   aead.clear();
-  if (ChaCha20Poly1305Encrypter::IsSupported()) {
-    aead.push_back(kCC12);
-  }
+  aead.push_back(kCC12);
   aead.push_back(kAESG);
 
   disable_ecdsa_ = false;
@@ -418,6 +415,16 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
 
   if (!user_agent_id_.empty()) {
     out->SetStringPiece(kUAID, user_agent_id_);
+  }
+
+  // Even though this is an inchoate CHLO, send the SCID so that
+  // the STK can be validated by the server.
+  const CryptoHandshakeMessage* scfg = cached->GetServerConfig();
+  if (scfg != nullptr) {
+    StringPiece scid;
+    if (scfg->GetStringPiece(kSCID, &scid)) {
+      out->SetStringPiece(kSCID, scid);
+    }
   }
 
   if (!cached->source_address_token().empty()) {
@@ -773,26 +780,6 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
   StringPiece nonce;
   if (rej.GetStringPiece(kServerNonceTag, &nonce)) {
     out_params->server_nonce = nonce.as_string();
-  }
-
-  const uint32* reject_reasons;
-  size_t num_reject_reasons;
-  static_assert(sizeof(QuicTag) == sizeof(uint32), "header out of sync");
-  if (rej.GetTaglist(kRREJ, &reject_reasons,
-                     &num_reject_reasons) == QUIC_NO_ERROR) {
-    uint32 packed_error = 0;
-    for (size_t i = 0; i < num_reject_reasons; ++i) {
-      // HANDSHAKE_OK is 0 and don't report that as error.
-      if (reject_reasons[i] == HANDSHAKE_OK || reject_reasons[i] >= 32) {
-        continue;
-      }
-      HandshakeFailureReason reason =
-          static_cast<HandshakeFailureReason>(reject_reasons[i]);
-      packed_error |= 1 << (reason - 1);
-    }
-    DVLOG(1) << "Reasons for rejection: " << packed_error;
-    UMA_HISTOGRAM_SPARSE_SLOWLY("Net.QuicClientHelloRejectReasons.Secure",
-                                packed_error);
   }
 
   if (rej.tag() == kSREJ) {

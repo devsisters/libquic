@@ -32,7 +32,8 @@
 #include "net/quic/crypto/quic_decrypter.h"
 #include "net/quic/quic_alarm.h"
 #include "net/quic/quic_blocked_writer_interface.h"
-#include "net/quic/quic_connection_stats.h"
+#include "net/quic/quic_fec_group.h"
+#include "net/quic/quic_framer.h"
 #include "net/quic/quic_packet_creator.h"
 #include "net/quic/quic_packet_generator.h"
 #include "net/quic/quic_packet_writer.h"
@@ -48,7 +49,6 @@ namespace net {
 class QuicClock;
 class QuicConfig;
 class QuicConnection;
-class QuicDecrypter;
 class QuicEncrypter;
 class QuicFecGroup;
 class QuicRandom;
@@ -148,7 +148,7 @@ class NET_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 // points.  Implementations must not mutate the state of the connection
 // as a result of these callbacks.
 class NET_EXPORT_PRIVATE QuicConnectionDebugVisitor
-    : public QuicPacketGenerator::DebugDelegate,
+    : public QuicPacketCreator::DebugDelegate,
       public QuicSentPacketManager::DebugDelegate {
  public:
   ~QuicConnectionDebugVisitor() override {}
@@ -156,7 +156,6 @@ class NET_EXPORT_PRIVATE QuicConnectionDebugVisitor
   // Called when a packet has been sent.
   virtual void OnPacketSent(const SerializedPacket& serialized_packet,
                             QuicPacketNumber original_packet_number,
-                            EncryptionLevel level,
                             TransmissionType transmission_type,
                             size_t encrypted_length,
                             QuicTime sent_time) {}
@@ -241,6 +240,10 @@ class NET_EXPORT_PRIVATE QuicConnectionDebugVisitor
   // Called when resuming previous connection state.
   virtual void OnResumeConnectionState(
       const CachedNetworkParameters& cached_network_params) {}
+
+  // Called when the connection parameters are set from the supplied
+  // |config|.
+  virtual void OnSetFromConfig(const QuicConfig& config) {}
 
   // Called when RTT may have changed, including when an RTT is read from
   // the config.
@@ -626,19 +629,17 @@ class NET_EXPORT_PRIVATE QuicConnection
     return termination_packets_.get();
   }
 
+  bool ack_frame_updated() const;
+
  protected:
   // Packets which have not been written to the wire.
-  // Owns the QuicPacket* packet.
   struct QueuedPacket {
+    explicit QueuedPacket(SerializedPacket packet);
     QueuedPacket(SerializedPacket packet,
-                 EncryptionLevel level);
-    QueuedPacket(SerializedPacket packet,
-                 EncryptionLevel level,
                  TransmissionType transmission_type,
                  QuicPacketNumber original_packet_number);
 
     SerializedPacket serialized_packet;
-    const EncryptionLevel encryption_level;
     TransmissionType transmission_type;
     // The packet's original packet number if it is a retransmission.
     // Otherwise it must be 0.
@@ -647,8 +648,9 @@ class NET_EXPORT_PRIVATE QuicConnection
 
   // Do any work which logically would be done in OnPacket but can not be
   // safely done until the packet is validated.  Returns true if the packet
-  // can be handled, false otherwise.
-  virtual bool ProcessValidatedPacket();
+  // can be handled, false otherwise. Also migrates the connection if the packet
+  // can be handled and peer address changes.
+  virtual bool ProcessValidatedPacket(const QuicPacketHeader& header);
 
   // Send a packet to the peer, and takes ownership of the packet if the packet
   // cannot be written immediately.
@@ -736,16 +738,13 @@ class NET_EXPORT_PRIVATE QuicConnection
 
   void ProcessStopWaitingFrame(const QuicStopWaitingFrame& stop_waiting);
 
-  // Queues an ack or sets the ack alarm when an incoming packet arrives that
-  // should be acked.
-  void MaybeQueueAck();
-
-  // Checks if the last packet should instigate an ack.
-  bool ShouldLastPacketInstigateAck() const;
-
   // Sends any packets which are a response to the last packet, including both
   // acks and pending writes if an ack opened the congestion window.
   void MaybeSendInResponseToPacket();
+
+  // Queue an ack or set the ack alarm if needed.  |was_missing| is true if
+  // the most recently received packet was formerly missing.
+  void MaybeQueueAck(bool was_missing);
 
   // Gets the least unacked packet number, which is the next packet number
   // to be sent if there are no outstanding packets.
@@ -862,11 +861,15 @@ class NET_EXPORT_PRIVATE QuicConnection
 
   // Indicates whether an ack should be sent the next time we try to write.
   bool ack_queued_;
-  // Indicates how many consecutive packets have arrived without sending an ack.
+  // How many retransmittable packets have arrived without sending an ack.
+  QuicPacketCount num_retransmittable_packets_received_since_last_ack_sent_;
+  // How many consecutive packets have arrived without sending an ack.
   QuicPacketCount num_packets_received_since_last_ack_sent_;
   // Indicates how many consecutive times an ack has arrived which indicates
   // the peer needs to stop waiting for some packets.
   int stop_waiting_count_;
+  // When true, ack only every 10 packets as long as they arrive close together.
+  bool ack_decimation_enabled_;
 
   // Indicates the retransmit alarm is going to be set by the
   // ScopedRetransmitAlarmDelayer

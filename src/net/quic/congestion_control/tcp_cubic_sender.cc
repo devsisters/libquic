@@ -48,7 +48,9 @@ TcpCubicSender::TcpCubicSender(const QuicClock* clock,
       min4_mode_(false),
       slowstart_threshold_(max_tcp_congestion_window),
       last_cutback_exited_slowstart_(false),
-      max_tcp_congestion_window_(max_tcp_congestion_window) {}
+      max_tcp_congestion_window_(max_tcp_congestion_window),
+      initial_tcp_congestion_window_(initial_tcp_congestion_window),
+      initial_max_tcp_congestion_window_(max_tcp_congestion_window) {}
 
 TcpCubicSender::~TcpCubicSender() {
   UMA_HISTOGRAM_COUNTS("Net.QuicSession.FinalTcpCwnd", congestion_window_);
@@ -310,13 +312,10 @@ bool TcpCubicSender::InRecovery() const {
 void TcpCubicSender::MaybeIncreaseCwnd(QuicPacketNumber acked_packet_number,
                                        QuicByteCount bytes_in_flight) {
   LOG_IF(DFATAL, InRecovery()) << "Never increase the CWND during recovery.";
+  // Do not increase the congestion window unless the sender is close to using
+  // the current window.
   if (!IsCwndLimited(bytes_in_flight)) {
-    // Do not increase the congestion window unless the sender is close to using
-    // the current window.
-    if (FLAGS_reset_cubic_epoch_when_app_limited ||
-        FLAGS_shift_quic_cubic_epoch_when_app_limited) {
-      cubic_.OnApplicationLimited();
-    }
+    cubic_.OnApplicationLimited();
     return;
   }
   if (congestion_window_ >= max_tcp_congestion_window_) {
@@ -361,6 +360,20 @@ void TcpCubicSender::OnRetransmissionTimeout(bool packets_retransmitted) {
   hybrid_slow_start_.Restart();
   slowstart_threshold_ = congestion_window_ / 2;
   congestion_window_ = min_congestion_window_;
+}
+
+void TcpCubicSender::OnConnectionMigration() {
+  hybrid_slow_start_.Restart();
+  cubic_.Reset();
+  prr_ = PrrSender();
+  congestion_window_count_ = 0;
+  largest_sent_packet_number_ = 0;
+  largest_acked_packet_number_ = 0;
+  largest_sent_at_last_cutback_ = 0;
+  congestion_window_ = initial_tcp_congestion_window_;
+  slowstart_threshold_ = initial_max_tcp_congestion_window_;
+  last_cutback_exited_slowstart_ = false;
+  max_tcp_congestion_window_ = initial_max_tcp_congestion_window_;
 }
 
 CongestionControlType TcpCubicSender::GetCongestionControlType() const {

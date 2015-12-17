@@ -68,12 +68,12 @@ BASE_EXPORT ProcessHandle GetCurrentProcessHandle();
 // processes.
 BASE_EXPORT ProcessId GetProcId(ProcessHandle process);
 
+// Returns the ID for the parent of the given process.
+BASE_EXPORT ProcessId GetParentProcessId(ProcessHandle process);
+
 #if defined(OS_POSIX)
 // Returns the path to the executable of the given process.
 BASE_EXPORT FilePath GetProcessExecutablePath(ProcessHandle process);
-
-// Returns the ID for the parent of the given process.
-BASE_EXPORT ProcessId GetParentProcessId(ProcessHandle process);
 #endif
 
 }  // namespace base

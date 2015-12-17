@@ -14,9 +14,6 @@
 #include "base/lazy_instance.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram_macros.h"
-#if 0
-#include "base/third_party/valgrind/memcheck.h"
-#endif
 #include "net/spdy/hpack/hpack_constants.h"
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_frame_reader.h"
@@ -41,6 +38,7 @@ uLong CalculateDictionaryId(const char* dictionary,
                  dictionary_size);
 }
 
+#if !defined(USE_SYSTEM_ZLIB)
 // Check to see if the name and value of a cookie are both empty.
 bool IsCookieEmpty(const base::StringPiece& cookie) {
   if (cookie.size() == 0) {
@@ -59,6 +57,7 @@ bool IsCookieEmpty(const base::StringPiece& cookie) {
   }
   return (pos == 0) && ((cookie.size() - value_start) == 0);
 }
+#endif  // !defined(USE_SYSTEM_ZLIB)
 
 // Pack parent stream ID and exclusive flag into the format used by HTTP/2
 // headers and priority frames.
@@ -141,7 +140,8 @@ SettingsFlagsAndId SettingsFlagsAndId::FromWireFormat(
   if (version < SPDY3) {
     ConvertFlagsAndIdForSpdy2(&wire);
   }
-  return SettingsFlagsAndId(ntohl(wire) >> 24, ntohl(wire) & 0x00ffffff);
+  return SettingsFlagsAndId(base::NetToHost32(wire) >> 24,
+                            base::NetToHost32(wire) & 0x00ffffff);
 }
 
 SettingsFlagsAndId::SettingsFlagsAndId(uint8 flags, uint32 id)
@@ -151,7 +151,8 @@ SettingsFlagsAndId::SettingsFlagsAndId(uint8 flags, uint32 id)
 
 uint32 SettingsFlagsAndId::GetWireFormat(SpdyMajorVersion version)
     const {
-  uint32 wire = htonl(id_ & 0x00ffffff) | htonl(flags_ << 24);
+  uint32 wire =
+      base::HostToNet32(id_ & 0x00ffffff) | base::HostToNet32(flags_ << 24);
   if (version < SPDY3) {
     ConvertFlagsAndIdForSpdy2(&wire);
   }
@@ -239,7 +240,7 @@ size_t SpdyFramer::GetSynStreamMinimumSize() const {
   if (protocol_version() <= SPDY3) {
     // Calculated as:
     // control frame header + 2 * 4 (stream IDs) + 1 (priority)
-    // + 1 (unused, was credential slot)
+    // + 1 (unused)
     return GetControlFrameHeaderSize() + 10;
   } else {
     return GetControlFrameHeaderSize() +
@@ -499,8 +500,6 @@ const char* SpdyFramer::StatusCodeToString(int status_code) {
       return "STREAM_IN_USE";
     case RST_STREAM_STREAM_ALREADY_CLOSED:
       return "STREAM_ALREADY_CLOSED";
-    case RST_STREAM_INVALID_CREDENTIALS:
-      return "INVALID_CREDENTIALS";
     case RST_STREAM_FRAME_TOO_LARGE:
       return "FRAME_TOO_LARGE";
     case RST_STREAM_CONNECT_ERROR:
@@ -535,8 +534,6 @@ const char* SpdyFramer::FrameTypeToString(SpdyFrameType type) {
       return "HEADERS";
     case WINDOW_UPDATE:
       return "WINDOW_UPDATE";
-    case CREDENTIAL:
-      return "CREDENTIAL";
     case PUSH_PROMISE:
       return "PUSH_PROMISE";
     case CONTINUATION:
@@ -891,19 +888,6 @@ size_t SpdyFramer::ProcessCommonHeader(const char* data, size_t len) {
 void SpdyFramer::ProcessControlFrameHeader(int control_frame_type_field) {
   DCHECK_EQ(SPDY_NO_ERROR, error_code_);
   DCHECK_LE(GetControlFrameHeaderSize(), current_frame_buffer_.len());
-
-  // TODO(mlavan): Either remove credential frames from the code entirely,
-  // or add them to parsing + serialization methods for SPDY3.
-  // Early detection of deprecated frames that we ignore.
-  if (protocol_version() <= SPDY3) {
-    if (control_frame_type_field == CREDENTIAL) {
-      current_frame_type_ = CREDENTIAL;
-      DCHECK_EQ(SPDY3, protocol_version());
-      DVLOG(1) << "CREDENTIAL control frame found. Ignoring.";
-      CHANGE_STATE(SPDY_IGNORE_REMAINING_PAYLOAD);
-      return;
-    }
-  }
 
   if (!SpdyConstants::IsValidFrameType(protocol_version(),
                                        control_frame_type_field)) {
@@ -1466,7 +1450,7 @@ size_t SpdyFramer::ProcessControlFrameBeforeHeaderBlock(const char* data,
             priority = priority >> 5;
           }
 
-          // Seek past unused byte; used to be credential slot in SPDY 3.
+          // Seek past unused byte.
           reader.Seek(1);
 
           DCHECK(reader.IsDoneReading());
@@ -1820,10 +1804,10 @@ bool SpdyFramer::ProcessSetting(const char* data) {
       SettingsFlagsAndId::FromWireFormat(protocol_version(), id_and_flags_wire);
     id_field = id_and_flags.id();
     flags = id_and_flags.flags();
-    value = ntohl(*(reinterpret_cast<const uint32*>(data + 4)));
+    value = base::NetToHost32(*(reinterpret_cast<const uint32*>(data + 4)));
   } else {
-    id_field = ntohs(*(reinterpret_cast<const uint16*>(data)));
-    value = ntohl(*(reinterpret_cast<const uint32*>(data + 2)));
+    id_field = base::NetToHost16(*(reinterpret_cast<const uint16*>(data)));
+    value = base::NetToHost32(*(reinterpret_cast<const uint32*>(data + 2)));
   }
 
   // Validate id.
@@ -2379,7 +2363,7 @@ SpdySerializedFrame* SpdyFramer::SerializeSynStream(
   builder.WriteUInt32(syn_stream.stream_id());
   builder.WriteUInt32(syn_stream.associated_to_stream_id());
   builder.WriteUInt8(priority << ((protocol_version() <= SPDY2) ? 6 : 5));
-  builder.WriteUInt8(0);  // Unused byte where credential slot used to be.
+  builder.WriteUInt8(0);  // Unused byte.
   DCHECK_EQ(GetSynStreamMinimumSize(), builder.length());
   SerializeHeaderBlock(&builder, syn_stream);
 

@@ -22,7 +22,7 @@ class ScopedAllowWaitForLegacyWebViewApi;
 
 namespace cc {
 class CompletionEvent;
-class TaskGraphRunner;
+class SingleThreadTaskGraphRunner;
 }
 namespace chromeos {
 class BlockingMethodCaller;
@@ -42,7 +42,9 @@ class GpuChannelHost;
 class NestedMessagePumpAndroid;
 class ScopedAllowWaitForAndroidLayoutTests;
 class ScopedAllowWaitForDebugURL;
+class SoftwareOutputDeviceMus;
 class TextInputClientMac;
+class RasterWorkerPool;
 }  // namespace content
 namespace dbus {
 class Bus;
@@ -53,11 +55,6 @@ class InFlightIO;
 }
 namespace gles2 {
 class CommandBufferClientImpl;
-}
-namespace mojo {
-namespace common {
-class WatcherThreadManager;
-}
 }
 namespace net {
 class NetworkChangeNotifierMac;
@@ -72,6 +69,10 @@ class AutoThread;
 
 namespace ui {
 class WindowResizeHelperMac;
+}
+
+namespace views {
+class WindowManagerConnection;
 }
 
 namespace base {
@@ -186,8 +187,8 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::HistogramSynchronizer;
   friend class ::ScopedAllowWaitForLegacyWebViewApi;
   friend class cc::CompletionEvent;
-  friend class cc::TaskGraphRunner;
-  friend class mojo::common::WatcherThreadManager;
+  friend class cc::SingleThreadTaskGraphRunner;
+  friend class content::RasterWorkerPool;
   friend class remoting::AutoThread;
   friend class ui::WindowResizeHelperMac;
   friend class MessagePumpDefault;
@@ -217,7 +218,11 @@ class BASE_EXPORT ThreadRestrictions {
   friend class net::NetworkChangeNotifierMac;     // http://crbug.com/125097
   friend class ::BrowserProcessImpl;              // http://crbug.com/125207
   friend class ::NativeBackendKWallet;            // http://crbug.com/125331
-  // END USAGE THAT NEEDS TO BE FIXED.
+#if !defined(OFFICIAL_BUILD)
+  friend class content::SoftwareOutputDeviceMus;  // Interim non-production code
+#endif
+  friend class views::WindowManagerConnection;
+// END USAGE THAT NEEDS TO BE FIXED.
 
 #if ENABLE_THREAD_RESTRICTIONS
   static bool SetWaitAllowed(bool allowed);

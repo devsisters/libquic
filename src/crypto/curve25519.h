@@ -5,7 +5,9 @@
 #ifndef CRYPTO_CURVE25519_H
 #define CRYPTO_CURVE25519_H
 
-#include "base/basictypes.h"
+#include <stddef.h>
+#include <stdint.h>
+
 #include "crypto/crypto_export.h"
 
 namespace crypto {
@@ -14,6 +16,10 @@ namespace crypto {
 // described in "Curve 25519: new Diffie-Hellman Speed Records",
 // by D.J. Bernstein. Additional information is available at
 // http://cr.yp.to/ecdh.html.
+//
+// TODO(davidben): Once iOS is switched to BoringSSL (https://crbug.com/338886),
+// remove this file altogether and switch callers to using BoringSSL's
+// curve25519.h directly.
 namespace curve25519 {
 
 // kBytes is the number of bytes in the result of the Diffie-Hellman operation,
@@ -28,18 +34,20 @@ static const size_t kScalarBytes = 32;
 // |peer_public_key|. This method is a wrapper for |curve25519_donna()|. It
 // calls that function with |private_key| as |secret| and |peer_public_key| as
 // basepoint. |private_key| should be of length |kScalarBytes| and
-// |peer_public_key| should be of length |kBytes|.
-// See "Computing shared secrets" section of/ http://cr.yp.to/ecdh.html.
-CRYPTO_EXPORT void ScalarMult(const uint8* private_key,
-                              const uint8* peer_public_key,
-                              uint8* shared_key);
+// |peer_public_key| should be of length |kBytes|. It returns true on success
+// and false if |peer_public_key| was invalid.
+// See the "Computing shared secrets" section of http://cr.yp.to/ecdh.html.
+CRYPTO_EXPORT bool ScalarMult(const uint8_t* private_key,
+                              const uint8_t* peer_public_key,
+                              uint8_t* shared_key);
 
 // ScalarBaseMult computes the |public_key| from |private_key|. This method is a
 // wrapper for |curve25519_donna()|. It calls that function with |private_key|
 // as |secret| and |kBasePoint| as basepoint. |private_key| should be of length
 // |kScalarBytes|. See "Computing public keys" section of
 // http://cr.yp.to/ecdh.html.
-CRYPTO_EXPORT void ScalarBaseMult(const uint8* private_key, uint8* public_key);
+CRYPTO_EXPORT void ScalarBaseMult(const uint8_t* private_key,
+                                  uint8_t* public_key);
 
 }  // namespace curve25519
 

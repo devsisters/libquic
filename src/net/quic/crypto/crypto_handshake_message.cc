@@ -8,6 +8,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "net/quic/crypto/crypto_framer.h"
 #include "net/quic/crypto/crypto_protocol.h"
+#include "net/quic/crypto/crypto_utils.h"
 #include "net/quic/quic_socket_address_coder.h"
 #include "net/quic/quic_utils.h"
 
@@ -264,6 +265,21 @@ string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
               ret += ",";
             }
             ret += "'" + QuicUtils::TagToString(tag) + "'";
+          }
+          done = true;
+        }
+        break;
+      case kRREJ:
+        // uint32 lists
+        if (it->second.size() % sizeof(uint32) == 0) {
+          for (size_t j = 0; j < it->second.size(); j += sizeof(uint32)) {
+            uint32 value;
+            memcpy(&value, it->second.data() + j, sizeof(value));
+            if (j > 0) {
+              ret += ",";
+            }
+            ret += CryptoUtils::HandshakeFailureReasonToString(
+                static_cast<HandshakeFailureReason>(value));
           }
           done = true;
         }

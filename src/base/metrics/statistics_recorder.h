@@ -95,24 +95,9 @@ class BASE_EXPORT StatisticsRecorder {
   static OnSampleCallback FindCallback(const std::string& histogram_name);
 
  private:
-  // HistogramNameRef holds a weak const ref to the name field of the associated
-  // Histogram object, allowing re-use of the underlying string storage for the
-  // map keys. The wrapper is required as using "const std::string&" as the key
-  // results in compile errors.
-  struct HistogramNameRef {
-    explicit HistogramNameRef(const std::string& name) : name_(name) {};
-
-    // Operator < is necessary to use this type as a std::map key.
-    bool operator<(const HistogramNameRef& other) const {
-      return name_ < other.name_;
-    }
-
-    // Weak, owned by the associated Histogram object.
-    const std::string& name_;
-  };
-
-  // We keep all registered histograms in a map, from name to histogram.
-  typedef std::map<HistogramNameRef, HistogramBase*> HistogramMap;
+  // We keep all registered histograms in a map, indexed by the hash of the
+  // name of the histogram.
+  typedef std::map<uint64_t, HistogramBase*> HistogramMap;
 
   // We keep a map of callbacks to histograms, so that as histograms are
   // created, we can set the callback properly.

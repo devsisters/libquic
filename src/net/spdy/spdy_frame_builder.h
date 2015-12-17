@@ -92,21 +92,21 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
     return WriteBytes(&value, sizeof(value));
   }
   bool WriteUInt16(uint16 value) {
-    value = htons(value);
+    value = base::HostToNet16(value);
     return WriteBytes(&value, sizeof(value));
   }
   bool WriteUInt24(uint32 value) {
-    value = htonl(value);
+    value = base::HostToNet32(value);
     return WriteBytes(reinterpret_cast<char*>(&value) + 1,
                       sizeof(value) - 1);
   }
   bool WriteUInt32(uint32 value) {
-    value = htonl(value);
+    value = base::HostToNet32(value);
     return WriteBytes(&value, sizeof(value));
   }
   bool WriteUInt64(uint64 value) {
-    uint32 upper = htonl(value >> 32);
-    uint32 lower = htonl(static_cast<uint32>(value));
+    uint32 upper = base::HostToNet32(static_cast<uint32>(value >> 32));
+    uint32 lower = base::HostToNet32(static_cast<uint32>(value));
     return (WriteBytes(&upper, sizeof(upper)) &&
             WriteBytes(&lower, sizeof(lower)));
   }

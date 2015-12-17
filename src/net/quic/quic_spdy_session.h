@@ -31,7 +31,7 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   // received for this stream.  This method will only be called for server
   // streams.
   virtual void OnStreamHeadersPriority(QuicStreamId stream_id,
-                                       QuicPriority priority);
+                                       SpdyPriority priority);
   // Called by |headers_stream_| when headers have been completely received
   // for a stream.  |fin| will be true if the fin flag was set in the headers
   // frame.
@@ -43,11 +43,11 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   // If |fin| is true, then no more data will be sent for the stream |id|.
   // If provided, |ack_notifier_delegate| will be registered to be notified when
   // we have seen ACKs for all packets resulting from this call.
-  size_t WriteHeaders(QuicStreamId id,
-                      const SpdyHeaderBlock& headers,
-                      bool fin,
-                      QuicPriority priority,
-                      QuicAckListenerInterface* ack_notifier_delegate);
+  virtual size_t WriteHeaders(QuicStreamId id,
+                              const SpdyHeaderBlock& headers,
+                              bool fin,
+                              SpdyPriority priority,
+                              QuicAckListenerInterface* ack_notifier_delegate);
 
   QuicHeadersStream* headers_stream() { return headers_stream_.get(); }
 
@@ -55,12 +55,22 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   // |delta| indicates how long that piece of data has been blocked.
   virtual void OnHeadersHeadOfLineBlocking(QuicTime::Delta delta);
 
+  // Called by the stream on creation to set priority in the write blocked list.
+  void RegisterStreamPriority(QuicStreamId id, SpdyPriority priority);
+  // Called by the stream on deletion to clear priority crom the write blocked
+  // list.
+  void UnregisterStreamPriority(QuicStreamId id);
+  // Called by the stream on SetPriority to update priority on the write blocked
+  // list.
+  void UpdateStreamPriority(QuicStreamId id, SpdyPriority new_priority);
+
  protected:
   // Override CreateIncomingDynamicStream() and CreateOutgoingDynamicStream()
   // with QuicSpdyStream return type to make sure that all data streams are
   // QuicSpdyStreams.
   QuicSpdyStream* CreateIncomingDynamicStream(QuicStreamId id) override = 0;
-  QuicSpdyStream* CreateOutgoingDynamicStream() override = 0;
+  QuicSpdyStream* CreateOutgoingDynamicStream(SpdyPriority priority) override =
+      0;
 
   QuicSpdyStream* GetSpdyDataStream(const QuicStreamId stream_id);
 

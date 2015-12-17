@@ -165,7 +165,7 @@
 //   that doesn't expect a return value.
 //
 //   int DoSomething(int arg) { cout << arg << endl; }
-//   base::Callback<void<int>) cb =
+//   base::Callback<void(int)> cb =
 //       base::Bind(base::IgnoreResult(&DoSomething));
 //
 //
@@ -354,11 +354,9 @@ namespace base {
 //
 // If you are thinking of forward declaring Callback in your own header file,
 // please include "base/callback_forward.h" instead.
-template <typename Sig>
-class Callback;
 
 namespace internal {
-template <typename Runnable, typename RunType, typename BoundArgsType>
+template <typename Runnable, typename RunType, typename... BoundArgsType>
 struct BindState;
 }  // namespace internal
 
@@ -367,19 +365,17 @@ class Callback<R(Args...)> : public internal::CallbackBase {
  public:
   typedef R(RunType)(Args...);
 
-  Callback() : CallbackBase(NULL) { }
+  Callback() : CallbackBase(nullptr) { }
 
-  // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
-  // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename Runnable, typename BindRunType, typename BoundArgsType>
-  Callback(internal::BindState<Runnable, BindRunType,
-           BoundArgsType>* bind_state)
+  template <typename Runnable, typename BindRunType, typename... BoundArgsType>
+  explicit Callback(
+      internal::BindState<Runnable, BindRunType, BoundArgsType...>* bind_state)
       : CallbackBase(bind_state) {
     // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
     PolymorphicInvoke invoke_func =
-        &internal::BindState<Runnable, BindRunType, BoundArgsType>
+        &internal::BindState<Runnable, BindRunType, BoundArgsType...>
             ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
@@ -401,10 +397,6 @@ class Callback<R(Args...)> : public internal::CallbackBase {
       internal::BindStateBase*,
       typename internal::CallbackParamTraits<Args>::ForwardType...);
 };
-
-// Syntactic sugar to make Callback<void(void)> easier to declare since it
-// will be used in a lot of APIs with delayed execution.
-typedef Callback<void(void)> Closure;
 
 }  // namespace base
 

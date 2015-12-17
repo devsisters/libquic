@@ -89,6 +89,14 @@ PacketNumberSet TCPLossAlgorithm::DetectLostPackets(
   return lost_packets;
 }
 
+void TCPLossAlgorithm::DetectLosses(
+    const QuicUnackedPacketMap& unacked_packets,
+    const QuicTime& time,
+    const RttStats& rtt_stats,
+    SendAlgorithmInterface::CongestionVector* packets_lost) {
+  LOG(DFATAL) << "DetectLoss is unsupported by TCPLossAlgorithm.";
+}
+
 QuicTime TCPLossAlgorithm::GetLossTimeout() const {
   return loss_detection_timeout_;
 }

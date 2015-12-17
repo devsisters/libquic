@@ -98,19 +98,6 @@ STLCount(const Container& container, const T& val) {
   return std::count(container.begin(), container.end(), val);
 }
 
-// To treat a possibly-empty vector as an array, use these functions.
-// If you know the array will never be empty, you can use &*v.begin()
-// directly, but that is undefined behaviour if |v| is empty.
-template<typename T>
-inline T* vector_as_array(std::vector<T>* v) {
-  return v->empty() ? NULL : &*v->begin();
-}
-
-template<typename T>
-inline const T* vector_as_array(const std::vector<T>* v) {
-  return v->empty() ? NULL : &*v->begin();
-}
-
 // Return a mutable char* pointing to a string's internal buffer,
 // which may not be null-terminated. Writing through this pointer will
 // modify the string.

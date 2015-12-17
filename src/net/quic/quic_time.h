@@ -11,7 +11,8 @@
 #ifndef NET_QUIC_QUIC_TIME_H_
 #define NET_QUIC_QUIC_TIME_H_
 
-#include "base/basictypes.h"
+#include <stdint.h>
+
 #include "base/compiler_specific.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
@@ -22,8 +23,8 @@ namespace net {
 
 static const int kNumSecondsPerMinute = 60;
 static const int kNumSecondsPerHour = kNumSecondsPerMinute * 60;
-static const uint64 kNumMicrosPerSecond = base::Time::kMicrosecondsPerSecond;
-static const uint64 kNumMicrosPerMilli =
+static const uint64_t kNumMicrosPerSecond = base::Time::kMicrosecondsPerSecond;
+static const uint64_t kNumMicrosPerMilli =
     base::Time::kMicrosecondsPerMillisecond;
 
 // A QuicTime is a purely relative time. QuicTime values from different clocks
@@ -46,28 +47,28 @@ class NET_EXPORT_PRIVATE QuicTime {
     }
 
     // Converts a number of seconds to a time offset.
-    static QUICTIME_CONSTEXPR Delta FromSeconds(int64 secs) {
+    static QUICTIME_CONSTEXPR Delta FromSeconds(int64_t secs) {
       return Delta(secs * 1000 * 1000);
     }
 
     // Converts a number of milliseconds to a time offset.
-    static QUICTIME_CONSTEXPR Delta FromMilliseconds(int64 ms) {
+    static QUICTIME_CONSTEXPR Delta FromMilliseconds(int64_t ms) {
       return Delta(ms * 1000);
     }
 
     // Converts a number of microseconds to a time offset.
-    static QUICTIME_CONSTEXPR Delta FromMicroseconds(int64 us) {
+    static QUICTIME_CONSTEXPR Delta FromMicroseconds(int64_t us) {
       return Delta(us);
     }
 
     // Converts the time offset to a rounded number of seconds.
-    inline int64 ToSeconds() const { return time_offset_ / 1000 / 1000; }
+    inline int64_t ToSeconds() const { return time_offset_ / 1000 / 1000; }
 
     // Converts the time offset to a rounded number of milliseconds.
-    inline int64 ToMilliseconds() const { return time_offset_ / 1000; }
+    inline int64_t ToMilliseconds() const { return time_offset_ / 1000; }
 
     // Converts the time offset to a rounded number of microseconds.
-    inline int64 ToMicroseconds() const { return time_offset_; }
+    inline int64_t ToMicroseconds() const { return time_offset_; }
 
     inline Delta Add(Delta delta) const WARN_UNUSED_RESULT {
       return Delta(time_offset_ + delta.time_offset_);
@@ -85,9 +86,14 @@ class NET_EXPORT_PRIVATE QuicTime {
       return Delta(time_offset_ * d);
     }
 
-    // Returns the later delta of time1 and time2.
+    // Returns the larger delta of time1 and time2.
     static inline Delta Max(Delta delta1, Delta delta2) {
       return delta1 < delta2 ? delta2 : delta1;
+    }
+
+    // Returns the smaller delta of time1 and time2.
+    static inline Delta Min(Delta delta1, Delta delta2) {
+      return delta1 < delta2 ? delta1 : delta2;
     }
 
     inline bool IsZero() const { return time_offset_ == 0; }
@@ -102,12 +108,12 @@ class NET_EXPORT_PRIVATE QuicTime {
     friend inline bool operator<(QuicTime::Delta lhs, QuicTime::Delta rhs);
 
     // Highest number of microseconds that DateTimeOffset can hold.
-    static const int64 kQuicInfiniteTimeUs = INT64_C(0x7fffffffffffffff) / 10;
+    static const int64_t kQuicInfiniteTimeUs = INT64_C(0x7fffffffffffffff) / 10;
 
-    explicit QUICTIME_CONSTEXPR Delta(int64 time_offset)
+    explicit QUICTIME_CONSTEXPR Delta(int64_t time_offset)
         : time_offset_(time_offset) {}
 
-    int64 time_offset_;
+    int64_t time_offset_;
     friend class QuicTime;
     friend class QuicClock;
   };
@@ -132,7 +138,7 @@ class NET_EXPORT_PRIVATE QuicTime {
   // represents the number of microseconds since some epoch.  It may
   // be the UNIX epoch on some platforms.  On others, it may
   // be a CPU ticks based value.
-  inline int64 ToDebuggingValue() const { return time_; }
+  inline int64_t ToDebuggingValue() const { return time_; }
 
   inline bool IsInitialized() const { return 0 != time_; }
 
@@ -154,9 +160,9 @@ class NET_EXPORT_PRIVATE QuicTime {
   friend class QuicClock;
   friend class QuicClockTest;
 
-  explicit QUICTIME_CONSTEXPR QuicTime(int64 time) : time_(time) {}
+  explicit QUICTIME_CONSTEXPR QuicTime(int64_t time) : time_(time) {}
 
-  int64 time_;
+  int64_t time_;
 };
 
 // A QuicWallTime represents an absolute time that is globally consistent. In
@@ -166,12 +172,12 @@ class NET_EXPORT_PRIVATE QuicWallTime {
  public:
   // FromUNIXSeconds constructs a QuicWallTime from a count of the seconds
   // since the UNIX epoch.
-  static QUICTIME_CONSTEXPR QuicWallTime FromUNIXSeconds(uint64 seconds) {
+  static QUICTIME_CONSTEXPR QuicWallTime FromUNIXSeconds(uint64_t seconds) {
     return QuicWallTime(seconds * 1000000);
   }
 
   static QUICTIME_CONSTEXPR QuicWallTime
-  FromUNIXMicroseconds(uint64 microseconds) {
+  FromUNIXMicroseconds(uint64_t microseconds) {
     return QuicWallTime(microseconds);
   }
 
@@ -180,9 +186,9 @@ class NET_EXPORT_PRIVATE QuicWallTime {
   static QUICTIME_CONSTEXPR QuicWallTime Zero() { return QuicWallTime(0); }
 
   // Returns the number of seconds since the UNIX epoch.
-  uint64 ToUNIXSeconds() const;
+  uint64_t ToUNIXSeconds() const;
   // Returns the number of microseconds since the UNIX epoch.
-  uint64 ToUNIXMicroseconds() const;
+  uint64_t ToUNIXMicroseconds() const;
 
   bool IsAfter(QuicWallTime other) const;
   bool IsBefore(QuicWallTime other) const;
@@ -203,10 +209,10 @@ class NET_EXPORT_PRIVATE QuicWallTime {
   QuicWallTime Subtract(QuicTime::Delta delta) const WARN_UNUSED_RESULT;
 
  private:
-  explicit QUICTIME_CONSTEXPR QuicWallTime(uint64 microseconds)
+  explicit QUICTIME_CONSTEXPR QuicWallTime(uint64_t microseconds)
       : microseconds_(microseconds) {}
 
-  uint64 microseconds_;
+  uint64_t microseconds_;
 };
 
 // Non-member relational operators for QuicTime::Delta.

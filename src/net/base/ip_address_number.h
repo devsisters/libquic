@@ -19,6 +19,10 @@ namespace net {
 // network byte ordering.
 //
 // IPv4 addresses will have length 4, whereas IPv6 address will have length 16.
+//
+// TODO(Martijnc): Remove the IPAddressNumber typedef. New code should use
+// IPAddress instead and existing code should be switched over.
+// https://crbug.com/496258
 typedef std::vector<unsigned char>
     IPAddressNumber;  // This is also duplicated in net_util.h
 typedef std::vector<IPAddressNumber> IPAddressList;

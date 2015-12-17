@@ -29,7 +29,4 @@ ChaCha20Poly1305Encrypter::ChaCha20Poly1305Encrypter()
 
 ChaCha20Poly1305Encrypter::~ChaCha20Poly1305Encrypter() {}
 
-// static
-bool ChaCha20Poly1305Encrypter::IsSupported() { return true; }
-
 }  // namespace net

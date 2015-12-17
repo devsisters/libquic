@@ -19,7 +19,8 @@ QuicUnackedPacketMap::QuicUnackedPacketMap()
       largest_observed_(0),
       least_unacked_(1),
       bytes_in_flight_(0),
-      pending_crypto_packet_count_(0) {}
+      pending_crypto_packet_count_(0),
+      track_single_retransmission_(FLAGS_quic_track_single_retransmission) {}
 
 QuicUnackedPacketMap::~QuicUnackedPacketMap() {
   QuicPacketNumber index = least_unacked_;
@@ -49,8 +50,9 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
   }
 
   TransmissionInfo info(packet->retransmittable_frames,
-                        packet->packet_number_length, transmission_type,
-                        sent_time, bytes_sent, packet->is_fec_packet);
+                        packet->encryption_level, packet->packet_number_length,
+                        transmission_type, sent_time, bytes_sent,
+                        packet->is_fec_packet);
   if (old_packet_number > 0) {
     TransferRetransmissionInfo(old_packet_number, packet_number,
                                transmission_type, &info);
@@ -114,21 +116,23 @@ void QuicUnackedPacketMap::TransferRetransmissionInfo(
 
   // Only keep one transmission older than largest observed, because only the
   // most recent is expected to possibly be a spurious retransmission.
-  while (transmission_info->all_transmissions != nullptr &&
-         transmission_info->all_transmissions->size() > 1 &&
-         *(++transmission_info->all_transmissions->begin()) <
-             largest_observed_) {
-    QuicPacketNumber old_transmission =
-        *transmission_info->all_transmissions->begin();
-    TransmissionInfo* old_info =
-        &unacked_packets_[old_transmission - least_unacked_];
-    // Don't remove old packets if they're still in flight.
-    if (old_info->in_flight) {
-      break;
+  if (!track_single_retransmission_) {
+    while (transmission_info->all_transmissions != nullptr &&
+           transmission_info->all_transmissions->size() > 1 &&
+           *(++transmission_info->all_transmissions->begin()) <
+               largest_observed_) {
+      QuicPacketNumber old_transmission =
+          *transmission_info->all_transmissions->begin();
+      TransmissionInfo* old_info =
+          &unacked_packets_[old_transmission - least_unacked_];
+      // Don't remove old packets if they're still in flight.
+      if (old_info->in_flight) {
+        break;
+      }
+      old_info->all_transmissions->pop_front();
+      // This will cause the packet be removed in RemoveObsoletePackets.
+      old_info->all_transmissions = nullptr;
     }
-    old_info->all_transmissions->pop_front();
-    // This will cause the packet be removed in RemoveObsoletePackets.
-    old_info->all_transmissions = nullptr;
   }
   // Don't link old transmissions to new ones when version or
   // encryption changes.
@@ -136,14 +140,20 @@ void QuicUnackedPacketMap::TransferRetransmissionInfo(
       transmission_type == ALL_UNACKED_RETRANSMISSION) {
     RemoveAckability(transmission_info);
   } else {
-    if (transmission_info->all_transmissions == nullptr) {
-      transmission_info->all_transmissions = new PacketNumberList();
-      transmission_info->all_transmissions->push_back(old_packet_number);
+    if (track_single_retransmission_) {
+      transmission_info->retransmission = new_packet_number;
+    } else {
+      if (transmission_info->all_transmissions == nullptr) {
+        transmission_info->all_transmissions = new PacketNumberList();
+        transmission_info->all_transmissions->push_back(old_packet_number);
+      }
+      transmission_info->all_transmissions->push_back(new_packet_number);
     }
-    transmission_info->all_transmissions->push_back(new_packet_number);
   }
   info->retransmittable_frames = frames;
-  info->all_transmissions = transmission_info->all_transmissions;
+  if (!track_single_retransmission_) {
+    info->all_transmissions = transmission_info->all_transmissions;
+  }
   // Proactively remove obsolete packets so the least unacked can be raised.
   RemoveObsoletePackets();
 }
@@ -164,11 +174,16 @@ void QuicUnackedPacketMap::NackPacket(QuicPacketNumber packet_number,
       min_nacks, unacked_packets_[packet_number - least_unacked_].nack_count);
 }
 
-void QuicUnackedPacketMap::RemoveRetransmittability(
-    QuicPacketNumber packet_number) {
-  DCHECK_GE(packet_number, least_unacked_);
-  DCHECK_LT(packet_number, least_unacked_ + unacked_packets_.size());
-  TransmissionInfo* info = &unacked_packets_[packet_number - least_unacked_];
+void QuicUnackedPacketMap::RemoveRetransmittability(TransmissionInfo* info) {
+  if (track_single_retransmission_) {
+    while (info->retransmission != 0) {
+      const QuicPacketNumber retransmission = info->retransmission;
+      info->retransmission = 0;
+      info = &unacked_packets_[retransmission - least_unacked_];
+    }
+    MaybeRemoveRetransmittableFrames(info);
+    return;
+  }
   PacketNumberList* all_transmissions = info->all_transmissions;
   if (all_transmissions == nullptr) {
     MaybeRemoveRetransmittableFrames(info);
@@ -185,9 +200,21 @@ void QuicUnackedPacketMap::RemoveRetransmittability(
   delete all_transmissions;
 }
 
+void QuicUnackedPacketMap::RemoveRetransmittability(
+    QuicPacketNumber packet_number) {
+  DCHECK_GE(packet_number, least_unacked_);
+  DCHECK_LT(packet_number, least_unacked_ + unacked_packets_.size());
+  TransmissionInfo* info = &unacked_packets_[packet_number - least_unacked_];
+  RemoveRetransmittability(info);
+}
+
 void QuicUnackedPacketMap::RemoveAckability(TransmissionInfo* info) {
   DCHECK(info->retransmittable_frames == nullptr);
   info->is_unackable = true;
+  if (track_single_retransmission_) {
+    DCHECK_EQ(0u, info->retransmission);
+    return;
+  }
   PacketNumberList* all_transmissions = info->all_transmissions;
   if (all_transmissions == nullptr) {
     return;
@@ -239,7 +266,9 @@ bool QuicUnackedPacketMap::IsPacketUsefulForRetransmittableData(
   // Packet may have retransmittable frames, or the data may have been
   // retransmitted with a new packet number.
   return info.retransmittable_frames != nullptr ||
-         info.all_transmissions != nullptr;
+         info.all_transmissions != nullptr ||
+         // Allow for an extra 1 RTT before stopping to track old packets.
+         info.retransmission > largest_observed_;
 }
 
 bool QuicUnackedPacketMap::IsPacketUseless(QuicPacketNumber packet_number,
@@ -259,26 +288,36 @@ bool QuicUnackedPacketMap::IsUnacked(QuicPacketNumber packet_number) const {
 }
 
 void QuicUnackedPacketMap::NotifyAndClearListeners(
+    std::list<AckListenerWrapper>* ack_listeners,
+    QuicTime::Delta delta_largest_observed) {
+  for (const AckListenerWrapper& wrapper : *ack_listeners) {
+    wrapper.ack_listener->OnPacketAcked(wrapper.length, delta_largest_observed);
+  }
+  ack_listeners->clear();
+}
+
+void QuicUnackedPacketMap::NotifyAndClearListeners(
     QuicPacketNumber packet_number,
     QuicTime::Delta delta_largest_observed) {
   DCHECK_GE(packet_number, least_unacked_);
   DCHECK_LT(packet_number, least_unacked_ + unacked_packets_.size());
   TransmissionInfo* info = &unacked_packets_[packet_number - least_unacked_];
-  for (const AckListenerWrapper& wrapper : info->ack_listeners) {
-    wrapper.ack_listener->OnPacketAcked(wrapper.length, delta_largest_observed);
+  NotifyAndClearListeners(&info->ack_listeners, delta_largest_observed);
+}
+
+void QuicUnackedPacketMap::RemoveFromInFlight(TransmissionInfo* info) {
+  if (info->in_flight) {
+    LOG_IF(DFATAL, bytes_in_flight_ < info->bytes_sent);
+    bytes_in_flight_ -= info->bytes_sent;
+    info->in_flight = false;
   }
-  info->ack_listeners.clear();
 }
 
 void QuicUnackedPacketMap::RemoveFromInFlight(QuicPacketNumber packet_number) {
   DCHECK_GE(packet_number, least_unacked_);
   DCHECK_LT(packet_number, least_unacked_ + unacked_packets_.size());
   TransmissionInfo* info = &unacked_packets_[packet_number - least_unacked_];
-  if (info->in_flight) {
-    LOG_IF(DFATAL, bytes_in_flight_ < info->bytes_sent);
-    bytes_in_flight_ -= info->bytes_sent;
-    info->in_flight = false;
-  }
+  RemoveFromInFlight(info);
 }
 
 void QuicUnackedPacketMap::CancelRetransmissionsForStream(

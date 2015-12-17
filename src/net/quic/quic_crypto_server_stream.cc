@@ -20,6 +20,24 @@ using std::string;
 
 namespace net {
 
+namespace {
+bool HasFixedTag(const CryptoHandshakeMessage& message) {
+  const QuicTag* received_tags;
+  size_t received_tags_length;
+  QuicErrorCode error =
+      message.GetTaglist(kCOPT, &received_tags, &received_tags_length);
+  if (error == QUIC_NO_ERROR) {
+    DCHECK(received_tags);
+    for (size_t i = 0; i < received_tags_length; ++i) {
+      if (received_tags[i] == kFIXD) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+}  // namespace
+
 void ServerHelloNotifier::OnPacketAcked(
     int acked_bytes,
     QuicTime::Delta delta_largest_observed) {
@@ -52,6 +70,9 @@ void QuicCryptoServerStream::CancelOutstandingCallbacks() {
   // Detach from the validation callback.  Calling this multiple times is safe.
   if (validate_client_hello_cb_ != nullptr) {
     validate_client_hello_cb_->Cancel();
+    if (FLAGS_quic_set_client_hello_cb_nullptr) {
+      validate_client_hello_cb_ = nullptr;
+    }
   }
 }
 
@@ -59,6 +80,12 @@ void QuicCryptoServerStream::OnHandshakeMessage(
     const CryptoHandshakeMessage& message) {
   QuicCryptoServerStreamBase::OnHandshakeMessage(message);
   ++num_handshake_messages_;
+
+  // This block should be removed with support for QUIC_VERSION_25.
+  if (FLAGS_quic_require_fix && !HasFixedTag(message)) {
+    CloseConnection(QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND);
+    return;
+  }
 
   // Do not process handshake messages after the handshake is confirmed.
   if (handshake_confirmed_) {

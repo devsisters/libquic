@@ -139,6 +139,8 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
     return peer_least_packet_awaiting_ack_;
   }
 
+  bool ack_frame_updated() const { return ack_frame_updated_; }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicReceivedPacketManagerPeer;
@@ -158,6 +160,10 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager :
 
   // Received packet information used to produce acks.
   QuicAckFrame ack_frame_;
+
+  // True if |ack_frame_| has been updated since UpdateReceivedPacketInfo was
+  // last called.
+  bool ack_frame_updated_;
 
   // The time we received the largest_observed packet number, or zero if
   // no packet numbers have been received since UpdateReceivedPacketInfo.

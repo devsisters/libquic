@@ -38,7 +38,8 @@ double BitsToOpenEndedUnitInterval(uint64_t bits) {
   // produce output in the range [0, 1).  For IEEE 754 doubles, the mantissa
   // is expected to accommodate 53 bits.
 
-  COMPILE_ASSERT(std::numeric_limits<double>::radix == 2, otherwise_use_scalbn);
+  static_assert(std::numeric_limits<double>::radix == 2,
+                "otherwise use scalbn");
   static const int kBits = std::numeric_limits<double>::digits;
   uint64_t random_bits = bits & ((UINT64_C(1) << kBits) - 1);
   double result = ldexp(static_cast<double>(random_bits), -1 * kBits);

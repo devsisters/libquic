@@ -350,6 +350,11 @@ BASE_EXPORT bool SetCurrentDirectory(const FilePath& path);
 BASE_EXPORT int GetUniquePathNumber(const FilePath& path,
                                     const FilePath::StringType& suffix);
 
+// Sets the given |fd| to non-blocking mode.
+// Returns true if it was able to set it in the non-blocking mode, otherwise
+// false.
+BASE_EXPORT bool SetNonBlocking(int fd);
+
 #if defined(OS_POSIX)
 // Test that |path| can only be changed by a given user and members of
 // a given set of groups.

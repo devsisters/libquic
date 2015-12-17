@@ -144,27 +144,13 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 }  // namespace subtle
 }  // namespace base
 
-// Try to use a portable implementation based on C++11 atomics.
-//
-// Some toolchains support C++11 language features without supporting library
-// features (recent compiler, older STL). Whitelist libstdc++ and libc++ that we
-// know will have <atomic> when compiling C++11.
-#if ((__cplusplus >= 201103L) &&                            \
-     ((defined(__GLIBCXX__) && (__GLIBCXX__ > 20110216)) || \
-      (defined(_LIBCPP_VERSION) && (_LIBCPP_STD_VER >= 11))))
+#if defined(OS_WIN)
+// TODO(jfb): The MSVC header includes windows.h, which other files end up
+//            relying on. Fix this as part of crbug.com/559247.
+#  include "base/atomicops_internals_x86_msvc.h"
+#else
 #  include "base/atomicops_internals_portable.h"
-#else  // Otherwise use a platform specific implementation.
-#  if defined(THREAD_SANITIZER)
-#    error "Thread sanitizer must use the portable atomic operations"
-#  elif (defined(OS_WIN) && defined(COMPILER_MSVC) && \
-         defined(ARCH_CPU_X86_FAMILY))
-#    include "base/atomicops_internals_x86_msvc.h"
-#  elif defined(OS_MACOSX)
-#    include "base/atomicops_internals_mac.h"
-#  else
-#    error "Atomic operations are not supported on your platform"
-#  endif
-#endif   // Portable / non-portable includes.
+#endif
 
 // On some platforms we need additional declarations to make
 // AtomicWord compatible with our other Atomic* types.

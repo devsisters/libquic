@@ -39,7 +39,7 @@ class NET_EXPORT_PRIVATE QuicCryptoStream
 
   // ReliableQuicStream implementation
   void OnDataAvailable() override;
-  QuicPriority EffectivePriority() const override;
+  SpdyPriority Priority() const override;
 
   // Sends |message| to the peer.
   // TODO(wtc): return a success/failure status.

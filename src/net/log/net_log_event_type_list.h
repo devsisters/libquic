@@ -1868,6 +1868,10 @@ EVENT_TYPE(SERVICE_WORKER_ERROR_NO_ACTIVE_VERSION)
 EVENT_TYPE(SERVICE_WORKER_ERROR_NO_REQUEST)
 
 // This event is emitted when Service Worker fails to respond because
+// the job delegate behaved incorrectly.
+EVENT_TYPE(SERVICE_WORKER_ERROR_BAD_DELEGATE)
+
+// This event is emitted when Service Worker fails to respond because
 // the fetch event could not be dispatched to the worker.
 EVENT_TYPE(SERVICE_WORKER_ERROR_FETCH_EVENT_DISPATCH)
 

@@ -95,8 +95,6 @@ class NET_EXPORT_PRIVATE QuicUtils {
     return reinterpret_cast<char*>(data);
   }
 
-  static QuicPriority HighestPriority();
-
  private:
   DISALLOW_COPY_AND_ASSIGN(QuicUtils);
 };

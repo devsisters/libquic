@@ -42,7 +42,7 @@ void QuicSpdySession::OnStreamHeaders(QuicStreamId stream_id,
 }
 
 void QuicSpdySession::OnStreamHeadersPriority(QuicStreamId stream_id,
-                                              QuicPriority priority) {
+                                              SpdyPriority priority) {
   QuicSpdyStream* stream = GetSpdyDataStream(stream_id);
   if (!stream) {
     // It's quite possible to receive headers after a stream has been reset.
@@ -66,7 +66,7 @@ size_t QuicSpdySession::WriteHeaders(
     QuicStreamId id,
     const SpdyHeaderBlock& headers,
     bool fin,
-    QuicPriority priority,
+    SpdyPriority priority,
     QuicAckListenerInterface* ack_notifier_delegate) {
   return headers_stream_->WriteHeaders(id, headers, fin, priority,
                                        ack_notifier_delegate);
@@ -74,6 +74,20 @@ size_t QuicSpdySession::WriteHeaders(
 
 void QuicSpdySession::OnHeadersHeadOfLineBlocking(QuicTime::Delta delta) {
   // Implemented in Chromium for stats tracking.
+}
+
+void QuicSpdySession::RegisterStreamPriority(QuicStreamId id,
+                                             SpdyPriority priority) {
+  write_blocked_streams()->RegisterStream(id, priority);
+}
+
+void QuicSpdySession::UnregisterStreamPriority(QuicStreamId id) {
+  write_blocked_streams()->UnregisterStream(id);
+}
+
+void QuicSpdySession::UpdateStreamPriority(QuicStreamId id,
+                                           SpdyPriority new_priority) {
+  write_blocked_streams()->UpdateStreamPriority(id, new_priority);
 }
 
 QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(

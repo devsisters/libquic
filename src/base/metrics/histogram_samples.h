@@ -5,6 +5,7 @@
 #ifndef BASE_METRICS_HISTOGRAM_SAMPLES_H_
 #define BASE_METRICS_HISTOGRAM_SAMPLES_H_
 
+#include "base/atomicops.h"
 #include "base/basictypes.h"
 #include "base/metrics/histogram_base.h"
 #include "base/memory/scoped_ptr.h"
@@ -18,7 +19,35 @@ class SampleCountIterator;
 // HistogramSamples is a container storing all samples of a histogram.
 class BASE_EXPORT HistogramSamples {
  public:
-  HistogramSamples();
+  struct Metadata {
+    // Initialized when the sample-set is first created with a value provided
+    // by the caller. It is generally used to identify the sample-set across
+    // threads and processes, though not necessarily uniquely as it is possible
+    // to have multiple sample-sets representing subsets of the data.
+    uint64_t id;
+
+    // The sum of all the entries, effectivly the sum(sample * count) for
+    // all samples. Despite being atomic, no guarantees are made on the
+    // accuracy of this value; there may be races during histogram
+    // accumulation and snapshotting that we choose to accept. It should
+    // be treated as approximate.
+    // TODO(bcwhite): Change this to std::atomic<int64_t>.
+    int64_t sum;
+
+    // A "redundant" count helps identify memory corruption. It redundantly
+    // stores the total number of samples accumulated in the histogram. We
+    // can compare this count to the sum of the counts (TotalCount() function),
+    // and detect problems. Note, depending on the implementation of different
+    // histogram types, there might be races during histogram accumulation
+    // and snapshotting that we choose to accept. In this case, the tallies
+    // might mismatch even when no memory corruption has happened.
+    HistogramBase::AtomicCount redundant_count;
+
+    Metadata() : id(0), sum(0), redundant_count(0) {}
+  };
+
+  explicit HistogramSamples(uint64_t id);
+  HistogramSamples(uint64_t id, Metadata* meta);
   virtual ~HistogramSamples();
 
   virtual void Accumulate(HistogramBase::Sample value,
@@ -37,9 +66,10 @@ class BASE_EXPORT HistogramSamples {
   virtual bool Serialize(Pickle* pickle) const;
 
   // Accessor fuctions.
-  int64 sum() const { return sum_; }
+  uint64_t id() const { return meta_->id; }
+  int64_t sum() const { return meta_->sum; }
   HistogramBase::Count redundant_count() const {
-    return subtle::NoBarrier_Load(&redundant_count_);
+    return subtle::NoBarrier_Load(&meta_->redundant_count);
   }
 
  protected:
@@ -47,20 +77,17 @@ class BASE_EXPORT HistogramSamples {
   enum Operator { ADD, SUBTRACT };
   virtual bool AddSubtractImpl(SampleCountIterator* iter, Operator op) = 0;
 
-  void IncreaseSum(int64 diff);
+  void IncreaseSum(int64_t diff);
   void IncreaseRedundantCount(HistogramBase::Count diff);
 
  private:
-  int64 sum_;
+  // In order to support histograms shared through an external memory segment,
+  // meta values may be the local storage or external storage depending on the
+  // wishes of the derived class.
+  Metadata local_meta_;
+  Metadata* meta_;
 
-  // |redundant_count_| helps identify memory corruption. It redundantly stores
-  // the total number of samples accumulated in the histogram. We can compare
-  // this count to the sum of the counts (TotalCount() function), and detect
-  // problems. Note, depending on the implementation of different histogram
-  // types, there might be races during histogram accumulation and snapshotting
-  // that we choose to accept. In this case, the tallies might mismatch even
-  // when no memory corruption has happened.
-  HistogramBase::AtomicCount redundant_count_;
+  DISALLOW_COPY_AND_ASSIGN(HistogramSamples);
 };
 
 class BASE_EXPORT SampleCountIterator {

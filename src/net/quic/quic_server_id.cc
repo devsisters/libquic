@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "net/quic/quic_server_id.h"
-#include "base/logging.h"
 
+#include <tuple>
+
+#include "base/logging.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/port_util.h"
 #include "url/gurl.h"
@@ -32,10 +34,8 @@ QuicServerId::QuicServerId(const string& host,
 QuicServerId::~QuicServerId() {}
 
 bool QuicServerId::operator<(const QuicServerId& other) const {
-  if (!host_port_pair_.Equals(other.host_port_pair_)) {
-    return host_port_pair_ < other.host_port_pair_;
-  }
-  return privacy_mode_ < other.privacy_mode_;
+  return std::tie(host_port_pair_, privacy_mode_) <
+         std::tie(other.host_port_pair_, other.privacy_mode_);
 }
 
 bool QuicServerId::operator==(const QuicServerId& other) const {

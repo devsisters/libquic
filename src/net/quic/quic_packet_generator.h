@@ -65,11 +65,13 @@ namespace test {
 class QuicPacketGeneratorPeer;
 }  // namespace test
 
-class NET_EXPORT_PRIVATE QuicPacketGenerator {
+class NET_EXPORT_PRIVATE QuicPacketGenerator
+    : public QuicPacketCreator::DelegateInterface {
  public:
   class NET_EXPORT_PRIVATE DelegateInterface {
    public:
     virtual ~DelegateInterface() {}
+    // Consults delegate whether a packet should be generated.
     virtual bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                                       IsHandshake handshake) = 0;
     virtual void PopulateAckFrame(QuicAckFrame* ack) = 0;
@@ -82,23 +84,12 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
     virtual void OnResetFecGroup() = 0;
   };
 
-  // Interface which gets callbacks from the QuicPacketGenerator at interesting
-  // points.  Implementations must not mutate the state of the generator
-  // as a result of these callbacks.
-  class NET_EXPORT_PRIVATE DebugDelegate {
-   public:
-    virtual ~DebugDelegate() {}
-
-    // Called when a frame has been added to the current packet.
-    virtual void OnFrameAddedToPacket(const QuicFrame& frame) {}
-  };
-
   QuicPacketGenerator(QuicConnectionId connection_id,
                       QuicFramer* framer,
                       QuicRandom* random_generator,
                       DelegateInterface* delegate);
 
-  virtual ~QuicPacketGenerator();
+  ~QuicPacketGenerator() override;
 
   // Called by the connection in the event of the congestion window changing.
   void OnCongestionWindowChange(QuicPacketCount max_packets_in_flight);
@@ -157,10 +148,12 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
   // Used for retransmitting packets to ensure they aren't too long.
   // Caller must ensure that any open FEC group is closed before calling this
   // method.
-  SerializedPacket ReserializeAllFrames(const RetransmittableFrames& frames,
-                                        QuicPacketNumberLength original_length,
-                                        char* buffer,
-                                        size_t buffer_len);
+  SerializedPacket ReserializeAllFrames(
+      const RetransmittableFrames& frames,
+      EncryptionLevel original_encryption_level,
+      QuicPacketNumberLength original_length,
+      char* buffer,
+      size_t buffer_len);
 
   // Update the packet number length to use in future packets as soon as it
   // can be safely changed.
@@ -183,6 +176,10 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
   // Sets the encrypter to use for the encryption level.
   void SetEncrypter(EncryptionLevel level, QuicEncrypter* encrypter);
 
+  // QuicPacketCreator::DelegateInterface.
+  void OnSerializedPacket(SerializedPacket* serialized_packet) override;
+  void OnResetFecGroup() override;
+
   // Sets the encryption level that will be applied to new packets.
   void set_encryption_level(EncryptionLevel level);
 
@@ -203,90 +200,43 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
   // immediately.  Otherwise, it is enacted at the next opportunity.
   void SetMaxPacketLength(QuicByteCount length, bool force);
 
-  void set_debug_delegate(DebugDelegate* debug_delegate) {
-    debug_delegate_ = debug_delegate;
+  // Sets |path_id| to be the path on which next packet is generated.
+  void SetCurrentPath(QuicPathId path_id,
+                      QuicPacketNumber least_packet_awaited_by_peer,
+                      QuicPacketCount max_packets_in_flight);
+
+  void set_debug_delegate(QuicPacketCreator::DebugDelegate* debug_delegate) {
+    packet_creator_.set_debug_delegate(debug_delegate);
   }
 
-  // TODO(rtenneti): Delete this code after the 0.25 RTT FEC experiment.
-  float rtt_multiplier_for_fec_timeout() {
-    return rtt_multiplier_for_fec_timeout_;
-  }
-  void set_rtt_multiplier_for_fec_timeout(
-      float rtt_multiplier_for_fec_timeout) {
-    rtt_multiplier_for_fec_timeout_ = rtt_multiplier_for_fec_timeout;
-  }
+  void set_rtt_multiplier_for_fec_timeout(float rtt_multiplier_for_fec_timeout);
 
-  FecSendPolicy fec_send_policy() { return fec_send_policy_; }
-  void set_fec_send_policy(FecSendPolicy fec_send_policy) {
-    fec_send_policy_ = fec_send_policy;
-  }
+  FecSendPolicy fec_send_policy();
+  void set_fec_send_policy(FecSendPolicy fec_send_policy);
 
  private:
   friend class test::QuicPacketGeneratorPeer;
-
-  // Turn on FEC protection for subsequent packets in the generator.
-  // If no FEC group is currently open in the creator, this method flushes any
-  // queued frames in the generator and in the creator, and it then turns FEC on
-  // in the creator. This method may be called with an open FEC group in the
-  // creator, in which case, only the generator's state is altered.
-  void MaybeStartFecProtection();
-
-  // Serializes and calls the delegate on an FEC packet if one was under
-  // construction in the creator. When |force| is false, it relies on the
-  // creator being ready to send an FEC packet, otherwise FEC packet is sent
-  // as long as one is under construction in the creator. Also tries to turn
-  // off FEC protection in the creator if it's off in the generator.
-  // When |fec_send_policy_| is FEC_SEND_QUIESCENCE, then send FEC
-  // packet if |is_fec_timeout| is true otherwise close the FEC group.
-  void MaybeSendFecPacketAndCloseGroup(bool force, bool is_fec_timeout);
-
-  // Returns true if an FEC packet should be generated based on |force| and
-  // current state of the generator and the creator.
-  bool ShouldSendFecPacket(bool force);
-
-  // Resets (closes) the FEC group and calls the Delegate's OnResetFecGroup.
-  // Asserts that FEC group is open.
-  void ResetFecGroup();
 
   void SendQueuedFrames(bool flush, bool is_fec_timeout);
 
   // Test to see if we have pending ack, or control frames.
   bool HasPendingFrames() const;
-  // Test to see if the addition of a pending frame (which might be
+  // Returns true if addition of a pending frame (which might be
   // retransmittable) would still allow the resulting packet to be sent now.
   bool CanSendWithNextPendingFrameAddition() const;
   // Add exactly one pending frame, preferring ack frames over control frames.
+  // Returns true if a pending frame is successfully added.
+  // Returns false and flushes current open packet if the pending frame cannot
+  // fit into current open packet.
   bool AddNextPendingFrame();
-  // Adds a frame and takes ownership of the underlying buffer.
-  bool AddFrame(const QuicFrame& frame,
-                UniqueStreamBuffer buffer,
-                bool needs_padding);
-
-  void SerializeAndSendPacket();
 
   DelegateInterface* delegate_;
-  DebugDelegate* debug_delegate_;
 
   QuicPacketCreator packet_creator_;
   QuicFrames queued_control_frames_;
 
   // True if batch mode is currently enabled.
   bool batch_mode_;
-
-  // Timeout used for FEC alarm. Can be set to zero initially or if the SRTT has
-  // not yet been set.
-  QuicTime::Delta fec_timeout_;
-
-  // The multiplication factor for FEC timeout based on RTT.
-  // TODO(rtenneti): Delete this code after the 0.25 RTT FEC experiment.
-  float rtt_multiplier_for_fec_timeout_;
-
-  // True if FEC protection is on. The creator may have an open FEC group even
-  // if this variable is false.
-  bool should_fec_protect_;
-
-  // FEC policy that specifies when to send FEC packet.
-  FecSendPolicy fec_send_policy_;
 
   // Flags to indicate the need for just-in-time construction of a frame.
   bool should_send_ack_;
@@ -297,10 +247,6 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
   // retransmitted.
   QuicAckFrame pending_ack_frame_;
   QuicStopWaitingFrame pending_stop_waiting_frame_;
-  // True if an ack or stop waiting frame is already queued, and should not be
-  // re-added.
-  bool ack_queued_;
-  bool stop_waiting_queued_;
 
   // Stores ack listeners that should be attached to the next packet.
   std::list<AckListenerWrapper> ack_listeners_;

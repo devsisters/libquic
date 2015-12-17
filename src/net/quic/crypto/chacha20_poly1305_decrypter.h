@@ -26,9 +26,6 @@ class NET_EXPORT_PRIVATE ChaCha20Poly1305Decrypter : public AeadBaseDecrypter {
   ChaCha20Poly1305Decrypter();
   ~ChaCha20Poly1305Decrypter() override;
 
-  // Returns true if the underlying crypto library supports ChaCha20+Poly1305.
-  static bool IsSupported();
-
 #if !defined(USE_OPENSSL)
  protected:
   // AeadBaseDecrypter methods:

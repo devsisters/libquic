@@ -8,6 +8,7 @@
 #ifndef BASE_METRICS_SAMPLE_VECTOR_H_
 #define BASE_METRICS_SAMPLE_VECTOR_H_
 
+#include <stdint.h>
 #include <vector>
 
 #include "base/compiler_specific.h"
@@ -23,6 +24,12 @@ class BucketRanges;
 class BASE_EXPORT SampleVector : public HistogramSamples {
  public:
   explicit SampleVector(const BucketRanges* bucket_ranges);
+  SampleVector(uint64_t id, const BucketRanges* bucket_ranges);
+  SampleVector(uint64_t id,
+               HistogramBase::AtomicCount* counts,
+               size_t counts_size,
+               Metadata* meta,
+               const BucketRanges* bucket_ranges);
   ~SampleVector() override;
 
   // HistogramSamples implementation:
@@ -45,7 +52,14 @@ class BASE_EXPORT SampleVector : public HistogramSamples {
  private:
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
 
-  std::vector<HistogramBase::AtomicCount> counts_;
+  // In the case where this class manages the memory, here it is.
+  std::vector<HistogramBase::AtomicCount> local_counts_;
+
+  // These are raw pointers rather than objects for flexibility. The actual
+  // memory is either managed by local_counts_ above or by an external object
+  // and passed in directly.
+  HistogramBase::AtomicCount* counts_;
+  size_t counts_size_;
 
   // Shares the same BucketRanges with Histogram object.
   const BucketRanges* const bucket_ranges_;
@@ -56,6 +70,9 @@ class BASE_EXPORT SampleVector : public HistogramSamples {
 class BASE_EXPORT SampleVectorIterator : public SampleCountIterator {
  public:
   SampleVectorIterator(const std::vector<HistogramBase::AtomicCount>* counts,
+                       const BucketRanges* bucket_ranges);
+  SampleVectorIterator(const HistogramBase::AtomicCount* counts,
+                       size_t counts_size,
                        const BucketRanges* bucket_ranges);
   ~SampleVectorIterator() override;
 
@@ -72,7 +89,8 @@ class BASE_EXPORT SampleVectorIterator : public SampleCountIterator {
  private:
   void SkipEmptyBuckets();
 
-  const std::vector<HistogramBase::AtomicCount>* counts_;
+  const HistogramBase::AtomicCount* counts_;
+  size_t counts_size_;
   const BucketRanges* bucket_ranges_;
 
   size_t index_;

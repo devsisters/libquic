@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ostream>
+#include <utility>
 
 #include "base/json/json_writer.h"
 #include "base/logging.h"
@@ -32,7 +33,7 @@ scoped_ptr<ListValue> CopyListWithoutEmptyChildren(const ListValue& list) {
     if (child_copy) {
       if (!copy)
         copy.reset(new ListValue);
-      copy->Append(child_copy.Pass());
+      copy->Append(std::move(child_copy));
     }
   }
   return copy;
@@ -46,7 +47,7 @@ scoped_ptr<DictionaryValue> CopyDictionaryWithoutEmptyChildren(
     if (child_copy) {
       if (!copy)
         copy.reset(new DictionaryValue);
-      copy->SetWithoutPathExpansion(it.key(), child_copy.Pass());
+      copy->SetWithoutPathExpansion(it.key(), std::move(child_copy));
     }
   }
   return copy;
@@ -313,10 +314,7 @@ BinaryValue::BinaryValue()
 }
 
 BinaryValue::BinaryValue(scoped_ptr<char[]> buffer, size_t size)
-    : Value(TYPE_BINARY),
-      buffer_(buffer.Pass()),
-      size_(size) {
-}
+    : Value(TYPE_BINARY), buffer_(std::move(buffer)), size_(size) {}
 
 BinaryValue::~BinaryValue() {
 }
@@ -327,7 +325,7 @@ BinaryValue* BinaryValue::CreateWithCopiedBuffer(const char* buffer,
   char* buffer_copy = new char[size];
   memcpy(buffer_copy, buffer, size);
   scoped_ptr<char[]> scoped_buffer_copy(buffer_copy);
-  return new BinaryValue(scoped_buffer_copy.Pass(), size);
+  return new BinaryValue(std::move(scoped_buffer_copy), size);
 }
 
 bool BinaryValue::GetAsBinary(const BinaryValue** out_value) const {
@@ -419,7 +417,8 @@ void DictionaryValue::Set(const std::string& path, scoped_ptr<Value> in_value) {
     current_path.erase(0, delimiter_position + 1);
   }
 
-  current_dictionary->SetWithoutPathExpansion(current_path, in_value.Pass());
+  current_dictionary->SetWithoutPathExpansion(current_path,
+                                              std::move(in_value));
 }
 
 void DictionaryValue::Set(const std::string& path, Value* in_value) {

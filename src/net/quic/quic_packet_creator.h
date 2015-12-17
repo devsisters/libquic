@@ -4,7 +4,9 @@
 //
 // Accumulates frames for the next packet until more frames no longer fit or
 // it's time to create a packet from them.  Also provides packet creation of
-// FEC packets based on previously created packets.
+// FEC packets based on previously created packets. If multipath enabled, only
+// creates packets on one path at the same time. Currently, next packet number
+// is tracked per-path.
 
 #ifndef NET_QUIC_QUIC_PACKET_CREATOR_H_
 #define NET_QUIC_QUIC_PACKET_CREATOR_H_
@@ -19,6 +21,8 @@
 #include "net/quic/quic_framer.h"
 #include "net/quic/quic_protocol.h"
 
+using base::hash_map;
+
 namespace net {
 namespace test {
 class QuicPacketCreatorPeer;
@@ -29,40 +33,64 @@ class QuicRandomBoolSource;
 
 class NET_EXPORT_PRIVATE QuicPacketCreator {
  public:
+  // A delegate interface for further processing serialized packet.
+  class NET_EXPORT_PRIVATE DelegateInterface {
+   public:
+    virtual ~DelegateInterface() {}
+    // Called when a packet is serialized. Delegate does not take the ownership
+    // of |serialized_packet|.
+    virtual void OnSerializedPacket(SerializedPacket* serialized_packet) = 0;
+    // Called when current FEC group is reset (closed).
+    virtual void OnResetFecGroup() = 0;
+  };
+
+  // Interface which gets callbacks from the QuicPacketCreator at interesting
+  // points.  Implementations must not mutate the state of the creator
+  // as a result of these callbacks.
+  class NET_EXPORT_PRIVATE DebugDelegate {
+   public:
+    virtual ~DebugDelegate() {}
+
+    // Called when a frame has been added to the current packet.
+    virtual void OnFrameAddedToPacket(const QuicFrame& frame) {}
+  };
+
   // QuicRandom* required for packet entropy.
   QuicPacketCreator(QuicConnectionId connection_id,
                     QuicFramer* framer,
-                    QuicRandom* random_generator);
+                    QuicRandom* random_generator,
+                    DelegateInterface* delegate);
 
   ~QuicPacketCreator();
-
-  // Turn on FEC protection for subsequently created packets. FEC should be
-  // enabled first (max_packets_per_fec_group should be non-zero) for FEC
-  // protection to start.
-  void StartFecProtectingPackets();
-
-  // Turn off FEC protection for subsequently created packets. If the creator
-  // has any open FEC group, call will fail. It is the caller's responsibility
-  // to flush out FEC packets in generation, and to verify with ShouldSendFec()
-  // that there is no open FEC group.
-  void StopFecProtectingPackets();
 
   // Checks if it's time to send an FEC packet.  |force_close| forces this to
   // return true if an FEC group is open.
   bool ShouldSendFec(bool force_close) const;
 
-  // Resets (closes) the FEC group. This method should only be called on a
-  // packet boundary.
-  void ResetFecGroup();
+  // If ShouldSendFec returns true, serializes currently constructed FEC packet
+  // and calls the delegate on the packet. Resets current FEC group if FEC
+  // protection policy is FEC_ALARM_TRIGGER but |is_fec_timeout| is false.
+  // Also tries to turn off FEC protection if should_fec_protect_next_packet is
+  // false.
+  void MaybeSendFecPacketAndCloseGroup(bool force_send_fec,
+                                       bool is_fec_timeout);
 
   // Returns true if an FEC packet is under construction.
   bool IsFecGroupOpen() const;
+
+  // Called after sending |packet_number| to determine whether an FEC alarm
+  // should be set for sending out an FEC packet. Returns a positive and finite
+  // timeout if an FEC alarm should be set, and infinite if no alarm should be
+  // set.
+  QuicTime::Delta GetFecTimeout(QuicPacketNumber packet_number);
 
   // Makes the framer not serialize the protocol version in sent packets.
   void StopSendingVersion();
 
   // Update the packet number length to use in future packets as soon as it
   // can be safely changed.
+  // TODO(fayang): Directly set packet number length instead of compute it in
+  // creator.
   void UpdatePacketNumberLength(QuicPacketNumber least_packet_awaited_by_peer,
                                 QuicPacketCount max_packets_in_flight);
 
@@ -74,21 +102,24 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
       QuicStreamOffset offset,
       InFecGroup is_in_fec_group);
 
-  bool HasRoomForStreamFrame(QuicStreamId id, QuicStreamOffset offset) const;
+  // Returns false and flushes all pending frames if current open packet is
+  // full.
+  // If current packet is not full, converts a raw payload into a stream frame
+  // that fits into the open packet and adds it to the packet.
+  // The payload begins at |iov_offset| into the |iov|.
+  // Also tries to start FEC protection depends on |fec_protection|.
+  bool ConsumeData(QuicStreamId id,
+                   QuicIOVector iov,
+                   size_t iov_offset,
+                   QuicStreamOffset offset,
+                   bool fin,
+                   bool needs_padding,
+                   QuicFrame* frame,
+                   FecProtection fec_protection);
 
-  // Converts a raw payload to a frame which fits into the currently open
-  // packet.  The payload begins at |iov_offset| into the |iov|.
-  // Returns the number of bytes consumed from data.
-  // If data is empty and fin is true, the expected behavior is to consume the
-  // fin but return 0.  If any data is consumed, it will be copied into a
-  // new buffer that |frame| will point to and will be stored in |buffer|.
-  size_t CreateStreamFrame(QuicStreamId id,
-                           QuicIOVector iov,
-                           size_t iov_offset,
-                           QuicStreamOffset offset,
-                           bool fin,
-                           QuicFrame* frame,
-                           UniqueStreamBuffer* buffer);
+  // Returns true if current open packet can accommodate more stream frames of
+  // stream |id| at |offset|, false otherwise.
+  bool HasRoomForStreamFrame(QuicStreamId id, QuicStreamOffset offset) const;
 
   // Serializes all frames into a single packet. All frames must fit into a
   // single packet. Also, sets the entropy hash of the serialized packet to a
@@ -102,27 +133,22 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   // Used for retransmitting packets to ensure they aren't too long.
   // Caller must ensure that any open FEC group is closed before calling this
   // method.
-  SerializedPacket ReserializeAllFrames(const RetransmittableFrames& frames,
-                                        QuicPacketNumberLength original_length,
-                                        char* buffer,
-                                        size_t buffer_len);
+  SerializedPacket ReserializeAllFrames(
+      const RetransmittableFrames& frames,
+      EncryptionLevel original_encryption_level,
+      QuicPacketNumberLength original_length,
+      char* buffer,
+      size_t buffer_len);
+
+  // Serializes all added frames into a single packet and invokes the delegate_
+  // to further process the SerializedPacket.
+  void Flush();
 
   // Returns true if there are frames pending to be serialized.
   bool HasPendingFrames() const;
 
   // Returns true if there are retransmittable frames pending to be serialized.
   bool HasPendingRetransmittableFrames() const;
-
-  // TODO(jri): Remove this method.
-  // Returns whether FEC protection is currently enabled. Note: Enabled does not
-  // mean that an FEC group is currently active; i.e., IsFecProtected() may
-  // still return false.
-  bool IsFecEnabled() const;
-
-  // Returns true if subsequent packets will be FEC protected. Note: True does
-  // not mean that an FEC packet is currently under construction; i.e.,
-  // fec_group_.get() may still be nullptr, until MaybeStartFec() is called.
-  bool IsFecProtected() const;
 
   // Returns the number of bytes which are available to be used by additional
   // frames in the packet.  Since stream frames are slightly smaller when they
@@ -143,35 +169,13 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   // in BytesFree.
   size_t PacketSize() const;
 
-  // TODO(jri): AddSavedFrame calls AddFrame, which only saves the frame
-  // if it is a stream frame, not other types of frames. Fix this API;
-  // add a AddNonSavedFrame method.
-  // Adds |frame| to the packet creator's list of frames to be serialized.
-  // Returns false if the frame doesn't fit into the current packet.
+  // Tries to add |frame| to the packet creator's list of frames to be
+  // serialized. If the frame does not fit into the current packet, flushes the
+  // packet and returns false.
   bool AddSavedFrame(const QuicFrame& frame);
 
-  // Identical to AddSavedFrame, but takes ownership of the buffer.
-  bool AddSavedFrame(const QuicFrame& frame, UniqueStreamBuffer buffer);
-
-  // Identical to AddSavedFrame, but takes ownership of the buffer, and allows
-  // to cause the packet to be padded.
-  bool AddPaddedSavedFrame(const QuicFrame& frame, UniqueStreamBuffer buffer);
-
-  // Serializes all frames which have been added and adds any which should be
-  // retransmitted to |retransmittable_frames| if it's not nullptr. All frames
-  // must fit into a single packet. Sets the entropy hash of the serialized
-  // packet to a random bool and returns that value as a member of
-  // SerializedPacket. Also, sets |serialized_frames| in the SerializedPacket to
-  // the corresponding RetransmittableFrames if any frames are to be
-  // retransmitted.
-  // Fails if |buffer_len| isn't long enough for the encrypted packet.
-  SerializedPacket SerializePacket(char* encrypted_buffer, size_t buffer_len);
-
-  // Packetize FEC data. All frames must fit into a single packet. Also, sets
-  // the entropy hash of the serialized packet to a random bool and returns
-  // that value as a member of SerializedPacket.
-  // Fails if |buffer_len| isn't long enough for the encrypted packet.
-  SerializedPacket SerializeFec(char* buffer, size_t buffer_len);
+  // Identical to AddSavedFrame, but allows the frame to be padded.
+  bool AddPaddedSavedFrame(const QuicFrame& frame);
 
   // Creates a version negotiation packet which supports |supported_versions|.
   // Caller owns the created  packet. Also, sets the entropy hash of the
@@ -182,6 +186,12 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns a dummy packet that is valid but contains no useful information.
   static SerializedPacket NoPacket();
+
+  // Called when the congestion window has changed.
+  void OnCongestionWindowChange(QuicPacketCount max_packets_in_flight);
+
+  // Called when the RTT may have changed.
+  void OnRttChange(QuicTime::Delta rtt);
 
   // Sets the encryption level that will be applied to new packets.
   void set_encryption_level(EncryptionLevel level) {
@@ -204,6 +214,10 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
     return max_packet_length_;
   }
 
+  bool has_ack() const { return has_ack_; }
+
+  bool has_stop_waiting() const { return has_stop_waiting_; }
+
   // Sets the encrypter to use for the encryption level and updates the max
   // plaintext size.
   void SetEncrypter(EncryptionLevel level, QuicEncrypter* encrypter);
@@ -214,6 +228,15 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
   // Sets the maximum packet length.
   void SetMaxPacketLength(QuicByteCount length);
+
+  // Sets the path on which subsequent packets will be created. It is the
+  // caller's responsibility to guarantee no packet is under construction before
+  // calling this function. If |path_id| is different from current_path_, the
+  // FEC packet (if exists) will be sent and next_packet_number_length_ is
+  // recalculated.
+  void SetCurrentPath(QuicPathId path_id,
+                      QuicPacketNumber least_packet_awaited_by_peer,
+                      QuicPacketCount max_packets_in_flight);
 
   // Returns current max number of packets covered by an FEC group.
   size_t max_packets_per_fec_group() const {
@@ -226,14 +249,46 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   // To turn off FEC protection, use StopFecProtectingPackets().
   void set_max_packets_per_fec_group(size_t max_packets_per_fec_group);
 
-  // Returns the currently open FEC group's number.  Returns 0 when FEC is
-  // disabled or no FEC group is open.
-  QuicFecGroupNumber fec_group_number();
+  FecSendPolicy fec_send_policy() { return fec_send_policy_; }
+
+  void set_fec_send_policy(FecSendPolicy fec_send_policy) {
+    fec_send_policy_ = fec_send_policy;
+  }
+
+  void set_rtt_multiplier_for_fec_timeout(
+      float rtt_multiplier_for_fec_timeout) {
+    rtt_multiplier_for_fec_timeout_ = rtt_multiplier_for_fec_timeout;
+  }
+
+  bool should_fec_protect_next_packet() {
+    return should_fec_protect_next_packet_;
+  }
+
+  void set_should_fec_protect_next_packet(bool should_fec_protect_next_packet) {
+    should_fec_protect_next_packet_ = should_fec_protect_next_packet;
+  }
+
+  void set_debug_delegate(DebugDelegate* debug_delegate) {
+    debug_delegate_ = debug_delegate;
+  }
 
  private:
   friend class test::QuicPacketCreatorPeer;
 
   static bool ShouldRetransmit(const QuicFrame& frame);
+
+  // Converts a raw payload to a frame which fits into the current open
+  // packet.  The payload begins at |iov_offset| into the |iov|.
+  // Returns the number of bytes consumed from data.
+  // If data is empty and fin is true, the expected behavior is to consume the
+  // fin but return 0.  If any data is consumed, it will be copied into a
+  // new buffer that |frame| will point to and own.
+  size_t CreateStreamFrame(QuicStreamId id,
+                           QuicIOVector iov,
+                           size_t iov_offset,
+                           QuicStreamOffset offset,
+                           bool fin,
+                           QuicFrame* frame);
 
   // Copies |length| bytes from iov starting at offset |iov_offset| into buffer.
   // |iov| must be at least iov_offset+length total length and buffer must be
@@ -258,23 +313,78 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
   // Allows a frame to be added without creating retransmittable frames.
   // Particularly useful for retransmits using SerializeAllFrames().
+  // If current open packet cannot accommodate |frame|, returns false and
+  // flushes all pending frames.
   bool AddFrame(const QuicFrame& frame,
                 bool save_retransmittable_frames,
-                bool needs_padding,
-                UniqueStreamBuffer buffer);
+                bool needs_padding);
 
   // Adds a padding frame to the current packet only if the current packet
   // contains a handshake message, and there is sufficient room to fit a
   // padding frame.
   void MaybeAddPadding();
 
+  // Serializes all frames which have been added and adds any which should be
+  // retransmitted to queued_retransmittable_frames_ if it's not nullptr. All
+  // frames must fit into a single packet. Sets the entropy hash of the
+  // serialized packet to a random bool and returns that value as a member of
+  // SerializedPacket. Also, sets |serialized_frames| in the SerializedPacket to
+  // the corresponding RetransmittableFrames if any frames are to be
+  // retransmitted.
+  // Fails if |buffer_len| isn't long enough for the encrypted packet.
+  SerializedPacket SerializePacket(char* encrypted_buffer, size_t buffer_len);
+
+  // Turn on FEC protection for subsequent packets. If no FEC group is currently
+  // open, this method flushes current open packet and then turns FEC on.
+  void MaybeStartFecProtection();
+
+  // Turn on FEC protection for subsequently created packets. FEC should be
+  // enabled first (max_packets_per_fec_group should be non-zero) for FEC
+  // protection to start.
+  void StartFecProtectingPackets();
+
+  // Turn off FEC protection for subsequently created packets. If the creator
+  // has any open FEC group, call will fail. It is the caller's responsibility
+  // to flush out FEC packets in generation, and to verify with ShouldSendFec()
+  // that there is no open FEC group.
+  void StopFecProtectingPackets();
+
+  // Resets (closes) the FEC group. This method should only be called on a
+  // packet boundary.
+  void ResetFecGroup();
+
+  // Packetize FEC data. All frames must fit into a single packet. Also, sets
+  // the entropy hash of the serialized packet to a random bool and returns
+  // that value as a member of SerializedPacket.
+  // Fails if |buffer_len| isn't long enough for the encrypted packet.
+  SerializedPacket SerializeFec(char* buffer, size_t buffer_len);
+
+  // Does not own these delegates.
+  DelegateInterface* delegate_;
+  DebugDelegate* debug_delegate_;
+
   QuicConnectionId connection_id_;
   EncryptionLevel encryption_level_;
+  // True if an ack is queued in queued_frames_.
+  bool has_ack_;
+  // True if a stop waiting frame is queued in queued_frames_.
+  bool has_stop_waiting_;
   QuicFramer* framer_;
   scoped_ptr<QuicRandomBoolSource> random_bool_source_;
+  // Map mapping path_id to last sent packet number on the path.
+  hash_map<QuicPathId, QuicPacketNumber> multipath_packet_number_;
+  // The path which current constructed packet will be sent on.
+  QuicPathId current_path_;
   QuicPacketNumber packet_number_;
+  // True when creator is requested to turn on FEC protection. False otherwise.
+  // There is a time difference between should_fec_protect_next_packet is
+  // true/false and FEC is actually turned on/off (e.g., The creator may have an
+  // open FEC group even if this variable is false).
+  bool should_fec_protect_next_packet_;
   // If true, any created packets will be FEC protected.
-  bool should_fec_protect_;
+  // TODO(fayang): Combine should_fec_protect_next_packet and fec_protect_ to
+  // one variable.
+  bool fec_protect_;
   scoped_ptr<QuicFecGroup> fec_group_;
   // Controls whether protocol version should be included while serializing the
   // packet.
@@ -302,6 +412,14 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   scoped_ptr<RetransmittableFrames> queued_retransmittable_frames_;
   // If true, the packet will be padded up to |max_packet_length_|.
   bool needs_padding_;
+  // FEC policy that specifies when to send FEC packet.
+  FecSendPolicy fec_send_policy_;
+  // Timeout used for FEC alarm. Can be set to zero initially or if the SRTT has
+  // not yet been set.
+  QuicTime::Delta fec_timeout_;
+  // The multiplication factor for FEC timeout based on RTT.
+  // TODO(rtenneti): Delete this code after the 0.25 RTT FEC experiment.
+  float rtt_multiplier_for_fec_timeout_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicPacketCreator);
 };

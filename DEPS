@@ -3,7 +3,7 @@
 
 # START #
 {
-    "chromium_revision": "ae8b8ce028ee77fb1bd35a83be04d2f176ef440e",
+    "chromium_revision": "46e701f46fb69ed3c32b54e24fe904b76d01377e",
     "automatic_dependency": [
         {
             "from": "net/quic/quic_connection.cc",
@@ -184,6 +184,7 @@
                 "crypto/secure_hash_openssl.cc",
                 "crypto/secure_hash_default.cc",
                 "crypto/curve25519-donna.c",
+                "crypto/curve25519_openssl.cc",
                 "crypto/ghash.cc",
                 "crypto/ghash.h",
                 "base/memory/scoped_vector.h",

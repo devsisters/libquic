@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <math.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,9 +17,9 @@
 #include <wctype.h>
 
 #include <algorithm>
+#include <limits>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/strings/string_split.h"
@@ -98,18 +99,6 @@ template<> struct NonASCIIMask<8, wchar_t> {
     static inline uint64_t value() { return 0xFFFFFF80FFFFFF80ULL; }
 };
 #endif  // WCHAR_T_IS_UTF32
-
-// DO NOT USE. http://crbug.com/24917
-//
-// tolower() will given incorrect results for non-ASCII characters. Use the
-// ASCII version, base::i18n::ToLower, or base::i18n::FoldCase. This is here
-// for backwards-compat for StartsWith until such calls can be updated.
-struct CaseInsensitiveCompareDeprecated {
- public:
-  bool operator()(char16 x, char16 y) const {
-    return tolower(x) == tolower(y);
-  }
-};
 
 }  // namespace
 
@@ -366,10 +355,11 @@ void TruncateUTF8ToByteSize(const std::string& input,
     *output = input;
     return;
   }
-  DCHECK_LE(byte_size, static_cast<uint32>(kint32max));
-  // Note: This cast is necessary because CBU8_NEXT uses int32s.
-  int32 truncation_length = static_cast<int32>(byte_size);
-  int32 char_index = truncation_length - 1;
+  DCHECK_LE(byte_size,
+            static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
+  // Note: This cast is necessary because CBU8_NEXT uses int32_ts.
+  int32_t truncation_length = static_cast<int32_t>(byte_size);
+  int32_t char_index = truncation_length - 1;
   const char* data = input.data();
 
   // Using CBU8, we will move backwards from the truncation point
@@ -377,7 +367,7 @@ void TruncateUTF8ToByteSize(const std::string& input,
   // character.  Once a full UTF8 character is found, we will
   // truncate the string to the end of that character.
   while (char_index >= 0) {
-    int32 prev = char_index;
+    int32_t prev = char_index;
     base_icu::UChar32 code_point = 0;
     CBU8_NEXT(data, char_index, truncation_length, code_point);
     if (!IsValidCharacter(code_point) ||
@@ -413,14 +403,6 @@ TrimPositions TrimWhitespaceASCII(const std::string& input,
 
 StringPiece TrimWhitespaceASCII(StringPiece input, TrimPositions positions) {
   return TrimStringPieceT(input, StringPiece(kWhitespaceASCII), positions);
-}
-
-// This function is only for backward-compatibility.
-// To be removed when all callers are updated.
-TrimPositions TrimWhitespace(const std::string& input,
-                             TrimPositions positions,
-                             std::string* output) {
-  return TrimWhitespaceASCII(input, positions, output);
 }
 
 template<typename STR>
@@ -535,11 +517,11 @@ bool IsStringASCII(const std::wstring& str) {
 
 bool IsStringUTF8(const StringPiece& str) {
   const char *src = str.data();
-  int32 src_len = static_cast<int32>(str.length());
-  int32 char_index = 0;
+  int32_t src_len = static_cast<int32_t>(str.length());
+  int32_t char_index = 0;
 
   while (char_index < src_len) {
-    int32 code_point;
+    int32_t code_point;
     CBU8_NEXT(src, char_index, src_len, code_point);
     if (!IsValidCharacter(code_point))
       return false;
@@ -692,7 +674,7 @@ static const char* const kByteStringsUnlocalized[] = {
   " PB"
 };
 
-string16 FormatBytesUnlocalized(int64 bytes) {
+string16 FormatBytesUnlocalized(int64_t bytes) {
   double unit_amount = static_cast<double>(bytes);
   size_t dimension = 0;
   const int kKilo = 1024;

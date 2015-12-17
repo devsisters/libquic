@@ -14,12 +14,6 @@
 #include "base/basictypes.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
-#include <winsock2.h>
-#else
-#include <arpa/inet.h>
-#endif
-
 namespace base {
 
 // Returns a value with all bytes in |x| swapped, i.e. reverses the endianness.

@@ -33,6 +33,12 @@ class NET_EXPORT_PRIVATE TCPLossAlgorithm : public LossDetectionInterface {
                                     const QuicTime& time,
                                     QuicPacketNumber largest_observed,
                                     const RttStats& rtt_stats) override;
+  // Unsupported.
+  void DetectLosses(
+      const QuicUnackedPacketMap& unacked_packets,
+      const QuicTime& time,
+      const RttStats& rtt_stats,
+      SendAlgorithmInterface::CongestionVector* packets_lost) override;
 
   // Returns a non-zero value when the early retransmit timer is active.
   QuicTime GetLossTimeout() const override;

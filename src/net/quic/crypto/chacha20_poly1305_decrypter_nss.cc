@@ -29,11 +29,6 @@ ChaCha20Poly1305Decrypter::ChaCha20Poly1305Decrypter()
 
 ChaCha20Poly1305Decrypter::~ChaCha20Poly1305Decrypter() {}
 
-// static
-bool ChaCha20Poly1305Decrypter::IsSupported() {
-  return true;
-}
-
 void ChaCha20Poly1305Decrypter::FillAeadParams(
     StringPiece nonce,
     const StringPiece& associated_data,

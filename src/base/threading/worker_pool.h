@@ -22,11 +22,11 @@ class TaskRunner;
 // This is a facility that runs tasks that don't require a specific thread or
 // a message loop.
 //
-// WARNING: This shouldn't be used unless absolutely necessary. Typically
-// (without calling ShutDownCleanly()), we don't wait for the worker pool
-// threads to finish on shutdown, so the tasks running inside the pool must be
-// extremely careful about other objects they access (MessageLoops, Singletons,
-// etc). During shutdown these object may no longer exist.
+// WARNING: This shouldn't be used unless absolutely necessary. We don't wait
+// for the worker pool threads to finish on shutdown, so the tasks running
+// inside the pool must be extremely careful about other objects they access
+// (MessageLoops, Singletons, etc). During shutdown these object may no longer
+// exist.
 class BASE_EXPORT WorkerPool {
  public:
   // This function posts |task| to run on a worker thread.  |task_is_slow|
@@ -53,13 +53,6 @@ class BASE_EXPORT WorkerPool {
   // Get a TaskRunner wrapper which posts to the WorkerPool using the given
   // |task_is_slow| behavior.
   static const scoped_refptr<TaskRunner>& GetTaskRunner(bool task_is_slow);
-
-  // Blocks until all worker threads quit cleanly. Please note that it ensures
-  // that no worker threads are running after the method returns, but it doesn't
-  // guarantee to process all queued pending tasks. This method may take a long
-  // time. Please don't use it unless absolutely necessary, e.g., when we want
-  // to unload the library containing the worker pool before process shutdown.
-  static void ShutDownCleanly();
 };
 
 }  // namespace base

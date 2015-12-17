@@ -27,7 +27,7 @@ class BASE_EXPORT PlatformThreadLocalStorage {
 
 #if defined(OS_WIN)
   typedef unsigned long TLSKey;
-  enum { TLS_KEY_OUT_OF_INDEXES = TLS_OUT_OF_INDEXES };
+  enum : unsigned { TLS_KEY_OUT_OF_INDEXES = TLS_OUT_OF_INDEXES };
 #elif defined(OS_POSIX)
   typedef pthread_key_t TLSKey;
   // The following is a "reserved key" which is used in our generic Chromium

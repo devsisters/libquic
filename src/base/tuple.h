@@ -150,7 +150,7 @@ template <size_t N, typename T>
 struct TupleLeaf;
 
 template <typename... Ts>
-struct Tuple : TupleBase<Ts...> {
+struct Tuple final : TupleBase<Ts...> {
   Tuple() : TupleBase<Ts...>() {}
   explicit Tuple(typename TupleTraits<Ts>::ParamType... args)
       : TupleBase<Ts...>(args...) {}
@@ -158,7 +158,7 @@ struct Tuple : TupleBase<Ts...> {
 
 // Avoids ambiguity between Tuple's two constructors.
 template <>
-struct Tuple<> {};
+struct Tuple<> final {};
 
 template <size_t... Ns, typename... Ts>
 struct TupleBaseImpl<IndexSequence<Ns...>, Ts...> : TupleLeaf<Ns, Ts>... {

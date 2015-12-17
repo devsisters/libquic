@@ -126,6 +126,7 @@ set(
 	src/net/quic/congestion_control/pacing_sender.cc
 	src/net/quic/congestion_control/time_loss_algorithm.cc
 	src/net/quic/congestion_control/loss_detection_interface.cc
+	src/net/quic/congestion_control/general_loss_algorithm.cc
 	src/net/quic/congestion_control/send_algorithm_interface.cc
 	src/net/quic/congestion_control/cubic.cc
 	src/net/quic/congestion_control/cubic_bytes.cc
@@ -260,6 +261,7 @@ set(
 	src/base/vlog.cc
 	src/base/location.cc
 	src/base/base64.cc
+	src/base/md5.cc
 	src/base/metrics/statistics_recorder.cc
 	src/base/metrics/histogram_base.cc
 	src/base/metrics/sample_map.cc
@@ -268,6 +270,7 @@ set(
 	src/base/metrics/histogram_samples.cc
 	src/base/metrics/bucket_ranges.cc
 	src/base/metrics/sparse_histogram.cc
+	src/base/metrics/metrics_hashes.cc
 	src/base/rand_util.cc
 	src/base/files/file_path_constants.cc
 	src/base/files/file_path.cc
@@ -284,10 +287,10 @@ set(
 	CRYPTO_SOURCES
 
 	src/crypto/curve25519-donna.c
+	src/crypto/curve25519_openssl.cc
 	src/crypto/hkdf.cc
 	src/crypto/hmac.cc
 	src/crypto/openssl_util.cc
-	src/crypto/curve25519.cc
 	src/crypto/hmac_openssl.cc
 	src/crypto/symmetric_key_openssl.cc
 	src/crypto/secure_hash_openssl.cc

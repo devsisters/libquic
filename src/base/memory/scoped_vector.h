@@ -20,7 +20,7 @@
 // we have support for moveable types inside containers).
 template <class T>
 class ScopedVector {
-  MOVE_ONLY_TYPE_FOR_CPP_03(ScopedVector, RValue)
+  MOVE_ONLY_TYPE_FOR_CPP_03(ScopedVector)
 
  public:
   typedef typename std::vector<T*>::allocator_type allocator_type;
@@ -39,10 +39,10 @@ class ScopedVector {
 
   ScopedVector() {}
   ~ScopedVector() { clear(); }
-  ScopedVector(RValue other) { swap(*other.object); }
+  ScopedVector(ScopedVector&& other) { swap(other); }
 
-  ScopedVector& operator=(RValue rhs) {
-    swap(*rhs.object);
+  ScopedVector& operator=(ScopedVector&& rhs) {
+    swap(rhs);
     return *this;
   }
 

@@ -247,57 +247,16 @@ inline std::size_t HashInts64(uint64 value1, uint64 value2) {
   return high_bits;
 }
 
-#define DEFINE_32BIT_PAIR_HASH(Type1, Type2) \
-inline std::size_t HashPair(Type1 value1, Type2 value2) { \
-  return HashInts32(value1, value2); \
+template<typename T1, typename T2>
+inline std::size_t HashPair(T1 value1, T2 value2) {
+  // This condition is expected to be compile-time evaluated and optimised away
+  // in release builds.
+  if (sizeof(T1) > sizeof(uint32_t) || (sizeof(T2) > sizeof(uint32_t)))
+    return HashInts64(value1, value2);
+
+  return HashInts32(value1, value2);
 }
 
-DEFINE_32BIT_PAIR_HASH(int16, int16);
-DEFINE_32BIT_PAIR_HASH(int16, uint16);
-DEFINE_32BIT_PAIR_HASH(int16, int32);
-DEFINE_32BIT_PAIR_HASH(int16, uint32);
-DEFINE_32BIT_PAIR_HASH(uint16, int16);
-DEFINE_32BIT_PAIR_HASH(uint16, uint16);
-DEFINE_32BIT_PAIR_HASH(uint16, int32);
-DEFINE_32BIT_PAIR_HASH(uint16, uint32);
-DEFINE_32BIT_PAIR_HASH(int32, int16);
-DEFINE_32BIT_PAIR_HASH(int32, uint16);
-DEFINE_32BIT_PAIR_HASH(int32, int32);
-DEFINE_32BIT_PAIR_HASH(int32, uint32);
-DEFINE_32BIT_PAIR_HASH(uint32, int16);
-DEFINE_32BIT_PAIR_HASH(uint32, uint16);
-DEFINE_32BIT_PAIR_HASH(uint32, int32);
-DEFINE_32BIT_PAIR_HASH(uint32, uint32);
-
-#undef DEFINE_32BIT_PAIR_HASH
-
-#define DEFINE_64BIT_PAIR_HASH(Type1, Type2) \
-inline std::size_t HashPair(Type1 value1, Type2 value2) { \
-  return HashInts64(value1, value2); \
-}
-
-DEFINE_64BIT_PAIR_HASH(int16, int64);
-DEFINE_64BIT_PAIR_HASH(int16, uint64);
-DEFINE_64BIT_PAIR_HASH(uint16, int64);
-DEFINE_64BIT_PAIR_HASH(uint16, uint64);
-DEFINE_64BIT_PAIR_HASH(int32, int64);
-DEFINE_64BIT_PAIR_HASH(int32, uint64);
-DEFINE_64BIT_PAIR_HASH(uint32, int64);
-DEFINE_64BIT_PAIR_HASH(uint32, uint64);
-DEFINE_64BIT_PAIR_HASH(int64, int16);
-DEFINE_64BIT_PAIR_HASH(int64, uint16);
-DEFINE_64BIT_PAIR_HASH(int64, int32);
-DEFINE_64BIT_PAIR_HASH(int64, uint32);
-DEFINE_64BIT_PAIR_HASH(int64, int64);
-DEFINE_64BIT_PAIR_HASH(int64, uint64);
-DEFINE_64BIT_PAIR_HASH(uint64, int16);
-DEFINE_64BIT_PAIR_HASH(uint64, uint16);
-DEFINE_64BIT_PAIR_HASH(uint64, int32);
-DEFINE_64BIT_PAIR_HASH(uint64, uint32);
-DEFINE_64BIT_PAIR_HASH(uint64, int64);
-DEFINE_64BIT_PAIR_HASH(uint64, uint64);
-
-#undef DEFINE_64BIT_PAIR_HASH
 }  // namespace base
 
 namespace BASE_HASH_NAMESPACE {

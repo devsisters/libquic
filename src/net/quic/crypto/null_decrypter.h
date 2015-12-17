@@ -38,8 +38,8 @@ class NET_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
 
  private:
   bool ReadHash(QuicDataReader* reader, uint128* hash);
-  uint128 ComputeHash(const base::StringPiece& data1,
-                      const base::StringPiece& data2) const;
+  uint128 ComputeHash(const base::StringPiece data1,
+                      const base::StringPiece data2) const;
 
   DISALLOW_COPY_AND_ASSIGN(NullDecrypter);
 };

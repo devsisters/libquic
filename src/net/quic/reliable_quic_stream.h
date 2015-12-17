@@ -31,6 +31,10 @@
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_stream_sequencer.h"
 #include "net/quic/quic_types.h"
+//#include "std::strings/std::stringpiece.h"
+//#include "util/refcount/reffed_ptr.h"
+// TODO(alyssar) remove this after cleaning Priority logic from this class.
+#include "net/quic/quic_write_blocked_list.h"
 
 namespace net {
 
@@ -91,9 +95,8 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   virtual void CloseConnectionWithDetails(QuicErrorCode error,
                                           const std::string& details);
 
-  // Returns the effective priority for the stream.  This value may change
-  // during the life of the stream.
-  virtual QuicPriority EffectivePriority() const = 0;
+  // Returns the priority for the stream.
+  virtual SpdyPriority Priority() const = 0;
 
   QuicStreamId id() const { return id_; }
 
@@ -109,6 +112,8 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   bool rst_sent() { return rst_sent_; }
   bool fin_received() { return fin_received_; }
   bool fin_sent() { return fin_sent_; }
+
+  uint64 queued_data_bytes() const { return queued_data_bytes_; }
 
   uint64 stream_bytes_read() const { return stream_bytes_read_; }
   uint64 stream_bytes_written() const { return stream_bytes_written_; }
@@ -243,6 +248,8 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   void MaybeSendBlocked();
 
   std::list<PendingData> queued_data_;
+  // How many bytes are queued?
+  uint64 queued_data_bytes_;
 
   QuicStreamSequencer sequencer_;
   QuicStreamId id_;

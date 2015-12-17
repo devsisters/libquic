@@ -127,4 +127,15 @@ void RttStats::UpdateRecentMinRtt(QuicTime::Delta rtt_sample, QuicTime now) {
   }
 }
 
+void RttStats::OnConnectionMigration() {
+  latest_rtt_ = QuicTime::Delta::Zero();
+  min_rtt_ = QuicTime::Delta::Zero();
+  smoothed_rtt_ = QuicTime::Delta::Zero();
+  mean_deviation_ = QuicTime::Delta::Zero();
+  initial_rtt_us_ = kInitialRttMs * kNumMicrosPerMilli;
+  num_min_rtt_samples_remaining_ = 0;
+  recent_min_rtt_window_ = QuicTime::Delta::Infinite();
+  recent_min_rtt_ = half_window_rtt_ = quarter_window_rtt_ = RttSample();
+}
+
 }  // namespace net

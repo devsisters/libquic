@@ -67,10 +67,11 @@ bool Curve25519KeyExchange::CalculateSharedKey(
   }
 
   uint8 result[crypto::curve25519::kBytes];
-  crypto::curve25519::ScalarMult(
-      private_key_,
-      reinterpret_cast<const uint8*>(peer_public_value.data()),
-      result);
+  if (!crypto::curve25519::ScalarMult(
+          private_key_,
+          reinterpret_cast<const uint8*>(peer_public_value.data()), result)) {
+    return false;
+  }
   out_result->assign(reinterpret_cast<char*>(result), sizeof(result));
 
   return true;

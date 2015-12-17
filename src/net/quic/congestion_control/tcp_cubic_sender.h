@@ -56,7 +56,7 @@ class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
                     QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable) override;
   void OnRetransmissionTimeout(bool packets_retransmitted) override;
-  void OnConnectionMigration() override {}
+  void OnConnectionMigration() override;
   QuicTime::Delta TimeUntilSend(
       QuicTime now,
       QuicByteCount bytes_in_flight,
@@ -130,6 +130,14 @@ class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
 
   // Maximum number of outstanding packets for tcp.
   QuicPacketCount max_tcp_congestion_window_;
+
+  // Initial TCP congestion window. This variable can only be set when this
+  // algorithm is created.
+  const QuicPacketCount initial_tcp_congestion_window_;
+
+  // Initial maximum TCP congestion window. This variable can only be set when
+  // this algorithm is created.
+  const QuicPacketCount initial_max_tcp_congestion_window_;
 
   DISALLOW_COPY_AND_ASSIGN(TcpCubicSender);
 };

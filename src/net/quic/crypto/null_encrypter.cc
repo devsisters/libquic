@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/quic/crypto/null_encrypter.h"
+
 #include "net/quic/quic_data_writer.h"
 #include "net/quic/quic_utils.h"
 
@@ -34,9 +35,11 @@ bool NullEncrypter::EncryptPacket(QuicPacketNumber /*packet_number*/,
   uint128 hash = QuicUtils::FNV1a_128_Hash_Two(
       associated_data.data(), associated_data.size(), plaintext.data(),
       plaintext.size());
+  // TODO(ianswett): memmove required for in place encryption.  Placing the
+  // hash at the end would allow use of memcpy, doing nothing for in place.
+  memmove(output + GetHashLength(), plaintext.data(), plaintext.length());
   QuicUtils::SerializeUint128Short(hash,
                                    reinterpret_cast<unsigned char*>(output));
-  memcpy(output + GetHashLength(), plaintext.data(), plaintext.length());
   *output_length = len;
   return true;
 }

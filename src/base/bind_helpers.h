@@ -111,7 +111,7 @@
 //   scoped_ptr<Foo> f(new Foo());
 //
 //   // |cb| is given ownership of Foo(). |f| is now NULL.
-//   // You can use f.Pass() in place of &f, but it's more verbose.
+//   // You can use std::move(f) in place of &f, but it's more verbose.
 //   Closure cb = Bind(&TakesOwnership, Passed(&f));
 //
 //   // Run was never called so |cb| still owns Foo() and deletes
@@ -142,6 +142,9 @@
 
 #ifndef BASE_BIND_HELPERS_H_
 #define BASE_BIND_HELPERS_H_
+
+#include <type_traits>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "base/callback.h"
@@ -359,22 +362,24 @@ class OwnedWrapper {
 // created when we are explicitly trying to do a destructive move.
 //
 // Two notes:
-//  1) PassedWrapper supports any type that has a "Pass()" function.
-//     This is intentional. The whitelisting of which specific types we
-//     support is maintained by CallbackParamTraits<>.
+//  1) PassedWrapper supports any type that has a move constructor, however
+//     the type will need to be specifically whitelisted in order for it to be
+//     bound to a Callback. We guard this explicitly at the call of Passed()
+//     to make for clear errors. Things not given to Passed() will be forwarded
+//     and stored by value which will not work for general move-only types.
 //  2) is_valid_ is distinct from NULL because it is valid to bind a "NULL"
 //     scoper to a Callback and allow the Callback to execute once.
 template <typename T>
 class PassedWrapper {
  public:
-  explicit PassedWrapper(T scoper) : is_valid_(true), scoper_(scoper.Pass()) {}
+  explicit PassedWrapper(T&& scoper)
+      : is_valid_(true), scoper_(std::move(scoper)) {}
   PassedWrapper(const PassedWrapper& other)
-      : is_valid_(other.is_valid_), scoper_(other.scoper_.Pass()) {
-  }
+      : is_valid_(other.is_valid_), scoper_(std::move(other.scoper_)) {}
   T Pass() const {
     CHECK(is_valid_);
     is_valid_ = false;
-    return scoper_.Pass();
+    return std::move(scoper_);
   }
 
  private:
@@ -566,17 +571,25 @@ static inline internal::OwnedWrapper<T> Owned(T* o) {
   return internal::OwnedWrapper<T>(o);
 }
 
-// We offer 2 syntaxes for calling Passed().  The first takes a temporary and
-// is best suited for use with the return value of a function. The second
-// takes a pointer to the scoper and is just syntactic sugar to avoid having
-// to write Passed(scoper.Pass()).
-template <typename T>
-static inline internal::PassedWrapper<T> Passed(T scoper) {
-  return internal::PassedWrapper<T>(scoper.Pass());
+// We offer 2 syntaxes for calling Passed().  The first takes an rvalue and
+// is best suited for use with the return value of a function or other temporary
+// rvalues. The second takes a pointer to the scoper and is just syntactic sugar
+// to avoid having to write Passed(std::move(scoper)).
+//
+// Both versions of Passed() prevent T from being an lvalue reference. The first
+// via use of enable_if, and the second takes a T* which will not bind to T&.
+template <typename T,
+          typename std::enable_if<internal::IsMoveOnlyType<T>::value &&
+                                  !std::is_lvalue_reference<T>::value>::type* =
+              nullptr>
+static inline internal::PassedWrapper<T> Passed(T&& scoper) {
+  return internal::PassedWrapper<T>(std::move(scoper));
 }
-template <typename T>
+template <typename T,
+          typename std::enable_if<internal::IsMoveOnlyType<T>::value>::type* =
+              nullptr>
 static inline internal::PassedWrapper<T> Passed(T* scoper) {
-  return internal::PassedWrapper<T>(scoper->Pass());
+  return internal::PassedWrapper<T>(std::move(*scoper));
 }
 
 template <typename T>

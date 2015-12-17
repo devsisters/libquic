@@ -50,6 +50,12 @@ namespace net {
 
 namespace {
 
+// kMultiplier is the multiple of the CHLO message size that a REJ message
+// must stay under when the client doesn't present a valid source-address
+// token. This is used to protect QUIC from amplification attacks.
+// TODO(rch): Reduce this to 2 again once b/25933682 is fixed.
+const size_t kMultiplier = 3;
+
 const int kMaxTokenAddresses = 4;
 
 string DeriveSourceAddressTokenKey(StringPiece source_address_token_secret) {
@@ -213,6 +219,7 @@ QuicCryptoServerConfig::QuicCryptoServerConfig(
     QuicRandom* server_nonce_entropy,
     ProofSource* proof_source)
     : replay_protection_(true),
+      chlo_multiplier_(kMultiplier),
       configs_lock_(),
       primary_config_(nullptr),
       next_config_promotion_time_(QuicWallTime::Zero()),
@@ -293,11 +300,7 @@ QuicServerConfigProtobuf* QuicCryptoServerConfig::GenerateConfig(
   } else {
     msg.SetTaglist(kKEXS, kC255, 0);
   }
-  if (ChaCha20Poly1305Encrypter::IsSupported()) {
-    msg.SetTaglist(kAEAD, kAESG, kCC12, 0);
-  } else {
-    msg.SetTaglist(kAEAD, kAESG, 0);
-  }
+  msg.SetTaglist(kAEAD, kAESG, kCC12, 0);
   msg.SetStringPiece(kPUBS, encoded_public_values);
 
   if (options.expiry_time.IsZero()) {
@@ -503,6 +506,7 @@ void QuicCryptoServerConfig::ValidateClientHello(
 
   uint8 primary_orbit[kOrbitSize];
   scoped_refptr<Config> requested_config;
+  scoped_refptr<Config> primary_config;
   {
     base::AutoLock locked(configs_lock_);
 
@@ -521,11 +525,13 @@ void QuicCryptoServerConfig::ValidateClientHello(
     }
 
     requested_config = GetConfigWithScid(requested_scid);
+    primary_config = primary_config_;
+    crypto_proof->primary_scid = primary_config->id;
   }
 
   if (result->error_code == QUIC_NO_ERROR) {
     EvaluateClientHello(server_ip, version, primary_orbit, requested_config,
-                        crypto_proof, result, done_cb);
+                        primary_config, crypto_proof, result, done_cb);
   } else {
     done_cb->Run(result);
   }
@@ -581,7 +587,16 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
     // We'll use the config that the client requested in order to do
     // key-agreement. Otherwise we'll give it a copy of |primary_config_|
     // to use.
-    primary_config = primary_config_;
+    if (FLAGS_quic_use_primary_config_for_proof) {
+      primary_config = GetConfigWithScid(crypto_proof->primary_scid);
+      if (!primary_config) {
+        *error_details = "Configuration not found";
+        LOG(DFATAL) << "Primary config not found";
+        return QUIC_CRYPTO_INTERNAL_ERROR;
+      }
+    } else {
+      primary_config = primary_config_;
+    }
 
     requested_config = GetConfigWithScid(requested_scid);
   }
@@ -962,6 +977,7 @@ void QuicCryptoServerConfig::EvaluateClientHello(
     QuicVersion version,
     const uint8* primary_orbit,
     scoped_refptr<Config> requested_config,
+    scoped_refptr<Config> primary_config,
     QuicCryptoProof* crypto_proof,
     ValidateClientHelloResultCallback::Result* client_hello_state,
     ValidateClientHelloResultCallback* done_cb) const {
@@ -986,6 +1002,27 @@ void QuicCryptoServerConfig::EvaluateClientHello(
 
   client_hello.GetStringPiece(kUAID, &info->user_agent_id);
 
+  HandshakeFailureReason source_address_token_error = MAX_FAILURE_REASON;
+  StringPiece srct;
+  if (FLAGS_quic_validate_stk_without_scid) {
+    if (client_hello.GetStringPiece(kSourceAddressTokenTag, &srct)) {
+      Config& config =
+          requested_config != nullptr ? *requested_config : *primary_config;
+      source_address_token_error =
+          ParseSourceAddressToken(config, srct, &info->source_address_tokens);
+
+      if (source_address_token_error == HANDSHAKE_OK) {
+        source_address_token_error = ValidateSourceAddressTokens(
+            info->source_address_tokens, info->client_ip, info->now,
+            &client_hello_state->cached_network_params);
+      }
+      info->valid_source_address_token =
+          (source_address_token_error == HANDSHAKE_OK);
+    } else {
+      source_address_token_error = SOURCE_ADDRESS_TOKEN_INVALID_FAILURE;
+    }
+  }
+
   if (!requested_config.get()) {
     StringPiece requested_scid;
     if (client_hello.GetStringPiece(kSCID, &requested_scid)) {
@@ -998,21 +1035,21 @@ void QuicCryptoServerConfig::EvaluateClientHello(
     return;
   }
 
-  HandshakeFailureReason source_address_token_error;
-  StringPiece srct;
-  if (client_hello.GetStringPiece(kSourceAddressTokenTag, &srct)) {
-    source_address_token_error = ParseSourceAddressToken(
-        *requested_config, srct, &info->source_address_tokens);
+  if (!FLAGS_quic_validate_stk_without_scid) {
+    if (client_hello.GetStringPiece(kSourceAddressTokenTag, &srct)) {
+      source_address_token_error = ParseSourceAddressToken(
+          *requested_config, srct, &info->source_address_tokens);
 
-    if (source_address_token_error == HANDSHAKE_OK) {
-      source_address_token_error = ValidateSourceAddressTokens(
-          info->source_address_tokens, info->client_ip, info->now,
-          &client_hello_state->cached_network_params);
+      if (source_address_token_error == HANDSHAKE_OK) {
+        source_address_token_error = ValidateSourceAddressTokens(
+            info->source_address_tokens, info->client_ip, info->now,
+            &client_hello_state->cached_network_params);
+      }
+      info->valid_source_address_token =
+          (source_address_token_error == HANDSHAKE_OK);
+    } else {
+      source_address_token_error = SOURCE_ADDRESS_TOKEN_INVALID_FAILURE;
     }
-    info->valid_source_address_token =
-        (source_address_token_error == HANDSHAKE_OK);
-  } else {
-    source_address_token_error = SOURCE_ADDRESS_TOKEN_INVALID_FAILURE;
   }
 
   bool found_error = false;
@@ -1030,10 +1067,16 @@ void QuicCryptoServerConfig::EvaluateClientHello(
     bool x509_supported = false;
     bool x509_ecdsa_supported = false;
     ParseProofDemand(client_hello, &x509_supported, &x509_ecdsa_supported);
-    if (!proof_source_->GetProof(
-            server_ip, info->sni.as_string(), requested_config->serialized,
-            x509_ecdsa_supported, &crypto_proof->certs,
-            &crypto_proof->signature, &crypto_proof->cert_sct)) {
+    string serialized_config;
+    if (FLAGS_quic_use_primary_config_for_proof) {
+      serialized_config = primary_config->serialized;
+    } else {
+      serialized_config = requested_config->serialized;
+    }
+    if (!proof_source_->GetProof(server_ip, info->sni.as_string(),
+                                 serialized_config, x509_ecdsa_supported,
+                                 &crypto_proof->certs, &crypto_proof->signature,
+                                 &crypto_proof->cert_sct)) {
       found_error = true;
       info->reject_reasons.push_back(SERVER_CONFIG_UNKNOWN_CONFIG_FAILURE);
     }
@@ -1240,15 +1283,11 @@ void QuicCryptoServerConfig::BuildRejection(
   //   SCID: 16 bytes
   //   PUBS: 38 bytes
   const size_t kREJOverheadBytes = 166;
-  // kMultiplier is the multiple of the CHLO message size that a REJ message
-  // must stay under when the client doesn't present a valid source-address
-  // token. This is used to protect QUIC from amplification attacks.
-  const size_t kMultiplier = 2;
   // max_unverified_size is the number of bytes that the certificate chain,
   // signature, and (optionally) signed certificate timestamp can consume before
   // we will demand a valid source-address token.
   const size_t max_unverified_size =
-      client_hello.size() * kMultiplier - kREJOverheadBytes;
+      client_hello.size() * chlo_multiplier_ - kREJOverheadBytes;
   static_assert(kClientHelloMinimumSize * kMultiplier >= kREJOverheadBytes,
                 "overhead calculation may underflow");
   bool should_return_sct = params->sct_supported_by_client &&
@@ -1457,6 +1496,10 @@ void QuicCryptoServerConfig::SetStrikeRegisterClient(
 
 void QuicCryptoServerConfig::set_replay_protection(bool on) {
   replay_protection_ = on;
+}
+
+void QuicCryptoServerConfig::set_chlo_multiplier(size_t multiplier) {
+  chlo_multiplier_ = multiplier;
 }
 
 void QuicCryptoServerConfig::set_strike_register_no_startup_period() {

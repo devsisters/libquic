@@ -13,6 +13,14 @@ using base::StringPiece;
 
 namespace net {
 
+namespace {
+
+// The maximum size in bytes of the nonce, including 8 bytes of sequence number.
+// ChaCha20 uses only the 8 byte sequence number and AES-GCM uses 12 bytes.
+const size_t kMaxNonceSize = 12;
+
+}  // namespace
+
 AeadBaseEncrypter::AeadBaseEncrypter(CK_MECHANISM_TYPE aead_mechanism,
                                      size_t key_size,
                                      size_t auth_tag_size,
@@ -23,6 +31,7 @@ AeadBaseEncrypter::AeadBaseEncrypter(CK_MECHANISM_TYPE aead_mechanism,
       nonce_prefix_size_(nonce_prefix_size) {
   DCHECK_LE(key_size_, sizeof(key_));
   DCHECK_LE(nonce_prefix_size_, sizeof(nonce_prefix_));
+  DCHECK_GE(kMaxNonceSize, nonce_prefix_size_);
 }
 
 AeadBaseEncrypter::~AeadBaseEncrypter() {}
@@ -83,10 +92,18 @@ bool AeadBaseEncrypter::Encrypt(StringPiece nonce,
   param.data = reinterpret_cast<unsigned char*>(&aead_params.data);
   param.len = aead_params.len;
 
+  if (plaintext.size() > kMaxPacketSize) {
+    DLOG(FATAL) << "Plaintext too large";
+    return false;
+  }
+  // NSS doesn't support inplace encryption, so copy plaintext to a temporary
+  // buffer.
+  unsigned char temp_plaintext[kMaxPacketSize];
+  memcpy(temp_plaintext, plaintext.data(), plaintext.size());
+
   unsigned int output_len;
   if (PK11_Encrypt(aead_key.get(), aead_mechanism_, &param, output, &output_len,
-                   ciphertext_size,
-                   reinterpret_cast<const unsigned char*>(plaintext.data()),
+                   ciphertext_size, temp_plaintext,
                    plaintext.size()) != SECSuccess) {
     DVLOG(1) << "PK11_Encrypt failed";
     return false;
@@ -113,10 +130,12 @@ bool AeadBaseEncrypter::EncryptPacket(QuicPacketNumber packet_number,
   // TODO(ianswett): Introduce a check to ensure that we don't encrypt with the
   // same packet number twice.
   const size_t nonce_size = nonce_prefix_size_ + sizeof(packet_number);
-  memcpy(output, nonce_prefix_, nonce_prefix_size_);
-  memcpy(output + nonce_prefix_size_, &packet_number, sizeof(packet_number));
-  if (!Encrypt(StringPiece(output, nonce_size), associated_data, plaintext,
-               reinterpret_cast<unsigned char*>(output))) {
+  char nonce_buffer[kMaxNonceSize];
+  memcpy(nonce_buffer, nonce_prefix_, nonce_prefix_size_);
+  memcpy(nonce_buffer + nonce_prefix_size_, &packet_number,
+         sizeof(packet_number));
+  if (!Encrypt(StringPiece(nonce_buffer, nonce_size), associated_data,
+               plaintext, reinterpret_cast<unsigned char*>(output))) {
     return false;
   }
   *output_length = ciphertext_size;

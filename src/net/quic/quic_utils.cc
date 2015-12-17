@@ -198,7 +198,6 @@ const char* QuicUtils::ErrorToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_INVALID_STREAM_ID);
     RETURN_STRING_LITERAL(QUIC_INVALID_PRIORITY);
     RETURN_STRING_LITERAL(QUIC_TOO_MANY_OPEN_STREAMS);
-    RETURN_STRING_LITERAL(QUIC_TOO_MANY_UNFINISHED_STREAMS);
     RETURN_STRING_LITERAL(QUIC_PUBLIC_RESET);
     RETURN_STRING_LITERAL(QUIC_INVALID_VERSION);
     RETURN_STRING_LITERAL(QUIC_INVALID_HEADER_ID);
@@ -341,11 +340,6 @@ string QuicUtils::StringToHexASCIIDump(StringPiece in_buffer) {
     s += '\n';
   }
   return s;
-}
-
-// static
-QuicPriority QuicUtils::HighestPriority() {
-  return QuicWriteBlockedList::kHighestPriority;
 }
 
 }  // namespace net

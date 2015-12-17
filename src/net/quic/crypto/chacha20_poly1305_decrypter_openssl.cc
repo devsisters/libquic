@@ -30,9 +30,6 @@ ChaCha20Poly1305Decrypter::ChaCha20Poly1305Decrypter()
 
 ChaCha20Poly1305Decrypter::~ChaCha20Poly1305Decrypter() {}
 
-// static
-bool ChaCha20Poly1305Decrypter::IsSupported() { return true; }
-
 const char* ChaCha20Poly1305Decrypter::cipher_name() const {
   return TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305_OLD;
 }

@@ -173,6 +173,12 @@ class BASE_EXPORT ProcessMetrics {
   // otherwise.
   bool GetIOCounters(IoCounters* io_counters) const;
 
+#if defined(OS_LINUX)
+  // Returns the number of file descriptors currently open by the process, or
+  // -1 on error.
+  int GetOpenFdCount() const;
+#endif  // defined(OS_LINUX)
+
  private:
 #if !defined(OS_MACOSX) || defined(OS_IOS)
   explicit ProcessMetrics(ProcessHandle process);

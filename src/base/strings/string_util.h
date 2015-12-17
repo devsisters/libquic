@@ -243,12 +243,6 @@ BASE_EXPORT TrimPositions TrimWhitespaceASCII(const std::string& input,
 BASE_EXPORT StringPiece TrimWhitespaceASCII(StringPiece input,
                                             TrimPositions positions);
 
-// Deprecated. This function is only for backward compatibility and calls
-// TrimWhitespaceASCII().
-BASE_EXPORT TrimPositions TrimWhitespace(const std::string& input,
-                                         TrimPositions positions,
-                                         std::string* output);
-
 // Searches  for CR or LF characters.  Removes all contiguous whitespace
 // strings that contain them.  This is useful when trying to deal with text
 // copied from terminals.

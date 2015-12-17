@@ -17,6 +17,10 @@ namespace common_cert_set_1 {
 #include "net/quic/crypto/common_cert_set_1.c"
 }
 
+namespace common_cert_set_2 {
+#include "net/quic/crypto/common_cert_set_2.c"
+}
+
 namespace {
 
 struct CertSet {
@@ -32,16 +36,18 @@ struct CertSet {
 };
 
 const CertSet kSets[] = {
-  {
-    common_cert_set_1::kNumCerts,
-    common_cert_set_1::kCerts,
-    common_cert_set_1::kLens,
-    common_cert_set_1::kHash,
-  },
+    {
+        common_cert_set_1::kNumCerts, common_cert_set_1::kCerts,
+        common_cert_set_1::kLens, common_cert_set_1::kHash,
+    },
+    {
+        common_cert_set_2::kNumCerts, common_cert_set_2::kCerts,
+        common_cert_set_2::kLens, common_cert_set_2::kHash,
+    },
 };
 
 const uint64 kSetHashes[] = {
-  common_cert_set_1::kHash,
+    common_cert_set_1::kHash, common_cert_set_2::kHash,
 };
 
 // Compare returns a value less than, equal to or greater than zero if |a| is

@@ -16,8 +16,6 @@
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 
-using base::StringPiece;
-
 namespace net {
 
 namespace test {
@@ -62,29 +60,29 @@ class NET_EXPORT_PRIVATE SpdyAltSvcWireFormat {
   typedef std::vector<AlternativeService> AlternativeServiceVector;
 
   friend class test::SpdyAltSvcWireFormatPeer;
-  static bool ParseHeaderFieldValue(StringPiece value,
+  static bool ParseHeaderFieldValue(base::StringPiece value,
                                     AlternativeServiceVector* altsvc_vector);
   static std::string SerializeHeaderFieldValue(
       const AlternativeServiceVector& altsvc_vector);
 
  private:
-  static void SkipWhiteSpace(StringPiece::const_iterator* c,
-                             StringPiece::const_iterator end);
-  static bool PercentDecode(StringPiece::const_iterator c,
-                            StringPiece::const_iterator end,
+  static void SkipWhiteSpace(base::StringPiece::const_iterator* c,
+                             base::StringPiece::const_iterator end);
+  static bool PercentDecode(base::StringPiece::const_iterator c,
+                            base::StringPiece::const_iterator end,
                             std::string* output);
-  static bool ParseAltAuthority(StringPiece::const_iterator c,
-                                StringPiece::const_iterator end,
+  static bool ParseAltAuthority(base::StringPiece::const_iterator c,
+                                base::StringPiece::const_iterator end,
                                 std::string* host,
                                 uint16* port);
-  static bool ParsePositiveInteger16(StringPiece::const_iterator c,
-                                     StringPiece::const_iterator end,
+  static bool ParsePositiveInteger16(base::StringPiece::const_iterator c,
+                                     base::StringPiece::const_iterator end,
                                      uint16* value);
-  static bool ParsePositiveInteger32(StringPiece::const_iterator c,
-                                     StringPiece::const_iterator end,
+  static bool ParsePositiveInteger32(base::StringPiece::const_iterator c,
+                                     base::StringPiece::const_iterator end,
                                      uint32* value);
-  static bool ParseProbability(StringPiece::const_iterator c,
-                               StringPiece::const_iterator end,
+  static bool ParseProbability(base::StringPiece::const_iterator c,
+                               base::StringPiece::const_iterator end,
                                double* probability);
 };
 

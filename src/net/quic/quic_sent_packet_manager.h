@@ -77,15 +77,18 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
     PendingRetransmission(QuicPacketNumber packet_number,
                           TransmissionType transmission_type,
                           const RetransmittableFrames& retransmittable_frames,
+                          EncryptionLevel encryption_level,
                           QuicPacketNumberLength packet_number_length)
         : packet_number(packet_number),
           transmission_type(transmission_type),
           retransmittable_frames(retransmittable_frames),
+          encryption_level(encryption_level),
           packet_number_length(packet_number_length) {}
 
     QuicPacketNumber packet_number;
     TransmissionType transmission_type;
     const RetransmittableFrames& retransmittable_frames;
+    EncryptionLevel encryption_level;
     QuicPacketNumberLength packet_number_length;
   };
 
@@ -296,6 +299,11 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   // Returns the retransmission timeout, after which a full RTO occurs.
   const QuicTime::Delta GetRetransmissionDelay() const;
 
+  // Returns the newest transmission associated with a packet.
+  QuicPacketNumber GetNewestRetransmission(
+      QuicPacketNumber packet_number,
+      const TransmissionInfo& transmission_info) const;
+
   // Update the RTT if the ack is for the largest acked packet number.
   // Returns true if the rtt was updated.
   bool MaybeUpdateRTT(const QuicAckFrame& ack_frame,
@@ -318,11 +326,10 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   void MarkPacketRevived(QuicPacketNumber packet_number,
                          QuicTime::Delta delta_largest_observed);
 
-  // Removes the retransmittability and pending properties from the packet at
-  // |it| due to receipt by the peer.  Returns an iterator to the next remaining
-  // unacked packet.
+  // Removes the retransmittability and in flight properties from the packet at
+  // |info| due to receipt by the peer.
   void MarkPacketHandled(QuicPacketNumber packet_number,
-                         const TransmissionInfo& info,
+                         TransmissionInfo* info,
                          QuicTime::Delta delta_largest_observed);
 
   // Request that |packet_number| be retransmitted after the other pending
@@ -332,7 +339,7 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
                              TransmissionType transmission_type);
 
   // Notify observers about spurious retransmits.
-  void RecordSpuriousRetransmissions(const PacketNumberList& all_transmissions,
+  void RecordSpuriousRetransmissions(const TransmissionInfo& info,
                                      QuicPacketNumber acked_packet_number);
 
   // Newly serialized retransmittable and fec packets are added to this map,
@@ -396,6 +403,9 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   // the crypto stream (i.e. SCUP messages) are treated like normal
   // retransmittable frames.
   bool handshake_confirmed_;
+
+  // Latched value of FLAGS_gfe2_reloadable_flag_quic_general_loss_algorithm.
+  const bool use_general_loss_algorithm_;
 
   // Records bandwidth from server to client in normal operation, over periods
   // of time with no loss events.

@@ -7,8 +7,8 @@
 
 // StreamSequencerBuffer implements QuicStreamSequencerBufferInterface.
 // It is a circular stream buffer with random write and
-// in-sequence read. It consists of an std::vector of pointers pointing
-// to memory blocks created as needed and a std::list of Gaps to indicate
+// in-sequence read. It consists of a vector of pointers pointing
+// to memory blocks created as needed and a list of Gaps to indicate
 // the missing data between the data already written into the buffer.
 // - Data are written in with offset indicating where it should be in the
 // stream, and the buffer grown as needed (up to the maximum buffer capacity),
@@ -183,9 +183,9 @@ class NET_EXPORT_PRIVATE StreamSequencerBuffer
   // Contains Gaps which represents currently missing data.
   std::list<Gap> gaps_;
 
-  // An ordered, variable-length std::list of blocks, with the length limited
+  // An ordered, variable-length list of blocks, with the length limited
   // such that the number of blocks never exceeds blocks_count_.
-  // Each std::list entry can hold up to kBlockSizeBytes bytes.
+  // Each list entry can hold up to kBlockSizeBytes bytes.
   std::vector<BufferBlock*> blocks_;
 
   // Number of bytes in buffer.

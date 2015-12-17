@@ -97,6 +97,10 @@ class NET_EXPORT_PRIVATE CryptoUtils {
       const QuicVersionVector& supported_versions,
       std::string* error_details);
 
+  // Returns the name of the HandshakeFailureReason as a char*
+  static const char* HandshakeFailureReasonToString(
+      HandshakeFailureReason reason);
+
  private:
   DISALLOW_COPY_AND_ASSIGN(CryptoUtils);
 };

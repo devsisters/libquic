@@ -8,6 +8,7 @@
 #define NET_QUIC_CONGESTION_CONTROL_LOSS_DETECTION_INTERFACE_H_
 
 #include "base/basictypes.h"
+#include "net/quic/congestion_control/send_algorithm_interface.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_time.h"
 
@@ -31,6 +32,12 @@ class NET_EXPORT_PRIVATE LossDetectionInterface {
       const QuicTime& time,
       QuicPacketNumber largest_observed,
       const RttStats& rtt_stats) = 0;
+
+  virtual void DetectLosses(
+      const QuicUnackedPacketMap& unacked_packets,
+      const QuicTime& time,
+      const RttStats& rtt_stats,
+      SendAlgorithmInterface::CongestionVector* packets_lost) = 0;
 
   // Get the time the LossDetectionAlgorithm wants to re-evaluate losses.
   // Returns QuicTime::Zero if no alarm needs to be set.

@@ -210,7 +210,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // version: protocol version used for this connection.
   // clock: used to validate client nonces and ephemeral keys.
   // crypto_proof: output structure containing the crypto proof used in reply to
-  // a proof demand.
+  //     a proof demand.
   // done_cb: single-use callback that accepts an opaque
   //     ValidatedClientHelloMsg token that holds information about
   //     the client hello.  The callback will always be called exactly
@@ -301,6 +301,11 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // However, an attacker can duplicate a handshake and cause a client's
   // request to be processed twice.
   void set_replay_protection(bool on);
+
+  // set_chlo_multiplier specifies the multiple of the CHLO message size
+  // that a REJ message must stay under when the client doesn't present a
+  // valid source-address token.
+  void set_chlo_multiplier(size_t multiplier);
 
   // set_strike_register_no_startup_period configures the strike register to
   // not have a startup period.
@@ -441,6 +446,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
       QuicVersion version,
       const uint8* primary_orbit,
       scoped_refptr<Config> requested_config,
+      scoped_refptr<Config> primary_config,
       QuicCryptoProof* crypto_proof,
       ValidateClientHelloResultCallback::Result* client_hello_state,
       ValidateClientHelloResultCallback* done_cb) const;
@@ -540,6 +546,11 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // replay_protection_ controls whether the server enforces that handshakes
   // aren't replays.
   bool replay_protection_;
+
+  // The multiple of the CHLO message size that a REJ message must stay under
+  // when the client doesn't present a valid source-address token. This is
+  // used to protect QUIC from amplification attacks.
+  size_t chlo_multiplier_;
 
   // configs_ satisfies the following invariants:
   //   1) configs_.empty() <-> primary_config_ == nullptr

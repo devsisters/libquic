@@ -4,6 +4,7 @@
 
 #include "net/quic/crypto/strike_register.h"
 
+#include <algorithm>
 #include <limits>
 
 #include "base/logging.h"

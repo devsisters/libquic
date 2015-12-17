@@ -4,17 +4,17 @@
 
 #include "net/quic/quic_time.h"
 
-#include <stdint.h>
+#include <limits>
 
 #include "base/logging.h"
 
 namespace net {
 
-uint64 QuicWallTime::ToUNIXSeconds() const {
+uint64_t QuicWallTime::ToUNIXSeconds() const {
   return microseconds_ / 1000000;
 }
 
-uint64 QuicWallTime::ToUNIXMicroseconds() const {
+uint64_t QuicWallTime::ToUNIXMicroseconds() const {
   return microseconds_;
 }
 
@@ -31,7 +31,7 @@ bool QuicWallTime::IsZero() const {
 }
 
 QuicTime::Delta QuicWallTime::AbsoluteDifference(QuicWallTime other) const {
-  uint64 d;
+  uint64_t d;
 
   if (microseconds_ > other.microseconds_) {
     d = microseconds_ - other.microseconds_;
@@ -39,23 +39,23 @@ QuicTime::Delta QuicWallTime::AbsoluteDifference(QuicWallTime other) const {
     d = other.microseconds_ - microseconds_;
   }
 
-  if (d > static_cast<uint64>(kint64max)) {
-    d = kint64max;
+  if (d > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+    d = std::numeric_limits<int64_t>::max();
   }
   return QuicTime::Delta::FromMicroseconds(d);
 }
 
 QuicWallTime QuicWallTime::Add(QuicTime::Delta delta) const {
-  uint64 microseconds = microseconds_ + delta.ToMicroseconds();
+  uint64_t microseconds = microseconds_ + delta.ToMicroseconds();
   if (microseconds < microseconds_) {
-    microseconds = kuint64max;
+    microseconds = std::numeric_limits<uint64_t>::max();
   }
   return QuicWallTime(microseconds);
 }
 
 // TODO(ianswett) Test this.
 QuicWallTime QuicWallTime::Subtract(QuicTime::Delta delta) const {
-  uint64 microseconds = microseconds_ - delta.ToMicroseconds();
+  uint64_t microseconds = microseconds_ - delta.ToMicroseconds();
   if (microseconds > microseconds_) {
     microseconds = 0;
   }

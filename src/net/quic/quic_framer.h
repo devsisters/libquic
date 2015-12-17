@@ -51,13 +51,11 @@ const size_t kQuicNumTimestampsSize = 1;
 // Size in bytes reserved for the number of missing packets in ack frames.
 const size_t kNumberOfNackRangesSize = 1;
 // Maximum number of missing packet ranges that can fit within an ack frame.
-const size_t kMaxNackRanges =
-    (1 << (kNumberOfNackRangesSize * 8)) - 1;
+const size_t kMaxNackRanges = (1 << (kNumberOfNackRangesSize * 8)) - 1;
 // Size in bytes reserved for the number of revived packets in ack frames.
 const size_t kNumberOfRevivedPacketsSize = 1;
 // Maximum number of revived packets that can fit within an ack frame.
-const size_t kMaxRevivedPackets =
-    (1 << (kNumberOfRevivedPacketsSize * 8)) - 1;
+const size_t kMaxRevivedPackets = (1 << (kNumberOfRevivedPacketsSize * 8)) - 1;
 
 // This class receives callbacks from the framer when packets
 // are processed.
@@ -81,8 +79,7 @@ class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
 
   // Called when a public reset packet has been parsed but has not yet
   // been validated.
-  virtual void OnPublicResetPacket(
-      const QuicPublicResetPacket& packet) = 0;
+  virtual void OnPublicResetPacket(const QuicPublicResetPacket& packet) = 0;
 
   // Called only when |perspective_| is IS_CLIENT and a version negotiation
   // packet has been parsed.
@@ -189,17 +186,13 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // else the framer will likely crash.  It is acceptable for the visitor
   // to do nothing.  If this is called multiple times, only the last visitor
   // will be used.
-  void set_visitor(QuicFramerVisitorInterface* visitor) {
-    visitor_ = visitor;
-  }
+  void set_visitor(QuicFramerVisitorInterface* visitor) { visitor_ = visitor; }
 
   const QuicVersionVector& supported_versions() const {
     return supported_versions_;
   }
 
-  QuicVersion version() const {
-    return quic_version_;
-  }
+  QuicVersion version() const { return quic_version_; }
 
   void set_version(const QuicVersion version);
 
@@ -218,9 +211,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
     entropy_calculator_ = entropy_calculator;
   }
 
-  QuicErrorCode error() const {
-    return error_;
-  }
+  QuicErrorCode error() const { return error_; }
 
   // Pass a UDP packet into the framer for parsing.
   // Return true if the packet was processed succesfully. |packet| must be a
@@ -403,6 +394,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
   bool ProcessAuthenticatedHeader(QuicDataReader* reader,
                                   QuicPacketHeader* header);
 
+  bool ProcessPathId(QuicDataReader* reader, QuicPathId* path_id);
   bool ProcessPacketSequenceNumber(QuicDataReader* reader,
                                    QuicPacketNumberLength packet_number_length,
                                    QuicPacketNumber* packet_number);
@@ -496,13 +488,9 @@ class NET_EXPORT_PRIVATE QuicFramer {
 
   bool RaiseError(QuicErrorCode error);
 
-  void set_error(QuicErrorCode error) {
-    error_ = error;
-  }
+  void set_error(QuicErrorCode error) { error_ = error; }
 
-  void set_detailed_error(const char* error) {
-    detailed_error_ = error;
-  }
+  void set_detailed_error(const char* error) { detailed_error_ = error; }
 
   std::string detailed_error_;
   QuicFramerVisitorInterface* visitor_;

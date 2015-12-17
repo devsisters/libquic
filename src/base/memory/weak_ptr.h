@@ -161,8 +161,8 @@ class SupportsWeakPtrBase {
   static WeakPtr<Derived> StaticAsWeakPtr(Derived* t) {
     typedef
         is_convertible<Derived, internal::SupportsWeakPtrBase&> convertible;
-    COMPILE_ASSERT(convertible::value,
-                   AsWeakPtr_argument_inherits_from_SupportsWeakPtr);
+    static_assert(convertible::value,
+                  "AsWeakPtr argument must inherit from SupportsWeakPtr");
     return AsWeakPtrImpl<Derived>(t, *t);
   }
 

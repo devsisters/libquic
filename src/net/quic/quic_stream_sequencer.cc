@@ -33,7 +33,6 @@ QuicStreamSequencer::QuicStreamSequencer(ReliableQuicStream* quic_stream,
       clock_(clock),
       ignore_read_data_(false) {
   if (FLAGS_quic_use_stream_sequencer_buffer) {
-    DVLOG(1) << "Use StreamSequencerBuffer for stream: " << stream_->id();
     buffered_frames_.reset(
         new StreamSequencerBuffer(kStreamReceiveWindowLimit));
   } else {
@@ -46,7 +45,7 @@ QuicStreamSequencer::~QuicStreamSequencer() {}
 void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   ++num_frames_received_;
   const QuicStreamOffset byte_offset = frame.offset;
-  const size_t data_len = frame.data.length();
+  const size_t data_len = frame.frame_length;
   if (data_len == 0 && !frame.fin) {
     // Stream frames must have data or a fin flag.
     stream_->CloseConnectionWithDetails(QUIC_INVALID_STREAM_FRAME,
@@ -62,7 +61,8 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   }
   size_t bytes_written;
   QuicErrorCode result = buffered_frames_->OnStreamData(
-      byte_offset, frame.data, clock_->ApproximateNow(), &bytes_written);
+      byte_offset, StringPiece(frame.frame_buffer, frame.frame_length),
+      clock_->ApproximateNow(), &bytes_written);
 
   if (result == QUIC_INVALID_STREAM_DATA) {
     stream_->CloseConnectionWithDetails(
@@ -84,7 +84,7 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   if (byte_offset == buffered_frames_->BytesConsumed()) {
-    if (FLAGS_quic_implement_stop_reading && ignore_read_data_) {
+    if (ignore_read_data_) {
       FlushBufferedFrames();
     } else {
       stream_->OnDataAvailable();
@@ -117,7 +117,7 @@ bool QuicStreamSequencer::MaybeCloseStream() {
   // This will cause the stream to consume the FIN.
   // Technically it's an error if |num_bytes_consumed| isn't exactly
   // equal to |close_offset|, but error handling seems silly at this point.
-  if (FLAGS_quic_implement_stop_reading && ignore_read_data_) {
+  if (ignore_read_data_) {
     // The sequencer is discarding stream data and must notify the stream on
     // receipt of a FIN because the consumer won't.
     stream_->OnFinRead();

@@ -29,11 +29,6 @@ ChaCha20Poly1305Encrypter::ChaCha20Poly1305Encrypter()
 
 ChaCha20Poly1305Encrypter::~ChaCha20Poly1305Encrypter() {}
 
-// static
-bool ChaCha20Poly1305Encrypter::IsSupported() {
-  return true;
-}
-
 void ChaCha20Poly1305Encrypter::FillAeadParams(StringPiece nonce,
                                                StringPiece associated_data,
                                                size_t auth_tag_size,

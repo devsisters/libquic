@@ -37,6 +37,7 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
   ~SparseHistogram() override;
 
   // HistogramBase implementation:
+  uint64_t name_hash() const override;
   HistogramType GetHistogramType() const override;
   bool HasConstructionArguments(Sample expected_minimum,
                                 Sample expected_maximum,

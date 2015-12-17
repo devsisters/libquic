@@ -4,7 +4,10 @@
 
 #include "net/quic/quic_crypto_client_stream.h"
 
+#include <vector>
+
 #include "base/metrics/histogram_macros.h"
+#include "base/metrics/sparse_histogram.h"
 #include "net/quic/crypto/crypto_protocol.h"
 #include "net/quic/crypto/crypto_utils.h"
 #include "net/quic/crypto/null_encrypter.h"
@@ -14,8 +17,29 @@
 #include "net/quic/quic_session.h"
 
 using std::string;
+using std::vector;
 
 namespace net {
+
+namespace {
+
+void AppendFixed(CryptoHandshakeMessage* message) {
+  vector<QuicTag> tags;
+  tags.push_back(kFIXD);
+
+  const QuicTag* received_tags;
+  size_t received_tags_length;
+  QuicErrorCode error =
+      message->GetTaglist(kCOPT, &received_tags, &received_tags_length);
+  if (error == QUIC_NO_ERROR) {
+    for (size_t i = 0; i < received_tags_length; ++i) {
+      tags.push_back(received_tags[i]);
+    }
+  }
+  message->SetVector(kCOPT, tags);
+}
+
+}  // namespace
 
 QuicCryptoClientStreamBase::QuicCryptoClientStreamBase(
     QuicClientSessionBase* session)
@@ -255,6 +279,7 @@ void QuicCryptoClientStream::DoSendCHLO(
 
   // Send the client hello in plaintext.
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_NONE);
+  encryption_established_ = false;
   if (num_client_hellos_ > kMaxClientHellos) {
     CloseConnection(QUIC_CRYPTO_TOO_MANY_REJECTS);
     return;
@@ -267,6 +292,12 @@ void QuicCryptoClientStream::DoSendCHLO(
   // Send all the options, regardless of whether we're sending an
   // inchoate or subsequent hello.
   session()->config()->ToHandshakeMessage(&out);
+
+  // This block and function should be removed after removing QUIC_VERSION_25.
+  if (FLAGS_quic_require_fix) {
+    AppendFixed(&out);
+  }
+
   if (!cached->IsComplete(session()->connection()->clock()->WallNow())) {
     crypto_config_->FillInchoateClientHello(
         server_id_,
@@ -365,6 +396,31 @@ void QuicCryptoClientStream::DoReceiveREJ(
                                "Expected REJ");
     return;
   }
+
+  const uint32* reject_reasons;
+  size_t num_reject_reasons;
+  static_assert(sizeof(QuicTag) == sizeof(uint32), "header out of sync");
+  if (in->GetTaglist(kRREJ, &reject_reasons, &num_reject_reasons) ==
+      QUIC_NO_ERROR) {
+    uint32 packed_error = 0;
+    for (size_t i = 0; i < num_reject_reasons; ++i) {
+      // HANDSHAKE_OK is 0 and don't report that as error.
+      if (reject_reasons[i] == HANDSHAKE_OK || reject_reasons[i] >= 32) {
+        continue;
+      }
+      HandshakeFailureReason reason =
+          static_cast<HandshakeFailureReason>(reject_reasons[i]);
+      packed_error |= 1 << (reason - 1);
+    }
+    DVLOG(1) << "Reasons for rejection: " << packed_error;
+    if (num_client_hellos_ == kMaxClientHellos) {
+      UMA_HISTOGRAM_SPARSE_SLOWLY("Net.QuicClientHelloRejectReasons.TooMany",
+                                  packed_error);
+    }
+    UMA_HISTOGRAM_SPARSE_SLOWLY("Net.QuicClientHelloRejectReasons.Secure",
+                                packed_error);
+  }
+
   stateless_reject_received_ = in->tag() == kSREJ;
   string error_details;
   QuicErrorCode error = crypto_config_->ProcessRejection(

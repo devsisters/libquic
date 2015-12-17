@@ -152,6 +152,8 @@ struct NET_EXPORT_PRIVATE QuicCryptoProof {
   // QuicCryptoProof does not take ownership of |certs|.
   const std::vector<std::string>* certs;
   std::string cert_sct;
+  // The SCID of the server config whose signature is |signature|.
+  std::string primary_scid;
 };
 
 // QuicCryptoConfig contains common configuration between clients and servers.

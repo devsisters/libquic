@@ -131,11 +131,8 @@ class QuicHeadersStream::SpdyFramerVisitor
     if (!stream_->IsConnected()) {
       return;
     }
-    if (has_priority) {
-      stream_->OnSynStream(stream_id, priority, fin);
-    } else {
-      stream_->OnSynReply(stream_id, fin);
-    }
+
+    stream_->OnHeaders(stream_id, has_priority, priority, fin);
   }
 
   void OnWindowUpdate(SpdyStreamId stream_id, int delta_window_size) override {
@@ -204,12 +201,11 @@ QuicHeadersStream::QuicHeadersStream(QuicSpdySession* session)
 
 QuicHeadersStream::~QuicHeadersStream() {}
 
-size_t QuicHeadersStream::WriteHeaders(
-    QuicStreamId stream_id,
-    const SpdyHeaderBlock& headers,
-    bool fin,
-    QuicPriority priority,
-    QuicAckListenerInterface* ack_notifier_delegate) {
+size_t QuicHeadersStream::WriteHeaders(QuicStreamId stream_id,
+                                       const SpdyHeaderBlock& headers,
+                                       bool fin,
+                                       SpdyPriority priority,
+                                       QuicAckListenerInterface* ack_listener) {
   SpdyHeadersIR headers_frame(stream_id);
   headers_frame.set_header_block(headers);
   headers_frame.set_fin(fin);
@@ -220,7 +216,30 @@ size_t QuicHeadersStream::WriteHeaders(
   scoped_ptr<SpdySerializedFrame> frame(
       spdy_framer_.SerializeFrame(headers_frame));
   WriteOrBufferData(StringPiece(frame->data(), frame->size()), false,
-                    ack_notifier_delegate);
+                    ack_listener);
+  return frame->size();
+}
+
+size_t QuicHeadersStream::WritePushPromise(
+    QuicStreamId original_stream_id,
+    QuicStreamId promised_stream_id,
+    const SpdyHeaderBlock& headers,
+    QuicAckListenerInterface* ack_listener) {
+  if (session()->perspective() == Perspective::IS_CLIENT) {
+    LOG(DFATAL) << "Client shouldn't send PUSH_PROMISE";
+    return 0;
+  }
+
+  SpdyPushPromiseIR push_promise(original_stream_id, promised_stream_id);
+  push_promise.set_header_block(headers);
+  // PUSH_PROMISE must not be the last frame sent out, at least followed by
+  // response headers.
+  push_promise.set_fin(false);
+
+  scoped_ptr<SpdySerializedFrame> frame(
+      spdy_framer_.SerializeFrame(push_promise));
+  WriteOrBufferData(StringPiece(frame->data(), frame->size()), false,
+                    ack_listener);
   return frame->size();
 }
 
@@ -253,29 +272,27 @@ void QuicHeadersStream::OnDataAvailable() {
   }
 }
 
-QuicPriority QuicHeadersStream::EffectivePriority() const { return 0; }
-
-void QuicHeadersStream::OnSynStream(SpdyStreamId stream_id,
-                                    SpdyPriority priority,
-                                    bool fin) {
-  if (session()->perspective() == Perspective::IS_CLIENT) {
-    CloseConnectionWithDetails(
-        QUIC_INVALID_HEADERS_STREAM_DATA,
-        "SPDY SYN_STREAM frame received at the client");
-    return;
-  }
-  DCHECK_EQ(kInvalidStreamId, stream_id_);
-  stream_id_ = stream_id;
-  fin_ = fin;
-  spdy_session_->OnStreamHeadersPriority(stream_id, priority);
+SpdyPriority QuicHeadersStream::Priority() const {
+  return net::kV3HighestPriority;
 }
 
-void QuicHeadersStream::OnSynReply(SpdyStreamId stream_id, bool fin) {
-  if (session()->perspective() == Perspective::IS_SERVER) {
-    CloseConnectionWithDetails(
-        QUIC_INVALID_HEADERS_STREAM_DATA,
-        "SPDY SYN_REPLY frame received at the server");
-    return;
+void QuicHeadersStream::OnHeaders(SpdyStreamId stream_id,
+                                  bool has_priority,
+                                  SpdyPriority priority,
+                                  bool fin) {
+  if (has_priority) {
+    if (session()->perspective() == Perspective::IS_CLIENT) {
+      CloseConnectionWithDetails(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                 "Server must not send priorities.");
+      return;
+    }
+    spdy_session_->OnStreamHeadersPriority(stream_id, priority);
+  } else {
+    if (session()->perspective() == Perspective::IS_SERVER) {
+      CloseConnectionWithDetails(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                 "Client must send priorities.");
+      return;
+    }
   }
   DCHECK_EQ(kInvalidStreamId, stream_id_);
   stream_id_ = stream_id;

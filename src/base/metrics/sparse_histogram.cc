@@ -4,6 +4,9 @@
 
 #include "base/metrics/sparse_histogram.h"
 
+#include <utility>
+
+#include "base/metrics/metrics_hashes.h"
 #include "base/metrics/sample_map.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/pickle.h"
@@ -32,6 +35,10 @@ HistogramBase* SparseHistogram::FactoryGet(const std::string& name,
 }
 
 SparseHistogram::~SparseHistogram() {}
+
+uint64_t SparseHistogram::name_hash() const {
+  return samples_.id();
+}
 
 HistogramType SparseHistogram::GetHistogramType() const {
   return SPARSE_HISTOGRAM;
@@ -63,11 +70,11 @@ void SparseHistogram::AddCount(Sample value, int count) {
 }
 
 scoped_ptr<HistogramSamples> SparseHistogram::SnapshotSamples() const {
-  scoped_ptr<SampleMap> snapshot(new SampleMap());
+  scoped_ptr<SampleMap> snapshot(new SampleMap(name_hash()));
 
   base::AutoLock auto_lock(lock_);
   snapshot->Add(samples_);
-  return snapshot.Pass();
+  return std::move(snapshot);
 }
 
 void SparseHistogram::AddSamples(const HistogramSamples& samples) {
@@ -95,7 +102,8 @@ bool SparseHistogram::SerializeInfoImpl(Pickle* pickle) const {
 }
 
 SparseHistogram::SparseHistogram(const std::string& name)
-    : HistogramBase(name) {}
+    : HistogramBase(name),
+      samples_(HashMetricName(name)) {}
 
 HistogramBase* SparseHistogram::DeserializeInfoImpl(PickleIterator* iter) {
   std::string histogram_name;

@@ -390,6 +390,17 @@ int GetMinLogLevel() {
   return g_min_log_level;
 }
 
+bool ShouldCreateLogMessage(int severity) {
+  if (severity < g_min_log_level)
+    return false;
+
+  // Return true here unless we know ~LogMessage won't do anything. Note that
+  // ~LogMessage writes to stderr if severity_ >= kAlwaysPrintErrorLevel, even
+  // when g_logging_destination is LOG_NONE.
+  return g_logging_destination != LOG_NONE || log_message_handler ||
+         severity >= kAlwaysPrintErrorLevel;
+}
+
 int GetVlogVerbosity() {
   return std::max(-1, LOG_INFO - GetMinLogLevel());
 }

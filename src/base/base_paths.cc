@@ -29,15 +29,18 @@ bool PathProvider(int key, FilePath* result) {
     case base::DIR_HOME:
       *result = GetHomeDir();
       return true;
-    case DIR_TEST_DATA:
-      if (!PathService::Get(DIR_SOURCE_ROOT, result))
+    case DIR_TEST_DATA: {
+      FilePath test_data_path;
+      if (!PathService::Get(DIR_SOURCE_ROOT, &test_data_path))
         return false;
-      *result = result->Append(FILE_PATH_LITERAL("base"));
-      *result = result->Append(FILE_PATH_LITERAL("test"));
-      *result = result->Append(FILE_PATH_LITERAL("data"));
-      if (!PathExists(*result))  // We don't want to create this.
+      test_data_path = test_data_path.Append(FILE_PATH_LITERAL("base"));
+      test_data_path = test_data_path.Append(FILE_PATH_LITERAL("test"));
+      test_data_path = test_data_path.Append(FILE_PATH_LITERAL("data"));
+      if (!PathExists(test_data_path))  // We don't want to create this.
         return false;
+      *result = test_data_path;
       return true;
+    }
     default:
       return false;
   }

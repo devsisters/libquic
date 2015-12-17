@@ -20,6 +20,7 @@ namespace base {
 class BASE_EXPORT SampleMap : public HistogramSamples {
  public:
   SampleMap();
+  explicit SampleMap(uint64_t id);
   ~SampleMap() override;
 
   // HistogramSamples implementation:

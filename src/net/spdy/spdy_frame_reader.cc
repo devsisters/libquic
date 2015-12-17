@@ -40,7 +40,7 @@ bool SpdyFrameReader::ReadUInt16(uint16* result) {
   }
 
   // Read into result.
-  *result = ntohs(*(reinterpret_cast<const uint16*>(data_ + ofs_)));
+  *result = base::NetToHost16(*(reinterpret_cast<const uint16*>(data_ + ofs_)));
 
   // Iterate.
   ofs_ += 2;
@@ -56,7 +56,7 @@ bool SpdyFrameReader::ReadUInt32(uint32* result) {
   }
 
   // Read into result.
-  *result = ntohl(*(reinterpret_cast<const uint32*>(data_ + ofs_)));
+  *result = base::NetToHost32(*(reinterpret_cast<const uint32*>(data_ + ofs_)));
 
   // Iterate.
   ofs_ += 4;
@@ -72,8 +72,10 @@ bool SpdyFrameReader::ReadUInt64(uint64* result) {
   }
 
   // Read into result. Network byte order is big-endian.
-  uint64 upper = ntohl(*(reinterpret_cast<const uint32*>(data_ + ofs_)));
-  uint64 lower = ntohl(*(reinterpret_cast<const uint32*>(data_ + ofs_ + 4)));
+  uint64 upper =
+      base::NetToHost32(*(reinterpret_cast<const uint32*>(data_ + ofs_)));
+  uint64 lower =
+      base::NetToHost32(*(reinterpret_cast<const uint32*>(data_ + ofs_ + 4)));
   *result = (upper << 32) + lower;
 
   // Iterate.
@@ -103,7 +105,7 @@ bool SpdyFrameReader::ReadUInt24(uint32* result) {
   // Read into result.
   *result = 0;
   memcpy(reinterpret_cast<char*>(result) + 1, data_ + ofs_, 3);
-  *result = ntohl(*result);
+  *result = base::NetToHost32(*result);
 
   // Iterate.
   ofs_ += 3;

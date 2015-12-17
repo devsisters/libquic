@@ -33,6 +33,13 @@ class NET_EXPORT_PRIVATE TimeLossAlgorithm : public LossDetectionInterface {
                                     QuicPacketNumber largest_observed,
                                     const RttStats& rtt_stats) override;
 
+  // Unsupported.
+  void DetectLosses(
+      const QuicUnackedPacketMap& unacked_packets,
+      const QuicTime& time,
+      const RttStats& rtt_stats,
+      SendAlgorithmInterface::CongestionVector* packets_lost) override;
+
   // Returns the time the next packet will be lost, or zero if there
   // are no nacked pending packets outstanding.
   // TODO(ianswett): Ideally the RTT variance and the RTT would be used to

@@ -58,11 +58,7 @@ class BASE_EXPORT Location {
       // it comes from __FILE__, so no need to check the contents of the string.
       // See the definition of FROM_HERE in location.h, and how it is used
       // elsewhere.
-
-      // Due to inconsistent definitions of uint64_t and uintptr_t, casting the
-      // file name pointer to a uintptr_t causes a compiler error for some
-      // platforms. The solution is to explicitly cast it to a uint64_t.
-      return base::HashPair(reinterpret_cast<uint64_t>(location.file_name()),
+      return base::HashPair(reinterpret_cast<uintptr_t>(location.file_name()),
                             location.line_number());
     }
   };

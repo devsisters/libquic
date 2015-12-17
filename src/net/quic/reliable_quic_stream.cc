@@ -52,7 +52,8 @@ ReliableQuicStream::PendingData::~PendingData() {
 }
 
 ReliableQuicStream::ReliableQuicStream(QuicStreamId id, QuicSession* session)
-    : sequencer_(this, session->connection()->clock()),
+    : queued_data_bytes_(0),
+      sequencer_(this, session->connection()->clock()),
       id_(id),
       session_(session),
       stream_bytes_read_(0),
@@ -91,15 +92,6 @@ void ReliableQuicStream::SetFromConfig() {
 void ReliableQuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   DCHECK_EQ(frame.stream_id, id_);
 
-  bool flag_value = FLAGS_quic_fix_fin_accounting;
-  if (!flag_value) {
-    if (read_side_closed_) {
-      DVLOG(1) << ENDPOINT << "Ignoring frame " << frame.stream_id;
-      // The subclass does not want to read data:  blackhole the data.
-      return;
-    }
-  }
-
   if (frame.fin) {
     fin_received_ = true;
     if (fin_sent_) {
@@ -107,16 +99,14 @@ void ReliableQuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
     }
   }
 
-  if (flag_value) {
-    if (read_side_closed_) {
-      DVLOG(1) << ENDPOINT << "Ignoring data in frame " << frame.stream_id;
-      // The subclass does not want to read data:  blackhole the data.
-      return;
-    }
+  if (read_side_closed_) {
+    DVLOG(1) << ENDPOINT << "Ignoring data in frame " << frame.stream_id;
+    // The subclass does not want to read data:  blackhole the data.
+    return;
   }
 
   // This count includes duplicate data received.
-  size_t frame_payload_size = frame.data.size();
+  size_t frame_payload_size = frame.frame_length;
   stream_bytes_read_ += frame_payload_size;
 
   // Flow control is interested in tracking highest received offset.
@@ -227,6 +217,7 @@ void ReliableQuicStream::WriteOrBufferData(
   if (consumed_data.bytes_consumed < data.length() ||
       (fin && !consumed_data.fin_consumed)) {
     StringPiece remainder(data.substr(consumed_data.bytes_consumed));
+    queued_data_bytes_ += remainder.size();
     queued_data_.push_back(PendingData(remainder.as_string(), ack_listener));
   }
 }
@@ -253,6 +244,7 @@ void ReliableQuicStream::OnCanWrite() {
         const_cast<char*>(pending_data->data.data()) + pending_data->offset,
         remaining_len};
     QuicConsumedData consumed_data = WritevData(&iov, 1, fin, ack_listener);
+    queued_data_bytes_ -= consumed_data.bytes_consumed;
     if (consumed_data.bytes_consumed == remaining_len &&
         fin == consumed_data.fin_consumed) {
       queued_data_.pop_front();
@@ -277,7 +269,7 @@ void ReliableQuicStream::MaybeSendBlocked() {
   // WINDOW_UPDATE arrives.
   if (connection_flow_controller_->IsBlocked() &&
       !flow_controller_.IsBlocked()) {
-    session_->MarkConnectionLevelWriteBlocked(id(), EffectivePriority());
+    session_->MarkConnectionLevelWriteBlocked(id(), Priority());
   }
 }
 
@@ -325,6 +317,12 @@ QuicConsumedData ReliableQuicStream::WritevData(
 
   AddBytesSent(consumed_data.bytes_consumed);
 
+  // The write may have generated a write error causing this stream to be
+  // closed. If so, simply return without marking the stream write blocked.
+  if (write_side_closed_) {
+    return consumed_data;
+  }
+
   if (consumed_data.bytes_consumed == write_length) {
     if (!fin_with_zero_data) {
       MaybeSendBlocked();
@@ -336,10 +334,10 @@ QuicConsumedData ReliableQuicStream::WritevData(
       }
       CloseWriteSide();
     } else if (fin && !consumed_data.fin_consumed) {
-      session_->MarkConnectionLevelWriteBlocked(id(), EffectivePriority());
+      session_->MarkConnectionLevelWriteBlocked(id(), Priority());
     }
   } else {
-    session_->MarkConnectionLevelWriteBlocked(id(), EffectivePriority());
+    session_->MarkConnectionLevelWriteBlocked(id(), Priority());
   }
   return consumed_data;
 }
@@ -383,10 +381,6 @@ QuicVersion ReliableQuicStream::version() const {
 }
 
 void ReliableQuicStream::StopReading() {
-  if (!FLAGS_quic_implement_stop_reading) {
-    CloseReadSide();
-    return;
-  }
   DVLOG(1) << ENDPOINT << "Stop reading from stream " << id();
   sequencer_.StopReading();
 }

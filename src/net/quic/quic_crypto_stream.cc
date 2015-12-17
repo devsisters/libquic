@@ -15,6 +15,7 @@
 
 using std::string;
 using base::StringPiece;
+using net::SpdyPriority;
 
 namespace net {
 
@@ -58,8 +59,8 @@ void QuicCryptoStream::OnDataAvailable() {
   }
 }
 
-QuicPriority QuicCryptoStream::EffectivePriority() const {
-  return QuicUtils::HighestPriority();
+SpdyPriority QuicCryptoStream::Priority() const {
+  return net::kV3HighestPriority;
 }
 
 void QuicCryptoStream::SendHandshakeMessage(

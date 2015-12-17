@@ -137,7 +137,7 @@ bool HpackInputStream::DecodeNextHuffmanString(const HpackHuffmanTable& table,
   return table.DecodeString(&bounded_reader, max_string_literal_size_, str);
 }
 
-bool HpackInputStream::PeekBits(size_t* peeked_count, uint32* out) {
+bool HpackInputStream::PeekBits(size_t* peeked_count, uint32* out) const {
   size_t byte_offset = (bit_offset_ + *peeked_count) / 8;
   size_t bit_offset = (bit_offset_ + *peeked_count) % 8;
 

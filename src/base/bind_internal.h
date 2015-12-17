@@ -5,6 +5,8 @@
 #ifndef BASE_BIND_INTERNAL_H_
 #define BASE_BIND_INTERNAL_H_
 
+#include <type_traits>
+
 #include "base/bind_helpers.h"
 #include "base/callback_internal.h"
 #include "base/memory/raw_scoped_refptr_mismatch_checker.h"
@@ -37,12 +39,7 @@ namespace internal {
 //             even if the invocation syntax differs.
 //  RunType -- A function type (as opposed to function _pointer_ type) for
 //             a Run() function.  Usually just a convenience typedef.
-//  (Bound)ArgsType -- A function type that is being (ab)used to store the
-//                     types of set of arguments.  The "return" type is always
-//                     void here.  We use this hack so that we do not need
-//                     a new type name for each arity of type. (eg.,
-//                     BindState1, BindState2).  This makes forward
-//                     declarations and friending much much easier.
+//  (Bound)Args -- A set of types that stores the arguments.
 //
 // Types:
 //  RunnableAdapter<> -- Wraps the various "function" pointer types into an
@@ -54,7 +51,6 @@ namespace internal {
 //                     signature adapters are applied.
 //  MakeRunnable<> -- Takes a Functor and returns an object in the Runnable
 //                    type class that represents the underlying Functor.
-//                    There are |O(1)| MakeRunnable types.
 //  InvokeHelper<> -- Take a Runnable + arguments and actully invokes it.
 //                    Handle the differing syntaxes needed for WeakPtr<>
 //                    support, and for ignoring return values.  This is separate
@@ -77,9 +73,9 @@ struct HasNonConstReferenceParam : false_type {};
 // recursively.
 template <typename R, typename T, typename... Args>
 struct HasNonConstReferenceParam<R(T, Args...)>
-    : SelectType<is_non_const_reference<T>::value,
-                 true_type,
-                 HasNonConstReferenceParam<R(Args...)>>::Type {};
+    : std::conditional<is_non_const_reference<T>::value,
+                       true_type,
+                       HasNonConstReferenceParam<R(Args...)>>::type {};
 
 // HasRefCountedTypeAsRawPtr selects true_type when any of the |Args| is a raw
 // pointer to a RefCounted type.
@@ -93,9 +89,9 @@ struct HasRefCountedTypeAsRawPtr : false_type {};
 // parameters recursively.
 template <typename T, typename... Args>
 struct HasRefCountedTypeAsRawPtr<T, Args...>
-    : SelectType<NeedsScopedRefptrButGetsRawPtr<T>::value,
-                 true_type,
-                 HasRefCountedTypeAsRawPtr<Args...>>::Type {};
+    : std::conditional<NeedsScopedRefptrButGetsRawPtr<T>::value,
+                       true_type,
+                       HasRefCountedTypeAsRawPtr<Args...>>::type {};
 
 // BindsArrayToFirstArg selects true_type when |is_method| is true and the first
 // item of |Args| is an array type.
@@ -311,8 +307,8 @@ struct InvokeHelper<true, ReturnType, Runnable, ArgsType> {
   // WeakCalls are only supported for functions with a void return type.
   // Otherwise, the function result would be undefined if the the WeakPtr<>
   // is invalidated.
-  COMPILE_ASSERT(is_void<ReturnType>::value,
-                 weak_ptrs_can_only_bind_to_methods_without_return_values);
+  static_assert(is_void<ReturnType>::value,
+                "weak_ptrs can only bind to methods without return values");
 };
 
 #endif
@@ -358,19 +354,18 @@ struct Invoker<IndexSequence<bound_indices...>,
 // Normally, this is the same as the RunType of the Runnable, but it can
 // be different if an adapter like IgnoreResult() has been used.
 //
-// BoundArgsType contains the storage type for all the bound arguments by
-// (ab)using a function type.
-template <typename Runnable, typename RunType, typename BoundArgList>
+// BoundArgs contains the storage type for all the bound arguments.
+template <typename Runnable, typename RunType, typename... BoundArgs>
 struct BindState;
 
 template <typename Runnable,
           typename R,
           typename... Args,
           typename... BoundArgs>
-struct BindState<Runnable, R(Args...), TypeList<BoundArgs...>> final
+struct BindState<Runnable, R(Args...), BoundArgs...> final
     : public BindStateBase {
  private:
-  using StorageType = BindState<Runnable, R(Args...), TypeList<BoundArgs...>>;
+  using StorageType = BindState<Runnable, R(Args...), BoundArgs...>;
   using RunnableType = Runnable;
 
   // true_type if Runnable is a method invocation and the first bound argument

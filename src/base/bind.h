@@ -51,15 +51,13 @@ template <typename Functor>
 base::Callback<
     typename internal::BindState<
         typename internal::FunctorTraits<Functor>::RunnableType,
-        typename internal::FunctorTraits<Functor>::RunType,
-        internal::TypeList<>>::UnboundRunType>
+        typename internal::FunctorTraits<Functor>::RunType>::UnboundRunType>
 Bind(Functor functor) {
   // Typedefs for how to store and run the functor.
   typedef typename internal::FunctorTraits<Functor>::RunnableType RunnableType;
   typedef typename internal::FunctorTraits<Functor>::RunType RunType;
 
-  typedef internal::BindState<RunnableType, RunType,
-                              internal::TypeList<>> BindState;
+  typedef internal::BindState<RunnableType, RunType> BindState;
 
   return Callback<typename BindState::UnboundRunType>(
       new BindState(internal::MakeRunnable(functor)));
@@ -70,8 +68,7 @@ base::Callback<
     typename internal::BindState<
         typename internal::FunctorTraits<Functor>::RunnableType,
         typename internal::FunctorTraits<Functor>::RunType,
-        internal::TypeList<
-            typename internal::CallbackParamTraits<Args>::StorageType...>>
+        typename internal::CallbackParamTraits<Args>::StorageType...>
             ::UnboundRunType>
 Bind(Functor functor, const Args&... args) {
   // Typedefs for how to store and run the functor.
@@ -89,7 +86,7 @@ Bind(Functor functor, const Args&... args) {
   // invoked function will receive a reference to the stored copy of the
   // argument and not the original.
   static_assert(!internal::HasNonConstReferenceParam<BoundRunType>::value,
-                "do_not_bind_functions_with_nonconst_ref");
+                "do not bind functions with nonconst ref");
 
   const bool is_method = internal::HasIsMethodTag<RunnableType>::value;
 
@@ -98,15 +95,14 @@ Bind(Functor functor, const Args&... args) {
   // methods. We also disallow binding of an array as the method's target
   // object.
   static_assert(!internal::BindsArrayToFirstArg<is_method, Args...>::value,
-                "first_bound_argument_to_method_cannot_be_array");
+                "first bound argument to method cannot be array");
   static_assert(
       !internal::HasRefCountedParamAsRawPtr<is_method, Args...>::value,
-      "a_parameter_is_refcounted_type_and_needs_scoped_refptr");
+      "a parameter is a refcounted type and needs scoped_refptr");
 
   typedef internal::BindState<
       RunnableType, RunType,
-      internal::TypeList<
-          typename internal::CallbackParamTraits<Args>::StorageType...>>
+      typename internal::CallbackParamTraits<Args>::StorageType...>
       BindState;
 
   return Callback<typename BindState::UnboundRunType>(

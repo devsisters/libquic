@@ -9,6 +9,8 @@
 #define BASE_CALLBACK_INTERNAL_H_
 
 #include <stddef.h>
+#include <memory>
+#include <type_traits>
 
 #include "base/atomic_ref_count.h"
 #include "base/base_export.h"
@@ -92,8 +94,14 @@ class BASE_EXPORT CallbackBase {
 };
 
 // A helper template to determine if given type is non-const move-only-type,
-// i.e. if a value of the given type should be passed via .Pass() in a
-// destructive way.
+// i.e. if a value of the given type should be passed via std::move() in a
+// destructive way. Types are considered to be move-only if they have a
+// sentinel MoveOnlyTypeForCPP03 member: a class typically gets this from using
+// the DISALLOW_COPY_AND_ASSIGN_WITH_MOVE_FOR_BIND macro.
+// It would be easy to generalize this trait to all move-only types... but this
+// confuses template deduction in VS2013 with certain types such as
+// std::unique_ptr.
+// TODO(dcheng): Revisit this when Windows switches to VS2015 by default.
 template <typename T> struct IsMoveOnlyType {
   template <typename U>
   static YesType Test(const typename U::MoveOnlyTypeForCPP03*);
@@ -105,17 +113,10 @@ template <typename T> struct IsMoveOnlyType {
                             !is_const<T>::value;
 };
 
-// Returns |Then| as SelectType::Type if |condition| is true. Otherwise returns
-// |Else|.
-template <bool condition, typename Then, typename Else>
-struct SelectType {
-  typedef Then Type;
-};
-
-template <typename Then, typename Else>
-struct SelectType<false, Then, Else> {
-  typedef Else Type;
-};
+// Specialization of IsMoveOnlyType so that std::unique_ptr is still considered
+// move-only, even without the sentinel member.
+template <typename T>
+struct IsMoveOnlyType<std::unique_ptr<T>> : std::true_type {};
 
 template <typename>
 struct CallbackParamTraitsForMoveOnlyType;
@@ -140,9 +141,9 @@ struct CallbackParamTraitsForNonMoveOnlyType;
 // break passing of C-string literals.
 template <typename T>
 struct CallbackParamTraits
-    : SelectType<IsMoveOnlyType<T>::value,
+    : std::conditional<IsMoveOnlyType<T>::value,
          CallbackParamTraitsForMoveOnlyType<T>,
-         CallbackParamTraitsForNonMoveOnlyType<T> >::Type {
+         CallbackParamTraitsForNonMoveOnlyType<T>>::type {
 };
 
 template <typename T>
@@ -208,7 +209,7 @@ struct CallbackParamTraitsForMoveOnlyType {
 // default template compiles out to be a no-op.
 //
 // In C++11, std::forward would replace all uses of this function.  However, it
-// is impossible to implement a general std::forward with C++11 due to a lack
+// is impossible to implement a general std::forward without C++11 due to a lack
 // of rvalue references.
 //
 // In addition to Callback/Bind, this is used by PostTaskAndReplyWithResult to
@@ -216,13 +217,15 @@ struct CallbackParamTraitsForMoveOnlyType {
 // parameter to another callback. This is to support Callbacks that return
 // the movable-but-not-copyable types whitelisted above.
 template <typename T>
-typename enable_if<!IsMoveOnlyType<T>::value, T>::type& CallbackForward(T& t) {
+typename std::enable_if<!IsMoveOnlyType<T>::value, T>::type& CallbackForward(
+    T& t) {
   return t;
 }
 
 template <typename T>
-typename enable_if<IsMoveOnlyType<T>::value, T>::type CallbackForward(T& t) {
-  return t.Pass();
+typename std::enable_if<IsMoveOnlyType<T>::value, T>::type CallbackForward(
+    T& t) {
+  return std::move(t);
 }
 
 }  // namespace internal

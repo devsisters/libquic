@@ -8,6 +8,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "net/http/http_auth_challenge_tokenizer.h"
+#include "net/http/http_auth_scheme.h"
 #include "net/http/http_util.h"
 
 namespace net {
@@ -27,7 +28,7 @@ bool ShouldRedactChallenge(HttpAuthChallengeTokenizer* challenge) {
 
   // Ignore Basic and Digest authentication challenges, as they contain
   // public information.
-  if (scheme == "basic" || scheme == "digest")
+  if (scheme == kBasicAuthScheme || scheme == kDigestAuthScheme)
     return false;
 
   return true;

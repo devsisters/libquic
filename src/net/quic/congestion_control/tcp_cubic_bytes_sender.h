@@ -54,7 +54,7 @@ class NET_EXPORT_PRIVATE TcpCubicBytesSender : public SendAlgorithmInterface {
                     QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable) override;
   void OnRetransmissionTimeout(bool packets_retransmitted) override;
-  void OnConnectionMigration() override {}
+  void OnConnectionMigration() override;
   QuicTime::Delta TimeUntilSend(
       QuicTime now,
       QuicByteCount bytes_in_flight,
@@ -129,6 +129,14 @@ class NET_EXPORT_PRIVATE TcpCubicBytesSender : public SendAlgorithmInterface {
   // Whether the last loss event caused us to exit slowstart. Used for stats
   // collection of slowstart_packets_lost.
   bool last_cutback_exited_slowstart_;
+
+  // Initial TCP congestion window in bytes. This variable can only be set when
+  // this algorithm is created.
+  const QuicByteCount initial_tcp_congestion_window_;
+
+  // Initial maximum TCP congestion window in bytes. This variable can only be
+  // set when this algorithm is created.
+  const QuicByteCount initial_max_tcp_congestion_window_;
 
   DISALLOW_COPY_AND_ASSIGN(TcpCubicBytesSender);
 };

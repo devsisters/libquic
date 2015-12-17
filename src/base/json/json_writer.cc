@@ -4,7 +4,10 @@
 
 #include "base/json/json_writer.h"
 
+#include <stdint.h>
+
 #include <cmath>
+#include <limits>
 
 #include "base/json/string_escape.h"
 #include "base/logging.h"
@@ -79,10 +82,10 @@ bool JSONWriter::BuildJSONString(const Value& node, size_t depth) {
       bool result = node.GetAsDouble(&value);
       DCHECK(result);
       if (omit_double_type_preservation_ &&
-          value <= kint64max &&
-          value >= kint64min &&
+          value <= std::numeric_limits<int64_t>::max() &&
+          value >= std::numeric_limits<int64_t>::min() &&
           std::floor(value) == value) {
-        json_string_->append(Int64ToString(static_cast<int64>(value)));
+        json_string_->append(Int64ToString(static_cast<int64_t>(value)));
         return result;
       }
       std::string real = DoubleToString(value);

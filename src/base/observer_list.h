@@ -12,6 +12,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
+#include "base/stl_util.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -157,8 +158,7 @@ ObserverType* ObserverListBase<ObserverType>::Iterator::GetNext() {
 template <class ObserverType>
 void ObserverListBase<ObserverType>::AddObserver(ObserverType* obs) {
   DCHECK(obs);
-  if (std::find(observers_.begin(), observers_.end(), obs)
-      != observers_.end()) {
+  if (ContainsValue(observers_, obs)) {
     NOTREACHED() << "Observers can only be added once!";
     return;
   }

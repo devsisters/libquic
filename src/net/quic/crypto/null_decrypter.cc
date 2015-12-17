@@ -74,8 +74,8 @@ bool NullDecrypter::ReadHash(QuicDataReader* reader, uint128* hash) {
   return true;
 }
 
-uint128 NullDecrypter::ComputeHash(const StringPiece& data1,
-                                   const StringPiece& data2) const {
+uint128 NullDecrypter::ComputeHash(const StringPiece data1,
+                                   const StringPiece data2) const {
   uint128 correct_hash = QuicUtils::FNV1a_128_Hash_Two(
       data1.data(), data1.length(), data2.data(), data2.length());
   uint128 mask(UINT64_C(0x0), UINT64_C(0xffffffff));

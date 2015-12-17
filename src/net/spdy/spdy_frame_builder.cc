@@ -24,7 +24,7 @@ union FlagsAndLength {
 FlagsAndLength CreateFlagsAndLength(uint8 flags, size_t length) {
   DCHECK_EQ(0u, length & ~static_cast<size_t>(kLengthMask));
   FlagsAndLength flags_length;
-  flags_length.length = htonl(static_cast<uint32>(length));
+  flags_length.length = base::HostToNet32(static_cast<uint32>(length));
   DCHECK_EQ(0, flags & ~kControlFlagsMask);
   flags_length.flags[0] = flags;
   return flags_length;
@@ -89,7 +89,7 @@ bool SpdyFrameBuilder::WriteDataFrameHeader(const SpdyFramer& framer,
   size_t length_field = capacity_ - framer.GetDataFrameMinimumSize();
   DCHECK_EQ(0u, length_field & ~static_cast<size_t>(kLengthMask));
   FlagsAndLength flags_length;
-  flags_length.length = htonl(length_field);
+  flags_length.length = base::HostToNet32(static_cast<uint32>(length_field));
   DCHECK_EQ(0, flags & ~kDataFlagsMask);
   flags_length.flags[0] = flags;
   success &= WriteBytes(&flags_length, sizeof(flags_length));

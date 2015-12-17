@@ -287,7 +287,6 @@ enum SpdyFrameType {
   GOAWAY,
   HEADERS,
   WINDOW_UPDATE,
-  CREDENTIAL = 10,  // No longer valid.  Kept for identifiability.
   PUSH_PROMISE,
   CONTINUATION,
   PRIORITY,
@@ -383,7 +382,6 @@ enum SpdyRstStreamStatus {
   RST_STREAM_FLOW_CONTROL_ERROR = 7,
   RST_STREAM_STREAM_IN_USE = 8,
   RST_STREAM_STREAM_ALREADY_CLOSED = 9,
-  RST_STREAM_INVALID_CREDENTIALS = 10,
   // FRAME_TOO_LARGE (defined by SPDY versions 3.1 and below), and
   // FRAME_SIZE_ERROR (defined by HTTP/2) are mapped to the same internal
   // reset status.
@@ -420,6 +418,12 @@ enum SpdyGoAwayStatus {
 // SPDY priority range is version-dependent. For SPDY 2 and below, priority is a
 // number between 0 and 3.
 typedef uint8 SpdyPriority;
+
+// Lowest and Highest here refer to SPDY priorities as described in
+
+// https://www.chromium.org/spdy/spdy-protocol/spdy-protocol-draft3-1#TOC-2.3.3-Stream-priority
+const SpdyPriority kV3HighestPriority = 0;
+const SpdyPriority kV3LowestPriority = 7;
 
 typedef uint64 SpdyPingId;
 
@@ -609,6 +613,8 @@ class NET_EXPORT_PRIVATE SpdyFrameWithFinIR : public SpdyFrameWithStreamIdIR {
 class NET_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
     : public NON_EXPORTED_BASE(SpdyFrameWithFinIR) {
  public:
+  ~SpdyFrameWithHeaderBlockIR() override;
+
   const SpdyHeaderBlock& header_block() const { return header_block_; }
   void set_header_block(const SpdyHeaderBlock& header_block) {
     // Deep copy.
@@ -621,7 +627,6 @@ class NET_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
 
  protected:
   explicit SpdyFrameWithHeaderBlockIR(SpdyStreamId stream_id);
-  ~SpdyFrameWithHeaderBlockIR() override;
 
  private:
   SpdyHeaderBlock header_block_;
@@ -822,7 +827,7 @@ class NET_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
     status_ = status;
   }
 
-  const base::StringPiece& description() const;
+  const base::StringPiece& description() const { return description_; }
 
   void Visit(SpdyFrameVisitor* visitor) const override;
 

@@ -12,6 +12,8 @@
 
 namespace net {
 
+using base::StringPiece;
+
 namespace {
 
 template <class T>

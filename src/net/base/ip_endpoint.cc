@@ -4,6 +4,8 @@
 
 #include "net/base/ip_endpoint.h"
 
+#include <tuple>
+
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/sys_byteorder.h"
@@ -110,19 +112,16 @@ std::string IPEndPoint::ToStringWithoutPort() const {
   return IPAddressToString(address_);
 }
 
-bool IPEndPoint::operator<(const IPEndPoint& that) const {
+bool IPEndPoint::operator<(const IPEndPoint& other) const {
   // Sort IPv4 before IPv6.
-  if (address_.size() != that.address_.size()) {
-    return address_.size() < that.address_.size();
+  if (address_.size() != other.address_.size()) {
+    return address_.size() < other.address_.size();
   }
-  if (address_ != that.address_) {
-    return address_ < that.address_;
-  }
-  return port_ < that.port_;
+  return std::tie(address_, port_) < std::tie(other.address_, other.port_);
 }
 
-bool IPEndPoint::operator==(const IPEndPoint& that) const {
-  return address_ == that.address_ && port_ == that.port_;
+bool IPEndPoint::operator==(const IPEndPoint& other) const {
+  return address_ == other.address_ && port_ == other.port_;
 }
 
 }  // namespace net

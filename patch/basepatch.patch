@@ -145,6 +145,24 @@ index 1ecbcd6..593caad 100644
  
    // Mac OS X does not expose the length limit of the name, so
    // hardcode it.
+diff --git a/src/net/base/host_port_pair.cc b/src/net/base/host_port_pair.cc
+index a0dd2d5..03083f3 100644
+--- a/src/net/base/host_port_pair.cc
++++ b/src/net/base/host_port_pair.cc
+@@ -20,11 +20,13 @@ HostPortPair::HostPortPair(const std::string& in_host, uint16_t in_port)
+     : host_(in_host), port_(in_port) {
+ }
+ 
++#if 0
+ // static
+ HostPortPair HostPortPair::FromURL(const GURL& url) {
+   return HostPortPair(url.HostNoBrackets(),
+                       static_cast<uint16_t>(url.EffectiveIntPort()));
+ }
++#endif
+ 
+ // static
+ HostPortPair HostPortPair::FromIPEndPoint(const IPEndPoint& ipe) {
 diff --git a/src/net/base/net_errors.cc b/src/net/base/net_errors.cc
 index ddba87b..6f07590 100644
 --- a/src/net/base/net_errors.cc
@@ -189,141 +207,8 @@ index a3b6040..485d3c0 100644
  
  }  // namespace net
  
-diff --git a/src/net/quic/quic_session.cc b/src/net/quic/quic_session.cc
-index 2a325d6..b532683 100644
---- a/src/net/quic/quic_session.cc
-+++ b/src/net/quic/quic_session.cc
-@@ -9,7 +9,9 @@
- #include "net/quic/quic_connection.h"
- #include "net/quic/quic_flags.h"
- #include "net/quic/quic_flow_controller.h"
-+#if 0
- #include "net/ssl/ssl_info.h"
-+#endif
- 
- using base::StringPiece;
- using base::hash_map;
-diff --git a/src/net/spdy/spdy_framer.cc b/src/net/spdy/spdy_framer.cc
-index faf49b4..205a77c 100644
---- a/src/net/spdy/spdy_framer.cc
-+++ b/src/net/spdy/spdy_framer.cc
-@@ -14,7 +14,9 @@
- #include "base/lazy_instance.h"
- #include "base/memory/scoped_ptr.h"
- #include "base/metrics/histogram_macros.h"
-+#if 0
- #include "base/third_party/valgrind/memcheck.h"
-+#endif
- #include "net/spdy/hpack/hpack_constants.h"
- #include "net/spdy/spdy_frame_builder.h"
- #include "net/spdy/spdy_frame_reader.h"
-diff --git a/src/net/spdy/spdy_framer.h b/src/net/spdy/spdy_framer.h
-index 976a364..df08986 100644
---- a/src/net/spdy/spdy_framer.h
-+++ b/src/net/spdy/spdy_framer.h
-@@ -17,7 +17,9 @@
- #include "net/spdy/hpack/hpack_decoder.h"
- #include "net/spdy/hpack/hpack_encoder.h"
- #include "net/spdy/spdy_alt_svc_wire_format.h"
-+#if 0
- #include "net/spdy/spdy_header_block.h"
-+#endif
- #include "net/spdy/spdy_protocol.h"
- 
- // TODO(akalin): Remove support for CREDENTIAL frames.
-diff --git a/src/net/spdy/spdy_header_block.h b/src/net/spdy/spdy_header_block.h
-index f524fdb..d3fde3d 100644
---- a/src/net/spdy/spdy_header_block.h
-+++ b/src/net/spdy/spdy_header_block.h
-@@ -120,10 +120,12 @@ class NET_EXPORT SpdyHeaderBlock {
-   scoped_ptr<Storage> storage_;
- };
- 
-+#if 0
- // Converts a SpdyHeaderBlock into NetLog event parameters.
- NET_EXPORT scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
-     const SpdyHeaderBlock* headers,
-     NetLogCaptureMode capture_mode);
-+#endif
- 
- // Converts NetLog event parameters into a SPDY header block and writes them
- // to |headers|.  |event_param| must have been created by
-diff --git a/src/net/spdy/spdy_header_block.cc b/src/net/spdy/spdy_header_block.cc
-index 0db9a41..1420c96 100644
---- a/src/net/spdy/spdy_header_block.cc
-+++ b/src/net/spdy/spdy_header_block.cc
-@@ -210,6 +210,7 @@ void SpdyHeaderBlock::AppendHeader(const StringPiece key,
-   block_.insert(make_pair(storage_->Write(key), storage_->Write(value)));
- }
- 
-+#if 0
- scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
-     const SpdyHeaderBlock* headers,
-     NetLogCaptureMode capture_mode) {
-@@ -225,6 +226,7 @@ scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
-   dict->Set("headers", headers_dict);
-   return dict.Pass();
- }
-+#endif
- 
- bool SpdyHeaderBlockFromNetLogParam(
-     const base::Value* event_param,
-diff --git a/src/net/quic/quic_server_id.cc b/src/net/quic/quic_server_id.cc
-index 822c1b0..ef6e34c 100644
---- a/src/net/quic/quic_server_id.cc
-+++ b/src/net/quic/quic_server_id.cc
-@@ -43,6 +43,7 @@ bool QuicServerId::operator==(const QuicServerId& other) const {
-          host_port_pair_.Equals(other.host_port_pair_);
- }
- 
-+#if 0
- // static
- QuicServerId QuicServerId::FromString(const std::string& str) {
-   GURL url(str);
-@@ -52,6 +53,7 @@ QuicServerId QuicServerId::FromString(const std::string& str) {
-                                                       ? PRIVACY_MODE_ENABLED
-                                                       : PRIVACY_MODE_DISABLED);
- }
-+#endif
- 
- string QuicServerId::ToString() const {
-   return "https://" + host_port_pair_.ToString() +
-diff --git a/src/net/quic/quic_server_id.h b/src/net/quic/quic_server_id.h
-index 4e3f067..53c78ac 100644
---- a/src/net/quic/quic_server_id.h
-+++ b/src/net/quic/quic_server_id.h
-@@ -30,9 +30,11 @@ class NET_EXPORT_PRIVATE QuicServerId {
-   bool operator<(const QuicServerId& other) const;
-   bool operator==(const QuicServerId& other) const;
- 
-+#if 0
-   // Creates a QuicServerId from a string formatted in same manner as
-   // ToString().
-   static QuicServerId FromString(const std::string& str);
-+#endif
- 
-   // ToString() will convert the QuicServerId to "scheme:hostname:port" or
-   // "scheme:hostname:port/private". "scheme" will be "https".
-diff --git a/src/net/base/host_port_pair.cc b/src/net/base/host_port_pair.cc
-index a0dd2d5..03083f3 100644
---- a/src/net/base/host_port_pair.cc
-+++ b/src/net/base/host_port_pair.cc
-@@ -20,11 +20,13 @@ HostPortPair::HostPortPair(const std::string& in_host, uint16_t in_port)
-     : host_(in_host), port_(in_port) {
- }
- 
-+#if 0
- // static
- HostPortPair HostPortPair::FromURL(const GURL& url) {
-   return HostPortPair(url.HostNoBrackets(),
-                       static_cast<uint16_t>(url.EffectiveIntPort()));
- }
-+#endif
- 
- // static
- HostPortPair HostPortPair::FromIPEndPoint(const IPEndPoint& ipe) {
 diff --git a/src/net/quic/crypto/crypto_utils.cc b/src/net/quic/crypto/crypto_utils.cc
-index 67c1c38..221915f 100644
+index 8d5d4b4..8c1dd43 100644
 --- a/src/net/quic/crypto/crypto_utils.cc
 +++ b/src/net/quic/crypto/crypto_utils.cc
 @@ -48,6 +48,7 @@ void CryptoUtils::GenerateNonce(QuicWallTime now,
@@ -364,3 +249,104 @@ index 67c1c38..221915f 100644
  
  // static
  bool CryptoUtils::DeriveKeys(StringPiece premaster_secret,
+diff --git a/src/net/quic/quic_server_id.cc b/src/net/quic/quic_server_id.cc
+index 25bac39..747e691 100644
+--- a/src/net/quic/quic_server_id.cc
++++ b/src/net/quic/quic_server_id.cc
+@@ -43,6 +43,7 @@ bool QuicServerId::operator==(const QuicServerId& other) const {
+          host_port_pair_.Equals(other.host_port_pair_);
+ }
+ 
++#if 0
+ // static
+ QuicServerId QuicServerId::FromString(const std::string& str) {
+   GURL url(str);
+@@ -52,6 +53,7 @@ QuicServerId QuicServerId::FromString(const std::string& str) {
+                                                       ? PRIVACY_MODE_ENABLED
+                                                       : PRIVACY_MODE_DISABLED);
+ }
++#endif
+ 
+ string QuicServerId::ToString() const {
+   return "https://" + host_port_pair_.ToString() +
+diff --git a/src/net/quic/quic_server_id.h b/src/net/quic/quic_server_id.h
+index 4e3f067..53c78ac 100644
+--- a/src/net/quic/quic_server_id.h
++++ b/src/net/quic/quic_server_id.h
+@@ -30,9 +30,11 @@ class NET_EXPORT_PRIVATE QuicServerId {
+   bool operator<(const QuicServerId& other) const;
+   bool operator==(const QuicServerId& other) const;
+ 
++#if 0
+   // Creates a QuicServerId from a string formatted in same manner as
+   // ToString().
+   static QuicServerId FromString(const std::string& str);
++#endif
+ 
+   // ToString() will convert the QuicServerId to "scheme:hostname:port" or
+   // "scheme:hostname:port/private". "scheme" will be "https".
+diff --git a/src/net/quic/quic_session.cc b/src/net/quic/quic_session.cc
+index 445792b..ec5e854 100644
+--- a/src/net/quic/quic_session.cc
++++ b/src/net/quic/quic_session.cc
+@@ -9,7 +9,9 @@
+ #include "net/quic/quic_connection.h"
+ #include "net/quic/quic_flags.h"
+ #include "net/quic/quic_flow_controller.h"
++#if 0
+ #include "net/ssl/ssl_info.h"
++#endif
+ 
+ using base::StringPiece;
+ using base::hash_map;
+diff --git a/src/net/spdy/spdy_framer.h b/src/net/spdy/spdy_framer.h
+index 8e2ce1c..42ce5f9 100644
+--- a/src/net/spdy/spdy_framer.h
++++ b/src/net/spdy/spdy_framer.h
+@@ -17,7 +17,9 @@
+ #include "net/spdy/hpack/hpack_decoder.h"
+ #include "net/spdy/hpack/hpack_encoder.h"
+ #include "net/spdy/spdy_alt_svc_wire_format.h"
++#if 0
+ #include "net/spdy/spdy_header_block.h"
++#endif
+ #include "net/spdy/spdy_protocol.h"
+ 
+ typedef struct z_stream_s z_stream;  // Forward declaration for zlib.
+diff --git a/src/net/spdy/spdy_header_block.cc b/src/net/spdy/spdy_header_block.cc
+index 5e607e7..f8705f9 100644
+--- a/src/net/spdy/spdy_header_block.cc
++++ b/src/net/spdy/spdy_header_block.cc
+@@ -224,6 +224,7 @@ void SpdyHeaderBlock::AppendHeader(const StringPiece key,
+   block_.insert(make_pair(storage_->Write(key), storage_->Write(value)));
+ }
+ 
++#if 0
+ scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
+     const SpdyHeaderBlock* headers,
+     NetLogCaptureMode capture_mode) {
+@@ -239,6 +240,7 @@ scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
+   dict->Set("headers", headers_dict);
+   return dict.Pass();
+ }
++#endif
+ 
+ bool SpdyHeaderBlockFromNetLogParam(
+     const base::Value* event_param,
+diff --git a/src/net/spdy/spdy_header_block.h b/src/net/spdy/spdy_header_block.h
+index 8688044..8d76571 100644
+--- a/src/net/spdy/spdy_header_block.h
++++ b/src/net/spdy/spdy_header_block.h
+@@ -124,10 +124,12 @@ class NET_EXPORT SpdyHeaderBlock {
+   scoped_ptr<Storage> storage_;
+ };
+ 
++#if 0
+ // Converts a SpdyHeaderBlock into NetLog event parameters.
+ NET_EXPORT scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
+     const SpdyHeaderBlock* headers,
+     NetLogCaptureMode capture_mode);
++#endif
+ 
+ // Converts NetLog event parameters into a SPDY header block and writes them
+ // to |headers|.  |event_param| must have been created by

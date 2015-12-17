@@ -63,9 +63,6 @@ const char kVModule[]                       = "vmodule";
 // Will wait for 60 seconds for a debugger to come to attach to the process.
 const char kWaitForDebugger[]               = "wait-for-debugger";
 
-// Sends a pretty-printed version of tracing info to the console.
-const char kTraceToConsole[]                = "trace-to-console";
-
 // Sends trace events from these categories to a file.
 // --trace-to-file on its own sends to default categories.
 const char kTraceToFile[]                   = "trace-to-file";

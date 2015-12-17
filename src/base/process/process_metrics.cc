@@ -4,6 +4,8 @@
 
 #include "base/process/process_metrics.h"
 
+#include <utility>
+
 #include "base/logging.h"
 #include "base/values.h"
 
@@ -40,7 +42,7 @@ scoped_ptr<Value> SystemMetrics::ToValue() const {
   res->Set("swapinfo", swap_info_.ToValue());
 #endif
 
-  return res.Pass();
+  return std::move(res);
 }
 
 ProcessMetrics* ProcessMetrics::CreateCurrentProcessMetrics() {

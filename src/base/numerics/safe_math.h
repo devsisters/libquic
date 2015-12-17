@@ -181,15 +181,15 @@ class CheckedNumeric {
   template <typename Src>
   static CheckedNumeric<T> cast(
       Src u,
-      typename enable_if<std::numeric_limits<Src>::is_specialized, int>::type =
-          0) {
+      typename std::enable_if<std::numeric_limits<Src>::is_specialized,
+                              int>::type = 0) {
     return u;
   }
 
   template <typename Src>
   static CheckedNumeric<T> cast(
       const CheckedNumeric<Src>& u,
-      typename enable_if<!is_same<Src, T>::value, int>::type = 0) {
+      typename std::enable_if<!is_same<Src, T>::value, int>::type = 0) {
     return u;
   }
 

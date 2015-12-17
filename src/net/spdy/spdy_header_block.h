@@ -52,6 +52,10 @@ class NET_EXPORT SpdyHeaderBlock {
   bool operator==(const SpdyHeaderBlock& other) const;
   bool operator!=(const SpdyHeaderBlock& other) const;
 
+  // Provides a human readable multi-line representation of the stored header
+  // keys and values.
+  std::string DebugString() const;
+
   // These methods delegate to our MapType member.
   iterator begin() { return block_.begin(); }
   iterator end() { return block_.end(); }

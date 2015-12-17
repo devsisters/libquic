@@ -48,7 +48,7 @@ class NET_EXPORT_PRIVATE HpackInputStream {
   // previously peeked. PeekBits() will fill some number of remaining bits,
   // returning the new total number via |peeked_count|. Returns true if one
   // or more additional bits could be peeked, and false otherwise.
-  bool PeekBits(size_t* peeked_count, uint32* out);
+  bool PeekBits(size_t* peeked_count, uint32* out) const;
 
   // Consumes |count| bits of input. Generally paired with PeekBits().
   void ConsumeBits(size_t count);

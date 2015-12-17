@@ -4,14 +4,19 @@
 
 #include "net/quic/congestion_control/loss_detection_interface.h"
 
+#include "net/quic/congestion_control/general_loss_algorithm.h"
 #include "net/quic/congestion_control/tcp_loss_algorithm.h"
 #include "net/quic/congestion_control/time_loss_algorithm.h"
+#include "net/quic/quic_flags.h"
 
 namespace net {
 
 // Factory for loss detection algorithm.
 LossDetectionInterface* LossDetectionInterface::Create(
     LossDetectionType loss_type) {
+  if (FLAGS_quic_general_loss_algorithm) {
+    return new GeneralLossAlgorithm(loss_type);
+  }
   switch (loss_type) {
     case kNack:
       return new TCPLossAlgorithm();
