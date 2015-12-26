@@ -33,6 +33,15 @@
             ]
         },
         {
+            "from": "base/threading/platform_thread_freebsd.cc",
+            "exclude": [
+                "base/debug/debugger.h",
+                "base/sequence_checker.h",
+                "base/files/file.h",
+                "base/tracked_objects.h"
+            ]
+        },
+        {
             "from": "net/quic/quic_session.cc",
             "exclude": [
                 "cached_network_parameters.pb.h",

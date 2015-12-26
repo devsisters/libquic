@@ -186,6 +186,15 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 		src/base/threading/platform_thread_linux.cc
 	)
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
+	set(
+		BASE_ARCH_LIBRARIES
+	)
+	set(
+		BASE_ARCH_SOURCES
+
+		src/base/threading/platform_thread_freebsd.cc
+	)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	FIND_LIBRARY(COREFOUNDATION_LIBRARY CoreFoundation)
 	FIND_LIBRARY(COCOA_LIBRARY Cocoa)
