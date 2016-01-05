@@ -52,6 +52,10 @@ class DependencyTree(object):
                 enq(now[:-1] + 'cc', now)
                 depmap[now].append(now[:-1] + 'cc')
 
+            if now.endswith(".h") and os.path.exists(self.realpath(now[:-1] + 'mm')):
+                enq(now[:-1] + 'mm', now)
+                depmap[now].append(now[:-1] + 'mm')
+
             for dependency in self.parse_cc(now):
                 enq(dependency, now)
                 # print now, dependency

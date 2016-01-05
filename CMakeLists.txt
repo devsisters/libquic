@@ -198,6 +198,7 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	FIND_LIBRARY(COREFOUNDATION_LIBRARY CoreFoundation)
 	FIND_LIBRARY(COCOA_LIBRARY Cocoa)
+	FIND_LIBRARY(SECURITY_LIBRARY Security)
 	set(
 		BASE_ARCH_LIBRARIES
 
@@ -208,6 +209,9 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 		BASE_ARCH_SOURCES
 
 		src/base/threading/platform_thread_mac.mm
+		src/base/strings/sys_string_conversions_mac.mm
+		src/base/mac/foundation_util.mm
+		src/base/mac/bundle_locations.mm
 		src/base/mac/mach_logging.cc
 		src/base/mac/scoped_mach_port.cc
 		src/base/time/time_mac.cc

@@ -114,6 +114,15 @@
                 "base/base_paths_win.h",
                 "base/message_loop/message_loop.h"
             ]
+        },
+        {
+            "from": "base/strings/sys_string_conversions_mac.mm",
+            "exclude": [
+                "base/debug/debugger.h",
+                "base/sequence_checker.h",
+                "base/files/file.h",
+                "base/tracked_objects.h"
+            ]
         }
     ],
     "manual_dependency": [
