@@ -15,7 +15,7 @@ HpackOutputStream::HpackOutputStream() : bit_offset_(0) {}
 
 HpackOutputStream::~HpackOutputStream() {}
 
-void HpackOutputStream::AppendBits(uint8 bits, size_t bit_size) {
+void HpackOutputStream::AppendBits(uint8_t bits, size_t bit_size) {
   DCHECK_GT(bit_size, 0u);
   DCHECK_LE(bit_size, 8u);
   DCHECK_EQ(bits >> bit_size, 0);
@@ -46,12 +46,12 @@ void HpackOutputStream::AppendBytes(StringPiece buffer) {
   buffer_.append(buffer.data(), buffer.size());
 }
 
-void HpackOutputStream::AppendUint32(uint32 I) {
+void HpackOutputStream::AppendUint32(uint32_t I) {
   // The algorithm below is adapted from the pseudocode in 6.1.
   size_t N = 8 - bit_offset_;
-  uint8 max_first_byte = static_cast<uint8>((1 << N) - 1);
+  uint8_t max_first_byte = static_cast<uint8_t>((1 << N) - 1);
   if (I < max_first_byte) {
-    AppendBits(static_cast<uint8>(I), N);
+    AppendBits(static_cast<uint8_t>(I), N);
   } else {
     AppendBits(max_first_byte, N);
     I -= max_first_byte;
@@ -59,7 +59,7 @@ void HpackOutputStream::AppendUint32(uint32 I) {
       buffer_.append(1, (I & 0x7f) | 0x80);
       I >>= 7;
     }
-    AppendBits(static_cast<uint8>(I), 8);
+    AppendBits(static_cast<uint8_t>(I), 8);
   }
 }
 

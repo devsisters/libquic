@@ -685,18 +685,18 @@ size_t SpdyConstants::GetFrameMaximumSize(SpdyMajorVersion version) {
 }
 
 size_t SpdyConstants::GetSizeOfSizeField(SpdyMajorVersion version) {
-  return (version < SPDY3) ? sizeof(uint16) : sizeof(uint32);
+  return (version < SPDY3) ? sizeof(uint16_t) : sizeof(uint32_t);
 }
 
 size_t SpdyConstants::GetSettingSize(SpdyMajorVersion version) {
   return version <= SPDY3 ? 8 : 6;
 }
 
-int32 SpdyConstants::GetInitialStreamWindowSize(SpdyMajorVersion version) {
+int32_t SpdyConstants::GetInitialStreamWindowSize(SpdyMajorVersion version) {
   return (version <= SPDY3) ? (64 * 1024) : (64 * 1024 - 1);
 }
 
-int32 SpdyConstants::GetInitialSessionWindowSize(SpdyMajorVersion version) {
+int32_t SpdyConstants::GetInitialSessionWindowSize(SpdyMajorVersion version) {
   return (version <= SPDY3) ? (64 * 1024) : (64 * 1024 - 1);
 }
 

@@ -5,6 +5,9 @@
 #ifndef NET_QUIC_CRYPTO_CRYPTO_HANDSHAKE_MESSAGE_H_
 #define NET_QUIC_CRYPTO_CRYPTO_HANDSHAKE_MESSAGE_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 #include <vector>
 
@@ -37,14 +40,16 @@ class NET_EXPORT_PRIVATE CryptoHandshakeMessage {
 
   // SetValue sets an element with the given tag to the raw, memory contents of
   // |v|.
-  template<class T> void SetValue(QuicTag tag, const T& v) {
+  template <class T>
+  void SetValue(QuicTag tag, const T& v) {
     tag_value_map_[tag] =
         std::string(reinterpret_cast<const char*>(&v), sizeof(v));
   }
 
   // SetVector sets an element with the given tag to the raw contents of an
   // array of elements in |v|.
-  template<class T> void SetVector(QuicTag tag, const std::vector<T>& v) {
+  template <class T>
+  void SetVector(QuicTag tag, const std::vector<T>& v) {
     if (v.empty()) {
       tag_value_map_[tag] = std::string();
     } else {
@@ -74,7 +79,8 @@ class NET_EXPORT_PRIVATE CryptoHandshakeMessage {
   // |out_tags| and |out_len| to point to the array of tags and returns true.
   // The array points into the CryptoHandshakeMessage and is valid only for as
   // long as the CryptoHandshakeMessage exists and is not modified.
-  QuicErrorCode GetTaglist(QuicTag tag, const QuicTag** out_tags,
+  QuicErrorCode GetTaglist(QuicTag tag,
+                           const QuicTag** out_tags,
                            size_t* out_len) const;
 
   bool GetStringPiece(QuicTag tag, base::StringPiece* out) const;
@@ -85,10 +91,10 @@ class NET_EXPORT_PRIVATE CryptoHandshakeMessage {
   QuicErrorCode GetNthValue24(QuicTag tag,
                               unsigned index,
                               base::StringPiece* out) const;
-  QuicErrorCode GetUint32(QuicTag tag, uint32* out) const;
-  QuicErrorCode GetUint64(QuicTag tag, uint64* out) const;
+  QuicErrorCode GetUint32(QuicTag tag, uint32_t* out) const;
+  QuicErrorCode GetUint64(QuicTag tag, uint64_t* out) const;
 
-  // size returns 4 (message tag) + 2 (uint16, number of entries) +
+  // size returns 4 (message tag) + 2 (uint16_t, number of entries) +
   // (4 (tag) + 4 (end offset))*tag_value_map_.size() + ∑ value sizes.
   size_t size() const;
 

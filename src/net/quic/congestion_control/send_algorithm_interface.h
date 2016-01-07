@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <map>
 
-#include "base/basictypes.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_bandwidth.h"
 #include "net/quic/quic_clock.h"

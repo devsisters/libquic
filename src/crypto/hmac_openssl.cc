@@ -5,6 +5,7 @@
 #include "crypto/hmac.h"
 
 #include <openssl/hmac.h>
+#include <stddef.h>
 
 #include <algorithm>
 #include <vector>

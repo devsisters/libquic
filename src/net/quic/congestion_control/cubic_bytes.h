@@ -8,7 +8,9 @@
 #ifndef NET_QUIC_CONGESTION_CONTROL_CUBIC_BYTES_H_
 #define NET_QUIC_CONGESTION_CONTROL_CUBIC_BYTES_H_
 
-#include "base/basictypes.h"
+#include <stdint.h>
+
+#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_bandwidth.h"
 #include "net/quic/quic_clock.h"
@@ -82,7 +84,7 @@ class NET_EXPORT_PRIVATE CubicBytes {
   QuicByteCount origin_point_congestion_window_;
 
   // Time to origin point of cubic function in 2^10 fractions of a second.
-  uint32 time_to_origin_point_;
+  uint32_t time_to_origin_point_;
 
   // Last congestion window in packets computed by cubic function.
   QuicByteCount last_target_congestion_window_;

@@ -4,7 +4,6 @@
 
 #include "net/quic/stream_sequencer_buffer.h"
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 
 using std::min;

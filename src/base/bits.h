@@ -7,21 +7,23 @@
 #ifndef BASE_BITS_H_
 #define BASE_BITS_H_
 
-#include "base/basictypes.h"
+#include <stddef.h>
+#include <stdint.h>
+
 #include "base/logging.h"
 
 namespace base {
 namespace bits {
 
 // Returns the integer i such as 2^i <= n < 2^(i+1)
-inline int Log2Floor(uint32 n) {
+inline int Log2Floor(uint32_t n) {
   if (n == 0)
     return -1;
   int log = 0;
-  uint32 value = n;
+  uint32_t value = n;
   for (int i = 4; i >= 0; --i) {
     int shift = (1 << i);
-    uint32 x = value >> shift;
+    uint32_t x = value >> shift;
     if (x != 0) {
       value = x;
       log += shift;
@@ -32,7 +34,7 @@ inline int Log2Floor(uint32 n) {
 }
 
 // Returns the integer i such as 2^(i-1) < n <= 2^i
-inline int Log2Ceiling(uint32 n) {
+inline int Log2Ceiling(uint32_t n) {
   if (n == 0) {
     return -1;
   } else {

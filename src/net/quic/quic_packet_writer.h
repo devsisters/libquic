@@ -5,6 +5,8 @@
 #ifndef NET_QUIC_QUIC_PACKET_WRITER_H_
 #define NET_QUIC_QUIC_PACKET_WRITER_H_
 
+#include <stddef.h>
+
 #include "net/base/ip_endpoint.h"
 #include "net/quic/quic_protocol.h"
 
@@ -23,10 +25,10 @@ class NET_EXPORT_PRIVATE QuicPacketWriter {
   // status is WRITE_STATUS_OK and bytes_written is populated. If the write
   // failed, the result's status is WRITE_STATUS_BLOCKED or WRITE_STATUS_ERROR
   // and error_code is populated.
-  virtual WriteResult WritePacket(
-      const char* buffer, size_t buf_len,
-      const IPAddressNumber& self_address,
-      const IPEndPoint& peer_address) = 0;
+  virtual WriteResult WritePacket(const char* buffer,
+                                  size_t buf_len,
+                                  const IPAddressNumber& self_address,
+                                  const IPEndPoint& peer_address) = 0;
 
   // Returns true if the writer buffers and subsequently rewrites data
   // when an attempt to write results in the underlying socket becoming

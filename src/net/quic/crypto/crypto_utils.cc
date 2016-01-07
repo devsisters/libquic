@@ -30,7 +30,7 @@ void CryptoUtils::GenerateNonce(QuicWallTime now,
   nonce->reserve(kNonceSize);
   nonce->resize(kNonceSize);
 
-  uint32 gmt_unix_time = static_cast<uint32>(now.ToUNIXSeconds());
+  uint32_t gmt_unix_time = static_cast<uint32_t>(now.ToUNIXSeconds());
   // The time in the nonce must be encoded in big-endian because the
   // strike-register depends on the nonces being ordered by time.
   (*nonce)[0] = static_cast<char>(gmt_unix_time >> 24);
@@ -59,8 +59,8 @@ bool CryptoUtils::IsValidSNI(StringPiece sni) {
   url::CanonHostInfo host_info;
   string canonicalized_host(CanonicalizeHost(sni.as_string(), &host_info));
   return !host_info.IsIPAddress() &&
-      IsCanonicalizedHostCompliant(canonicalized_host) &&
-      sni.find_last_of('.') != string::npos;
+         IsCanonicalizedHostCompliant(canonicalized_host) &&
+         sni.find_last_of('.') != string::npos;
 }
 
 // static
@@ -164,28 +164,24 @@ bool CryptoUtils::ExportKeyingMaterial(StringPiece subkey_secret,
     }
   }
   // Create HKDF info input: null-terminated label + length-prefixed context
-  if (context.length() >= numeric_limits<uint32>::max()) {
+  if (context.length() >= numeric_limits<uint32_t>::max()) {
     LOG(ERROR) << "Context value longer than 2^32";
     return false;
   }
-  uint32 context_length = static_cast<uint32>(context.length());
+  uint32_t context_length = static_cast<uint32_t>(context.length());
   string info = label.as_string();
   info.push_back('\0');
   info.append(reinterpret_cast<char*>(&context_length), sizeof(context_length));
   info.append(context.data(), context.length());
 
-  crypto::HKDF hkdf(subkey_secret,
-                    StringPiece() /* no salt */,
-                    info,
-                    result_len,
-                    0 /* no fixed IV */,
-                    0 /* no subkey secret */);
+  crypto::HKDF hkdf(subkey_secret, StringPiece() /* no salt */, info,
+                    result_len, 0 /* no fixed IV */, 0 /* no subkey secret */);
   hkdf.client_write_key().CopyToString(result);
   return true;
 }
 
 // static
-uint64 CryptoUtils::ComputeLeafCertHash(const std::string& cert) {
+uint64_t CryptoUtils::ComputeLeafCertHash(const std::string& cert) {
   return QuicUtils::FNV1a_64_Hash(cert.data(), cert.size());
 }
 

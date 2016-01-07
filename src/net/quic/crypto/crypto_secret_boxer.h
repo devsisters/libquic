@@ -5,8 +5,11 @@
 #ifndef NET_QUIC_CRYPTO_CRYPTO_SECRET_BOXER_H_
 #define NET_QUIC_CRYPTO_CRYPTO_SECRET_BOXER_H_
 
+#include <stddef.h>
+
 #include <string>
 
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 

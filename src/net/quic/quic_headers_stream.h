@@ -5,7 +5,9 @@
 #ifndef NET_QUIC_QUIC_HEADERS_STREAM_H_
 #define NET_QUIC_QUIC_HEADERS_STREAM_H_
 
-#include "base/basictypes.h"
+#include <stddef.h>
+
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"

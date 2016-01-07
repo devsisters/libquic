@@ -48,8 +48,7 @@ ReliableQuicStream::PendingData::PendingData(
     QuicAckListenerInterface* ack_listener_in)
     : data(data_in), offset(0), ack_listener(ack_listener_in) {}
 
-ReliableQuicStream::PendingData::~PendingData() {
-}
+ReliableQuicStream::PendingData::~PendingData() {}
 
 ReliableQuicStream::ReliableQuicStream(QuicStreamId id, QuicSession* session)
     : queued_data_bytes_(0),
@@ -80,8 +79,7 @@ ReliableQuicStream::ReliableQuicStream(QuicStreamId id, QuicSession* session)
   SetFromConfig();
 }
 
-ReliableQuicStream::~ReliableQuicStream() {
-}
+ReliableQuicStream::~ReliableQuicStream() {}
 
 void ReliableQuicStream::SetFromConfig() {
   if (session_->config()->HasClientSentConnectionOption(kFSTR, perspective_)) {
@@ -115,8 +113,9 @@ void ReliableQuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
     // violation of flow control.
     if (flow_controller_.FlowControlViolation() ||
         connection_flow_controller_->FlowControlViolation()) {
-      session_->connection()->SendConnectionClose(
-          QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA);
+      session_->connection()->SendConnectionCloseWithDetails(
+          QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
+          "Flow control violation after increasing offset");
       return;
     }
   }
@@ -423,7 +422,7 @@ void ReliableQuicStream::OnWindowUpdateFrame(
 
 bool ReliableQuicStream::MaybeIncreaseHighestReceivedOffset(
     QuicStreamOffset new_offset) {
-  uint64 increment =
+  uint64_t increment =
       new_offset - flow_controller_.highest_received_byte_offset();
   if (!flow_controller_.UpdateHighestReceivedOffset(new_offset)) {
     return false;

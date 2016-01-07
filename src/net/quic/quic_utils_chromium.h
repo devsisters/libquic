@@ -7,7 +7,6 @@
 #ifndef NET_QUIC_QUIC_UTILS_CHROMIUM_H_
 #define NET_QUIC_QUIC_UTILS_CHROMIUM_H_
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 
 namespace net {
@@ -32,9 +31,9 @@ namespace net {
 // This version assumes the key is printable, and includes it in the fatal log
 // message.
 template <class Collection>
-const typename Collection::value_type::second_type&
-FindOrDie(const Collection& collection,
-          const typename Collection::value_type::first_type& key) {
+const typename Collection::value_type::second_type& FindOrDie(
+    const Collection& collection,
+    const typename Collection::value_type::first_type& key) {
   typename Collection::const_iterator it = collection.find(key);
   CHECK(it != collection.end()) << "Map key not found: " << key;
   return it->second;
@@ -42,9 +41,9 @@ FindOrDie(const Collection& collection,
 
 // Same as above, but returns a non-const reference.
 template <class Collection>
-typename Collection::value_type::second_type&
-FindOrDie(Collection& collection,  // NOLINT
-          const typename Collection::value_type::first_type& key) {
+typename Collection::value_type::second_type& FindOrDie(
+    Collection& collection,  // NOLINT
+    const typename Collection::value_type::first_type& key) {
   typename Collection::iterator it = collection.find(key);
   CHECK(it != collection.end()) << "Map key not found: " << key;
   return it->second;
@@ -53,9 +52,9 @@ FindOrDie(Collection& collection,  // NOLINT
 // Returns a pointer to the const value associated with the given key if it
 // exists, or NULL otherwise.
 template <class Collection>
-const typename Collection::value_type::second_type*
-FindOrNull(const Collection& collection,
-           const typename Collection::value_type::first_type& key) {
+const typename Collection::value_type::second_type* FindOrNull(
+    const Collection& collection,
+    const typename Collection::value_type::first_type& key) {
   typename Collection::const_iterator it = collection.find(key);
   if (it == collection.end()) {
     return 0;
@@ -65,9 +64,9 @@ FindOrNull(const Collection& collection,
 
 // Same as above but returns a pointer to the non-const value.
 template <class Collection>
-typename Collection::value_type::second_type*
-FindOrNull(Collection& collection,  // NOLINT
-           const typename Collection::value_type::first_type& key) {
+typename Collection::value_type::second_type* FindOrNull(
+    Collection& collection,  // NOLINT
+    const typename Collection::value_type::first_type& key) {
   typename Collection::iterator it = collection.find(key);
   if (it == collection.end()) {
     return 0;

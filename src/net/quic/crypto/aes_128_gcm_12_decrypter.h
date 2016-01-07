@@ -5,6 +5,10 @@
 #ifndef NET_QUIC_CRYPTO_AES_128_GCM_12_DECRYPTER_H_
 #define NET_QUIC_CRYPTO_AES_128_GCM_12_DECRYPTER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
+#include "base/macros.h"
 #include "net/quic/crypto/aead_base_decrypter.h"
 
 namespace net {
@@ -35,7 +39,7 @@ class NET_EXPORT_PRIVATE Aes128Gcm12Decrypter : public AeadBaseDecrypter {
 #endif
 
   const char* cipher_name() const override;
-  uint32 cipher_id() const override;
+  uint32_t cipher_id() const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Aes128Gcm12Decrypter);

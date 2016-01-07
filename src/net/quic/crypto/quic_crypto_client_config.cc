@@ -8,7 +8,7 @@
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
 #include "net/quic/crypto/cert_compressor.h"
-#include "net/quic/crypto/chacha20_poly1305_encrypter.h"
+#include "net/quic/crypto/chacha20_poly1305_rfc7539_encrypter.h"
 #include "net/quic/crypto/channel_id.h"
 #include "net/quic/crypto/common_cert_set.h"
 #include "net/quic/crypto/crypto_framer.h"
@@ -60,8 +60,7 @@ QuicCryptoClientConfig::~QuicCryptoClientConfig() {
 }
 
 QuicCryptoClientConfig::CachedState::CachedState()
-    : server_config_valid_(false),
-      generation_counter_(0) {}
+    : server_config_valid_(false), generation_counter_(0) {}
 
 QuicCryptoClientConfig::CachedState::~CachedState() {}
 
@@ -84,7 +83,7 @@ bool QuicCryptoClientConfig::CachedState::IsComplete(QuicWallTime now) const {
     return false;
   }
 
-  uint64 expiry_seconds;
+  uint64_t expiry_seconds;
   if (scfg->GetUint64(kEXPY, &expiry_seconds) != QUIC_NO_ERROR) {
     RecordInchoateClientHelloReason(SERVER_CONFIG_INVALID_EXPIRY);
     return false;
@@ -138,8 +137,9 @@ bool QuicCryptoClientConfig::CachedState::has_server_nonce() const {
 }
 
 QuicCryptoClientConfig::CachedState::ServerConfigState
-QuicCryptoClientConfig::CachedState::SetServerConfig(
-    StringPiece server_config, QuicWallTime now, string* error_details) {
+QuicCryptoClientConfig::CachedState::SetServerConfig(StringPiece server_config,
+                                                     QuicWallTime now,
+                                                     string* error_details) {
   const bool matches_existing = server_config == server_config_;
 
   // Even if the new server config matches the existing one, we still wish to
@@ -159,7 +159,7 @@ QuicCryptoClientConfig::CachedState::SetServerConfig(
     return SERVER_CONFIG_INVALID;
   }
 
-  uint64 expiry_seconds;
+  uint64_t expiry_seconds;
   if (new_scfg->GetUint64(kEXPY, &expiry_seconds) != QUIC_NO_ERROR) {
     *error_details = "SCFG missing EXPY";
     return SERVER_CONFIG_INVALID_EXPIRY;
@@ -257,8 +257,7 @@ bool QuicCryptoClientConfig::CachedState::Initialize(
   }
 
   string error_details;
-  ServerConfigState state = SetServerConfig(server_config, now,
-                                            &error_details);
+  ServerConfigState state = SetServerConfig(server_config, now, &error_details);
   RecordDiskCacheServerConfigState(state);
   if (state != SERVER_CONFIG_VALID) {
     DVLOG(1) << "SetServerConfig failed with " << error_details;
@@ -276,8 +275,8 @@ const string& QuicCryptoClientConfig::CachedState::server_config() const {
   return server_config_;
 }
 
-const string&
-QuicCryptoClientConfig::CachedState::source_address_token() const {
+const string& QuicCryptoClientConfig::CachedState::source_address_token()
+    const {
   return source_address_token_;
 }
 
@@ -297,7 +296,7 @@ bool QuicCryptoClientConfig::CachedState::proof_valid() const {
   return server_config_valid_;
 }
 
-uint64 QuicCryptoClientConfig::CachedState::generation_counter() const {
+uint64_t QuicCryptoClientConfig::CachedState::generation_counter() const {
   return generation_counter_;
 }
 
@@ -366,8 +365,11 @@ void QuicCryptoClientConfig::SetDefaults() {
   kexs[0] = kC255;
   kexs[1] = kP256;
 
-  // Authenticated encryption algorithms. Prefer ChaCha20 by default.
+  // Authenticated encryption algorithms. Prefer RFC 7539 ChaCha20 by default.
   aead.clear();
+  if (ChaCha20Poly1305Rfc7539Encrypter::IsSupported()) {
+    aead.push_back(kCC20);
+  }
   aead.push_back(kCC12);
   aead.push_back(kAESG);
 
@@ -452,10 +454,10 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
   // process the server's compressed certificate chain.
   out_params->cached_certs = certs;
   if (!certs.empty()) {
-    vector<uint64> hashes;
+    vector<uint64_t> hashes;
     hashes.reserve(certs.size());
-    for (vector<string>::const_iterator i = certs.begin();
-         i != certs.end(); ++i) {
+    for (vector<string>::const_iterator i = certs.begin(); i != certs.end();
+         ++i) {
       hashes.push_back(QuicUtils::FNV1a_64_Hash(i->data(), i->size()));
     }
     out->SetVector(kCCRT, hashes);
@@ -475,8 +477,8 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     string* error_details) const {
   DCHECK(error_details != nullptr);
 
-  FillInchoateClientHello(server_id, preferred_version, cached,
-                          out_params, out);
+  FillInchoateClientHello(server_id, preferred_version, cached, out_params,
+                          out);
 
   const CryptoHandshakeMessage* scfg = cached->GetServerConfig();
   if (!scfg) {
@@ -500,10 +502,10 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   const QuicTag* their_aeads;
   const QuicTag* their_key_exchanges;
   size_t num_their_aeads, num_their_key_exchanges;
-  if (scfg->GetTaglist(kAEAD, &their_aeads,
-                       &num_their_aeads) != QUIC_NO_ERROR ||
-      scfg->GetTaglist(kKEXS, &their_key_exchanges,
-                       &num_their_key_exchanges) != QUIC_NO_ERROR) {
+  if (scfg->GetTaglist(kAEAD, &their_aeads, &num_their_aeads) !=
+          QUIC_NO_ERROR ||
+      scfg->GetTaglist(kKEXS, &their_key_exchanges, &num_their_key_exchanges) !=
+          QUIC_NO_ERROR) {
     *error_details = "Missing AEAD or KEXS";
     return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
   }
@@ -514,9 +516,9 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   // Key exchange: the client does more work than the server, so favor the
   // client's preference.
   size_t key_exchange_index;
-  if (!QuicUtils::FindMutualTag(
-          aead, their_aeads, num_their_aeads, QuicUtils::LOCAL_PRIORITY,
-          &out_params->aead, nullptr) ||
+  if (!QuicUtils::FindMutualTag(aead, their_aeads, num_their_aeads,
+                                QuicUtils::LOCAL_PRIORITY, &out_params->aead,
+                                nullptr) ||
       !QuicUtils::FindMutualTag(
           kexs, their_key_exchanges, num_their_key_exchanges,
           QuicUtils::LOCAL_PRIORITY, &out_params->key_exchange,
@@ -549,7 +551,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
 
   StringPiece public_value;
   if (scfg->GetNthValue24(kPUBS, key_exchange_index, &public_value) !=
-          QUIC_NO_ERROR) {
+      QUIC_NO_ERROR) {
     *error_details = "Missing public value";
     return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
   }
@@ -572,8 +574,8 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
           Curve25519KeyExchange::NewPrivateKey(rand)));
       break;
     case kP256:
-      out_params->client_key_exchange.reset(P256KeyExchange::New(
-          P256KeyExchange::NewPrivateKey()));
+      out_params->client_key_exchange.reset(
+          P256KeyExchange::New(P256KeyExchange::NewPrivateKey()));
       break;
     default:
       DCHECK(false);
@@ -707,8 +709,8 @@ QuicErrorCode QuicCryptoClientConfig::CacheNewServerConfig(
     return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
   }
 
-  CachedState::ServerConfigState state = cached->SetServerConfig(
-      scfg, now, error_details);
+  CachedState::ServerConfigState state =
+      cached->SetServerConfig(scfg, now, error_details);
   if (state == CachedState::SERVER_CONFIG_EXPIRED) {
     return QUIC_CRYPTO_SERVER_CONFIG_EXPIRED;
   }

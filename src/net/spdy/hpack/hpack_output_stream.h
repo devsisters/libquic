@@ -5,10 +5,12 @@
 #ifndef NET_SPDY_HPACK_OUTPUT_STREAM_H_
 #define NET_SPDY_HPACK_OUTPUT_STREAM_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <map>
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
@@ -30,7 +32,7 @@ class NET_EXPORT_PRIVATE HpackOutputStream {
   //
   // |bit_size| must be > 0 and <= 8. |bits| must not have any bits
   // set other than the lower |bit_size| bits.
-  void AppendBits(uint8 bits, size_t bit_size);
+  void AppendBits(uint8_t bits, size_t bit_size);
 
   // Simply forwards to AppendBits(prefix.bits, prefix.bit-size).
   void AppendPrefix(HpackPrefix prefix);
@@ -45,7 +47,7 @@ class NET_EXPORT_PRIVATE HpackOutputStream {
   //
   // It is guaranteed that the internal buffer will end on a byte
   // boundary after this function is called.
-  void AppendUint32(uint32 I);
+  void AppendUint32(uint32_t I);
 
   // Swaps the interal buffer with |output|.
   void TakeString(std::string* output);

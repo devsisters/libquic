@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
 #if 0
 #include "base/files/file.h"
 #endif

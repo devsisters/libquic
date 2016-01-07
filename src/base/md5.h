@@ -5,6 +5,7 @@
 #ifndef BASE_MD5_H_
 #define BASE_MD5_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "base/base_export.h"

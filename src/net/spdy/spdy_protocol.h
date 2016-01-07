@@ -11,13 +11,16 @@
 #ifndef NET_SPDY_SPDY_PROTOCOL_H_
 #define NET_SPDY_SPDY_PROTOCOL_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <limits>
 #include <map>
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/sys_byteorder.h"
@@ -41,23 +44,23 @@ enum SpdyMajorVersion {
 };
 
 // A SPDY stream id is a 31 bit entity.
-typedef uint32 SpdyStreamId;
+typedef uint32_t SpdyStreamId;
 
 // Specifies the stream ID used to denote the current session (for
 // flow control).
 const SpdyStreamId kSessionFlowControlStreamId = 0;
 
 // The maxmium possible control frame size allowed by the spec.
-const int32 kSpdyMaxControlFrameSize = (1 << 24) - 1;
+const int32_t kSpdyMaxControlFrameSize = (1 << 24) - 1;
 
 // The maximum control frame size we accept.
-const int32 kControlFrameSizeLimit = 1 << 14;
+const int32_t kControlFrameSizeLimit = 1 << 14;
 
 // Maximum window size for a Spdy stream or session.
-const int32 kSpdyMaximumWindowSize = 0x7FFFFFFF;  // Max signed 32bit int
+const int32_t kSpdyMaximumWindowSize = 0x7FFFFFFF;  // Max signed 32bit int
 
 // Maximum padding size in octets for one DATA or HEADERS or PUSH_PROMISE frame.
-const int32 kPaddingSizePerFrame = 256;
+const int32_t kPaddingSizePerFrame = 256;
 
 // SPDY 2 dictionary.
 // This is just a hacked dictionary to use for shrinking HTTP-like headers.
@@ -417,7 +420,7 @@ enum SpdyGoAwayStatus {
 // A SPDY priority is a number between 0 and 7 (inclusive).
 // SPDY priority range is version-dependent. For SPDY 2 and below, priority is a
 // number between 0 and 3.
-typedef uint8 SpdyPriority;
+typedef uint8_t SpdyPriority;
 
 // Lowest and Highest here refer to SPDY priorities as described in
 
@@ -425,7 +428,7 @@ typedef uint8 SpdyPriority;
 const SpdyPriority kV3HighestPriority = 0;
 const SpdyPriority kV3LowestPriority = 7;
 
-typedef uint64 SpdyPingId;
+typedef uint64_t SpdyPingId;
 
 typedef std::string SpdyProtocolId;
 
@@ -534,10 +537,10 @@ class NET_EXPORT_PRIVATE SpdyConstants {
   static size_t GetSettingSize(SpdyMajorVersion version);
 
   // Initial window size for a stream in bytes.
-  static int32 GetInitialStreamWindowSize(SpdyMajorVersion version);
+  static int32_t GetInitialStreamWindowSize(SpdyMajorVersion version);
 
   // Initial window size for a session in bytes.
-  static int32 GetInitialSessionWindowSize(SpdyMajorVersion version);
+  static int32_t GetInitialSessionWindowSize(SpdyMajorVersion version);
 
   static SpdyMajorVersion ParseMajorVersion(int version_number);
 
@@ -756,7 +759,7 @@ class NET_EXPORT_PRIVATE SpdySettingsIR : public SpdyFrameIR {
               value(0) {}
     bool persist_value;
     bool persisted;
-    int32 value;
+    int32_t value;
   };
   typedef std::map<SpdySettingsIds, Value> ValueMap;
 
@@ -769,7 +772,7 @@ class NET_EXPORT_PRIVATE SpdySettingsIR : public SpdyFrameIR {
   void AddSetting(SpdySettingsIds id,
                   bool persist_value,
                   bool persisted,
-                  int32 value) {
+                  int32_t value) {
     values_[id].persist_value = persist_value;
     values_[id].persisted = persisted;
     values_[id].value = value;
@@ -848,7 +851,7 @@ class NET_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
 
   bool has_priority() const { return has_priority_; }
   void set_has_priority(bool has_priority) { has_priority_ = has_priority; }
-  uint32 priority() const { return priority_; }
+  uint32_t priority() const { return priority_; }
   void set_priority(SpdyPriority priority) { priority_ = priority; }
   SpdyStreamId parent_stream_id() const { return parent_stream_id_; }
   void set_parent_stream_id(SpdyStreamId id) { parent_stream_id_ = id; }
@@ -867,7 +870,7 @@ class NET_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
  private:
   bool has_priority_ = false;
   // 31-bit priority.
-  uint32 priority_ = 0;
+  uint32_t priority_ = 0;
   SpdyStreamId parent_stream_id_ = 0;
   bool exclusive_ = false;
   bool padded_ = false;
@@ -878,12 +881,12 @@ class NET_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
 
 class NET_EXPORT_PRIVATE SpdyWindowUpdateIR : public SpdyFrameWithStreamIdIR {
  public:
-  SpdyWindowUpdateIR(SpdyStreamId stream_id, int32 delta)
+  SpdyWindowUpdateIR(SpdyStreamId stream_id, int32_t delta)
       : SpdyFrameWithStreamIdIR(stream_id) {
     set_delta(delta);
   }
-  int32 delta() const { return delta_; }
-  void set_delta(int32 delta) {
+  int32_t delta() const { return delta_; }
+  void set_delta(int32_t delta) {
     DCHECK_LT(0, delta);
     DCHECK_LE(delta, kSpdyMaximumWindowSize);
     delta_ = delta;
@@ -892,7 +895,7 @@ class NET_EXPORT_PRIVATE SpdyWindowUpdateIR : public SpdyFrameWithStreamIdIR {
   void Visit(SpdyFrameVisitor* visitor) const override;
 
  private:
-  int32 delta_;
+  int32_t delta_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyWindowUpdateIR);
 };
@@ -989,7 +992,7 @@ class NET_EXPORT_PRIVATE SpdyPriorityIR : public SpdyFrameWithStreamIdIR {
         exclusive_(false) {}
   SpdyPriorityIR(SpdyStreamId stream_id,
                  SpdyStreamId parent_stream_id,
-                 uint8 weight,
+                 uint8_t weight,
                  bool exclusive)
       : SpdyFrameWithStreamIdIR(stream_id),
         parent_stream_id_(parent_stream_id),
@@ -997,8 +1000,8 @@ class NET_EXPORT_PRIVATE SpdyPriorityIR : public SpdyFrameWithStreamIdIR {
         exclusive_(exclusive) {}
   SpdyStreamId parent_stream_id() const { return parent_stream_id_; }
   void set_parent_stream_id(SpdyStreamId id) { parent_stream_id_ = id; }
-  uint8 weight() const { return weight_; }
-  void set_weight(uint8 weight) { weight_ = weight; }
+  uint8_t weight() const { return weight_; }
+  void set_weight(uint8_t weight) { weight_ = weight; }
   bool exclusive() const { return exclusive_; }
   void set_exclusive(bool exclusive) { exclusive_ = exclusive; }
 
@@ -1006,7 +1009,7 @@ class NET_EXPORT_PRIVATE SpdyPriorityIR : public SpdyFrameWithStreamIdIR {
 
  private:
   SpdyStreamId parent_stream_id_;
-  uint8 weight_;
+  uint8_t weight_;
   bool exclusive_;
   DISALLOW_COPY_AND_ASSIGN(SpdyPriorityIR);
 };

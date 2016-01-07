@@ -19,6 +19,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -34,8 +35,8 @@ static const int kMaxUniqueFiles = 100;
 
 }  // namespace
 
-int64 ComputeDirectorySize(const FilePath& root_path) {
-  int64 running_size = 0;
+int64_t ComputeDirectorySize(const FilePath& root_path) {
+  int64_t running_size = 0;
   FileEnumerator file_iter(root_path, true, FileEnumerator::FILES);
   while (!file_iter.Next().empty())
     running_size += file_iter.GetInfo().GetSize();
@@ -185,7 +186,7 @@ bool CreateDirectory(const FilePath& full_path) {
   return CreateDirectoryAndGetError(full_path, NULL);
 }
 
-bool GetFileSize(const FilePath& file_path, int64* file_size) {
+bool GetFileSize(const FilePath& file_path, int64_t* file_size) {
   File::Info info;
   if (!GetFileInfo(file_path, &info))
     return false;

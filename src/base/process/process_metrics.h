@@ -8,14 +8,18 @@
 #ifndef BASE_PROCESS_PROCESS_METRICS_H_
 #define BASE_PROCESS_PROCESS_METRICS_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
+#include "base/macros.h"
 #include "base/process/process_handle.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "build/build_config.h"
 
 #if defined(OS_MACOSX)
 #include <mach/mach.h>
@@ -87,7 +91,7 @@ struct CommittedKBytes {
 };
 
 // Convert a POSIX timeval to microseconds.
-BASE_EXPORT int64 TimeValToMicroseconds(const struct timeval& tv);
+BASE_EXPORT int64_t TimeValToMicroseconds(const struct timeval& tv);
 
 // Provides performance metrics for a specified process (CPU usage, memory and
 // IO counters). Use CreateCurrentProcessMetrics() to get an instance for the
@@ -195,7 +199,7 @@ class BASE_EXPORT ProcessMetrics {
 #endif
 
 #if defined(OS_MACOSX) || defined(OS_LINUX)
-  int CalculateIdleWakeupsPerSecond(uint64 absolute_idle_wakeups);
+  int CalculateIdleWakeupsPerSecond(uint64_t absolute_idle_wakeups);
 #endif
 
   ProcessHandle process_;
@@ -205,12 +209,12 @@ class BASE_EXPORT ProcessMetrics {
   // Used to store the previous times and CPU usage counts so we can
   // compute the CPU usage between calls.
   TimeTicks last_cpu_time_;
-  int64 last_system_time_;
+  int64_t last_system_time_;
 
 #if defined(OS_MACOSX) || defined(OS_LINUX)
   // Same thing for idle wakeups.
   TimeTicks last_idle_wakeups_time_;
-  uint64 last_absolute_idle_wakeups_;
+  uint64_t last_absolute_idle_wakeups_;
 #endif
 
 #if !defined(OS_IOS)
@@ -336,17 +340,17 @@ struct BASE_EXPORT SystemDiskInfo {
   // Serializes the platform specific fields to value.
   scoped_ptr<Value> ToValue() const;
 
-  uint64 reads;
-  uint64 reads_merged;
-  uint64 sectors_read;
-  uint64 read_time;
-  uint64 writes;
-  uint64 writes_merged;
-  uint64 sectors_written;
-  uint64 write_time;
-  uint64 io;
-  uint64 io_time;
-  uint64 weighted_io_time;
+  uint64_t reads;
+  uint64_t reads_merged;
+  uint64_t sectors_read;
+  uint64_t read_time;
+  uint64_t writes;
+  uint64_t writes_merged;
+  uint64_t sectors_written;
+  uint64_t write_time;
+  uint64_t io;
+  uint64_t io_time;
+  uint64_t weighted_io_time;
 };
 
 // Checks whether the candidate string is a valid disk name, [hsv]d[a-z]+
@@ -373,11 +377,11 @@ struct BASE_EXPORT SwapInfo {
   // Serializes the platform specific fields to value.
   scoped_ptr<Value> ToValue() const;
 
-  uint64 num_reads;
-  uint64 num_writes;
-  uint64 compr_data_size;
-  uint64 orig_data_size;
-  uint64 mem_used_total;
+  uint64_t num_reads;
+  uint64_t num_writes;
+  uint64_t compr_data_size;
+  uint64_t orig_data_size;
+  uint64_t mem_used_total;
 };
 
 // In ChromeOS, reads files from /sys/block/zram0 that contain ZRAM usage data.

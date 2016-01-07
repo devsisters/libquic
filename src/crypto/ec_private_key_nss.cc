@@ -14,6 +14,8 @@ extern "C" {
 #include <keyhi.h>
 #include <pk11pub.h>
 #include <secmod.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
@@ -27,7 +29,7 @@ namespace {
 // Copied from rsa_private_key_nss.cc.
 static bool ReadAttribute(SECKEYPrivateKey* key,
                           CK_ATTRIBUTE_TYPE type,
-                          std::vector<uint8>* output) {
+                          std::vector<uint8_t>* output) {
   SECItem item;
   SECStatus rv;
   rv = PK11_ReadRawAttribute(PK11_TypePrivKey, key, type, &item);
@@ -102,8 +104,8 @@ ECPrivateKey* ECPrivateKey::Create() {
 // static
 ECPrivateKey* ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(
     const std::string& password,
-    const std::vector<uint8>& encrypted_private_key_info,
-    const std::vector<uint8>& subject_public_key_info) {
+    const std::vector<uint8_t>& encrypted_private_key_info,
+    const std::vector<uint8_t>& subject_public_key_info) {
   EnsureNSSInit();
 
   ScopedPK11Slot slot(PK11_GetInternalSlot());
@@ -149,7 +151,7 @@ ECPrivateKey* ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(
 bool ECPrivateKey::ImportFromEncryptedPrivateKeyInfo(
     PK11SlotInfo* slot,
     const std::string& password,
-    const uint8* encrypted_private_key_info,
+    const uint8_t* encrypted_private_key_info,
     size_t encrypted_private_key_info_len,
     CERTSubjectPublicKeyInfo* decoded_spki,
     bool permanent,
@@ -237,10 +239,9 @@ ECPrivateKey* ECPrivateKey::Copy() const {
   return copy.release();
 }
 
-bool ECPrivateKey::ExportEncryptedPrivateKey(
-    const std::string& password,
-    int iterations,
-    std::vector<uint8>* output) {
+bool ECPrivateKey::ExportEncryptedPrivateKey(const std::string& password,
+                                             int iterations,
+                                             std::vector<uint8_t>* output) {
   // We export as an EncryptedPrivateKeyInfo bundle instead of a plain PKCS #8
   // PrivateKeyInfo because PK11_ImportDERPrivateKeyInfoAndReturnKey doesn't
   // support EC keys.
@@ -282,7 +283,7 @@ bool ECPrivateKey::ExportEncryptedPrivateKey(
   return true;
 }
 
-bool ECPrivateKey::ExportPublicKey(std::vector<uint8>* output) {
+bool ECPrivateKey::ExportPublicKey(std::vector<uint8_t>* output) {
   ScopedSECItem der_pubkey(
       SECKEY_EncodeDERSubjectPublicKeyInfo(public_key_));
   if (!der_pubkey.get()) {
@@ -310,11 +311,11 @@ bool ECPrivateKey::ExportRawPublicKey(std::string* output) {
   return true;
 }
 
-bool ECPrivateKey::ExportValue(std::vector<uint8>* output) {
+bool ECPrivateKey::ExportValue(std::vector<uint8_t>* output) {
   return ReadAttribute(key_, CKA_VALUE, output);
 }
 
-bool ECPrivateKey::ExportECParams(std::vector<uint8>* output) {
+bool ECPrivateKey::ExportECParams(std::vector<uint8_t>* output) {
   return ReadAttribute(key_, CKA_EC_PARAMS, output);
 }
 

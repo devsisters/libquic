@@ -10,6 +10,7 @@
 // template bloat because everything is inlined when anybody calls any of our
 // functions.
 
+#include <stddef.h>
 #include <stdlib.h>
 
 #include "base/logging.h"

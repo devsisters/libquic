@@ -5,6 +5,8 @@
 #ifndef NET_SPDY_PRIORITY_WRITE_SCHEDULER_H_
 #define NET_SPDY_PRIORITY_WRITE_SCHEDULER_H_
 
+#include <stddef.h>
+
 #include <algorithm>
 #include <deque>
 #include <unordered_map>

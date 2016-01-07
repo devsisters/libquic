@@ -28,7 +28,10 @@
 #ifndef BASE_TUPLE_H_
 #define BASE_TUPLE_H_
 
+#include <stddef.h>
+
 #include "base/bind_helpers.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -241,11 +244,6 @@ inline Tuple<Ts&...> MakeRefTuple(Ts&... arg) {
 
 // Non-Static Dispatchers with no out params.
 
-template <typename ObjT, typename Method, typename A>
-inline void DispatchToMethod(ObjT* obj, Method method, const A& arg) {
-  (obj->*method)(base::internal::UnwrapTraits<A>::Unwrap(arg));
-}
-
 template <typename ObjT, typename Method, typename... Ts, size_t... Ns>
 inline void DispatchToMethodImpl(ObjT* obj,
                                  Method method,
@@ -263,11 +261,6 @@ inline void DispatchToMethod(ObjT* obj,
 
 // Static Dispatchers with no out params.
 
-template <typename Function, typename A>
-inline void DispatchToMethod(Function function, const A& arg) {
-  (*function)(base::internal::UnwrapTraits<A>::Unwrap(arg));
-}
-
 template <typename Function, typename... Ts, size_t... Ns>
 inline void DispatchToFunctionImpl(Function function,
                                    const Tuple<Ts...>& arg,
@@ -281,29 +274,6 @@ inline void DispatchToFunction(Function function, const Tuple<Ts...>& arg) {
 }
 
 // Dispatchers with out parameters.
-
-template <typename ObjT,
-          typename Method,
-          typename In,
-          typename... OutTs,
-          size_t... OutNs>
-inline void DispatchToMethodImpl(ObjT* obj,
-                                 Method method,
-                                 const In& in,
-                                 Tuple<OutTs...>* out,
-                                 IndexSequence<OutNs...>) {
-  (obj->*method)(base::internal::UnwrapTraits<In>::Unwrap(in),
-                 &get<OutNs>(*out)...);
-}
-
-template <typename ObjT, typename Method, typename In, typename... OutTs>
-inline void DispatchToMethod(ObjT* obj,
-                             Method method,
-                             const In& in,
-                             Tuple<OutTs...>* out) {
-  DispatchToMethodImpl(obj, method, in, out,
-                       MakeIndexSequence<sizeof...(OutTs)>());
-}
 
 template <typename ObjT,
           typename Method,

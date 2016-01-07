@@ -4,6 +4,9 @@
 
 #include "crypto/hkdf.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "crypto/hmac.h"
@@ -34,7 +37,7 @@ HKDF::HKDF(const base::StringPiece& secret,
   DCHECK(result);
 
   // |prk| is a pseudorandom key (of kSHA256HashLength octets).
-  uint8 prk[kSHA256HashLength];
+  uint8_t prk[kSHA256HashLength];
   DCHECK_EQ(sizeof(prk), prk_hmac.DigestLength());
   result = prk_hmac.Sign(secret, prk, sizeof(prk));
   DCHECK(result);
@@ -53,7 +56,7 @@ HKDF::HKDF(const base::StringPiece& secret,
   base::StringPiece previous;
 
   scoped_ptr<char[]> buf(new char[kSHA256HashLength + info.size() + 1]);
-  uint8 digest[kSHA256HashLength];
+  uint8_t digest[kSHA256HashLength];
 
   HMAC hmac(HMAC::SHA256);
   result = hmac.Init(prk, sizeof(prk));

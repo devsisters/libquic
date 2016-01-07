@@ -4,13 +4,12 @@
 
 #include "base/debug/stack_trace.h"
 
-#include "base/basictypes.h"
-
 #include <string.h>
 
 #include <algorithm>
 #include <sstream>
-#include <ostream>
+
+#include "base/macros.h"
 
 namespace base {
 namespace debug {
@@ -28,11 +27,11 @@ void StackTrace::OutputToStream(std::ostream* os) const {
 }
 
 const void *const *StackTrace::Addresses(size_t* count) const {
-  return NULL;
+    return NULL;
 }
 
 std::string StackTrace::ToString() const {
-  return "";
+    return "";
 }
 
 }  // namespace debug

@@ -5,11 +5,13 @@
 #include "base/synchronization/condition_variable.h"
 
 #include <errno.h>
+#include <stdint.h>
 #include <sys/time.h>
 
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -73,7 +75,7 @@ void ConditionVariable::Wait() {
 
 void ConditionVariable::TimedWait(const TimeDelta& max_time) {
   base::ThreadRestrictions::AssertWaitAllowed();
-  int64 usecs = max_time.InMicroseconds();
+  int64_t usecs = max_time.InMicroseconds();
   struct timespec relative_time;
   relative_time.tv_sec = usecs / Time::kMicrosecondsPerSecond;
   relative_time.tv_nsec =

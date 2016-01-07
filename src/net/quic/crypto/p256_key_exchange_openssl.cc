@@ -15,7 +15,7 @@ using std::string;
 
 namespace net {
 
-P256KeyExchange::P256KeyExchange(EC_KEY* private_key, const uint8* public_key)
+P256KeyExchange::P256KeyExchange(EC_KEY* private_key, const uint8_t* public_key)
     : private_key_(private_key) {
   memcpy(public_key_, public_key, sizeof(public_key_));
 }
@@ -29,15 +29,15 @@ P256KeyExchange* P256KeyExchange::New(StringPiece key) {
     return nullptr;
   }
 
-  const uint8* keyp = reinterpret_cast<const uint8*>(key.data());
-  crypto::ScopedEC_KEY private_key(d2i_ECPrivateKey(nullptr, &keyp,
-                                                    key.size()));
+  const uint8_t* keyp = reinterpret_cast<const uint8_t*>(key.data());
+  crypto::ScopedEC_KEY private_key(
+      d2i_ECPrivateKey(nullptr, &keyp, key.size()));
   if (!private_key.get() || !EC_KEY_check_key(private_key.get())) {
     DVLOG(1) << "Private key is invalid.";
     return nullptr;
   }
 
-  uint8 public_key[kUncompressedP256PointBytes];
+  uint8_t public_key[kUncompressedP256PointBytes];
   if (EC_POINT_point2oct(EC_KEY_get0_group(private_key.get()),
                          EC_KEY_get0_public_key(private_key.get()),
                          POINT_CONVERSION_UNCOMPRESSED, public_key,
@@ -62,8 +62,8 @@ string P256KeyExchange::NewPrivateKey() {
     DVLOG(1) << "Can't convert private key to string";
     return string();
   }
-  scoped_ptr<uint8[]> private_key(new uint8[key_len]);
-  uint8* keyp = private_key.get();
+  scoped_ptr<uint8_t[]> private_key(new uint8_t[key_len]);
+  uint8_t* keyp = private_key.get();
   if (!i2d_ECPrivateKey(key.get(), &keyp)) {
     DVLOG(1) << "Can't convert private key to string.";
     return string();
@@ -89,14 +89,14 @@ bool P256KeyExchange::CalculateSharedKey(const StringPiece& peer_public_value,
   if (!point ||
       !EC_POINT_oct2point(/* also test if point is on curve */
                           EC_KEY_get0_group(private_key_.get()), point.get(),
-                          reinterpret_cast<const uint8*>(
+                          reinterpret_cast<const uint8_t*>(
                               peer_public_value.data()),
                           peer_public_value.size(), nullptr)) {
     DVLOG(1) << "Can't convert peer public value to curve point.";
     return false;
   }
 
-  uint8 result[kP256FieldBytes];
+  uint8_t result[kP256FieldBytes];
   if (ECDH_compute_key(result, sizeof(result), point.get(), private_key_.get(),
                        nullptr) != sizeof(result)) {
     DVLOG(1) << "Can't compute ECDH shared key.";
@@ -112,6 +112,8 @@ StringPiece P256KeyExchange::public_value() const {
                      sizeof(public_key_));
 }
 
-QuicTag P256KeyExchange::tag() const { return kP256; }
+QuicTag P256KeyExchange::tag() const {
+  return kP256;
+}
 
 }  // namespace net

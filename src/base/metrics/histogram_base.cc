@@ -4,7 +4,8 @@
 
 #include "base/metrics/histogram_base.h"
 
-#include <climits>
+#include <limits.h>
+
 #include <utility>
 
 #include "base/json/json_string_value_serializer.h"
@@ -72,12 +73,12 @@ void HistogramBase::CheckName(const StringPiece& name) const {
   DCHECK_EQ(histogram_name(), name);
 }
 
-void HistogramBase::SetFlags(int32 flags) {
+void HistogramBase::SetFlags(int32_t flags) {
   HistogramBase::Count old_flags = subtle::NoBarrier_Load(&flags_);
   subtle::NoBarrier_Store(&flags_, old_flags | flags);
 }
 
-void HistogramBase::ClearFlags(int32 flags) {
+void HistogramBase::ClearFlags(int32_t flags) {
   HistogramBase::Count old_flags = subtle::NoBarrier_Load(&flags_);
   subtle::NoBarrier_Store(&flags_, old_flags & ~flags);
 }
@@ -103,7 +104,7 @@ int HistogramBase::FindCorruption(const HistogramSamples& samples) const {
 
 void HistogramBase::WriteJSON(std::string* output) const {
   Count count;
-  int64 sum;
+  int64_t sum;
   scoped_ptr<ListValue> buckets(new ListValue());
   GetCountAndBucketData(&count, &sum, buckets.get());
   scoped_ptr<DictionaryValue> parameters(new DictionaryValue());

@@ -14,9 +14,9 @@
 #ifndef BASE_CALLBACK_HELPERS_H_
 #define BASE_CALLBACK_HELPERS_H_
 
-#include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 
 namespace base {
 

@@ -6,6 +6,8 @@
 /* This file contains common certificates. It's designed to be #included in
  * another file, in a namespace. */
 
+#include <stdint.h>
+
 #include "net/quic/crypto/common_cert_set_1a.inc"
 #include "net/quic/crypto/common_cert_set_1b.inc"
 
@@ -140,4 +142,4 @@ static const size_t kLens[] = {
   1770,
 };
 
-static const uint64 kHash = UINT64_C(0xff715ce4e7e9267b);
+static const uint64_t kHash = UINT64_C(0xff715ce4e7e9267b);

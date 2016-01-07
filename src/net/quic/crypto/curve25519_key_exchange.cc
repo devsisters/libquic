@@ -4,7 +4,6 @@
 
 #include "net/quic/crypto/curve25519_key_exchange.h"
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "crypto/curve25519.h"
 #include "net/quic/crypto/quic_random.h"
@@ -43,7 +42,7 @@ Curve25519KeyExchange* Curve25519KeyExchange::New(
 
 // static
 string Curve25519KeyExchange::NewPrivateKey(QuicRandom* rand) {
-  uint8 private_key[crypto::curve25519::kScalarBytes];
+  uint8_t private_key[crypto::curve25519::kScalarBytes];
   rand->RandBytes(private_key, sizeof(private_key));
 
   // This makes |private_key| a valid scalar, as specified on
@@ -66,10 +65,10 @@ bool Curve25519KeyExchange::CalculateSharedKey(
     return false;
   }
 
-  uint8 result[crypto::curve25519::kBytes];
+  uint8_t result[crypto::curve25519::kBytes];
   if (!crypto::curve25519::ScalarMult(
           private_key_,
-          reinterpret_cast<const uint8*>(peer_public_value.data()), result)) {
+          reinterpret_cast<const uint8_t*>(peer_public_value.data()), result)) {
     return false;
   }
   out_result->assign(reinterpret_cast<char*>(result), sizeof(result));
@@ -82,6 +81,8 @@ StringPiece Curve25519KeyExchange::public_value() const {
                      sizeof(public_key_));
 }
 
-QuicTag Curve25519KeyExchange::tag() const { return kC255; }
+QuicTag Curve25519KeyExchange::tag() const {
+  return kC255;
+}
 
 }  // namespace net

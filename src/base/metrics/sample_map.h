@@ -8,9 +8,12 @@
 #ifndef BASE_METRICS_SAMPLE_MAP_H_
 #define BASE_METRICS_SAMPLE_MAP_H_
 
+#include <stdint.h>
+
 #include <map>
 
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"

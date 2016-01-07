@@ -5,7 +5,9 @@
 #ifndef NET_SPDY_SPDY_FRAME_READER_H_
 #define NET_SPDY_SPDY_FRAME_READER_H_
 
-#include "base/basictypes.h"
+#include <stddef.h>
+#include <stdint.h>
+
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 
@@ -36,34 +38,34 @@ class NET_EXPORT_PRIVATE SpdyFrameReader {
   // Reads an 8-bit unsigned integer into the given output parameter.
   // Forwards the internal iterator on success.
   // Returns true on success, false otherwise.
-  bool ReadUInt8(uint8* result);
+  bool ReadUInt8(uint8_t* result);
 
   // Reads a 16-bit unsigned integer into the given output parameter.
   // Forwards the internal iterator on success.
   // Returns true on success, false otherwise.
-  bool ReadUInt16(uint16* result);
+  bool ReadUInt16(uint16_t* result);
 
   // Reads a 32-bit unsigned integer into the given output parameter.
   // Forwards the internal iterator on success.
   // Returns true on success, false otherwise.
-  bool ReadUInt32(uint32* result);
+  bool ReadUInt32(uint32_t* result);
 
   // Reads a 64-bit unsigned integer into the given output parameter.
   // Forwards the internal iterator on success.
   // Returns true on success, false otherwise.
-  bool ReadUInt64(uint64* result);
+  bool ReadUInt64(uint64_t* result);
 
   // Reads a 31-bit unsigned integer into the given output parameter. This is
   // equivalent to ReadUInt32() above except that the highest-order bit is
   // discarded.
   // Forwards the internal iterator (by 4B) on success.
   // Returns true on success, false otherwise.
-  bool ReadUInt31(uint32* result);
+  bool ReadUInt31(uint32_t* result);
 
   // Reads a 24-bit unsigned integer into the given output parameter.
   // Forwards the internal iterator (by 3B) on success.
   // Returns true on success, false otherwise.
-  bool ReadUInt24(uint32* result);
+  bool ReadUInt24(uint32_t* result);
 
   // Reads a string prefixed with 16-bit length into the given output parameter.
   //

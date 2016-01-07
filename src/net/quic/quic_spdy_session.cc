@@ -10,11 +10,9 @@ namespace net {
 
 QuicSpdySession::QuicSpdySession(QuicConnection* connection,
                                  const QuicConfig& config)
-    : QuicSession(connection, config) {
-}
+    : QuicSession(connection, config) {}
 
-QuicSpdySession::~QuicSpdySession() {
-}
+QuicSpdySession::~QuicSpdySession() {}
 
 void QuicSpdySession::Initialize() {
   QuicSession::Initialize();

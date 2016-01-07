@@ -5,6 +5,7 @@
 #ifndef BASE_NUMERICS_SAFE_MATH_IMPL_H_
 #define BASE_NUMERICS_SAFE_MATH_IMPL_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <cmath>

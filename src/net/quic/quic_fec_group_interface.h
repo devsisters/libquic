@@ -9,7 +9,9 @@
 #ifndef NET_QUIC_QUIC_FEC_GROUP_INTERFACE_H_
 #define NET_QUIC_QUIC_FEC_GROUP_INTERFACE_H_
 
-#include "base/basictypes.h"
+#include <stddef.h>
+
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"

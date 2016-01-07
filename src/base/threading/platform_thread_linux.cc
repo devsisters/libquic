@@ -6,6 +6,7 @@
 
 #include <errno.h>
 #include <sched.h>
+#include <stddef.h>
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -14,6 +15,7 @@
 #if 0
 #include "base/tracked_objects.h"
 #endif
+#include "build/build_config.h"
 
 #if !defined(OS_NACL)
 #include <pthread.h>

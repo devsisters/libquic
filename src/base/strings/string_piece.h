@@ -28,7 +28,6 @@
 #include <string>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/containers/hash_tables.h"
 #include "base/logging.h"
 #include "base/strings/string16.h"

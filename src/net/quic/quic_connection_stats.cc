@@ -39,8 +39,7 @@ QuicConnectionStats::QuicConnectionStats()
       max_sequence_reordering(0),
       max_time_reordering_us(0),
       tcp_loss_events(0),
-      connection_creation_time(QuicTime::Zero()) {
-}
+      connection_creation_time(QuicTime::Zero()) {}
 
 QuicConnectionStats::~QuicConnectionStats() {}
 

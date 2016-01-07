@@ -24,7 +24,8 @@ const size_t kMaxNonceSize = 12;
 // stack.
 void DLogOpenSslErrors() {
 #ifdef NDEBUG
-  while (ERR_get_error()) {}
+  while (ERR_get_error()) {
+  }
 #else
   while (unsigned long error = ERR_get_error()) {
     char buf[120];
@@ -60,8 +61,8 @@ bool AeadBaseEncrypter::SetKey(StringPiece key) {
 
   EVP_AEAD_CTX_cleanup(ctx_.get());
 
-  if (!EVP_AEAD_CTX_init(ctx_.get(), aead_alg_, key_, key_size_,
-                         auth_tag_size_, nullptr)) {
+  if (!EVP_AEAD_CTX_init(ctx_.get(), aead_alg_, key_, key_size_, auth_tag_size_,
+                         nullptr)) {
     DLogOpenSslErrors();
     return false;
   }
@@ -114,7 +115,7 @@ bool AeadBaseEncrypter::EncryptPacket(QuicPacketNumber packet_number,
   // TODO(ianswett): Introduce a check to ensure that we don't encrypt with the
   // same packet number twice.
   const size_t nonce_size = nonce_prefix_size_ + sizeof(packet_number);
-  char nonce_buffer[kMaxNonceSize];
+  ALIGNAS(4) char nonce_buffer[kMaxNonceSize];
   memcpy(nonce_buffer, nonce_prefix_, nonce_prefix_size_);
   memcpy(nonce_buffer + nonce_prefix_size_, &packet_number,
          sizeof(packet_number));
@@ -126,7 +127,9 @@ bool AeadBaseEncrypter::EncryptPacket(QuicPacketNumber packet_number,
   return true;
 }
 
-size_t AeadBaseEncrypter::GetKeySize() const { return key_size_; }
+size_t AeadBaseEncrypter::GetKeySize() const {
+  return key_size_;
+}
 
 size_t AeadBaseEncrypter::GetNoncePrefixSize() const {
   return nonce_prefix_size_;

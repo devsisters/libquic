@@ -11,7 +11,7 @@
 
 namespace {
 
-const int64 kPositionNotSpecified = -1;
+const int64_t kPositionNotSpecified = -1;
 
 }  // namespace
 
@@ -25,8 +25,8 @@ HttpByteRange::HttpByteRange()
 }
 
 // static
-HttpByteRange HttpByteRange::Bounded(int64 first_byte_position,
-                                     int64 last_byte_position) {
+HttpByteRange HttpByteRange::Bounded(int64_t first_byte_position,
+                                     int64_t last_byte_position) {
   HttpByteRange range;
   range.set_first_byte_position(first_byte_position);
   range.set_last_byte_position(last_byte_position);
@@ -34,14 +34,14 @@ HttpByteRange HttpByteRange::Bounded(int64 first_byte_position,
 }
 
 // static
-HttpByteRange HttpByteRange::RightUnbounded(int64 first_byte_position) {
+HttpByteRange HttpByteRange::RightUnbounded(int64_t first_byte_position) {
   HttpByteRange range;
   range.set_first_byte_position(first_byte_position);
   return range;
 }
 
 // static
-HttpByteRange HttpByteRange::Suffix(int64 suffix_length) {
+HttpByteRange HttpByteRange::Suffix(int64_t suffix_length) {
   HttpByteRange range;
   range.set_suffix_length(suffix_length);
   return range;
@@ -82,7 +82,7 @@ std::string HttpByteRange::GetHeaderValue() const {
                             first_byte_position(), last_byte_position());
 }
 
-bool HttpByteRange::ComputeBounds(int64 size) {
+bool HttpByteRange::ComputeBounds(int64_t size) {
   if (size < 0)
     return false;
   if (has_computed_bounds_)

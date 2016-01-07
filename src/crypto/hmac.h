@@ -8,8 +8,10 @@
 #ifndef CRYPTO_HMAC_H_
 #define CRYPTO_HMAC_H_
 
-#include "base/basictypes.h"
+#include <stddef.h>
+
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "crypto/crypto_export.h"

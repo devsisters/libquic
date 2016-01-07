@@ -4,6 +4,7 @@
 
 #include "url/url_util.h"
 
+#include <stddef.h>
 #include <string.h>
 #include <vector>
 

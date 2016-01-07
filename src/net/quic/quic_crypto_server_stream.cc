@@ -83,18 +83,21 @@ void QuicCryptoServerStream::OnHandshakeMessage(
 
   // This block should be removed with support for QUIC_VERSION_25.
   if (FLAGS_quic_require_fix && !HasFixedTag(message)) {
-    CloseConnection(QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND);
+    CloseConnectionWithDetails(QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND,
+                               "Missing kFIXD");
     return;
   }
 
   // Do not process handshake messages after the handshake is confirmed.
   if (handshake_confirmed_) {
-    CloseConnection(QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE);
+    CloseConnectionWithDetails(QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE,
+                               "Unexpected handshake message from client");
     return;
   }
 
   if (message.tag() != kCHLO) {
-    CloseConnection(QUIC_INVALID_CRYPTO_MESSAGE_TYPE);
+    CloseConnectionWithDetails(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
+                               "Handshake packet not CHLO");
     return;
   }
 
@@ -102,7 +105,9 @@ void QuicCryptoServerStream::OnHandshakeMessage(
     // Already processing some other handshake message.  The protocol
     // does not allow for clients to send multiple handshake messages
     // before the server has a chance to respond.
-    CloseConnection(QUIC_CRYPTO_MESSAGE_WHILE_VALIDATING_CLIENT_HELLO);
+    CloseConnectionWithDetails(
+        QUIC_CRYPTO_MESSAGE_WHILE_VALIDATING_CLIENT_HELLO,
+        "Unexpected handshake message while processing CHLO");
     return;
   }
 
@@ -239,11 +244,11 @@ void QuicCryptoServerStream::OnServerHelloAcked() {
   session()->connection()->OnHandshakeComplete();
 }
 
-uint8 QuicCryptoServerStream::NumHandshakeMessages() const {
+uint8_t QuicCryptoServerStream::NumHandshakeMessages() const {
   return num_handshake_messages_;
 }
 
-uint8 QuicCryptoServerStream::NumHandshakeMessagesWithServerNonces() const {
+uint8_t QuicCryptoServerStream::NumHandshakeMessagesWithServerNonces() const {
   return num_handshake_messages_with_server_nonces_;
 }
 
@@ -286,11 +291,11 @@ bool QuicCryptoServerStream::GetBase64SHA256ClientChannelID(
   scoped_ptr<crypto::SecureHash> hash(
       crypto::SecureHash::Create(crypto::SecureHash::SHA256));
   hash->Update(channel_id.data(), channel_id.size());
-  uint8 digest[32];
+  uint8_t digest[32];
   hash->Finish(digest, sizeof(digest));
 
-  base::Base64Encode(string(
-      reinterpret_cast<const char*>(digest), sizeof(digest)), output);
+  base::Base64Encode(
+      string(reinterpret_cast<const char*>(digest), sizeof(digest)), output);
   // Remove padding.
   size_t len = output->size();
   if (len >= 2) {
@@ -336,14 +341,15 @@ QuicErrorCode QuicCryptoServerStream::ProcessClientHello(
       &crypto_negotiated_params_, &crypto_proof_, reply, error_details);
 }
 
-void QuicCryptoServerStream::OverrideQuicConfigDefaults(QuicConfig* config) {
-}
+void QuicCryptoServerStream::OverrideQuicConfigDefaults(QuicConfig* config) {}
 
 QuicCryptoServerStream::ValidateCallback::ValidateCallback(
-    QuicCryptoServerStream* parent) : parent_(parent) {
-}
+    QuicCryptoServerStream* parent)
+    : parent_(parent) {}
 
-void QuicCryptoServerStream::ValidateCallback::Cancel() { parent_ = nullptr; }
+void QuicCryptoServerStream::ValidateCallback::Cancel() {
+  parent_ = nullptr;
+}
 
 void QuicCryptoServerStream::ValidateCallback::RunImpl(
     const CryptoHandshakeMessage& client_hello,

@@ -16,7 +16,9 @@ const size_t kNoncePrefixSize = 4;
 }  // namespace
 
 Aes128Gcm12Encrypter::Aes128Gcm12Encrypter()
-    : AeadBaseEncrypter(EVP_aead_aes_128_gcm(), kKeySize, kAuthTagSize,
+    : AeadBaseEncrypter(EVP_aead_aes_128_gcm(),
+                        kKeySize,
+                        kAuthTagSize,
                         kNoncePrefixSize) {
   static_assert(kKeySize <= kMaxKeySize, "key size too big");
   static_assert(kNoncePrefixSize <= kMaxNoncePrefixSize,

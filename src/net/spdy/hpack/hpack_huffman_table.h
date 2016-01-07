@@ -5,11 +5,12 @@
 #ifndef NET_SPDY_HPACK_HUFFMAN_TABLE_H_
 #define NET_SPDY_HPACK_HUFFMAN_TABLE_H_
 
+#include <stdint.h>
+
 #include <cstddef>
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/spdy/hpack/hpack_constants.h"
@@ -38,22 +39,22 @@ class NET_EXPORT_PRIVATE HpackHuffmanTable {
   // with successive portions of the prefix.
   struct NET_EXPORT_PRIVATE DecodeEntry {
     DecodeEntry();
-    DecodeEntry(uint8 next_table_index, uint8 length, uint16 symbol_id);
+    DecodeEntry(uint8_t next_table_index, uint8_t length, uint16_t symbol_id);
 
     // The next table to consult. If this is a terminal,
     // |next_table_index| will be self-referential.
-    uint8 next_table_index;
+    uint8_t next_table_index;
     // Bit-length of terminal code, if this is a terminal. Length of the
     // longest code having this prefix, if non-terminal.
-    uint8 length;
+    uint8_t length;
     // Set only for terminal entries.
-    uint16 symbol_id;
+    uint16_t symbol_id;
   };
   struct NET_EXPORT_PRIVATE DecodeTable {
     // Number of bits indexed by the chain leading to this table.
-    uint8 prefix_length;
+    uint8_t prefix_length;
     // Number of additional prefix bits this table indexes.
-    uint8 indexed_length;
+    uint8_t indexed_length;
     // Entries are represented as a length |size()| slice into
     // |decode_entries_| beginning at |entries_offset|.
     size_t entries_offset;
@@ -68,7 +69,7 @@ class NET_EXPORT_PRIVATE HpackHuffmanTable {
   // code as determined by the given symbols. Must be called exactly once.
   // Returns false if the input symbols define an invalid coding, and true
   // otherwise. Symbols must be presented in ascending ID order with no gaps,
-  // and |symbol_count| must fit in a uint16.
+  // and |symbol_count| must fit in a uint16_t.
   bool Initialize(const Symbol* input_symbols, size_t symbol_count);
 
   // Returns whether Initialize() has been successfully called.
@@ -99,12 +100,12 @@ class NET_EXPORT_PRIVATE HpackHuffmanTable {
 
   // Adds a new DecodeTable with the argument prefix & indexed length.
   // Returns the new table index.
-  uint8 AddDecodeTable(uint8 prefix, uint8 indexed);
+  uint8_t AddDecodeTable(uint8_t prefix, uint8_t indexed);
 
-  const DecodeEntry& Entry(const DecodeTable& table, uint32 index) const;
+  const DecodeEntry& Entry(const DecodeTable& table, uint32_t index) const;
 
   void SetEntry(const DecodeTable& table,
-                uint32 index,
+                uint32_t index,
                 const DecodeEntry& entry);
 
   std::vector<DecodeTable> decode_tables_;
@@ -112,15 +113,15 @@ class NET_EXPORT_PRIVATE HpackHuffmanTable {
 
   // Symbol code and code length, in ascending symbol ID order.
   // Codes are stored in the most-significant bits of the word.
-  std::vector<uint32> code_by_id_;
-  std::vector<uint8> length_by_id_;
+  std::vector<uint32_t> code_by_id_;
+  std::vector<uint8_t> length_by_id_;
 
   // The first 8 bits of the longest code. Applied when generating padding bits.
-  uint8 pad_bits_;
+  uint8_t pad_bits_;
 
   // If initialization fails, preserve the symbol ID which failed validation
   // for examination in tests.
-  uint16 failed_symbol_id_;
+  uint16_t failed_symbol_id_;
 };
 
 }  // namespace net

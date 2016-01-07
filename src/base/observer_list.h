@@ -5,12 +5,14 @@
 #ifndef BASE_OBSERVER_LIST_H_
 #define BASE_OBSERVER_LIST_H_
 
+#include <stddef.h>
+
 #include <algorithm>
 #include <limits>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/stl_util.h"
 

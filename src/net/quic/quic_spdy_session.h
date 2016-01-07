@@ -5,6 +5,9 @@
 #ifndef NET_QUIC_QUIC_SPDY_SESSION_H_
 #define NET_QUIC_QUIC_SPDY_SESSION_H_
 
+#include <stddef.h>
+
+#include "base/macros.h"
 #include "net/quic/quic_headers_stream.h"
 #include "net/quic/quic_session.h"
 #include "net/quic/quic_spdy_stream.h"

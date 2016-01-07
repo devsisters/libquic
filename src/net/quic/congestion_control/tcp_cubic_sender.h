@@ -7,8 +7,10 @@
 #ifndef NET_QUIC_CONGESTION_CONTROL_TCP_CUBIC_SENDER_H_
 #define NET_QUIC_CONGESTION_CONTROL_TCP_CUBIC_SENDER_H_
 
-#include "base/basictypes.h"
+#include <stdint.h>
+
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/quic/congestion_control/cubic.h"
 #include "net/quic/congestion_control/hybrid_slow_start.h"
@@ -98,10 +100,10 @@ class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
   const bool reno_;
 
   // Number of connections to simulate.
-  uint32 num_connections_;
+  uint32_t num_connections_;
 
   // ACK counter for the Reno implementation.
-  uint64 congestion_window_count_;
+  uint64_t congestion_window_count_;
 
   // Track the largest packet that has been sent.
   QuicPacketNumber largest_sent_packet_number_;

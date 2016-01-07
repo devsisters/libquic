@@ -12,7 +12,7 @@ namespace base {
 
 namespace {
 
-// Converts the 8-byte prefix of an MD5 hash into a uint64 value.
+// Converts the 8-byte prefix of an MD5 hash into a uint64_t value.
 inline uint64_t DigestToUInt64(const base::MD5Digest& digest) {
   uint64_t value;
   DCHECK_GE(sizeof(digest.a), sizeof(value));

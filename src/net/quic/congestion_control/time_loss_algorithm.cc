@@ -21,7 +21,7 @@ static const double kLossDelayMultiplier = 1.25;
 }  // namespace
 
 TimeLossAlgorithm::TimeLossAlgorithm()
-    : loss_detection_timeout_(QuicTime::Zero()) { }
+    : loss_detection_timeout_(QuicTime::Zero()) {}
 
 LossDetectionType TimeLossAlgorithm::GetLossDetectionType() const {
   return kTime;

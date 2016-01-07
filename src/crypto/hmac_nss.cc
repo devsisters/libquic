@@ -6,6 +6,7 @@
 
 #include <nss.h>
 #include <pk11pub.h>
+#include <stddef.h>
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"

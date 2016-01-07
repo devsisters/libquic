@@ -5,11 +5,14 @@
 #ifndef NET_QUIC_QUIC_DATA_WRITER_H_
 #define NET_QUIC_QUIC_DATA_WRITER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <cstddef>
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/int128.h"
 #include "net/base/net_export.h"
@@ -38,24 +41,22 @@ class NET_EXPORT_PRIVATE QuicDataWriter {
   // Methods for adding to the payload.  These values are appended to the end
   // of the QuicDataWriter payload. Note - binary integers are written in
   // host byte order (little endian) not network byte order (big endian).
-  bool WriteUInt8(uint8 value);
-  bool WriteUInt16(uint16 value);
-  bool WriteUInt32(uint32 value);
-  bool WriteUInt48(uint64 value);
-  bool WriteUInt64(uint64 value);
+  bool WriteUInt8(uint8_t value);
+  bool WriteUInt16(uint16_t value);
+  bool WriteUInt32(uint32_t value);
+  bool WriteUInt48(uint64_t value);
+  bool WriteUInt64(uint64_t value);
   // Write unsigned floating point corresponding to the value. Large values are
   // clamped to the maximum representable (kUFloat16MaxValue). Values that can
   // not be represented directly are rounded down.
-  bool WriteUFloat16(uint64 value);
+  bool WriteUFloat16(uint64_t value);
   bool WriteStringPiece16(base::StringPiece val);
   bool WriteBytes(const void* data, size_t data_len);
-  bool WriteRepeatedByte(uint8 byte, size_t count);
+  bool WriteRepeatedByte(uint8_t byte, size_t count);
   // Fills the remaining buffer with null characters.
   void WritePadding();
 
-  size_t capacity() const {
-    return capacity_;
-  }
+  size_t capacity() const { return capacity_; }
 
  private:
   // Returns the location that the data should be written at, or nullptr if

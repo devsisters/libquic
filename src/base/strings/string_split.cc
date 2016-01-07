@@ -4,6 +4,8 @@
 
 #include "base/strings/string_split.h"
 
+#include <stddef.h>
+
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/third_party/icu/icu_utf.h"
@@ -128,28 +130,28 @@ bool AppendStringKeyValue(StringPiece input,
   return true;
 }
 
-template <typename Str>
+template <typename Str, typename OutputStringType>
 void SplitStringUsingSubstrT(BasicStringPiece<Str> input,
                              BasicStringPiece<Str> delimiter,
-                             std::vector<Str>* result) {
+                             WhitespaceHandling whitespace,
+                             SplitResult result_type,
+                             std::vector<OutputStringType>* result) {
   using Piece = BasicStringPiece<Str>;
   using size_type = typename Piece::size_type;
 
   result->clear();
-  size_type begin_index = 0;
-  while (true) {
-    size_type end_index = input.find(delimiter, begin_index);
-    if (end_index == Piece::npos) {
-      // No delimiter, use the rest of the string.
-      Piece term = TrimString(input.substr(begin_index),
-                              WhitespaceForType<Str>(), TRIM_ALL);
-      result->push_back(term.as_string());
-      return;
-    }
-    Piece term = TrimString(input.substr(begin_index, end_index - begin_index),
-                            WhitespaceForType<Str>(), TRIM_ALL);
-    result->push_back(term.as_string());
-    begin_index = end_index + delimiter.size();
+  for (size_type begin_index = 0, end_index = 0; end_index != Piece::npos;
+       begin_index = end_index + delimiter.size()) {
+    end_index = input.find(delimiter, begin_index);
+    Piece term = end_index == Piece::npos
+                     ? input.substr(begin_index)
+                     : input.substr(begin_index, end_index - begin_index);
+
+    if (whitespace == TRIM_WHITESPACE)
+      term = TrimString(term, WhitespaceForType<Str>(), TRIM_ALL);
+
+    if (result_type == SPLIT_WANT_ALL || !term.empty())
+      result->push_back(PieceToOutputType<Str, OutputStringType>(term));
   }
 }
 
@@ -228,13 +230,35 @@ bool SplitStringIntoKeyValuePairs(StringPiece input,
 void SplitStringUsingSubstr(StringPiece16 input,
                             StringPiece16 delimiter,
                             std::vector<string16>* result) {
-  SplitStringUsingSubstrT(input, delimiter, result);
+  SplitStringUsingSubstrT(input, delimiter, TRIM_WHITESPACE, SPLIT_WANT_ALL,
+                          result);
 }
 
 void SplitStringUsingSubstr(StringPiece input,
                             StringPiece delimiter,
                             std::vector<std::string>* result) {
-  SplitStringUsingSubstrT(input, delimiter, result);
+  SplitStringUsingSubstrT(input, delimiter, TRIM_WHITESPACE, SPLIT_WANT_ALL,
+                          result);
+}
+
+std::vector<StringPiece16> SplitStringPieceUsingSubstr(
+    StringPiece16 input,
+    StringPiece16 delimiter,
+    WhitespaceHandling whitespace,
+    SplitResult result_type) {
+  std::vector<StringPiece16> result;
+  SplitStringUsingSubstrT(input, delimiter, whitespace, result_type, &result);
+  return result;
+}
+
+std::vector<StringPiece> SplitStringPieceUsingSubstr(
+    StringPiece input,
+    StringPiece delimiter,
+    WhitespaceHandling whitespace,
+    SplitResult result_type) {
+  std::vector<StringPiece> result;
+  SplitStringUsingSubstrT(input, delimiter, whitespace, result_type, &result);
+  return result;
 }
 
 }  // namespace base

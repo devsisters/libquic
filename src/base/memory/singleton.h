@@ -22,6 +22,7 @@
 #include "base/at_exit.h"
 #include "base/atomicops.h"
 #include "base/base_export.h"
+#include "base/macros.h"
 #include "base/memory/aligned_memory.h"
 #include "base/threading/thread_restrictions.h"
 

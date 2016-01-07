@@ -14,24 +14,21 @@ namespace {
 
 // For convenience, the values of these constants match the values of AF_INET
 // and AF_INET6 on Linux.
-const uint16 kIPv4 = 2;
-const uint16 kIPv6 = 10;
+const uint16_t kIPv4 = 2;
+const uint16_t kIPv6 = 10;
 
 }  // namespace
 
-QuicSocketAddressCoder::QuicSocketAddressCoder() {
-}
+QuicSocketAddressCoder::QuicSocketAddressCoder() {}
 
 QuicSocketAddressCoder::QuicSocketAddressCoder(const IPEndPoint& address)
-    : address_(address) {
-}
+    : address_(address) {}
 
-QuicSocketAddressCoder::~QuicSocketAddressCoder() {
-}
+QuicSocketAddressCoder::~QuicSocketAddressCoder() {}
 
 string QuicSocketAddressCoder::Encode() const {
   string serialized;
-  uint16 address_family;
+  uint16_t address_family;
   switch (address_.GetSockAddrFamily()) {
     case AF_INET:
       address_family = kIPv4;
@@ -45,13 +42,13 @@ string QuicSocketAddressCoder::Encode() const {
   serialized.append(reinterpret_cast<const char*>(&address_family),
                     sizeof(address_family));
   serialized.append(IPAddressToPackedString(address_.address()));
-  uint16 port = address_.port();
+  uint16_t port = address_.port();
   serialized.append(reinterpret_cast<const char*>(&port), sizeof(port));
   return serialized;
 }
 
 bool QuicSocketAddressCoder::Decode(const char* data, size_t length) {
-  uint16 address_family;
+  uint16_t address_family;
   if (length < sizeof(address_family)) {
     return false;
   }
@@ -78,7 +75,7 @@ bool QuicSocketAddressCoder::Decode(const char* data, size_t length) {
   data += ip_length;
   length -= ip_length;
 
-  uint16 port;
+  uint16_t port;
   if (length != sizeof(port)) {
     return false;
   }

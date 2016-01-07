@@ -16,15 +16,15 @@ namespace {
 
 // A special structure for the 8 bit flags and 24 bit length fields.
 union FlagsAndLength {
-  uint8 flags[4];  // 8 bits
-  uint32 length;   // 24 bits
+  uint8_t flags[4];  // 8 bits
+  uint32_t length;   // 24 bits
 };
 
 // Creates a FlagsAndLength.
-FlagsAndLength CreateFlagsAndLength(uint8 flags, size_t length) {
+FlagsAndLength CreateFlagsAndLength(uint8_t flags, size_t length) {
   DCHECK_EQ(0u, length & ~static_cast<size_t>(kLengthMask));
   FlagsAndLength flags_length;
-  flags_length.length = base::HostToNet32(static_cast<uint32>(length));
+  flags_length.length = base::HostToNet32(static_cast<uint32_t>(length));
   DCHECK_EQ(0, flags & ~kControlFlagsMask);
   flags_length.flags[0] = flags;
   return flags_length;
@@ -61,7 +61,7 @@ bool SpdyFrameBuilder::Seek(size_t length) {
 
 bool SpdyFrameBuilder::WriteControlFrameHeader(const SpdyFramer& framer,
                                                SpdyFrameType type,
-                                               uint8 flags) {
+                                               uint8_t flags) {
   DCHECK_GE(SPDY3, version_);
   DCHECK(SpdyConstants::IsValidFrameType(
       version_, SpdyConstants::SerializeFrameType(version_, type)));
@@ -79,7 +79,7 @@ bool SpdyFrameBuilder::WriteControlFrameHeader(const SpdyFramer& framer,
 
 bool SpdyFrameBuilder::WriteDataFrameHeader(const SpdyFramer& framer,
                                             SpdyStreamId stream_id,
-                                            uint8 flags) {
+                                            uint8_t flags) {
   if (version_ > SPDY3) {
     return BeginNewFrame(framer, DATA, flags, stream_id);
   }
@@ -89,7 +89,7 @@ bool SpdyFrameBuilder::WriteDataFrameHeader(const SpdyFramer& framer,
   size_t length_field = capacity_ - framer.GetDataFrameMinimumSize();
   DCHECK_EQ(0u, length_field & ~static_cast<size_t>(kLengthMask));
   FlagsAndLength flags_length;
-  flags_length.length = base::HostToNet32(static_cast<uint32>(length_field));
+  flags_length.length = base::HostToNet32(static_cast<uint32_t>(length_field));
   DCHECK_EQ(0, flags & ~kDataFlagsMask);
   flags_length.flags[0] = flags;
   success &= WriteBytes(&flags_length, sizeof(flags_length));
@@ -99,7 +99,7 @@ bool SpdyFrameBuilder::WriteDataFrameHeader(const SpdyFramer& framer,
 
 bool SpdyFrameBuilder::BeginNewFrame(const SpdyFramer& framer,
                                      SpdyFrameType type,
-                                     uint8 flags,
+                                     uint8_t flags,
                                      SpdyStreamId stream_id) {
   DCHECK(SpdyConstants::IsValidFrameType(
       version_, SpdyConstants::SerializeFrameType(version_, type)));
@@ -136,11 +136,11 @@ bool SpdyFrameBuilder::WriteStringPiece16(const base::StringPiece& value) {
     return false;
   }
 
-  if (!WriteUInt16(static_cast<uint16>(value.size()))) {
+  if (!WriteUInt16(static_cast<uint16_t>(value.size()))) {
     return false;
   }
 
-  return WriteBytes(value.data(), static_cast<uint16>(value.size()));
+  return WriteBytes(value.data(), static_cast<uint16_t>(value.size()));
 }
 
 bool SpdyFrameBuilder::WriteStringPiece32(const base::StringPiece& value) {
@@ -151,7 +151,7 @@ bool SpdyFrameBuilder::WriteStringPiece32(const base::StringPiece& value) {
   return WriteBytes(value.data(), value.size());
 }
 
-bool SpdyFrameBuilder::WriteBytes(const void* data, uint32 data_len) {
+bool SpdyFrameBuilder::WriteBytes(const void* data, uint32_t data_len) {
   if (!CanWrite(data_len)) {
     return false;
   }
@@ -197,8 +197,7 @@ bool SpdyFrameBuilder::OverwriteLength(const SpdyFramer& framer,
   return success;
 }
 
-bool SpdyFrameBuilder::OverwriteFlags(const SpdyFramer& framer,
-                                      uint8 flags) {
+bool SpdyFrameBuilder::OverwriteFlags(const SpdyFramer& framer, uint8_t flags) {
   DCHECK_GT(framer.protocol_version(), SPDY3);
   bool success = false;
   const size_t old_length = length_;

@@ -5,6 +5,7 @@
 #ifndef NET_QUIC_QUIC_CLIENT_SESSION_BASE_H_
 #define NET_QUIC_QUIC_CLIENT_SESSION_BASE_H_
 
+#include "base/macros.h"
 #include "net/quic/quic_crypto_client_stream.h"
 #include "net/quic/quic_spdy_session.h"
 
@@ -13,16 +14,13 @@ namespace net {
 // Base class for all client-specific QuicSession subclasses.
 class NET_EXPORT_PRIVATE QuicClientSessionBase : public QuicSpdySession {
  public:
-  QuicClientSessionBase(QuicConnection* connection,
-                        const QuicConfig& config);
+  QuicClientSessionBase(QuicConnection* connection, const QuicConfig& config);
 
   ~QuicClientSessionBase() override;
 
   // Called when the proof in |cached| is marked valid.  If this is a secure
   // QUIC session, then this will happen only after the proof verifier
-  // completes.  If this is an insecure QUIC connection, this will happen
-  // as soon as a valid config is discovered (either from the cache or
-  // from the server).
+  // completes.
   virtual void OnProofValid(
       const QuicCryptoClientConfig::CachedState& cached) = 0;
 

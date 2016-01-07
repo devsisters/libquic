@@ -5,10 +5,13 @@
 #ifndef CRYPTO_EC_PRIVATE_KEY_H_
 #define CRYPTO_EC_PRIVATE_KEY_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
 
@@ -45,8 +48,8 @@ class CRYPTO_EXPORT ECPrivateKey {
   // Returns NULL if initialization fails.
   static ECPrivateKey* CreateFromEncryptedPrivateKeyInfo(
       const std::string& password,
-      const std::vector<uint8>& encrypted_private_key_info,
-      const std::vector<uint8>& subject_public_key_info);
+      const std::vector<uint8_t>& encrypted_private_key_info,
+      const std::vector<uint8_t>& subject_public_key_info);
 
 #if !defined(USE_OPENSSL)
   // Imports the key pair into |slot| and returns in |public_key| and |key|.
@@ -56,7 +59,7 @@ class CRYPTO_EXPORT ECPrivateKey {
   static bool ImportFromEncryptedPrivateKeyInfo(
       PK11SlotInfo* slot,
       const std::string& password,
-      const uint8* encrypted_private_key_info,
+      const uint8_t* encrypted_private_key_info,
       size_t encrypted_private_key_info_len,
       CERTSubjectPublicKeyInfo* decoded_spki,
       bool permanent,
@@ -82,18 +85,18 @@ class CRYPTO_EXPORT ECPrivateKey {
   // of 1000 iterations, on modern systems a larger value may be preferrable.
   bool ExportEncryptedPrivateKey(const std::string& password,
                                  int iterations,
-                                 std::vector<uint8>* output);
+                                 std::vector<uint8_t>* output);
 
   // Exports the public key to an X.509 SubjectPublicKeyInfo block.
-  bool ExportPublicKey(std::vector<uint8>* output);
+  bool ExportPublicKey(std::vector<uint8_t>* output);
 
   // Exports the public key as an EC point in the uncompressed point format.
   bool ExportRawPublicKey(std::string* output);
 
   // Exports private key data for testing. The format of data stored into output
   // doesn't matter other than that it is consistent for the same key.
-  bool ExportValue(std::vector<uint8>* output);
-  bool ExportECParams(std::vector<uint8>* output);
+  bool ExportValue(std::vector<uint8_t>* output);
+  bool ExportECParams(std::vector<uint8_t>* output);
 
  private:
   // Constructor is private. Use one of the Create*() methods above instead.

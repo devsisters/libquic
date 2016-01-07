@@ -5,8 +5,10 @@
 #ifndef CRYPTO_OPENSSL_UTIL_H_
 #define CRYPTO_OPENSSL_UTIL_H_
 
-#include "base/basictypes.h"
+#include <stddef.h>
+
 #include "base/location.h"
+#include "base/macros.h"
 #include "crypto/crypto_export.h"
 
 namespace crypto {

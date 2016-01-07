@@ -5,6 +5,8 @@
 #ifndef NET_BASE_IOVEC_H_
 #define NET_BASE_IOVEC_H_
 
+#include <stddef.h>
+
 #if defined(OS_POSIX) && !defined(OS_NACL)
 #include <sys/uio.h>
 #else

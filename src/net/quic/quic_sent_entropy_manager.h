@@ -10,6 +10,7 @@
 
 #include <deque>
 
+#include "base/macros.h"
 #include "net/base/linked_hash_map.h"
 #include "net/quic/quic_framer.h"
 #include "net/quic/quic_protocol.h"

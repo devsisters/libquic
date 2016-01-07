@@ -5,8 +5,12 @@
 #ifndef NET_QUIC_QUIC_WRITE_BLOCKED_LIST_H_
 #define NET_QUIC_QUIC_WRITE_BLOCKED_LIST_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <set>
 
+#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_protocol.h"
@@ -120,12 +124,12 @@ class NET_EXPORT_PRIVATE QuicWriteBlockedList {
       // If this was the last data stream popped by PopFront, update the
       // bytes remaining in its batch write.
       bytes_left_for_batch_write_[last_priority_popped_] -=
-          static_cast<int32>(bytes);
+          static_cast<int32_t>(bytes);
     } else {
       // If a batch write stream was set, it should only be preempted by the
       // crypto or headers streams.  Any higher priority data stream would
       // *become* the new batch write stream.
-      if (FLAGS_quic_respect_send_alarm && FLAGS_quic_batch_writes) {
+      if (FLAGS_quic_respect_send_alarm2 && FLAGS_quic_batch_writes) {
         DCHECK(stream_id == kCryptoStreamId || stream_id == kHeadersStreamId ||
                batch_write_stream_id_[last_priority_popped_] == 0 ||
                bytes == 0);
@@ -185,7 +189,7 @@ class NET_EXPORT_PRIVATE QuicWriteBlockedList {
   // Set to kBatchWriteSize when we set a new batch_write_stream_id_ for a given
   // priority.  This is decremented with each write the stream does until it is
   // done with its batch write.
-  int32 bytes_left_for_batch_write_[kV3LowestPriority + 1];
+  int32_t bytes_left_for_batch_write_[kV3LowestPriority + 1];
   // Tracks the last priority popped for UpdateBytesForStream.
   SpdyPriority last_priority_popped_;
 
@@ -196,6 +200,5 @@ class NET_EXPORT_PRIVATE QuicWriteBlockedList {
 };
 
 }  // namespace net
-
 
 #endif  // NET_QUIC_QUIC_WRITE_BLOCKED_LIST_H_

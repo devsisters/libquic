@@ -1,13 +1,8 @@
 diff --git a/src/base/debug/stack_trace.cc b/src/base/debug/stack_trace.cc
-index ce9e9ad..8da6083 100644
+index 2250c8f..e9e6dd4 100644
 --- a/src/base/debug/stack_trace.cc
 +++ b/src/base/debug/stack_trace.cc
-@@ -10,33 +10,29 @@
- 
- #include <algorithm>
- #include <sstream>
-+#include <ostream>
- 
+@@ -14,29 +14,24 @@
  namespace base {
  namespace debug {
  
@@ -31,7 +26,8 @@ index ce9e9ad..8da6083 100644
 -  *count = count_;
 -  if (count_)
 -    return trace_;
-   return NULL;
+-  return NULL;
++    return NULL;
  }
  
  std::string StackTrace::ToString() const {
@@ -40,23 +36,23 @@ index ce9e9ad..8da6083 100644
 -  OutputToStream(&stream);
 -#endif
 -  return stream.str();
-+  return "";
++    return "";
  }
  
  }  // namespace debug
 diff --git a/src/base/rand_util_posix.cc b/src/base/rand_util_posix.cc
-index fe73b96..abe0590 100644
+index 6a6e05a..7098399 100644
 --- a/src/base/rand_util_posix.cc
 +++ b/src/base/rand_util_posix.cc
-@@ -8,7 +8,6 @@
- #include <fcntl.h>
+@@ -10,7 +10,6 @@
+ #include <stdint.h>
  #include <unistd.h>
  
 -#include "base/files/file_util.h"
  #include "base/lazy_instance.h"
  #include "base/logging.h"
  
-@@ -45,6 +44,18 @@ uint64 RandUint64() {
+@@ -47,6 +46,18 @@ uint64_t RandUint64() {
    return number;
  }
  
@@ -98,20 +94,20 @@ index ad01828..dde18a9 100644
  namespace base {
  
 diff --git a/src/base/threading/platform_thread_linux.cc b/src/base/threading/platform_thread_linux.cc
-index 48cf744..46374af 100644
+index 4057ede..17eda64 100644
 --- a/src/base/threading/platform_thread_linux.cc
 +++ b/src/base/threading/platform_thread_linux.cc
-@@ -11,7 +11,9 @@
+@@ -12,7 +12,9 @@
  #include "base/logging.h"
  #include "base/threading/platform_thread_internal_posix.h"
  #include "base/threading/thread_id_name_manager.h"
 +#if 0
  #include "base/tracked_objects.h"
 +#endif
+ #include "build/build_config.h"
  
  #if !defined(OS_NACL)
- #include <pthread.h>
-@@ -77,7 +79,9 @@ bool GetCurrentThreadPriorityForPlatform(ThreadPriority* priority) {
+@@ -79,7 +81,9 @@ bool GetCurrentThreadPriorityForPlatform(ThreadPriority* priority) {
  // static
  void PlatformThread::SetName(const std::string& name) {
    ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
@@ -122,20 +118,20 @@ index 48cf744..46374af 100644
  #if !defined(OS_NACL)
    // On linux we can get the thread names to show up in the debugger by setting
 diff --git a/src/base/threading/platform_thread_mac.mm b/src/base/threading/platform_thread_mac.mm
-index 1ecbcd6..593caad 100644
+index df11f85..27288e7 100644
 --- a/src/base/threading/platform_thread_mac.mm
 +++ b/src/base/threading/platform_thread_mac.mm
-@@ -16,7 +16,9 @@
+@@ -17,7 +17,9 @@
  #include "base/logging.h"
  #include "base/mac/mach_logging.h"
  #include "base/threading/thread_id_name_manager.h"
 +#if 0
  #include "base/tracked_objects.h"
 +#endif
+ #include "build/build_config.h"
  
  namespace base {
- 
-@@ -44,7 +46,9 @@ void InitThreading() {
+@@ -46,7 +48,9 @@ void InitThreading() {
  // static
  void PlatformThread::SetName(const std::string& name) {
    ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
@@ -163,6 +159,63 @@ index a0dd2d5..03083f3 100644
  
  // static
  HostPortPair HostPortPair::FromIPEndPoint(const IPEndPoint& ipe) {
+diff --git a/src/net/base/ip_endpoint.cc b/src/net/base/ip_endpoint.cc
+index 8fe2aed..5b355fe 100644
+--- a/src/net/base/ip_endpoint.cc
++++ b/src/net/base/ip_endpoint.cc
+@@ -29,52 +29,6 @@ namespace {
+ const socklen_t kSockaddrInSize = sizeof(struct sockaddr_in);
+ const socklen_t kSockaddrIn6Size = sizeof(struct sockaddr_in6);
+ 
+-// Extracts the address and port portions of a sockaddr.
+-bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
+-                              socklen_t sock_addr_len,
+-                              const uint8_t** address,
+-                              size_t* address_len,
+-                              uint16_t* port) {
+-  if (sock_addr->sa_family == AF_INET) {
+-    if (sock_addr_len < static_cast<socklen_t>(sizeof(struct sockaddr_in)))
+-      return false;
+-    const struct sockaddr_in* addr =
+-        reinterpret_cast<const struct sockaddr_in*>(sock_addr);
+-    *address = reinterpret_cast<const uint8_t*>(&addr->sin_addr);
+-    *address_len = kIPv4AddressSize;
+-    if (port)
+-      *port = base::NetToHost16(addr->sin_port);
+-    return true;
+-  }
+-
+-  if (sock_addr->sa_family == AF_INET6) {
+-    if (sock_addr_len < static_cast<socklen_t>(sizeof(struct sockaddr_in6)))
+-      return false;
+-    const struct sockaddr_in6* addr =
+-        reinterpret_cast<const struct sockaddr_in6*>(sock_addr);
+-    *address = reinterpret_cast<const uint8_t*>(&addr->sin6_addr);
+-    *address_len = kIPv6AddressSize;
+-    if (port)
+-      *port = base::NetToHost16(addr->sin6_port);
+-    return true;
+-  }
+-
+-#if defined(OS_WIN)
+-  if (sock_addr->sa_family == AF_BTH) {
+-    if (sock_addr_len < static_cast<socklen_t>(sizeof(SOCKADDR_BTH)))
+-      return false;
+-    const SOCKADDR_BTH* addr = reinterpret_cast<const SOCKADDR_BTH*>(sock_addr);
+-    *address = reinterpret_cast<const uint8_t*>(&addr->btAddr);
+-    *address_len = kBluetoothAddressSize;
+-    if (port)
+-      *port = static_cast<uint16_t>(addr->port);
+-    return true;
+-  }
+-#endif
+-
+-  return false;  // Unrecognized |sa_family|.
+-}
+-
+ }  // namespace
+ 
+ IPEndPoint::IPEndPoint() : port_(0) {}
 diff --git a/src/net/base/net_errors.cc b/src/net/base/net_errors.cc
 index ddba87b..6f07590 100644
 --- a/src/net/base/net_errors.cc
@@ -183,20 +236,20 @@ index ddba87b..6f07590 100644
  
  }  // namespace net
 diff --git a/src/net/base/net_errors.h b/src/net/base/net_errors.h
-index a3b6040..485d3c0 100644
+index 27a2e51..97a716d 100644
 --- a/src/net/base/net_errors.h
 +++ b/src/net/base/net_errors.h
-@@ -9,7 +9,9 @@
+@@ -8,7 +8,9 @@
+ #include <string>
  #include <vector>
  
- #include "base/basictypes.h"
 +#if 0
  #include "base/files/file.h"
 +#endif
  #include "base/logging.h"
  #include "net/base/net_export.h"
  
-@@ -48,8 +50,10 @@ NET_EXPORT bool IsClientCertificateError(int error);
+@@ -47,8 +49,10 @@ NET_EXPORT bool IsClientCertificateError(int error);
  // Map system error code to Error.
  NET_EXPORT Error MapSystemError(logging::SystemErrorCode os_error);
  
@@ -208,7 +261,7 @@ index a3b6040..485d3c0 100644
  }  // namespace net
  
 diff --git a/src/net/quic/crypto/crypto_utils.cc b/src/net/quic/crypto/crypto_utils.cc
-index 8d5d4b4..8c1dd43 100644
+index 0c6a4a7..ec1c46b 100644
 --- a/src/net/quic/crypto/crypto_utils.cc
 +++ b/src/net/quic/crypto/crypto_utils.cc
 @@ -48,6 +48,7 @@ void CryptoUtils::GenerateNonce(QuicWallTime now,
@@ -250,10 +303,10 @@ index 8d5d4b4..8c1dd43 100644
  // static
  bool CryptoUtils::DeriveKeys(StringPiece premaster_secret,
 diff --git a/src/net/quic/quic_server_id.cc b/src/net/quic/quic_server_id.cc
-index 25bac39..747e691 100644
+index b810bb3..77fe3a3 100644
 --- a/src/net/quic/quic_server_id.cc
 +++ b/src/net/quic/quic_server_id.cc
-@@ -43,6 +43,7 @@ bool QuicServerId::operator==(const QuicServerId& other) const {
+@@ -41,6 +41,7 @@ bool QuicServerId::operator==(const QuicServerId& other) const {
           host_port_pair_.Equals(other.host_port_pair_);
  }
  
@@ -261,7 +314,7 @@ index 25bac39..747e691 100644
  // static
  QuicServerId QuicServerId::FromString(const std::string& str) {
    GURL url(str);
-@@ -52,6 +53,7 @@ QuicServerId QuicServerId::FromString(const std::string& str) {
+@@ -50,6 +51,7 @@ QuicServerId QuicServerId::FromString(const std::string& str) {
                                                        ? PRIVACY_MODE_ENABLED
                                                        : PRIVACY_MODE_DISABLED);
  }
@@ -270,10 +323,10 @@ index 25bac39..747e691 100644
  string QuicServerId::ToString() const {
    return "https://" + host_port_pair_.ToString() +
 diff --git a/src/net/quic/quic_server_id.h b/src/net/quic/quic_server_id.h
-index 4e3f067..53c78ac 100644
+index 97dbebb..fe219cf 100644
 --- a/src/net/quic/quic_server_id.h
 +++ b/src/net/quic/quic_server_id.h
-@@ -30,9 +30,11 @@ class NET_EXPORT_PRIVATE QuicServerId {
+@@ -31,9 +31,11 @@ class NET_EXPORT_PRIVATE QuicServerId {
    bool operator<(const QuicServerId& other) const;
    bool operator==(const QuicServerId& other) const;
  
@@ -286,10 +339,10 @@ index 4e3f067..53c78ac 100644
    // ToString() will convert the QuicServerId to "scheme:hostname:port" or
    // "scheme:hostname:port/private". "scheme" will be "https".
 diff --git a/src/net/quic/quic_session.cc b/src/net/quic/quic_session.cc
-index 445792b..ec5e854 100644
+index ffb2043..814a3f3 100644
 --- a/src/net/quic/quic_session.cc
 +++ b/src/net/quic/quic_session.cc
-@@ -9,7 +9,9 @@
+@@ -10,7 +10,9 @@
  #include "net/quic/quic_connection.h"
  #include "net/quic/quic_flags.h"
  #include "net/quic/quic_flow_controller.h"
@@ -300,10 +353,10 @@ index 445792b..ec5e854 100644
  using base::StringPiece;
  using base::hash_map;
 diff --git a/src/net/spdy/spdy_framer.h b/src/net/spdy/spdy_framer.h
-index 8e2ce1c..42ce5f9 100644
+index 35bfafb..13b243f 100644
 --- a/src/net/spdy/spdy_framer.h
 +++ b/src/net/spdy/spdy_framer.h
-@@ -17,7 +17,9 @@
+@@ -20,7 +20,9 @@
  #include "net/spdy/hpack/hpack_decoder.h"
  #include "net/spdy/hpack/hpack_encoder.h"
  #include "net/spdy/spdy_alt_svc_wire_format.h"
@@ -314,10 +367,10 @@ index 8e2ce1c..42ce5f9 100644
  
  typedef struct z_stream_s z_stream;  // Forward declaration for zlib.
 diff --git a/src/net/spdy/spdy_header_block.cc b/src/net/spdy/spdy_header_block.cc
-index 5e607e7..f8705f9 100644
+index 49243a7..c312bed 100644
 --- a/src/net/spdy/spdy_header_block.cc
 +++ b/src/net/spdy/spdy_header_block.cc
-@@ -224,6 +224,7 @@ void SpdyHeaderBlock::AppendHeader(const StringPiece key,
+@@ -225,6 +225,7 @@ void SpdyHeaderBlock::AppendHeader(const StringPiece key,
    block_.insert(make_pair(storage_->Write(key), storage_->Write(value)));
  }
  
@@ -325,19 +378,19 @@ index 5e607e7..f8705f9 100644
  scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
      const SpdyHeaderBlock* headers,
      NetLogCaptureMode capture_mode) {
-@@ -239,6 +240,7 @@ scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
+@@ -240,6 +241,7 @@ scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
    dict->Set("headers", headers_dict);
-   return dict.Pass();
+   return std::move(dict);
  }
 +#endif
  
  bool SpdyHeaderBlockFromNetLogParam(
      const base::Value* event_param,
 diff --git a/src/net/spdy/spdy_header_block.h b/src/net/spdy/spdy_header_block.h
-index 8688044..8d76571 100644
+index 2c57d41..686b65c 100644
 --- a/src/net/spdy/spdy_header_block.h
 +++ b/src/net/spdy/spdy_header_block.h
-@@ -124,10 +124,12 @@ class NET_EXPORT SpdyHeaderBlock {
+@@ -126,10 +126,12 @@ class NET_EXPORT SpdyHeaderBlock {
    scoped_ptr<Storage> storage_;
  };
  

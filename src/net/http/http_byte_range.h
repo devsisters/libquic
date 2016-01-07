@@ -5,9 +5,10 @@
 #ifndef NET_HTTP_HTTP_BYTE_RANGE_H_
 #define NET_HTTP_HTTP_BYTE_RANGE_H_
 
+#include <stdint.h>
+
 #include <string>
 
-#include "base/basictypes.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -20,21 +21,21 @@ class NET_EXPORT HttpByteRange {
   HttpByteRange();
 
   // Convenience constructors.
-  static HttpByteRange Bounded(int64 first_byte_position,
-                               int64 last_byte_position);
-  static HttpByteRange RightUnbounded(int64 first_byte_position);
-  static HttpByteRange Suffix(int64 suffix_length);
+  static HttpByteRange Bounded(int64_t first_byte_position,
+                               int64_t last_byte_position);
+  static HttpByteRange RightUnbounded(int64_t first_byte_position);
+  static HttpByteRange Suffix(int64_t suffix_length);
 
   // Since this class is POD, we use constructor, assignment operator
   // and destructor provided by compiler.
-  int64 first_byte_position() const { return first_byte_position_; }
-  void set_first_byte_position(int64 value) { first_byte_position_ = value; }
+  int64_t first_byte_position() const { return first_byte_position_; }
+  void set_first_byte_position(int64_t value) { first_byte_position_ = value; }
 
-  int64 last_byte_position() const { return last_byte_position_; }
-  void set_last_byte_position(int64 value) { last_byte_position_ = value; }
+  int64_t last_byte_position() const { return last_byte_position_; }
+  void set_last_byte_position(int64_t value) { last_byte_position_ = value; }
 
-  int64 suffix_length() const { return suffix_length_; }
-  void set_suffix_length(int64 value) { suffix_length_ = value; }
+  int64_t suffix_length() const { return suffix_length_; }
+  void set_suffix_length(int64_t value) { suffix_length_ = value; }
 
   // Returns true if this is a suffix byte range.
   bool IsSuffixByteRange() const;
@@ -57,12 +58,12 @@ class NET_EXPORT HttpByteRange {
   // no side effect.
   // Returns false if this method is called more than once and there will be
   // no side effect.
-  bool ComputeBounds(int64 size);
+  bool ComputeBounds(int64_t size);
 
  private:
-  int64 first_byte_position_;
-  int64 last_byte_position_;
-  int64 suffix_length_;
+  int64_t first_byte_position_;
+  int64_t last_byte_position_;
+  int64_t suffix_length_;
   bool has_computed_bounds_;
 };
 

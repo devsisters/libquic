@@ -6,6 +6,8 @@
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include <algorithm>
 
@@ -39,7 +41,7 @@ SymmetricKey* SymmetricKey::GenerateRandomKey(Algorithm algorithm,
 
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
   scoped_ptr<SymmetricKey> key(new SymmetricKey);
-  uint8* key_data = reinterpret_cast<uint8*>(
+  uint8_t* key_data = reinterpret_cast<uint8_t*>(
       base::WriteInto(&key->key_, key_size_in_bytes + 1));
 
   int rv = RAND_bytes(key_data, static_cast<int>(key_size_in_bytes));
@@ -70,13 +72,12 @@ SymmetricKey* SymmetricKey::DeriveKeyFromPassword(Algorithm algorithm,
 
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
   scoped_ptr<SymmetricKey> key(new SymmetricKey);
-  uint8* key_data = reinterpret_cast<uint8*>(
+  uint8_t* key_data = reinterpret_cast<uint8_t*>(
       base::WriteInto(&key->key_, key_size_in_bytes + 1));
-  int rv = PKCS5_PBKDF2_HMAC_SHA1(password.data(), password.length(),
-                                  reinterpret_cast<const uint8*>(salt.data()),
-                                  salt.length(), iterations,
-                                  static_cast<int>(key_size_in_bytes),
-                                  key_data);
+  int rv = PKCS5_PBKDF2_HMAC_SHA1(
+      password.data(), password.length(),
+      reinterpret_cast<const uint8_t*>(salt.data()), salt.length(), iterations,
+      static_cast<int>(key_size_in_bytes), key_data);
   return rv == 1 ? key.release() : NULL;
 }
 

@@ -2,22 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef WIN32
-#include <windows.h>
-#else
-#include <pthread.h>
-#endif
+#include "url/gurl.h"
+
+#include <stddef.h>
 
 #include <algorithm>
 #include <ostream>
-
-#include "url/gurl.h"
 
 #include "base/logging.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "url/url_canon_stdstring.h"
 #include "url/url_util.h"
+
+#ifdef WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
 
 namespace {
 

@@ -10,8 +10,7 @@ namespace net {
 
 QuicClientSessionBase::QuicClientSessionBase(QuicConnection* connection,
                                              const QuicConfig& config)
-    : QuicSpdySession(connection, config) {
-}
+    : QuicSpdySession(connection, config) {}
 
 QuicClientSessionBase::~QuicClientSessionBase() {}
 
@@ -19,8 +18,7 @@ void QuicClientSessionBase::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   QuicSession::OnCryptoHandshakeEvent(event);
   // Set FEC policy for streams immediately after sending CHLO and before any
   // more data is sent.
-  if (!FLAGS_enable_quic_fec ||
-      event != ENCRYPTION_FIRST_ESTABLISHED ||
+  if (!FLAGS_enable_quic_fec || event != ENCRYPTION_FIRST_ESTABLISHED ||
       !config()->HasSendConnectionOptions() ||
       !ContainsQuicTag(config()->SendConnectionOptions(), kFHDR)) {
     return;

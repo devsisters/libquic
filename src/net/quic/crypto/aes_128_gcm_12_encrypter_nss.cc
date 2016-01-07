@@ -33,8 +33,7 @@ void Aes128Gcm12Encrypter::FillAeadParams(StringPiece nonce,
                                           AeadParams* aead_params) const {
   aead_params->len = sizeof(aead_params->data.gcm_params);
   CK_GCM_PARAMS* gcm_params = &aead_params->data.gcm_params;
-  gcm_params->pIv =
-      reinterpret_cast<CK_BYTE*>(const_cast<char*>(nonce.data()));
+  gcm_params->pIv = reinterpret_cast<CK_BYTE*>(const_cast<char*>(nonce.data()));
   gcm_params->ulIvLen = nonce.size();
   gcm_params->pAAD =
       reinterpret_cast<CK_BYTE*>(const_cast<char*>(associated_data.data()));

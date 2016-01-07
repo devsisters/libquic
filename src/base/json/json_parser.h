@@ -5,13 +5,16 @@
 #ifndef BASE_JSON_JSON_PARSER_H_
 #define BASE_JSON_JSON_PARSER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/json/json_reader.h"
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 
 namespace base {
@@ -180,7 +183,7 @@ class BASE_EXPORT JSONParser {
   // Helper function for ConsumeStringRaw() that takes a single code point,
   // decodes it into UTF-8 units, and appends it to the given builder. The
   // point must be valid.
-  void DecodeUTF8(const int32& point, StringBuilder* dest);
+  void DecodeUTF8(const int32_t& point, StringBuilder* dest);
 
   // Assuming that the parser is wound to the start of a valid JSON number,
   // this parses and converts it to either an int or double value.

@@ -5,6 +5,8 @@
 #ifndef NET_QUIC_QUIC_FRAME_LIST_H_
 #define NET_QUIC_QUIC_FRAME_LIST_H_
 
+#include <stddef.h>
+
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_stream_sequencer_buffer_interface.h"
 

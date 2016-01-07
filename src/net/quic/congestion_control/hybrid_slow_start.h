@@ -16,7 +16,9 @@
 #ifndef NET_QUIC_CONGESTION_CONTROL_HYBRID_SLOW_START_H_
 #define NET_QUIC_CONGESTION_CONTROL_HYBRID_SLOW_START_H_
 
-#include "base/basictypes.h"
+#include <stdint.h>
+
+#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_time.h"
@@ -54,9 +56,7 @@ class NET_EXPORT_PRIVATE HybridSlowStart {
   void StartReceiveRound(QuicPacketNumber last_sent);
 
   // Whether slow start has started.
-  bool started() const {
-    return started_;
-  }
+  bool started() const { return started_; }
 
  private:
   // Whether a condition for exiting slow start has been found.
@@ -73,7 +73,7 @@ class NET_EXPORT_PRIVATE HybridSlowStart {
 
   // Variables for tracking acks received during a slow start round.
   QuicPacketNumber end_packet_number_;  // End of the receive round.
-  uint32 rtt_sample_count_;  // Number of rtt samples in the current round.
+  uint32_t rtt_sample_count_;  // Number of rtt samples in the current round.
   QuicTime::Delta current_min_rtt_;  // The minimum rtt of current round.
 
   DISALLOW_COPY_AND_ASSIGN(HybridSlowStart);

@@ -52,7 +52,8 @@ void QuicCryptoStream::OnDataAvailable() {
     }
     StringPiece data(static_cast<char*>(iov.iov_base), iov.iov_len);
     if (!crypto_framer_.ProcessInput(data)) {
-      CloseConnection(crypto_framer_.error());
+      CloseConnectionWithDetails(crypto_framer_.error(),
+                                 crypto_framer_.error_detail());
       return;
     }
     sequencer()->MarkConsumed(iov.iov_len);
@@ -78,21 +79,17 @@ void QuicCryptoStream::SendHandshakeMessage(
   WriteOrBufferData(string(data.data(), data.length()), false, listener);
 }
 
-bool QuicCryptoStream::ExportKeyingMaterial(
-    StringPiece label,
-    StringPiece context,
-    size_t result_len,
-    string* result) const {
+bool QuicCryptoStream::ExportKeyingMaterial(StringPiece label,
+                                            StringPiece context,
+                                            size_t result_len,
+                                            string* result) const {
   if (!handshake_confirmed()) {
     DLOG(ERROR) << "ExportKeyingMaterial was called before forward-secure"
                 << "encryption was established.";
     return false;
   }
   return CryptoUtils::ExportKeyingMaterial(
-      crypto_negotiated_params_.subkey_secret,
-      label,
-      context,
-      result_len,
+      crypto_negotiated_params_.subkey_secret, label, context, result_len,
       result);
 }
 

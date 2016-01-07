@@ -8,6 +8,19 @@
 #ifndef BASE_FILES_FILE_UTIL_H_
 #define BASE_FILES_FILE_UTIL_H_
 
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include <set>
+#include <string>
+#include <vector>
+
+#include "base/base_export.h"
+#include "base/files/file.h"
+#include "base/files/file_path.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/strings/string16.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -16,19 +29,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
-
-#include <stdio.h>
-
-#include <set>
-#include <string>
-#include <vector>
-
-#include "base/base_export.h"
-#include "base/basictypes.h"
-#include "base/files/file.h"
-#include "base/files/file_path.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/strings/string16.h"
 
 #if defined(OS_POSIX)
 #include "base/file_descriptor_posix.h"
@@ -53,7 +53,7 @@ BASE_EXPORT FilePath MakeAbsoluteFilePath(const FilePath& input);
 //
 // This function is implemented using the FileEnumerator class so it is not
 // particularly speedy in any platform.
-BASE_EXPORT int64 ComputeDirectorySize(const FilePath& root_path);
+BASE_EXPORT int64_t ComputeDirectorySize(const FilePath& root_path);
 
 // Deletes the given path, whether it's a file or a directory.
 // If it's a directory, it's perfectly happy to delete all of the
@@ -265,7 +265,7 @@ BASE_EXPORT bool CreateDirectoryAndGetError(const FilePath& full_path,
 BASE_EXPORT bool CreateDirectory(const FilePath& full_path);
 
 // Returns the file size. Returns true on success.
-BASE_EXPORT bool GetFileSize(const FilePath& file_path, int64* file_size);
+BASE_EXPORT bool GetFileSize(const FilePath& file_path, int64_t* file_size);
 
 // Sets |real_path| to |path| with symbolic links and junctions expanded.
 // On windows, make sure the path starts with a lettered drive.

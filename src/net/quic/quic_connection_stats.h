@@ -5,9 +5,11 @@
 #ifndef NET_QUIC_QUIC_CONNECTION_STATS_H_
 #define NET_QUIC_QUIC_CONNECTION_STATS_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <ostream>
 
-#include "base/basictypes.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_bandwidth.h"
 #include "net/quic/quic_protocol.h"
@@ -20,7 +22,8 @@ struct NET_EXPORT_PRIVATE QuicConnectionStats {
   ~QuicConnectionStats();
 
   NET_EXPORT_PRIVATE friend std::ostream& operator<<(
-      std::ostream& os, const QuicConnectionStats& s);
+      std::ostream& os,
+      const QuicConnectionStats& s);
 
   QuicByteCount bytes_sent;  // Includes retransmissions, fec.
   QuicPacketCount packets_sent;
@@ -60,8 +63,8 @@ struct NET_EXPORT_PRIVATE QuicConnectionStats {
   size_t tlp_count;
   size_t rto_count;  // Count of times the rto timer fired.
 
-  int64 min_rtt_us;  // Minimum RTT in microseconds.
-  int64 srtt_us;  // Smoothed RTT in microseconds.
+  int64_t min_rtt_us;  // Minimum RTT in microseconds.
+  int64_t srtt_us;     // Smoothed RTT in microseconds.
   QuicByteCount max_packet_size;
   QuicByteCount max_received_packet_size;
   QuicBandwidth estimated_bandwidth;
@@ -72,12 +75,12 @@ struct NET_EXPORT_PRIVATE QuicConnectionStats {
   // Maximum reordering observed in packet number space.
   QuicPacketNumber max_sequence_reordering;
   // Maximum reordering observed in microseconds
-  int64 max_time_reordering_us;
+  int64_t max_time_reordering_us;
 
   // The following stats are used only in TcpCubicSender.
   // The number of loss events from TCP's perspective.  Each loss event includes
   // one or more lost packets.
-  uint32 tcp_loss_events;
+  uint32_t tcp_loss_events;
 
   // Creation time, as reported by the QuicClock.
   QuicTime connection_creation_time;

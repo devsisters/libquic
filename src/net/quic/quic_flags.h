@@ -5,7 +5,8 @@
 #ifndef NET_QUIC_QUIC_FLAGS_H_
 #define NET_QUIC_QUIC_FLAGS_H_
 
-#include "base/basictypes.h"
+#include <stdint.h>
+
 #include "net/base/net_export.h"
 
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_use_time_loss_detection;
@@ -13,8 +14,8 @@ NET_EXPORT_PRIVATE extern bool FLAGS_use_early_return_when_verifying_chlo;
 NET_EXPORT_PRIVATE extern bool FLAGS_enable_quic_fec;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_use_bbr_congestion_control;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_allow_bbr;
-NET_EXPORT_PRIVATE extern int64 FLAGS_quic_time_wait_list_seconds;
-NET_EXPORT_PRIVATE extern int64 FLAGS_quic_time_wait_list_max_connections;
+NET_EXPORT_PRIVATE extern int64_t FLAGS_quic_time_wait_list_seconds;
+NET_EXPORT_PRIVATE extern int64_t FLAGS_quic_time_wait_list_max_connections;
 NET_EXPORT_PRIVATE extern bool FLAGS_enable_quic_stateless_reject_support;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_ack_decimation;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_auto_tune_receive_window;
@@ -24,11 +25,10 @@ NET_EXPORT_PRIVATE extern bool FLAGS_shift_quic_cubic_epoch_when_app_limited;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_measure_headers_hol_blocking_time;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_disable_pacing;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_general_loss_algorithm;
-NET_EXPORT_PRIVATE extern bool FLAGS_quic_packet_creator_prefetch;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_disable_non_nat_address_migration;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_use_new_idle_timeout;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_use_stream_sequencer_buffer;
-NET_EXPORT_PRIVATE extern bool FLAGS_quic_respect_send_alarm;
+NET_EXPORT_PRIVATE extern bool FLAGS_quic_respect_send_alarm2;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_set_client_hello_cb_nullptr;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_track_single_retransmission;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_batch_writes;
@@ -41,4 +41,7 @@ NET_EXPORT_PRIVATE extern bool FLAGS_quic_distinguish_incoming_outgoing_streams;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_validate_stk_without_scid;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_new_blocked_list;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_inplace_encryption;
+NET_EXPORT_PRIVATE extern bool FLAGS_quic_use_rfc7539;
+NET_EXPORT_PRIVATE extern bool FLAGS_quic_drop_non_awaited_packets;
+NET_EXPORT_PRIVATE extern bool FLAGS_quic_utils_use_fast_incremental_hash;
 #endif  // NET_QUIC_QUIC_FLAGS_H_

@@ -5,6 +5,8 @@
 #ifndef NET_QUIC_QUIC_STREAM_SEQUENCER_BUFFER_INTERFACE_H_
 #define NET_QUIC_QUIC_STREAM_SEQUENCER_BUFFER_INTERFACE_H_
 
+#include <stddef.h>
+
 #include "net/quic/quic_protocol.h"
 
 using base::StringPiece;

@@ -16,6 +16,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
+#include "build/build_config.h"
 
 namespace base {
 

@@ -9,6 +9,8 @@
 #ifndef NET_QUIC_QUIC_BLOCKED_WRITER_INTERFACE_H_
 #define NET_QUIC_QUIC_BLOCKED_WRITER_INTERFACE_H_
 
+#include <stddef.h>
+
 #include "net/base/net_export.h"
 
 namespace net {

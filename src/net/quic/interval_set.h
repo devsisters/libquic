@@ -53,6 +53,7 @@
 #define NET_QUIC_INTERVAL_SET_H_
 
 #include <stddef.h>
+
 #include <algorithm>
 #include <set>
 #include <string>

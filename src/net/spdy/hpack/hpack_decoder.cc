@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "net/spdy/hpack/hpack_constants.h"
 #include "net/spdy/hpack/hpack_output_stream.h"
@@ -131,7 +130,7 @@ bool HpackDecoder::DecodeNextOpcode(HpackInputStream* input_stream) {
 
 bool HpackDecoder::DecodeNextHeaderTableSizeUpdate(
     HpackInputStream* input_stream) {
-  uint32 size = 0;
+  uint32_t size = 0;
   if (!input_stream->DecodeNextUint32(&size)) {
     return false;
   }
@@ -143,7 +142,7 @@ bool HpackDecoder::DecodeNextHeaderTableSizeUpdate(
 }
 
 bool HpackDecoder::DecodeNextIndexedHeader(HpackInputStream* input_stream) {
-  uint32 index = 0;
+  uint32_t index = 0;
   if (!input_stream->DecodeNextUint32(&index)) {
     return false;
   }
@@ -182,7 +181,7 @@ bool HpackDecoder::DecodeNextLiteralHeader(HpackInputStream* input_stream,
 
 bool HpackDecoder::DecodeNextName(HpackInputStream* input_stream,
                                   StringPiece* next_name) {
-  uint32 index_or_zero = 0;
+  uint32_t index_or_zero = 0;
   if (!input_stream->DecodeNextUint32(&index_or_zero)) {
     return false;
   }

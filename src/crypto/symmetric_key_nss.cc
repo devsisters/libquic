@@ -6,9 +6,11 @@
 
 #include <nss.h>
 #include <pk11pub.h>
+#include <stddef.h>
 
 #include "base/logging.h"
 #include "crypto/nss_util.h"
+#include "crypto/scoped_nss_types.h"
 
 namespace crypto {
 

@@ -6,8 +6,8 @@
 
 #include <openssl/mem.h>
 #include <openssl/sha.h>
+#include <stddef.h>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "crypto/openssl_util.h"

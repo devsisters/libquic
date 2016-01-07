@@ -6,7 +6,7 @@
 #define BASE_THREADING_THREAD_RESTRICTIONS_H_
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/macros.h"
 
 // See comment at top of thread_checker.h
 #if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))

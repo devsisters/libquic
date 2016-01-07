@@ -5,10 +5,12 @@
 #ifndef BASE_JSON_JSON_WRITER_H_
 #define BASE_JSON_JSON_WRITER_H_
 
+#include <stddef.h>
+
 #include <string>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/macros.h"
 
 namespace base {
 

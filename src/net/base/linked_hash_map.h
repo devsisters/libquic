@@ -15,6 +15,8 @@
 #ifndef UTIL_GTL_LINKED_HASH_MAP_H_
 #define UTIL_GTL_LINKED_HASH_MAP_H_
 
+#include <stddef.h>
+
 #include <list>
 #include <utility>
 

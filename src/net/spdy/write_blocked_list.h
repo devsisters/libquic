@@ -5,6 +5,8 @@
 #ifndef NET_SPDY_WRITE_BLOCKED_LIST_H_
 #define NET_SPDY_WRITE_BLOCKED_LIST_H_
 
+#include <stddef.h>
+
 #include <algorithm>
 #include <deque>
 

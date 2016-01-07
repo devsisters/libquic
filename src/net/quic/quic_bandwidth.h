@@ -7,14 +7,15 @@
 #ifndef NET_QUIC_QUIC_BANDWIDTH_H_
 #define NET_QUIC_QUIC_BANDWIDTH_H_
 
-#include "base/basictypes.h"
+#include <stdint.h>
+
 #include "base/compiler_specific.h"
 #include "net/quic/quic_time.h"
 
 namespace net {
 
-typedef uint64 QuicByteCount;
-typedef uint64 QuicPacketCount;
+typedef uint64_t QuicByteCount;
+typedef uint64_t QuicPacketCount;
 
 class NET_EXPORT_PRIVATE QuicBandwidth {
  public:
@@ -22,32 +23,32 @@ class NET_EXPORT_PRIVATE QuicBandwidth {
   static QuicBandwidth Zero();
 
   // Create a new QuicBandwidth holding the bits per second.
-  static QuicBandwidth FromBitsPerSecond(int64 bits_per_second);
+  static QuicBandwidth FromBitsPerSecond(int64_t bits_per_second);
 
   // Create a new QuicBandwidth holding the kilo bits per second.
-  static QuicBandwidth FromKBitsPerSecond(int64 k_bits_per_second);
+  static QuicBandwidth FromKBitsPerSecond(int64_t k_bits_per_second);
 
   // Create a new QuicBandwidth holding the bytes per second.
-  static QuicBandwidth FromBytesPerSecond(int64 bytes_per_second);
+  static QuicBandwidth FromBytesPerSecond(int64_t bytes_per_second);
 
   // Create a new QuicBandwidth holding the kilo bytes per second.
-  static QuicBandwidth FromKBytesPerSecond(int64 k_bytes_per_second);
+  static QuicBandwidth FromKBytesPerSecond(int64_t k_bytes_per_second);
 
   // Create a new QuicBandwidth based on the bytes per the elapsed delta.
   static QuicBandwidth FromBytesAndTimeDelta(QuicByteCount bytes,
                                              QuicTime::Delta delta);
 
-  int64 ToBitsPerSecond() const;
+  int64_t ToBitsPerSecond() const;
 
-  int64 ToKBitsPerSecond() const;
+  int64_t ToKBitsPerSecond() const;
 
-  int64 ToBytesPerSecond() const;
+  int64_t ToBytesPerSecond() const;
 
-  int64 ToKBytesPerSecond() const;
+  int64_t ToKBytesPerSecond() const;
 
   QuicByteCount ToBytesPerPeriod(QuicTime::Delta time_period) const;
 
-  int64 ToKBytesPerPeriod(QuicTime::Delta time_period) const;
+  int64_t ToKBytesPerPeriod(QuicTime::Delta time_period) const;
 
   bool IsZero() const;
 
@@ -60,8 +61,8 @@ class NET_EXPORT_PRIVATE QuicBandwidth {
   QuicTime::Delta TransferTime(QuicByteCount bytes) const;
 
  private:
-  explicit QuicBandwidth(int64 bits_per_second);
-  int64 bits_per_second_;
+  explicit QuicBandwidth(int64_t bits_per_second);
+  int64_t bits_per_second_;
 };
 
 // Non-member relational operators for QuicBandwidth.

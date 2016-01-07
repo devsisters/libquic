@@ -12,8 +12,8 @@
 
 namespace base {
 
-// Computes a uint64 hash of a given string based on its MD5 hash. Suitable for
-// metric names.
+// Computes a uint64_t hash of a given string based on its MD5 hash. Suitable
+// for metric names.
 BASE_EXPORT uint64_t HashMetricName(const std::string& name);
 
 }  // namespace metrics

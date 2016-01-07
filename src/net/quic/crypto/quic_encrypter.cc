@@ -6,6 +6,7 @@
 
 #include "net/quic/crypto/aes_128_gcm_12_encrypter.h"
 #include "net/quic/crypto/chacha20_poly1305_encrypter.h"
+#include "net/quic/crypto/chacha20_poly1305_rfc7539_encrypter.h"
 #include "net/quic/crypto/crypto_protocol.h"
 #include "net/quic/crypto/null_encrypter.h"
 
@@ -18,6 +19,8 @@ QuicEncrypter* QuicEncrypter::Create(QuicTag algorithm) {
       return new Aes128Gcm12Encrypter();
     case kCC12:
       return new ChaCha20Poly1305Encrypter();
+    case kCC20:
+      return new ChaCha20Poly1305Rfc7539Encrypter();
     case kNULL:
       return new NullEncrypter();
     default:

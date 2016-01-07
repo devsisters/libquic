@@ -5,6 +5,8 @@
 #ifndef NET_QUIC_CRYPTO_CURVE25519_KEY_EXCHANGE_H_
 #define NET_QUIC_CRYPTO_CURVE25519_KEY_EXCHANGE_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "base/compiler_specific.h"
@@ -40,8 +42,8 @@ class NET_EXPORT_PRIVATE Curve25519KeyExchange : public KeyExchange {
  private:
   Curve25519KeyExchange();
 
-  uint8 private_key_[32];
-  uint8 public_key_[32];
+  uint8_t private_key_[32];
+  uint8_t public_key_[32];
 };
 
 }  // namespace net

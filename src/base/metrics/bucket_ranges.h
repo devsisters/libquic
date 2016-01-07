@@ -17,10 +17,15 @@
 #ifndef BASE_METRICS_BUCKET_RANGES_H_
 #define BASE_METRICS_BUCKET_RANGES_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <vector>
 
+#include <limits.h>
+
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/metrics/histogram_base.h"
 
 namespace base {
@@ -35,8 +40,8 @@ class BASE_EXPORT BucketRanges {
   size_t size() const { return ranges_.size(); }
   HistogramBase::Sample range(size_t i) const { return ranges_[i]; }
   void set_range(size_t i, HistogramBase::Sample value);
-  uint32 checksum() const { return checksum_; }
-  void set_checksum(uint32 checksum) { checksum_ = checksum; }
+  uint32_t checksum() const { return checksum_; }
+  void set_checksum(uint32_t checksum) { checksum_ = checksum; }
 
   // A bucket is defined by a consecutive pair of entries in |ranges|, so there
   // is one fewer bucket than there are ranges.  For example, if |ranges| is
@@ -46,7 +51,7 @@ class BASE_EXPORT BucketRanges {
 
   // Checksum methods to verify whether the ranges are corrupted (e.g. bad
   // memory access).
-  uint32 CalculateChecksum() const;
+  uint32_t CalculateChecksum() const;
   bool HasValidChecksum() const;
   void ResetChecksum();
 
@@ -62,16 +67,16 @@ class BASE_EXPORT BucketRanges {
   // Checksum for the conntents of ranges_.  Used to detect random over-writes
   // of our data, and to quickly see if some other BucketRanges instance is
   // possibly Equal() to this instance.
-  // TODO(kaiwang): Consider change this to uint64. Because we see a lot of
+  // TODO(kaiwang): Consider change this to uint64_t. Because we see a lot of
   // noise on UMA dashboard.
-  uint32 checksum_;
+  uint32_t checksum_;
 
   DISALLOW_COPY_AND_ASSIGN(BucketRanges);
 };
 
 //////////////////////////////////////////////////////////////////////////////
 // Expose only for test.
-BASE_EXPORT extern const uint32 kCrcTable[256];
+BASE_EXPORT extern const uint32_t kCrcTable[256];
 
 }  // namespace base
 

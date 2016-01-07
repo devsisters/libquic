@@ -112,7 +112,7 @@
 
 // Return the byte alignment of the given type (available at compile time).
 // Use like:
-//   ALIGNOF(int32)  // this would be 4
+//   ALIGNOF(int32_t)  // this would be 4
 #if defined(COMPILER_MSVC)
 #define ALIGNOF(type) __alignof(type)
 #elif defined(COMPILER_GCC)
@@ -123,7 +123,6 @@
 // Use like:
 //   int foo() WARN_UNUSED_RESULT;
 // To explicitly ignore a result, see |ignore_result()| in base/macros.h.
-// TODO(dcheng): Update //third_party/webrtc's macro definition to match.
 #undef WARN_UNUSED_RESULT
 #if defined(COMPILER_GCC) || defined(__clang__)
 #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))

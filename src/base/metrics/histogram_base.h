@@ -5,6 +5,8 @@
 #ifndef BASE_METRICS_HISTOGRAM_BASE_H_
 #define BASE_METRICS_HISTOGRAM_BASE_H_
 
+#include <limits.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include <string>
@@ -12,7 +14,7 @@
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
@@ -169,7 +171,7 @@ class BASE_EXPORT HistogramBase {
   // counts to |buckets|, the total sample count to |count| and the total sum
   // to |sum|.
   virtual void GetCountAndBucketData(Count* count,
-                                     int64* sum,
+                                     int64_t* sum,
                                      ListValue* buckets) const = 0;
 
   //// Produce actual graph (set of blank vs non blank char's) for a bucket.

@@ -5,6 +5,8 @@
 #ifndef URL_GURL_H_
 #define URL_GURL_H_
 
+#include <stddef.h>
+
 #include <iosfwd>
 #include <string>
 

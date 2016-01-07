@@ -4,25 +4,32 @@
 
 #include "net/base/ip_endpoint.h"
 
+#include "build/build_config.h"
+
+#if defined(OS_WIN)
+#include <winsock2.h>
+#include <ws2bth.h>
+#elif defined(OS_POSIX)
+#include <netinet/in.h>
+#endif
+
 #include <tuple>
 
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/sys_byteorder.h"
-#if defined(OS_WIN)
-#include <winsock2.h>
-#elif defined(OS_POSIX)
-#include <netinet/in.h>
-#endif
+#include "net/base/ip_address.h"
 #include "net/base/net_util.h"
 
 namespace net {
 
 namespace {
+
 // By definition, socklen_t is large enough to hold both sizes.
 const socklen_t kSockaddrInSize = sizeof(struct sockaddr_in);
 const socklen_t kSockaddrIn6Size = sizeof(struct sockaddr_in6);
-}
+
+}  // namespace
 
 IPEndPoint::IPEndPoint() : port_(0) {}
 
@@ -30,6 +37,10 @@ IPEndPoint::~IPEndPoint() {}
 
 IPEndPoint::IPEndPoint(const IPAddressNumber& address, uint16_t port)
     : address_(address), port_(port) {
+}
+
+IPEndPoint::IPEndPoint(const IPAddress& address, uint16_t port)
+    : address_(address.bytes()), port_(port) {
 }
 
 IPEndPoint::IPEndPoint(const IPEndPoint& endpoint) {

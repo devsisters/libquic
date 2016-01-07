@@ -8,6 +8,7 @@
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <mach/thread_policy.h>
+#include <stddef.h>
 #include <sys/resource.h>
 
 #include <algorithm>
@@ -19,6 +20,7 @@
 #if 0
 #include "base/tracked_objects.h"
 #endif
+#include "build/build_config.h"
 
 namespace base {
 

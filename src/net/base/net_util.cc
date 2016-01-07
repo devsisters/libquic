@@ -31,7 +31,6 @@
 #endif  // !defined(OS_ANDROID)
 #endif  // defined(OS_POSIX)
 
-#include "base/basictypes.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/strings/string_piece.h"

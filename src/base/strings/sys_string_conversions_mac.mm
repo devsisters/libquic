@@ -5,6 +5,7 @@
 #include "base/strings/sys_string_conversions.h"
 
 #import <Foundation/Foundation.h>
+#include <stddef.h>
 
 #include <vector>
 

@@ -9,9 +9,7 @@
 namespace net {
 
 QuicAlarm::QuicAlarm(Delegate* delegate)
-    : delegate_(delegate),
-      deadline_(QuicTime::Zero()) {
-}
+    : delegate_(delegate), deadline_(QuicTime::Zero()) {}
 
 QuicAlarm::~QuicAlarm() {}
 
@@ -33,7 +31,7 @@ void QuicAlarm::Update(QuicTime deadline, QuicTime::Delta granularity) {
     return;
   }
   if (std::abs(deadline.Subtract(deadline_).ToMicroseconds()) <
-          granularity.ToMicroseconds()) {
+      granularity.ToMicroseconds()) {
     return;
   }
   Cancel();

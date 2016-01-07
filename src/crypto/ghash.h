@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/basictypes.h"
+#include <stddef.h>
+#include <stdint.h>
+
 #include "crypto/crypto_export.h"
 
 namespace crypto {
@@ -27,7 +29,7 @@ namespace crypto {
 // the implementation of AES that is used.
 class CRYPTO_EXPORT GaloisHash {
  public:
-  explicit GaloisHash(const uint8 key[16]);
+  explicit GaloisHash(const uint8_t key[16]);
 
   // Reset prepares to digest a fresh message with the same key. This is more
   // efficient than creating a fresh object.
@@ -36,10 +38,10 @@ class CRYPTO_EXPORT GaloisHash {
   // UpdateAdditional hashes in `additional' data. This is data that is not
   // encrypted, but is covered by the authenticator. All additional data must
   // be written before any ciphertext is written.
-  void UpdateAdditional(const uint8* data, size_t length);
+  void UpdateAdditional(const uint8_t* data, size_t length);
 
   // UpdateCiphertext hashes in ciphertext to be authenticated.
-  void UpdateCiphertext(const uint8* data, size_t length);
+  void UpdateCiphertext(const uint8_t* data, size_t length);
 
   // Finish completes the hash computation and writes at most |len| bytes of
   // the result to |output|.
@@ -53,7 +55,7 @@ class CRYPTO_EXPORT GaloisHash {
   };
 
   struct FieldElement {
-    uint64 low, hi;
+    uint64_t low, hi;
   };
 
   // Add returns |x|+|y|.
@@ -68,17 +70,17 @@ class CRYPTO_EXPORT GaloisHash {
   static void Mul16(FieldElement* x);
 
   // UpdateBlocks processes |num_blocks| 16-bytes blocks from |bytes|.
-  void UpdateBlocks(const uint8* bytes, size_t num_blocks);
+  void UpdateBlocks(const uint8_t* bytes, size_t num_blocks);
   // Update processes |length| bytes from |bytes| and calls UpdateBlocks on as
   // much data as possible. It uses |buf_| to buffer any remaining data and
   // always consumes all of |bytes|.
-  void Update(const uint8* bytes, size_t length);
+  void Update(const uint8_t* bytes, size_t length);
 
   FieldElement y_;
   State state_;
   size_t additional_bytes_;
   size_t ciphertext_bytes_;
-  uint8 buf_[16];
+  uint8_t buf_[16];
   size_t buf_used_;
   FieldElement product_table_[16];
 };

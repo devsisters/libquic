@@ -5,9 +5,11 @@
 #ifndef NET_SPDY_HPACK_CONSTANTS_H_
 #define NET_SPDY_HPACK_CONSTANTS_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <vector>
 
-#include "base/basictypes.h"
 #include "net/base/net_export.h"
 
 // All section references below are to
@@ -18,15 +20,15 @@ namespace net {
 // An HpackPrefix signifies |bits| stored in the top |bit_size| bits
 // of an octet.
 struct HpackPrefix {
-  uint8 bits;
+  uint8_t bits;
   size_t bit_size;
 };
 
 // Represents a symbol and its Huffman code (stored in most-significant bits).
 struct HpackHuffmanSymbol {
-  uint32 code;
-  uint8 length;
-  uint16 id;
+  uint32_t code;
+  uint8_t length;
+  uint16_t id;
 };
 
 // An entry in the static table. Must be a POD in order to avoid static
@@ -42,16 +44,16 @@ class HpackHuffmanTable;
 class HpackStaticTable;
 
 // Defined in RFC 7540 section 6.5.2.
-const uint32 kDefaultHeaderTableSizeSetting = 4096;
+const uint32_t kDefaultHeaderTableSizeSetting = 4096;
 
 // Largest string literal an HpackDecoder/HpackEncoder will attempt to process
 // before returning an error.
-const uint32 kDefaultMaxStringLiteralSize = 16 * 1024;
+const uint32_t kDefaultMaxStringLiteralSize = 16 * 1024;
 
 // Maximum amount of encoded header buffer HpackDecoder will retain before
 // returning an error.
 // TODO(jgraettinger): Remove with SpdyHeadersHandlerInterface switch.
-const uint32 kMaxDecodeBufferSize = 32 * 1024;
+const uint32_t kMaxDecodeBufferSize = 32 * 1024;
 
 // 6.2: Flag for a string literal that is stored unmodified (i.e.,
 // without Huffman encoding).

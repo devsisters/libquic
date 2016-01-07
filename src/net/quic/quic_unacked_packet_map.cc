@@ -167,7 +167,7 @@ bool QuicUnackedPacketMap::HasRetransmittableFrames(
 }
 
 void QuicUnackedPacketMap::NackPacket(QuicPacketNumber packet_number,
-                                      uint16 min_nacks) {
+                                      uint16_t min_nacks) {
   DCHECK_GE(packet_number, least_unacked_);
   DCHECK_LT(packet_number, least_unacked_ + unacked_packets_.size());
   unacked_packets_[packet_number - least_unacked_].nack_count = max(
@@ -397,8 +397,8 @@ bool QuicUnackedPacketMap::HasPendingCryptoPackets() const {
 }
 
 bool QuicUnackedPacketMap::HasUnackedRetransmittableFrames() const {
-  for (UnackedPacketMap::const_reverse_iterator it =
-           unacked_packets_.rbegin(); it != unacked_packets_.rend(); ++it) {
+  for (UnackedPacketMap::const_reverse_iterator it = unacked_packets_.rbegin();
+       it != unacked_packets_.rend(); ++it) {
     if (it->in_flight && it->retransmittable_frames) {
       return true;
     }

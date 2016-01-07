@@ -4,7 +4,7 @@
 
 #include "net/quic/quic_flow_controller.h"
 
-#include "base/basictypes.h"
+#include "base/strings/stringprintf.h"
 #include "net/quic/quic_connection.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_protocol.h"
@@ -73,7 +73,13 @@ void QuicFlowController::AddBytesSent(QuicByteCount bytes_sent) {
     bytes_sent_ = send_window_offset_;
 
     // This is an error on our side, close the connection as soon as possible.
-    connection_->SendConnectionClose(QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA);
+    connection_->SendConnectionCloseWithDetails(
+        QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA,
+        base::StringPrintf(
+            "%llu bytes over send window offset",
+            static_cast<unsigned long long>(send_window_offset_ -
+                                            (bytes_sent_ + bytes_sent)))
+            .c_str());
     return;
   }
 
@@ -83,9 +89,8 @@ void QuicFlowController::AddBytesSent(QuicByteCount bytes_sent) {
 
 bool QuicFlowController::FlowControlViolation() {
   if (highest_received_byte_offset_ > receive_window_offset_) {
-    LOG(ERROR) << ENDPOINT << "Flow control violation on stream "
-               << id_ << ", receive window offset: "
-               << receive_window_offset_
+    LOG(ERROR) << ENDPOINT << "Flow control violation on stream " << id_
+               << ", receive window offset: " << receive_window_offset_
                << ", highest received byte offset: "
                << highest_received_byte_offset_;
     return true;
@@ -229,7 +234,7 @@ bool QuicFlowController::IsBlocked() const {
   return SendWindowSize() == 0;
 }
 
-uint64 QuicFlowController::SendWindowSize() const {
+uint64_t QuicFlowController::SendWindowSize() const {
   if (bytes_sent_ > send_window_offset_) {
     return 0;
   }

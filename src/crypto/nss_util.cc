@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "crypto/nss_util.h"
-#include "crypto/nss_util_internal.h"
 
 #include <nss.h>
 #include <pk11pub.h>
@@ -12,6 +11,9 @@
 #include <prinit.h>
 #include <prtime.h>
 #include <secmod.h>
+#include <utility>
+
+#include "crypto/nss_util_internal.h"
 
 #if defined(OS_OPENBSD)
 #include <sys/mount.h>
@@ -215,7 +217,7 @@ void CrashOnNSSInitFailure() {
 class ChromeOSUserData {
  public:
   explicit ChromeOSUserData(ScopedPK11Slot public_slot)
-      : public_slot_(public_slot.Pass()),
+      : public_slot_(std::move(public_slot)),
         private_slot_initialization_started_(false) {}
   ~ChromeOSUserData() {
     if (public_slot_) {
@@ -241,7 +243,7 @@ class ChromeOSUserData {
 
   void SetPrivateSlot(ScopedPK11Slot private_slot) {
     DCHECK(!private_slot_);
-    private_slot_ = private_slot.Pass();
+    private_slot_ = std::move(private_slot);
 
     SlotReadyCallbackList callback_list;
     callback_list.swap(tpm_ready_callback_list_);
@@ -422,7 +424,7 @@ class NSSInitSingleton {
              << ", got tpm slot: " << !!tpm_args->tpm_slot;
 
     chaps_module_ = tpm_args->chaps_module;
-    tpm_slot_ = tpm_args->tpm_slot.Pass();
+    tpm_slot_ = std::move(tpm_args->tpm_slot);
     if (!chaps_module_ && test_system_slot_) {
       // chromeos_unittests try to test the TPM initialization process. If we
       // have a test DB open, pretend that it is the TPM slot.
@@ -500,7 +502,7 @@ class NSSInitSingleton {
         "%s %s", kUserNSSDatabaseName, username_hash.c_str());
     ScopedPK11Slot public_slot(OpenPersistentNSSDBForPath(db_name, path));
     chromeos_user_map_[username_hash] =
-        new ChromeOSUserData(public_slot.Pass());
+        new ChromeOSUserData(std::move(public_slot));
     return true;
   }
 
@@ -553,7 +555,7 @@ class NSSInitSingleton {
     DVLOG(2) << "Got tpm slot for " << username_hash << " "
              << !!tpm_args->tpm_slot;
     chromeos_user_map_[username_hash]->SetPrivateSlot(
-        tpm_args->tpm_slot.Pass());
+        std::move(tpm_args->tpm_slot));
   }
 
   void InitializePrivateSoftwareSlotForChromeOSUser(
@@ -615,7 +617,7 @@ class NSSInitSingleton {
     // Ensure that a previous value of test_system_slot_ is not overwritten.
     // Unsetting, i.e. setting a NULL, however is allowed.
     DCHECK(!slot || !test_system_slot_);
-    test_system_slot_ = slot.Pass();
+    test_system_slot_ = std::move(slot);
     if (test_system_slot_) {
       tpm_slot_.reset(PK11_ReferenceSlot(test_system_slot_.get()));
       RunAndClearTPMReadyCallbackList();
@@ -944,7 +946,7 @@ ScopedPK11Slot GetSystemNSSKeySlot(
 }
 
 void SetSystemKeySlotForTesting(ScopedPK11Slot slot) {
-  g_nss_singleton.Get().SetSystemKeySlotForTesting(slot.Pass());
+  g_nss_singleton.Get().SetSystemKeySlotForTesting(std::move(slot));
 }
 
 void EnableTPMTokenForNSS() {

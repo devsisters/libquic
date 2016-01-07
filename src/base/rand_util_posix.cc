@@ -6,6 +6,8 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #include "base/lazy_instance.h"
@@ -38,8 +40,8 @@ base::LazyInstance<URandomFd>::Leaky g_urandom_fd = LAZY_INSTANCE_INITIALIZER;
 namespace base {
 
 // NOTE: This function must be cryptographically secure. http://crbug.com/140076
-uint64 RandUint64() {
-  uint64 number;
+uint64_t RandUint64() {
+  uint64_t number;
   RandBytes(&number, sizeof(number));
   return number;
 }

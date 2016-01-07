@@ -6,6 +6,7 @@
 
 #include "base/atomicops.h"
 #include "base/logging.h"
+#include "build/build_config.h"
 
 using base::internal::PlatformThreadLocalStorage;
 

@@ -101,6 +101,8 @@ set(
 	src/net/quic/crypto/curve25519_key_exchange.cc
 	src/net/quic/crypto/chacha20_poly1305_encrypter_openssl.cc
 	src/net/quic/crypto/chacha20_poly1305_decrypter_openssl.cc
+    src/net/quic/crypto/chacha20_poly1305_rfc7539_encrypter_openssl.cc
+    src/net/quic/crypto/chacha20_poly1305_rfc7539_decrypter_openssl.cc
 	src/net/quic/crypto/quic_decrypter.cc
 	src/net/quic/crypto/channel_id_openssl.cc
 	src/net/quic/crypto/null_decrypter.cc

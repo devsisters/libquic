@@ -5,12 +5,15 @@
 #ifndef NET_QUIC_QUIC_SENT_PACKET_MANAGER_H_
 #define NET_QUIC_QUIC_SENT_PACKET_MANAGER_H_
 
+#include <stddef.h>
+
 #include <map>
 #include <set>
 #include <utility>
 #include <vector>
 
 #include "base/containers/hash_tables.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/linked_hash_map.h"
 #include "net/quic/congestion_control/loss_detection_interface.h"
@@ -74,17 +77,20 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Struct to store the pending retransmission information.
   struct PendingRetransmission {
-    PendingRetransmission(QuicPacketNumber packet_number,
+    PendingRetransmission(QuicPathId path_id,
+                          QuicPacketNumber packet_number,
                           TransmissionType transmission_type,
                           const RetransmittableFrames& retransmittable_frames,
                           EncryptionLevel encryption_level,
                           QuicPacketNumberLength packet_number_length)
-        : packet_number(packet_number),
+        : path_id(path_id),
+          packet_number(packet_number),
           transmission_type(transmission_type),
           retransmittable_frames(retransmittable_frames),
           encryption_level(encryption_level),
           packet_number_length(packet_number_length) {}
 
+    QuicPathId path_id;
     QuicPacketNumber packet_number;
     TransmissionType transmission_type;
     const RetransmittableFrames& retransmittable_frames;
@@ -93,6 +99,7 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   };
 
   QuicSentPacketManager(Perspective perspective,
+                        QuicPathId path_id,
                         const QuicClock* clock,
                         QuicConnectionStats* stats,
                         CongestionControlType congestion_control_type,
@@ -111,8 +118,7 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   void SetHandshakeConfirmed() { handshake_confirmed_ = true; }
 
   // Processes the incoming ack.
-  void OnIncomingAck(const QuicAckFrame& ack_frame,
-                     QuicTime ack_receive_time);
+  void OnIncomingAck(const QuicAckFrame& ack_frame, QuicTime ack_receive_time);
 
   // Returns true if the non-FEC packet |packet_number| is unacked.
   bool IsUnacked(QuicPacketNumber packet_number) const;
@@ -244,14 +250,10 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   }
 
   // Used in Chromium, but not in the server.
-  size_t consecutive_rto_count() const {
-    return consecutive_rto_count_;
-  }
+  size_t consecutive_rto_count() const { return consecutive_rto_count_; }
 
   // Used in Chromium, but not in the server.
-  size_t consecutive_tlp_count() const {
-    return consecutive_tlp_count_;
-  }
+  size_t consecutive_tlp_count() const { return consecutive_tlp_count_; }
 
  private:
   friend class test::QuicConnectionPeer;
@@ -357,6 +359,8 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Tracks if the connection was created by the server or the client.
   Perspective perspective_;
+
+  QuicPathId path_id_;
 
   const QuicClock* clock_;
   QuicConnectionStats* stats_;

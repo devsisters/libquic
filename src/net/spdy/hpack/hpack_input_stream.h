@@ -5,9 +5,11 @@
 #ifndef NET_SPDY_HPACK_INPUT_STREAM_H_
 #define NET_SPDY_HPACK_INPUT_STREAM_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
@@ -25,7 +27,7 @@ class NET_EXPORT_PRIVATE HpackInputStream {
  public:
   // |max_string_literal_size| is the largest that any one string
   // literal (header name or header value) can be.
-  HpackInputStream(uint32 max_string_literal_size, base::StringPiece buffer);
+  HpackInputStream(uint32_t max_string_literal_size, base::StringPiece buffer);
   ~HpackInputStream();
 
   // Returns whether or not there is more data to process.
@@ -38,7 +40,7 @@ class NET_EXPORT_PRIVATE HpackInputStream {
   // The Decode* functions return true and fill in their arguments if
   // decoding was successful, or false if an error was encountered.
 
-  bool DecodeNextUint32(uint32* I);
+  bool DecodeNextUint32(uint32_t* I);
   bool DecodeNextIdentityString(base::StringPiece* str);
   bool DecodeNextHuffmanString(const HpackHuffmanTable& table,
                                std::string* str);
@@ -48,7 +50,7 @@ class NET_EXPORT_PRIVATE HpackInputStream {
   // previously peeked. PeekBits() will fill some number of remaining bits,
   // returning the new total number via |peeked_count|. Returns true if one
   // or more additional bits could be peeked, and false otherwise.
-  bool PeekBits(size_t* peeked_count, uint32* out) const;
+  bool PeekBits(size_t* peeked_count, uint32_t* out) const;
 
   // Consumes |count| bits of input. Generally paired with PeekBits().
   void ConsumeBits(size_t count);
@@ -62,13 +64,13 @@ class NET_EXPORT_PRIVATE HpackInputStream {
   void SetBitOffsetForTest(size_t bit_offset) { bit_offset_ = bit_offset; }
 
  private:
-  const uint32 max_string_literal_size_;
+  const uint32_t max_string_literal_size_;
   base::StringPiece buffer_;
   size_t bit_offset_;
 
-  bool PeekNextOctet(uint8* next_octet);
+  bool PeekNextOctet(uint8_t* next_octet);
 
-  bool DecodeNextOctet(uint8* next_octet);
+  bool DecodeNextOctet(uint8_t* next_octet);
 
   DISALLOW_COPY_AND_ASSIGN(HpackInputStream);
 };

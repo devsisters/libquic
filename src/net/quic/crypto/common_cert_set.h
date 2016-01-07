@@ -5,7 +5,8 @@
 #ifndef NET_QUIC_CRYPTO_COMMON_CERT_SET_H_
 #define NET_QUIC_CRYPTO_COMMON_CERT_SET_H_
 
-#include "base/basictypes.h"
+#include <stdint.h>
+
 #include "base/compiler_specific.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
@@ -30,7 +31,7 @@ class NET_EXPORT_PRIVATE CommonCertSets {
   // GetCert returns a specific certificate (at index |index|) in the common
   // set identified by |hash|. If no such certificate is known, an empty
   // StringPiece is returned.
-  virtual base::StringPiece GetCert(uint64 hash, uint32 index) const = 0;
+  virtual base::StringPiece GetCert(uint64_t hash, uint32_t index) const = 0;
 
   // MatchCert tries to find |cert| in one of the common certificate sets
   // identified by |common_set_hashes|. On success it puts the hash of the
@@ -38,8 +39,8 @@ class NET_EXPORT_PRIVATE CommonCertSets {
   // returns true. Otherwise it returns false.
   virtual bool MatchCert(base::StringPiece cert,
                          base::StringPiece common_set_hashes,
-                         uint64* out_hash,
-                         uint32* out_index) const = 0;
+                         uint64_t* out_hash,
+                         uint32_t* out_index) const = 0;
 };
 
 }  // namespace net

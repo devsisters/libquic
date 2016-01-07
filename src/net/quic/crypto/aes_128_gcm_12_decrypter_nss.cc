@@ -33,8 +33,7 @@ void Aes128Gcm12Decrypter::FillAeadParams(StringPiece nonce,
                                           AeadParams* aead_params) const {
   aead_params->len = sizeof(aead_params->data.gcm_params);
   CK_GCM_PARAMS* gcm_params = &aead_params->data.gcm_params;
-  gcm_params->pIv =
-      reinterpret_cast<CK_BYTE*>(const_cast<char*>(nonce.data()));
+  gcm_params->pIv = reinterpret_cast<CK_BYTE*>(const_cast<char*>(nonce.data()));
   gcm_params->ulIvLen = nonce.size();
   gcm_params->pAAD =
       reinterpret_cast<CK_BYTE*>(const_cast<char*>(associated_data.data()));
@@ -49,7 +48,7 @@ const char* Aes128Gcm12Decrypter::cipher_name() const {
   return "ECDHE-RSA-AES128-GCM-SHA256";
 }
 
-uint32 Aes128Gcm12Decrypter::cipher_id() const {
+uint32_t Aes128Gcm12Decrypter::cipher_id() const {
   // TODO(rtenneti): when Chromium requires NSS 3.15.2 or later, use
   // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 instead of 0xC02F.
   // Or'ed with 0x03000000 to match OpenSSL/BoringSSL implementations.

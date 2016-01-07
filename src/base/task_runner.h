@@ -5,8 +5,9 @@
 #ifndef BASE_TASK_RUNNER_H_
 #define BASE_TASK_RUNNER_H_
 
+#include <stddef.h>
+
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"

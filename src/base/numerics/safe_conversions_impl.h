@@ -5,6 +5,9 @@
 #ifndef BASE_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
 #define BASE_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
 
+#include <limits.h>
+#include <stdint.h>
+
 #include <limits>
 
 #include "base/template_util.h"

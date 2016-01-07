@@ -11,6 +11,7 @@
 
 #include <cstddef>
 
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/quic/quic_fec_group_interface.h"
 #include "net/quic/quic_protocol.h"

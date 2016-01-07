@@ -5,6 +5,8 @@
 #ifndef BASE_DEBUG_STACK_TRACE_H_
 #define BASE_DEBUG_STACK_TRACE_H_
 
+#include <stddef.h>
+
 #include <iosfwd>
 #include <string>
 

@@ -5,12 +5,15 @@
 #ifndef BASE_FILES_FILE_ENUMERATOR_H_
 #define BASE_FILES_FILE_ENUMERATOR_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <stack>
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/files/file_path.h"
+#include "base/macros.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 
@@ -49,7 +52,7 @@ class BASE_EXPORT FileEnumerator {
     // includes the |root_path| passed into the FileEnumerator constructor.
     FilePath GetName() const;
 
-    int64 GetSize() const;
+    int64_t GetSize() const;
     Time GetLastModifiedTime() const;
 
 #if defined(OS_WIN)

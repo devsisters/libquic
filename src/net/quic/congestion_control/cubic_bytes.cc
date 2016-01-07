@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <cmath>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "net/quic/quic_protocol.h"
 
@@ -26,10 +25,10 @@ const int kCubeScale = 40;  // 1024*1024^3 (first 1024 is from 0.100^3)
                             // round trip time.
 const int kCubeCongestionWindowScale = 410;
 // The cube factor for packets in bytes.
-const uint64 kCubeFactor = (UINT64_C(1) << kCubeScale) /
-                           kCubeCongestionWindowScale / kDefaultTCPMSS;
+const uint64_t kCubeFactor =
+    (UINT64_C(1) << kCubeScale) / kCubeCongestionWindowScale / kDefaultTCPMSS;
 
-const uint32 kDefaultNumConnections = 2;
+const uint32_t kDefaultNumConnections = 2;
 const float kBeta = 0.7f;  // Default Cubic backoff factor.
 // Additional backoff factor when loss occurs in the concave part of the Cubic
 // curve. This additional backoff factor is expected to give up bandwidth to
@@ -131,20 +130,20 @@ QuicByteCount CubicBytes::CongestionWindowAfterAck(
       time_to_origin_point_ = 0;
       origin_point_congestion_window_ = current_congestion_window;
     } else {
-      time_to_origin_point_ =
-          static_cast<uint32>(cbrt(kCubeFactor * (last_max_congestion_window_ -
-                                                  current_congestion_window)));
+      time_to_origin_point_ = static_cast<uint32_t>(
+          cbrt(kCubeFactor *
+               (last_max_congestion_window_ - current_congestion_window)));
       origin_point_congestion_window_ = last_max_congestion_window_;
     }
   }
   // Change the time unit from microseconds to 2^10 fractions per second. Take
   // the round trip time in account. This is done to allow us to use shift as a
   // divide operator.
-  int64 elapsed_time =
+  int64_t elapsed_time =
       (current_time.Add(delay_min).Subtract(epoch_).ToMicroseconds() << 10) /
       kNumMicrosPerSecond;
 
-  int64 offset = time_to_origin_point_ - elapsed_time;
+  int64_t offset = time_to_origin_point_ - elapsed_time;
   QuicByteCount delta_congestion_window =
       ((kCubeCongestionWindowScale * offset * offset * offset) >> kCubeScale) *
       kDefaultTCPMSS;

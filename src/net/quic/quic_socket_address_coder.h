@@ -5,9 +5,12 @@
 #ifndef NET_QUIC_QUIC_SOCKET_ADDRESS_CODER_H_
 #define NET_QUIC_QUIC_SOCKET_ADDRESS_CODER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
 
@@ -26,13 +29,9 @@ class NET_EXPORT_PRIVATE QuicSocketAddressCoder {
 
   bool Decode(const char* data, size_t length);
 
-  IPAddressNumber ip() const {
-    return address_.address();
-  }
+  IPAddressNumber ip() const { return address_.address(); }
 
-  uint16 port() const {
-    return address_.port();
-  }
+  uint16_t port() const { return address_.port(); }
 
  private:
   IPEndPoint address_;
