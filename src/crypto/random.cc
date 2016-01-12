@@ -4,6 +4,8 @@
 
 #include "crypto/random.h"
 
+#include <stddef.h>
+
 #include "base/rand_util.h"
 
 namespace crypto {

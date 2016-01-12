@@ -11,6 +11,7 @@
 
 #include "base/bits.h"
 #include "base/macros.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -71,7 +72,7 @@ const char* PickleIterator::GetReadPointerAndAdvance(int num_bytes) {
 inline const char* PickleIterator::GetReadPointerAndAdvance(
     int num_elements,
     size_t size_element) {
-  // Check for int32 overflow.
+  // Check for int32_t overflow.
   int64_t num_bytes = static_cast<int64_t>(num_elements) * size_element;
   int num_bytes32 = static_cast<int>(num_bytes);
   if (num_bytes != static_cast<int64_t>(num_bytes32))

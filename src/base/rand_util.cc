@@ -4,6 +4,7 @@
 
 #include "base/rand_util.h"
 
+#include <limits.h>
 #include <math.h>
 #include <stdint.h>
 

@@ -13,6 +13,7 @@
 #include "base/base_export.h"
 #include "base/logging.h"
 #include "base/mac/scoped_cftyperef.h"
+#include "build/build_config.h"
 
 #if defined(__OBJC__)
 #import <Foundation/Foundation.h>

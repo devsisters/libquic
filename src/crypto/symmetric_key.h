@@ -5,9 +5,12 @@
 #ifndef CRYPTO_SYMMETRIC_KEY_H_
 #define CRYPTO_SYMMETRIC_KEY_H_
 
+#include <stddef.h>
+
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
+#include "build/build_config.h"
 #include "crypto/crypto_export.h"
 
 #if defined(NACL_WIN64)

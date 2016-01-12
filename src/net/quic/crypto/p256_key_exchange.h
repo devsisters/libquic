@@ -5,8 +5,11 @@
 #ifndef NET_QUIC_CRYPTO_P256_KEY_EXCHANGE_H_
 #define NET_QUIC_CRYPTO_P256_KEY_EXCHANGE_H_
 
+#include <stdint.h>
+
 #include <string>
 
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
@@ -59,18 +62,18 @@ class NET_EXPORT_PRIVATE P256KeyExchange : public KeyExchange {
 #if defined(USE_OPENSSL)
   // P256KeyExchange takes ownership of |private_key|, and expects
   // |public_key| consists of |kUncompressedP256PointBytes| bytes.
-  P256KeyExchange(EC_KEY* private_key, const uint8* public_key);
+  P256KeyExchange(EC_KEY* private_key, const uint8_t* public_key);
 
   crypto::ScopedEC_KEY private_key_;
 #else
   // P256KeyExchange takes ownership of |key_pair|, and expects
   // |public_key| consists of |kUncompressedP256PointBytes| bytes.
-  P256KeyExchange(crypto::ECPrivateKey* key_pair, const uint8* public_key);
+  P256KeyExchange(crypto::ECPrivateKey* key_pair, const uint8_t* public_key);
 
   scoped_ptr<crypto::ECPrivateKey> key_pair_;
 #endif
   // The public key stored as an uncompressed P-256 point.
-  uint8 public_key_[kUncompressedP256PointBytes];
+  uint8_t public_key_[kUncompressedP256PointBytes];
 
   DISALLOW_COPY_AND_ASSIGN(P256KeyExchange);
 };

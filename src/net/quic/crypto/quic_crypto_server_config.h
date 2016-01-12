@@ -5,10 +5,14 @@
 #ifndef NET_QUIC_CRYPTO_QUIC_CRYPTO_SERVER_CONFIG_H_
 #define NET_QUIC_CRYPTO_QUIC_CRYPTO_SERVER_CONFIG_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <map>
 #include <string>
 #include <vector>
 
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
@@ -57,8 +61,8 @@ struct ClientHelloInfo {
   SourceAddressTokens source_address_tokens;
 
   // Errors from EvaluateClientHello.
-  std::vector<uint32> reject_reasons;
-  static_assert(sizeof(QuicTag) == sizeof(uint32), "header out of sync");
+  std::vector<uint32_t> reject_reasons;
+  static_assert(sizeof(QuicTag) == sizeof(uint32_t), "header out of sync");
 };
 
 namespace test {
@@ -159,10 +163,9 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // Generates a QuicServerConfigProtobuf protobuf suitable for
   // AddConfig and SetConfigs.
-  static QuicServerConfigProtobuf* GenerateConfig(
-      QuicRandom* rand,
-      const QuicClock* clock,
-      const ConfigOptions& options);
+  static QuicServerConfigProtobuf* GenerateConfig(QuicRandom* rand,
+                                                  const QuicClock* clock,
+                                                  const ConfigOptions& options);
 
   // AddConfig adds a QuicServerConfigProtobuf to the availible configurations.
   // It returns the SCFG message from the config if successful. The caller
@@ -175,10 +178,9 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // AddDefaultConfig calls DefaultConfig to create a config and then calls
   // AddConfig to add it. See the comment for |DefaultConfig| for details of
   // the arguments.
-  CryptoHandshakeMessage* AddDefaultConfig(
-      QuicRandom* rand,
-      const QuicClock* clock,
-      const ConfigOptions& options);
+  CryptoHandshakeMessage* AddDefaultConfig(QuicRandom* rand,
+                                           const QuicClock* clock,
+                                           const ConfigOptions& options);
 
   // SetConfigs takes a vector of config protobufs and the current time.
   // Configs are assumed to be uniquely identified by their server config ID.
@@ -314,23 +316,23 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // set_strike_register_max_entries sets the maximum number of entries that
   // the internal strike register will hold. If the strike register fills up
   // then the oldest entries (by the client's clock) will be dropped.
-  void set_strike_register_max_entries(uint32 max_entries);
+  void set_strike_register_max_entries(uint32_t max_entries);
 
   // set_strike_register_window_secs sets the number of seconds around the
   // current time that the strike register will attempt to be authoritative
   // for. Setting a larger value allows for greater client clock-skew, but
   // means that the quiescent startup period must be longer.
-  void set_strike_register_window_secs(uint32 window_secs);
+  void set_strike_register_window_secs(uint32_t window_secs);
 
   // set_source_address_token_future_secs sets the number of seconds into the
   // future that source-address tokens will be accepted from. Since
   // source-address tokens are authenticated, this should only happen if
   // another, valid server has clock-skew.
-  void set_source_address_token_future_secs(uint32 future_secs);
+  void set_source_address_token_future_secs(uint32_t future_secs);
 
   // set_source_address_token_lifetime_secs sets the number of seconds that a
   // source-address token will be valid for.
-  void set_source_address_token_lifetime_secs(uint32 lifetime_secs);
+  void set_source_address_token_lifetime_secs(uint32_t lifetime_secs);
 
   // set_server_nonce_strike_register_max_entries sets the number of entries in
   // the server-nonce strike-register. This is used to record that server nonce
@@ -338,14 +340,14 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // which are depending on server nonces may fail to handshake because their
   // nonce has expired in the amount of time it took to go from the server to
   // the client and back.
-  void set_server_nonce_strike_register_max_entries(uint32 max_entries);
+  void set_server_nonce_strike_register_max_entries(uint32_t max_entries);
 
   // set_server_nonce_strike_register_window_secs sets the number of seconds
   // around the current time that the server-nonce strike-register will accept
   // nonces from. Setting a larger value allows for clients to delay follow-up
   // client hellos for longer and still use server nonces as proofs of
   // uniqueness.
-  void set_server_nonce_strike_register_window_secs(uint32 window_secs);
+  void set_server_nonce_strike_register_window_secs(uint32_t window_secs);
 
   // set_enable_serving_sct enables or disables serving signed cert timestamp
   // (RFC6962) in server hello.
@@ -402,7 +404,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
     // Secondary sort key for use when selecting primary configs and
     // there are multiple configs with the same primary time.
     // Smaller numbers mean higher priority.
-    uint64 priority;
+    uint64_t priority;
 
     // source_address_token_boxer_ is used to protect the
     // source-address tokens that are given to clients.
@@ -423,7 +425,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
     DISALLOW_COPY_AND_ASSIGN(Config);
   };
 
-  typedef std::map<ServerConfigID, scoped_refptr<Config> > ConfigMap;
+  typedef std::map<ServerConfigID, scoped_refptr<Config>> ConfigMap;
 
   // Get a ref to the config with a given server config id.
   scoped_refptr<Config> GetConfigWithScid(
@@ -444,7 +446,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   void EvaluateClientHello(
       const IPAddressNumber& server_ip,
       QuicVersion version,
-      const uint8* primary_orbit,
+      const uint8_t* primary_orbit,
       scoped_refptr<Config> requested_config,
       scoped_refptr<Config> primary_config,
       QuicCryptoProof* crypto_proof,
@@ -587,7 +589,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // server_nonce_orbit_ contains the random, per-server orbit values that this
   // server will use to generate server nonces (the moral equivalent of a SYN
   // cookies).
-  uint8 server_nonce_orbit_[8];
+  uint8_t server_nonce_orbit_[8];
 
   mutable base::Lock server_nonce_strike_register_lock_;
   // server_nonce_strike_register_ contains a data structure that keeps track of
@@ -606,12 +608,12 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // These fields store configuration values. See the comments for their
   // respective setter functions.
   bool strike_register_no_startup_period_;
-  uint32 strike_register_max_entries_;
-  uint32 strike_register_window_secs_;
-  uint32 source_address_token_future_secs_;
-  uint32 source_address_token_lifetime_secs_;
-  uint32 server_nonce_strike_register_max_entries_;
-  uint32 server_nonce_strike_register_window_secs_;
+  uint32_t strike_register_max_entries_;
+  uint32_t strike_register_window_secs_;
+  uint32_t source_address_token_future_secs_;
+  uint32_t source_address_token_lifetime_secs_;
+  uint32_t server_nonce_strike_register_max_entries_;
+  uint32_t server_nonce_strike_register_window_secs_;
 
   // Enable serving SCT or not.
   bool enable_serving_sct_;

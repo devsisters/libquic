@@ -5,9 +5,12 @@
 #ifndef NET_QUIC_CRYPTO_CRYPTO_HANDSHAKE_H_
 #define NET_QUIC_CRYPTO_CRYPTO_HANDSHAKE_H_
 
+#include <stdint.h>
+
 #include <string>
 #include <vector>
 
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
@@ -83,7 +86,8 @@ enum HandshakeFailureReason {
   MAX_FAILURE_REASON = 22,
 };
 
-// These errors will be packed into an uint32 and we don't want to set the most
+// These errors will be packed into an uint32_t and we don't want to set the
+// most
 // significant bit, which may be misinterpreted as the sign bit.
 static_assert(MAX_FAILURE_REASON <= 32, "failure reason out of sync");
 

@@ -66,15 +66,18 @@
 #ifndef BASE_METRICS_HISTOGRAM_H_
 #define BASE_METRICS_HISTOGRAM_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <map>
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram_base.h"
@@ -114,12 +117,12 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                    Sample minimum,
                                    Sample maximum,
                                    size_t bucket_count,
-                                   int32 flags);
+                                   int32_t flags);
   static HistogramBase* FactoryTimeGet(const std::string& name,
                                        base::TimeDelta minimum,
                                        base::TimeDelta maximum,
                                        size_t bucket_count,
-                                       int32 flags);
+                                       int32_t flags);
 
   // Overloads of the above two functions that take a const char* |name| param,
   // to avoid code bloat from the std::string constructor being inlined into
@@ -128,12 +131,12 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                    Sample minimum,
                                    Sample maximum,
                                    size_t bucket_count,
-                                   int32 flags);
+                                   int32_t flags);
   static HistogramBase* FactoryTimeGet(const char* name,
                                        base::TimeDelta minimum,
                                        base::TimeDelta maximum,
                                        size_t bucket_count,
-                                       int32 flags);
+                                       int32_t flags);
 
   static void InitializeBucketRanges(Sample minimum,
                                      Sample maximum,
@@ -249,15 +252,17 @@ class BASE_EXPORT Histogram : public HistogramBase {
 
   // Write information about previous, current, and next buckets.
   // Information such as cumulative percentage, etc.
-  void WriteAsciiBucketContext(const int64 past, const Count current,
-                               const int64 remaining, const size_t i,
+  void WriteAsciiBucketContext(const int64_t past,
+                               const Count current,
+                               const int64_t remaining,
+                               const size_t i,
                                std::string* output) const;
 
   // WriteJSON calls these.
   void GetParameters(DictionaryValue* params) const override;
 
   void GetCountAndBucketData(Count* count,
-                             int64* sum,
+                             int64_t* sum,
                              ListValue* buckets) const override;
 
   // Does not own this object. Should get from StatisticsRecorder.
@@ -287,12 +292,12 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                                    Sample minimum,
                                    Sample maximum,
                                    size_t bucket_count,
-                                   int32 flags);
+                                   int32_t flags);
   static HistogramBase* FactoryTimeGet(const std::string& name,
                                        TimeDelta minimum,
                                        TimeDelta maximum,
                                        size_t bucket_count,
-                                       int32 flags);
+                                       int32_t flags);
 
   // Overloads of the above two functions that take a const char* |name| param,
   // to avoid code bloat from the std::string constructor being inlined into
@@ -301,12 +306,12 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                                    Sample minimum,
                                    Sample maximum,
                                    size_t bucket_count,
-                                   int32 flags);
+                                   int32_t flags);
   static HistogramBase* FactoryTimeGet(const char* name,
                                        TimeDelta minimum,
                                        TimeDelta maximum,
                                        size_t bucket_count,
-                                       int32 flags);
+                                       int32_t flags);
 
   struct DescriptionPair {
     Sample sample;
@@ -323,7 +328,7 @@ class BASE_EXPORT LinearHistogram : public Histogram {
       Sample minimum,
       Sample maximum,
       size_t bucket_count,
-      int32 flags,
+      int32_t flags,
       const DescriptionPair descriptions[]);
 
   static void InitializeBucketRanges(Sample minimum,
@@ -368,12 +373,12 @@ class BASE_EXPORT LinearHistogram : public Histogram {
 // BooleanHistogram is a histogram for booleans.
 class BASE_EXPORT BooleanHistogram : public LinearHistogram {
  public:
-  static HistogramBase* FactoryGet(const std::string& name, int32 flags);
+  static HistogramBase* FactoryGet(const std::string& name, int32_t flags);
 
   // Overload of the above function that takes a const char* |name| param,
   // to avoid code bloat from the std::string constructor being inlined into
   // call sites.
-  static HistogramBase* FactoryGet(const char* name, int32 flags);
+  static HistogramBase* FactoryGet(const char* name, int32_t flags);
 
   HistogramType GetHistogramType() const override;
 
@@ -398,14 +403,14 @@ class BASE_EXPORT CustomHistogram : public Histogram {
   // client should not depend on this.
   static HistogramBase* FactoryGet(const std::string& name,
                                    const std::vector<Sample>& custom_ranges,
-                                   int32 flags);
+                                   int32_t flags);
 
   // Overload of the above function that takes a const char* |name| param,
   // to avoid code bloat from the std::string constructor being inlined into
   // call sites.
   static HistogramBase* FactoryGet(const char* name,
                                    const std::vector<Sample>& custom_ranges,
-                                   int32 flags);
+                                   int32_t flags);
 
   // Overridden from Histogram:
   HistogramType GetHistogramType() const override;

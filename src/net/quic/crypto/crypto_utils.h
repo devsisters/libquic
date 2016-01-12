@@ -7,8 +7,12 @@
 #ifndef NET_QUIC_CRYPTO_CRYPTO_UTILS_H_
 #define NET_QUIC_CRYPTO_CRYPTO_UTILS_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/quic/crypto/crypto_handshake.h"
@@ -73,7 +77,7 @@ class NET_EXPORT_PRIVATE CryptoUtils {
 
   // Computes the FNV-1a hash of the provided DER-encoded cert for use in the
   // XLCT tag.
-  static uint64 ComputeLeafCertHash(const std::string& cert);
+  static uint64_t ComputeLeafCertHash(const std::string& cert);
 
   // Validates that |server_hello| is actually an SHLO message and that it is
   // not part of a downgrade attack.

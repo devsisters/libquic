@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
@@ -24,7 +25,7 @@ namespace {
 
 const int kStackMaxDepth = 100;
 
-const int32 kExtendedASCIIStart = 0x80;
+const int32_t kExtendedASCIIStart = 0x80;
 
 // This and the class below are used to own the JSON input string for when
 // string tokens are stored as StringPiece instead of std::string. This
@@ -227,9 +228,9 @@ Value* JSONParser::Parse(const StringPiece& input) {
   // <0xEF 0xBB 0xBF>, advance the start position to avoid the
   // ParseNextToken function mis-treating a Unicode BOM as an invalid
   // character and returning NULL.
-  if (CanConsume(3) && static_cast<uint8>(*pos_) == 0xEF &&
-      static_cast<uint8>(*(pos_ + 1)) == 0xBB &&
-      static_cast<uint8>(*(pos_ + 2)) == 0xBF) {
+  if (CanConsume(3) && static_cast<uint8_t>(*pos_) == 0xEF &&
+      static_cast<uint8_t>(*(pos_ + 1)) == 0xBB &&
+      static_cast<uint8_t>(*(pos_ + 2)) == 0xBF) {
     NextNChars(3);
   }
 
@@ -613,7 +614,7 @@ bool JSONParser::ConsumeStringRaw(StringBuilder* out) {
   StringBuilder string(NextChar());
 
   int length = end_pos_ - start_pos_;
-  int32 next_char = 0;
+  int32_t next_char = 0;
 
   while (CanConsume(1)) {
     pos_ = start_pos_ + index_;  // CBU8_NEXT is postcrement.
@@ -774,8 +775,8 @@ bool JSONParser::DecodeUTF16(std::string* dest_string) {
       return false;
     }
 
-    uint32 code_point = CBU16_GET_SUPPLEMENTARY(code_unit16_high,
-                                                code_unit16_low);
+    uint32_t code_point =
+        CBU16_GET_SUPPLEMENTARY(code_unit16_high, code_unit16_low);
     if (!IsValidCharacter(code_point))
       return false;
 
@@ -794,11 +795,11 @@ bool JSONParser::DecodeUTF16(std::string* dest_string) {
   return true;
 }
 
-void JSONParser::DecodeUTF8(const int32& point, StringBuilder* dest) {
+void JSONParser::DecodeUTF8(const int32_t& point, StringBuilder* dest) {
   DCHECK(IsValidCharacter(point));
 
   // Anything outside of the basic ASCII plane will need to be decoded from
-  // int32 to a multi-byte sequence.
+  // int32_t to a multi-byte sequence.
   if (point < kExtendedASCIIStart) {
     dest->Append(static_cast<char>(point));
   } else {

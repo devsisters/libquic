@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/base_switches.h"
+#include "build/build_config.h"
 
 namespace switches {
 

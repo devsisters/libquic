@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 
 namespace logging {

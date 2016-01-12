@@ -5,6 +5,8 @@
 #ifndef NET_BASE_IO_BUFFER_H_
 #define NET_BASE_IO_BUFFER_H_
 
+#include <stddef.h>
+
 #include <string>
 
 #include "base/memory/ref_counted.h"

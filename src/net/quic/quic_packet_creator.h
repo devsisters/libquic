@@ -11,10 +11,13 @@
 #ifndef NET_QUIC_QUIC_PACKET_CREATOR_H_
 #define NET_QUIC_QUIC_PACKET_CREATOR_H_
 
+#include <stddef.h>
+
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "net/quic/quic_fec_group.h"
@@ -38,8 +41,11 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
    public:
     virtual ~DelegateInterface() {}
     // Called when a packet is serialized. Delegate does not take the ownership
-    // of |serialized_packet|.
+    // of |serialized_packet|, but may take ownership of |packet.packet|
+    // and |packet.retransmittable_frames|.  If it does so, they must be set
+    // to nullptr.
     virtual void OnSerializedPacket(SerializedPacket* serialized_packet) = 0;
+    virtual void CloseConnection(QuicErrorCode error, bool from_peer) = 0;
     // Called when current FEC group is reset (closed).
     virtual void OnResetFecGroup() = 0;
   };
@@ -59,6 +65,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   QuicPacketCreator(QuicConnectionId connection_id,
                     QuicFramer* framer,
                     QuicRandom* random_generator,
+                    QuicBufferAllocator* buffer_allocator,
                     DelegateInterface* delegate);
 
   ~QuicPacketCreator();
@@ -177,6 +184,12 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   // Identical to AddSavedFrame, but allows the frame to be padded.
   bool AddPaddedSavedFrame(const QuicFrame& frame);
 
+  // Adds |listener| to the next serialized packet and notifies the
+  // std::listener
+  // with |length| as the number of acked bytes.
+  void AddAckListener(QuicAckListenerInterface* listener,
+                      QuicPacketLength length);
+
   // Creates a version negotiation packet which supports |supported_versions|.
   // Caller owns the created  packet. Also, sets the entropy hash of the
   // serialized packet to a random bool and returns that value as a member of
@@ -210,9 +223,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
     connection_id_length_ = length;
   }
 
-  QuicByteCount max_packet_length() const {
-    return max_packet_length_;
-  }
+  QuicByteCount max_packet_length() const { return max_packet_length_; }
 
   bool has_ack() const { return has_ack_; }
 
@@ -240,7 +251,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns current max number of packets covered by an FEC group.
   size_t max_packets_per_fec_group() const {
-      return max_packets_per_fec_group_;
+    return max_packets_per_fec_group_;
   }
 
   // Sets creator's max number of packets covered by an FEC group.
@@ -258,14 +269,6 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   void set_rtt_multiplier_for_fec_timeout(
       float rtt_multiplier_for_fec_timeout) {
     rtt_multiplier_for_fec_timeout_ = rtt_multiplier_for_fec_timeout;
-  }
-
-  bool should_fec_protect_next_packet() {
-    return should_fec_protect_next_packet_;
-  }
-
-  void set_should_fec_protect_next_packet(bool should_fec_protect_next_packet) {
-    should_fec_protect_next_packet_ = should_fec_protect_next_packet;
   }
 
   void set_debug_delegate(DebugDelegate* debug_delegate) {
@@ -311,13 +314,10 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
                         bool fec_flag,
                         QuicPacketHeader* header);
 
-  // Allows a frame to be added without creating retransmittable frames.
-  // Particularly useful for retransmits using SerializeAllFrames().
-  // If current open packet cannot accommodate |frame|, returns false and
-  // flushes all pending frames.
-  bool AddFrame(const QuicFrame& frame,
-                bool save_retransmittable_frames,
-                bool needs_padding);
+  // Adds a |frame| if there is space and returns false and flushes all pending
+  // frames if there isn't room. If |save_retransmittable_frames| is true,
+  // saves the |frame| in the next SerializedPacket.
+  bool AddFrame(const QuicFrame& frame, bool save_retransmittable_frames);
 
   // Adds a padding frame to the current packet only if the current packet
   // contains a handshake message, and there is sufficient room to fit a
@@ -333,6 +333,10 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   // retransmitted.
   // Fails if |buffer_len| isn't long enough for the encrypted packet.
   SerializedPacket SerializePacket(char* encrypted_buffer, size_t buffer_len);
+
+  // Called after a new SerialiedPacket is created to call the delegate's
+  // OnSerializedPacket, reset state, and potentially flush FEC groups.
+  void OnSerializedPacket(SerializedPacket* packet);
 
   // Turn on FEC protection for subsequent packets. If no FEC group is currently
   // open, this method flushes current open packet and then turns FEC on.
@@ -375,6 +379,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   hash_map<QuicPathId, QuicPacketNumber> multipath_packet_number_;
   // The path which current constructed packet will be sent on.
   QuicPathId current_path_;
+  QuicBufferAllocator* const buffer_allocator_;
   QuicPacketNumber packet_number_;
   // True when creator is requested to turn on FEC protection. False otherwise.
   // There is a time difference between should_fec_protect_next_packet is
@@ -412,6 +417,9 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   scoped_ptr<RetransmittableFrames> queued_retransmittable_frames_;
   // If true, the packet will be padded up to |max_packet_length_|.
   bool needs_padding_;
+  // Stores ack std::listeners that should be attached to the next packet.
+  std::list<AckListenerWrapper> ack_listeners_;
+
   // FEC policy that specifies when to send FEC packet.
   FecSendPolicy fec_send_policy_;
   // Timeout used for FEC alarm. Can be set to zero initially or if the SRTT has

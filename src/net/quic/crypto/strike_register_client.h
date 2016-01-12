@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/quic/crypto/strike_register.h"
@@ -47,10 +47,9 @@ class NET_EXPORT_PRIVATE StrikeRegisterClient {
   // Will invoke cb->Run(ValidateResponse::nonce_is_valid_and_unique(),
   //                     ValidateResponse::nonce_error())
   // once the asynchronous operation is complete.
-  virtual void VerifyNonceIsValidAndUnique(
-      base::StringPiece nonce,
-      QuicWallTime now,
-      ResultCallback* cb) = 0;
+  virtual void VerifyNonceIsValidAndUnique(base::StringPiece nonce,
+                                           QuicWallTime now,
+                                           ResultCallback* cb) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StrikeRegisterClient);

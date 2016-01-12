@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/macros.h"
 #include "crypto/wincrypt_shim.h"
 
 namespace crypto {

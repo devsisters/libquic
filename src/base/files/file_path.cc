@@ -7,13 +7,14 @@
 #include <string.h>
 #include <algorithm>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/pickle.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "build/build_config.h"
 
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_cftyperef.h"

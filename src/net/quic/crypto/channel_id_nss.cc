@@ -24,8 +24,7 @@ bool ChannelIDVerifier::VerifyRaw(StringPiece key,
                                   StringPiece signed_data,
                                   StringPiece signature,
                                   bool is_channel_id_signature) {
-  if (key.size() != 32 * 2 ||
-      signature.size() != 32 * 2) {
+  if (key.size() != 32 * 2 || signature.size() != 32 * 2) {
     return false;
   }
 
@@ -34,9 +33,8 @@ bool ChannelIDVerifier::VerifyRaw(StringPiece key,
 
   // DER encoding of the object identifier (OID) of the named curve P-256
   // (1.2.840.10045.3.1.7). See RFC 6637 Section 11.
-  static const unsigned char p256_oid[] = {
-    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
-  };
+  static const unsigned char p256_oid[] = {0x06, 0x08, 0x2a, 0x86, 0x48,
+                                           0xce, 0x3d, 0x03, 0x01, 0x07};
   public_key.keyType = ecKey;
   public_key.u.ec.DEREncodedParams.type = siBuffer;
   public_key.u.ec.DEREncodedParams.data = const_cast<unsigned char*>(p256_oid);
@@ -49,14 +47,12 @@ bool ChannelIDVerifier::VerifyRaw(StringPiece key,
   public_key.u.ec.publicValue.data = key_buf;
   public_key.u.ec.publicValue.len = sizeof(key_buf);
 
-  SECItem signature_item = {
-    siBuffer,
-    reinterpret_cast<unsigned char*>(const_cast<char*>(signature.data())),
-    static_cast<unsigned int>(signature.size())
-  };
+  SECItem signature_item = {siBuffer, reinterpret_cast<unsigned char*>(
+                                          const_cast<char*>(signature.data())),
+                            static_cast<unsigned int>(signature.size())};
 
   unsigned char hash_buf[SHA256_LENGTH];
-  SECItem hash_item = { siBuffer, hash_buf, sizeof(hash_buf) };
+  SECItem hash_item = {siBuffer, hash_buf, sizeof(hash_buf)};
 
   HASHContext* sha256 = HASH_Create(HASH_AlgSHA256);
   if (!sha256) {

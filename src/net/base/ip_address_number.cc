@@ -4,6 +4,8 @@
 
 #include "net/base/ip_address_number.h"
 
+#include <limits.h>
+
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"

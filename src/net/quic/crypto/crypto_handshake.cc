@@ -39,8 +39,7 @@ const char QuicCryptoConfig::kForwardSecureLabel[] =
     "QUIC forward secure key expansion";
 
 QuicCryptoConfig::QuicCryptoConfig()
-    : common_cert_sets(CommonCertSets::GetInstanceQUIC()) {
-}
+    : common_cert_sets(CommonCertSets::GetInstanceQUIC()) {}
 
 QuicCryptoConfig::~QuicCryptoConfig() {}
 

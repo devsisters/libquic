@@ -16,15 +16,15 @@ SpdyFrameReader::SpdyFrameReader(const char* data, const size_t len)
       ofs_(0) {
 }
 
-bool SpdyFrameReader::ReadUInt8(uint8* result) {
-  // Make sure that we have the whole uint8.
+bool SpdyFrameReader::ReadUInt8(uint8_t* result) {
+  // Make sure that we have the whole uint8_t.
   if (!CanRead(1)) {
     OnFailure();
     return false;
   }
 
   // Read into result.
-  *result = *reinterpret_cast<const uint8*>(data_ + ofs_);
+  *result = *reinterpret_cast<const uint8_t*>(data_ + ofs_);
 
   // Iterate.
   ofs_ += 1;
@@ -32,15 +32,16 @@ bool SpdyFrameReader::ReadUInt8(uint8* result) {
   return true;
 }
 
-bool SpdyFrameReader::ReadUInt16(uint16* result) {
-  // Make sure that we have the whole uint16.
+bool SpdyFrameReader::ReadUInt16(uint16_t* result) {
+  // Make sure that we have the whole uint16_t.
   if (!CanRead(2)) {
     OnFailure();
     return false;
   }
 
   // Read into result.
-  *result = base::NetToHost16(*(reinterpret_cast<const uint16*>(data_ + ofs_)));
+  *result =
+      base::NetToHost16(*(reinterpret_cast<const uint16_t*>(data_ + ofs_)));
 
   // Iterate.
   ofs_ += 2;
@@ -48,15 +49,16 @@ bool SpdyFrameReader::ReadUInt16(uint16* result) {
   return true;
 }
 
-bool SpdyFrameReader::ReadUInt32(uint32* result) {
-  // Make sure that we have the whole uint32.
+bool SpdyFrameReader::ReadUInt32(uint32_t* result) {
+  // Make sure that we have the whole uint32_t.
   if (!CanRead(4)) {
     OnFailure();
     return false;
   }
 
   // Read into result.
-  *result = base::NetToHost32(*(reinterpret_cast<const uint32*>(data_ + ofs_)));
+  *result =
+      base::NetToHost32(*(reinterpret_cast<const uint32_t*>(data_ + ofs_)));
 
   // Iterate.
   ofs_ += 4;
@@ -64,18 +66,18 @@ bool SpdyFrameReader::ReadUInt32(uint32* result) {
   return true;
 }
 
-bool SpdyFrameReader::ReadUInt64(uint64* result) {
-  // Make sure that we have the whole uint64.
+bool SpdyFrameReader::ReadUInt64(uint64_t* result) {
+  // Make sure that we have the whole uint64_t.
   if (!CanRead(8)) {
     OnFailure();
     return false;
   }
 
   // Read into result. Network byte order is big-endian.
-  uint64 upper =
-      base::NetToHost32(*(reinterpret_cast<const uint32*>(data_ + ofs_)));
-  uint64 lower =
-      base::NetToHost32(*(reinterpret_cast<const uint32*>(data_ + ofs_ + 4)));
+  uint64_t upper =
+      base::NetToHost32(*(reinterpret_cast<const uint32_t*>(data_ + ofs_)));
+  uint64_t lower =
+      base::NetToHost32(*(reinterpret_cast<const uint32_t*>(data_ + ofs_ + 4)));
   *result = (upper << 32) + lower;
 
   // Iterate.
@@ -84,7 +86,7 @@ bool SpdyFrameReader::ReadUInt64(uint64* result) {
   return true;
 }
 
-bool SpdyFrameReader::ReadUInt31(uint32* result) {
+bool SpdyFrameReader::ReadUInt31(uint32_t* result) {
   bool success = ReadUInt32(result);
 
   // Zero out highest-order bit.
@@ -95,7 +97,7 @@ bool SpdyFrameReader::ReadUInt31(uint32* result) {
   return success;
 }
 
-bool SpdyFrameReader::ReadUInt24(uint32* result) {
+bool SpdyFrameReader::ReadUInt24(uint32_t* result) {
   // Make sure that we have the whole uint24.
   if (!CanRead(3)) {
     OnFailure();
@@ -115,7 +117,7 @@ bool SpdyFrameReader::ReadUInt24(uint32* result) {
 
 bool SpdyFrameReader::ReadStringPiece16(base::StringPiece* result) {
   // Read resultant length.
-  uint16 result_len;
+  uint16_t result_len;
   if (!ReadUInt16(&result_len)) {
     // OnFailure() already called.
     return false;
@@ -138,7 +140,7 @@ bool SpdyFrameReader::ReadStringPiece16(base::StringPiece* result) {
 
 bool SpdyFrameReader::ReadStringPiece32(base::StringPiece* result) {
   // Read resultant length.
-  uint32 result_len;
+  uint32_t result_len;
   if (!ReadUInt32(&result_len)) {
     // OnFailure() already called.
     return false;

@@ -5,6 +5,8 @@
 #ifndef NET_SPDY_SPDY_HEADERS_HANDLER_INTERFACE_H_
 #define NET_SPDY_SPDY_HEADERS_HANDLER_INTERFACE_H_
 
+#include <stddef.h>
+
 #include "base/strings/string_piece.h"
 
 namespace net {

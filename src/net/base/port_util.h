@@ -5,9 +5,11 @@
 #ifndef NET_BASE_NET_PORT_UTIL_
 #define NET_BASE_NET_PORT_UTIL_
 
+#include <stddef.h>
+
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "net/base/net_export.h"
 
 namespace net {

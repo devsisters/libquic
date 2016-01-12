@@ -5,8 +5,11 @@
 #ifndef NET_QUIC_QUIC_CRYPTO_CLIENT_STREAM_H_
 #define NET_QUIC_QUIC_CRYPTO_CLIENT_STREAM_H_
 
+#include <stdint.h>
+
 #include <string>
 
+#include "base/macros.h"
 #include "net/quic/crypto/channel_id.h"
 #include "net/quic/crypto/proof_verifier.h"
 #include "net/quic/crypto/quic_crypto_client_config.h"
@@ -195,7 +198,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStream
   const QuicServerId server_id_;
 
   // Generation counter from QuicCryptoClientConfig's CachedState.
-  uint64 generation_counter_;
+  uint64_t generation_counter_;
 
   // True if a channel ID was sent.
   bool channel_id_sent_;

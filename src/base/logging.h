@@ -5,14 +5,16 @@
 #ifndef BASE_LOGGING_H_
 #define BASE_LOGGING_H_
 
+#include <stddef.h>
+
 #include <cassert>
-#include <string>
 #include <cstring>
 #include <sstream>
+#include <string>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/debug/debugger.h"
+#include "base/macros.h"
 #include "build/build_config.h"
 
 //

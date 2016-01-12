@@ -17,7 +17,9 @@ const size_t kNoncePrefixSize = 4;
 }  // namespace
 
 Aes128Gcm12Decrypter::Aes128Gcm12Decrypter()
-    : AeadBaseDecrypter(EVP_aead_aes_128_gcm(), kKeySize, kAuthTagSize,
+    : AeadBaseDecrypter(EVP_aead_aes_128_gcm(),
+                        kKeySize,
+                        kAuthTagSize,
                         kNoncePrefixSize) {
   static_assert(kKeySize <= kMaxKeySize, "key size too big");
   static_assert(kNoncePrefixSize <= kMaxNoncePrefixSize,
@@ -30,7 +32,7 @@ const char* Aes128Gcm12Decrypter::cipher_name() const {
   return TLS1_TXT_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
 }
 
-uint32 Aes128Gcm12Decrypter::cipher_id() const {
+uint32_t Aes128Gcm12Decrypter::cipher_id() const {
   // This OpenSSL macro has the value 0x0300C02F. The two most significant bytes
   // 0x0300 are OpenSSL specific and are NOT part of the TLS CipherSuite value
   // for TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.

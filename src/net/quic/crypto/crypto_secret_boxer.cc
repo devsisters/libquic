@@ -35,7 +35,9 @@ static const size_t kKeySize = 16;
 static const size_t kBoxNonceSize = 12;
 
 // static
-size_t CryptoSecretBoxer::GetKeySize() { return kKeySize; }
+size_t CryptoSecretBoxer::GetKeySize() {
+  return kKeySize;
+}
 
 void CryptoSecretBoxer::SetKey(StringPiece key) {
   DCHECK_EQ(kKeySize, key.size());
@@ -59,9 +61,9 @@ string CryptoSecretBoxer::Box(QuicRandom* rand, StringPiece plaintext) const {
   rand->RandBytes(data, kBoxNonceSize);
   memcpy(data + kBoxNonceSize, plaintext.data(), plaintext.size());
 
-  if (!encrypter->Encrypt(StringPiece(data, kBoxNonceSize), StringPiece(),
-                          plaintext, reinterpret_cast<unsigned char*>(
-                                         data + kBoxNonceSize))) {
+  if (!encrypter->Encrypt(
+          StringPiece(data, kBoxNonceSize), StringPiece(), plaintext,
+          reinterpret_cast<unsigned char*>(data + kBoxNonceSize))) {
     DLOG(DFATAL) << "CryptoSecretBoxer's Encrypt failed.";
     return string();
   }

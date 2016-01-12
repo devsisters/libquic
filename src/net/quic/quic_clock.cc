@@ -8,8 +8,7 @@
 
 namespace net {
 
-QuicClock::QuicClock() {
-}
+QuicClock::QuicClock() {}
 
 QuicClock::~QuicClock() {}
 

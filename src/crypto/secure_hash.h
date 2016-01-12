@@ -5,7 +5,9 @@
 #ifndef CRYPTO_SECURE_HASH_H_
 #define CRYPTO_SECURE_HASH_H_
 
-#include "base/basictypes.h"
+#include <stddef.h>
+
+#include "base/macros.h"
 #include "crypto/crypto_export.h"
 
 namespace base {

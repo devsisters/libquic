@@ -5,6 +5,8 @@
 #ifndef NET_SPDY_SPDY_HEADER_BLOCK_H_
 #define NET_SPDY_SPDY_HEADER_BLOCK_H_
 
+#include <stddef.h>
+
 #include <map>
 #include <memory>
 #include <string>

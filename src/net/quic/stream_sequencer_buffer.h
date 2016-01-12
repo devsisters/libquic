@@ -60,6 +60,8 @@
 //  size_t consumed = consume_iovs(iovs, iov_count);
 //  buffer.MarkConsumed(consumed);
 
+#include <stddef.h>
+
 #include <functional>
 #include <list>
 #include <memory>

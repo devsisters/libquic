@@ -5,6 +5,8 @@
 #ifndef BASE_NUMERICS_SAFE_MATH_H_
 #define BASE_NUMERICS_SAFE_MATH_H_
 
+#include <stddef.h>
+
 #include "base/numerics/safe_math_impl.h"
 
 namespace base {
@@ -36,9 +38,8 @@ namespace internal {
 //     CheckedNumeric<int> checked_int = untrusted_input_value;
 //     int x = checked_int.ValueOrDefault(0) | kFlagValues;
 // Comparison:
-//   CheckedNumeric<size_t> checked_size;
-//   CheckedNumeric<int> checked_size = untrusted_input_value;
-//   checked_size = checked_size + HEADER LENGTH;
+//   CheckedNumeric<size_t> checked_size = untrusted_input_value;
+//   checked_size += HEADER LENGTH;
 //   if (checked_size.IsValid() && checked_size.ValueOrDie() < buffer_size)
 //     Do stuff...
 template <typename T>

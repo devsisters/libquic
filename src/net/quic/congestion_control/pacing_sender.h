@@ -11,9 +11,11 @@
 #ifndef NET_QUIC_CONGESTION_CONTROL_PACING_SENDER_H_
 #define NET_QUIC_CONGESTION_CONTROL_PACING_SENDER_H_
 
+#include <stdint.h>
+
 #include <map>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/quic/congestion_control/send_algorithm_interface.h"
 #include "net/quic/quic_bandwidth.h"
@@ -31,7 +33,7 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
   // the number of packets sent without pacing after quiescence.
   PacingSender(SendAlgorithmInterface* sender,
                QuicTime::Delta alarm_granularity,
-               uint32 initial_packet_burst);
+               uint32_t initial_packet_burst);
   ~PacingSender() override;
 
   // SendAlgorithmInterface methods.
@@ -73,9 +75,9 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
   const QuicTime::Delta alarm_granularity_;
   // Configured maximum size of the burst coming out of quiescence.  The burst
   // is never larger than the current CWND in packets.
-  const uint32 initial_packet_burst_;
+  const uint32_t initial_packet_burst_;
   // Number of unpaced packets to be sent before packets are delayed.
-  uint32 burst_tokens_;
+  uint32_t burst_tokens_;
   // Send time of the last packet considered delayed.
   QuicTime last_delayed_packet_sent_time_;
   QuicTime ideal_next_packet_send_time_;  // When can the next packet be sent.

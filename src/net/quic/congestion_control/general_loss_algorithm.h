@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <map>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "net/quic/congestion_control/loss_detection_interface.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_time.h"

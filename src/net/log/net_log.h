@@ -5,14 +5,17 @@
 #ifndef NET_LOG_NET_LOG_H_
 #define NET_LOG_NET_LOG_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "build/build_config.h"
 
 #include "base/atomicops.h"
-#include "base/basictypes.h"
 #include "base/callback_forward.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/observer_list.h"
 #include "base/strings/string16.h"
 #include "base/synchronization/lock.h"
@@ -78,10 +81,10 @@ class NET_EXPORT NetLog {
   // uniquely identify the source, and is used by log observers to infer
   // message groupings. Can use NetLog::NextID() to create unique IDs.
   struct NET_EXPORT Source {
-    static const uint32 kInvalidId;
+    static const uint32_t kInvalidId;
 
     Source();
-    Source(SourceType type, uint32 id);
+    Source(SourceType type, uint32_t id);
     bool IsValid() const;
 
     // Adds the source to a DictionaryValue containing event parameters,
@@ -99,7 +102,7 @@ class NET_EXPORT NetLog {
     static bool FromEventParameters(base::Value* event_params, Source* source);
 
     SourceType type;
-    uint32 id;
+    uint32_t id;
   };
 
   struct NET_EXPORT EntryData {
@@ -136,7 +139,7 @@ class NET_EXPORT NetLog {
 
     // Returns the parameters as a Value.  Returns NULL if there are no
     // parameters.  Caller takes ownership of returned Value.
-    base::Value* ParametersToValue() const;
+    scoped_ptr<base::Value> ParametersToValue() const;
 
    private:
     const EntryData* const data_;
@@ -206,7 +209,7 @@ class NET_EXPORT NetLog {
 
   // Returns a unique ID which can be used as a source ID.  All returned IDs
   // will be unique and greater than 0.
-  uint32 NextID();
+  uint32_t NextID();
 
   // Returns true if there are any observers attached to the NetLog. This can be
   // used as an optimization to avoid emitting log entries when there is no
@@ -270,11 +273,11 @@ class NET_EXPORT NetLog {
   // Warning: |name| must remain valid for the life of the callback.
   static ParametersCallback IntCallback(const char* name, int value);
 
-  // Creates a ParametersCallback that encapsulates a single int64.  The
+  // Creates a ParametersCallback that encapsulates a single int64_t.  The
   // callback will return the value as a StringValue, since IntegerValues
   // only support 32-bit values.
   // Warning: |name| must remain valid for the life of the callback.
-  static ParametersCallback Int64Callback(const char* name, int64 value);
+  static ParametersCallback Int64Callback(const char* name, int64_t value);
 
   // Creates a ParametersCallback that encapsulates a single UTF8 string.  Takes
   // |value| as a pointer to avoid copying, and emphasize it must be valid for

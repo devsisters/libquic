@@ -5,7 +5,10 @@
 #ifndef NET_QUIC_CRYPTO_NULL_ENCRYPTER_H_
 #define NET_QUIC_CRYPTO_NULL_ENCRYPTER_H_
 
+#include <stddef.h>
+
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/quic/crypto/quic_encrypter.h"
 

@@ -5,7 +5,6 @@
 #ifndef NET_QUIC_QUIC_ACK_LISTENER_INTERFACE_H_
 #define NET_QUIC_QUIC_ACK_LISTENER_INTERFACE_H_
 
-#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_time.h"

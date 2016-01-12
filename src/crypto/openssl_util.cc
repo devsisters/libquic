@@ -7,8 +7,11 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/cpu.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/memory/singleton.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"

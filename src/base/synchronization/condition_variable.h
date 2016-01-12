@@ -65,16 +65,15 @@
 #ifndef BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
 #define BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
 
+#include "base/base_export.h"
+#include "base/logging.h"
+#include "base/macros.h"
+#include "base/synchronization/lock.h"
 #include "build/build_config.h"
 
 #if defined(OS_POSIX)
 #include <pthread.h>
 #endif
-
-#include "base/base_export.h"
-#include "base/basictypes.h"
-#include "base/logging.h"
-#include "base/synchronization/lock.h"
 
 namespace base {
 

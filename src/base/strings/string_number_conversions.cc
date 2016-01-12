@@ -63,9 +63,9 @@ template<typename CHAR, int BASE, bool BASE_LTE_10> class BaseCharToDigit {
 // Faster specialization for bases <= 10
 template<typename CHAR, int BASE> class BaseCharToDigit<CHAR, BASE, true> {
  public:
-  static bool Convert(CHAR c, uint8* digit) {
+  static bool Convert(CHAR c, uint8_t* digit) {
     if (c >= '0' && c < '0' + BASE) {
-      *digit = static_cast<uint8>(c - '0');
+      *digit = static_cast<uint8_t>(c - '0');
       return true;
     }
     return false;
@@ -75,7 +75,7 @@ template<typename CHAR, int BASE> class BaseCharToDigit<CHAR, BASE, true> {
 // Specialization for bases where 10 < base <= 36
 template<typename CHAR, int BASE> class BaseCharToDigit<CHAR, BASE, false> {
  public:
-  static bool Convert(CHAR c, uint8* digit) {
+  static bool Convert(CHAR c, uint8_t* digit) {
     if (c >= '0' && c <= '9') {
       *digit = c - '0';
     } else if (c >= 'a' && c < 'a' + BASE - 10) {
@@ -89,7 +89,8 @@ template<typename CHAR, int BASE> class BaseCharToDigit<CHAR, BASE, false> {
   }
 };
 
-template<int BASE, typename CHAR> bool CharToDigit(CHAR c, uint8* digit) {
+template <int BASE, typename CHAR>
+bool CharToDigit(CHAR c, uint8_t* digit) {
   return BaseCharToDigit<CHAR, BASE, BASE <= 10>::Convert(c, digit);
 }
 
@@ -186,7 +187,7 @@ class IteratorRangeToNumber {
       }
 
       for (const_iterator current = begin; current != end; ++current) {
-        uint8 new_digit = 0;
+        uint8_t new_digit = 0;
 
         if (!CharToDigit<traits::kBase>(*current, &new_digit)) {
           return false;
@@ -207,7 +208,7 @@ class IteratorRangeToNumber {
 
   class Positive : public Base<Positive> {
    public:
-    static bool CheckBounds(value_type* output, uint8 new_digit) {
+    static bool CheckBounds(value_type* output, uint8_t new_digit) {
       if (*output > static_cast<value_type>(traits::max() / traits::kBase) ||
           (*output == static_cast<value_type>(traits::max() / traits::kBase) &&
            new_digit > traits::max() % traits::kBase)) {
@@ -216,14 +217,14 @@ class IteratorRangeToNumber {
       }
       return true;
     }
-    static void Increment(uint8 increment, value_type* output) {
+    static void Increment(uint8_t increment, value_type* output) {
       *output += increment;
     }
   };
 
   class Negative : public Base<Negative> {
    public:
-    static bool CheckBounds(value_type* output, uint8 new_digit) {
+    static bool CheckBounds(value_type* output, uint8_t new_digit) {
       if (*output < traits::min() / traits::kBase ||
           (*output == traits::min() / traits::kBase &&
            new_digit > 0 - traits::min() % traits::kBase)) {
@@ -232,7 +233,7 @@ class IteratorRangeToNumber {
       }
       return true;
     }
-    static void Increment(uint8 increment, value_type* output) {
+    static void Increment(uint8_t increment, value_type* output) {
       *output -= increment;
     }
   };
@@ -257,20 +258,17 @@ class BaseHexIteratorRangeToIntTraits
     : public BaseIteratorRangeToNumberTraits<ITERATOR, int, 16> {
 };
 
-template<typename ITERATOR>
+template <typename ITERATOR>
 class BaseHexIteratorRangeToUIntTraits
-    : public BaseIteratorRangeToNumberTraits<ITERATOR, uint32, 16> {
-};
+    : public BaseIteratorRangeToNumberTraits<ITERATOR, uint32_t, 16> {};
 
-template<typename ITERATOR>
+template <typename ITERATOR>
 class BaseHexIteratorRangeToInt64Traits
-    : public BaseIteratorRangeToNumberTraits<ITERATOR, int64, 16> {
-};
+    : public BaseIteratorRangeToNumberTraits<ITERATOR, int64_t, 16> {};
 
-template<typename ITERATOR>
+template <typename ITERATOR>
 class BaseHexIteratorRangeToUInt64Traits
-    : public BaseIteratorRangeToNumberTraits<ITERATOR, uint64, 16> {
-};
+    : public BaseIteratorRangeToNumberTraits<ITERATOR, uint64_t, 16> {};
 
 typedef BaseHexIteratorRangeToIntTraits<StringPiece::const_iterator>
     HexIteratorRangeToIntTraits;
@@ -284,15 +282,15 @@ typedef BaseHexIteratorRangeToInt64Traits<StringPiece::const_iterator>
 typedef BaseHexIteratorRangeToUInt64Traits<StringPiece::const_iterator>
     HexIteratorRangeToUInt64Traits;
 
-template<typename STR>
-bool HexStringToBytesT(const STR& input, std::vector<uint8>* output) {
+template <typename STR>
+bool HexStringToBytesT(const STR& input, std::vector<uint8_t>* output) {
   DCHECK_EQ(output->size(), 0u);
   size_t count = input.size();
   if (count == 0 || (count % 2) != 0)
     return false;
   for (uintptr_t i = 0; i < count / 2; ++i) {
-    uint8 msb = 0;  // most significant 4 bits
-    uint8 lsb = 0;  // least significant 4 bits
+    uint8_t msb = 0;  // most significant 4 bits
+    uint8_t lsb = 0;  // least significant 4 bits
     if (!CharToDigit<16>(input[i * 2], &msb) ||
         !CharToDigit<16>(input[i * 2 + 1], &lsb))
       return false;
@@ -345,20 +343,20 @@ string16 UintToString16(unsigned int value) {
   return IntToStringT<string16, unsigned int>::IntToString(value);
 }
 
-std::string Int64ToString(int64 value) {
-  return IntToStringT<std::string, int64>::IntToString(value);
+std::string Int64ToString(int64_t value) {
+  return IntToStringT<std::string, int64_t>::IntToString(value);
 }
 
-string16 Int64ToString16(int64 value) {
-  return IntToStringT<string16, int64>::IntToString(value);
+string16 Int64ToString16(int64_t value) {
+  return IntToStringT<string16, int64_t>::IntToString(value);
 }
 
-std::string Uint64ToString(uint64 value) {
-  return IntToStringT<std::string, uint64>::IntToString(value);
+std::string Uint64ToString(uint64_t value) {
+  return IntToStringT<std::string, uint64_t>::IntToString(value);
 }
 
-string16 Uint64ToString16(uint64 value) {
-  return IntToStringT<string16, uint64>::IntToString(value);
+string16 Uint64ToString16(uint64_t value) {
+  return IntToStringT<string16, uint64_t>::IntToString(value);
 }
 
 std::string SizeTToString(size_t value) {
@@ -392,19 +390,19 @@ bool StringToUint(const StringPiece16& input, unsigned* output) {
   return String16ToIntImpl(input, output);
 }
 
-bool StringToInt64(const StringPiece& input, int64* output) {
+bool StringToInt64(const StringPiece& input, int64_t* output) {
   return StringToIntImpl(input, output);
 }
 
-bool StringToInt64(const StringPiece16& input, int64* output) {
+bool StringToInt64(const StringPiece16& input, int64_t* output) {
   return String16ToIntImpl(input, output);
 }
 
-bool StringToUint64(const StringPiece& input, uint64* output) {
+bool StringToUint64(const StringPiece& input, uint64_t* output) {
   return StringToIntImpl(input, output);
 }
 
-bool StringToUint64(const StringPiece16& input, uint64* output) {
+bool StringToUint64(const StringPiece16& input, uint64_t* output) {
   return String16ToIntImpl(input, output);
 }
 
@@ -465,22 +463,22 @@ bool HexStringToInt(const StringPiece& input, int* output) {
     input.begin(), input.end(), output);
 }
 
-bool HexStringToUInt(const StringPiece& input, uint32* output) {
+bool HexStringToUInt(const StringPiece& input, uint32_t* output) {
   return IteratorRangeToNumber<HexIteratorRangeToUIntTraits>::Invoke(
       input.begin(), input.end(), output);
 }
 
-bool HexStringToInt64(const StringPiece& input, int64* output) {
+bool HexStringToInt64(const StringPiece& input, int64_t* output) {
   return IteratorRangeToNumber<HexIteratorRangeToInt64Traits>::Invoke(
     input.begin(), input.end(), output);
 }
 
-bool HexStringToUInt64(const StringPiece& input, uint64* output) {
+bool HexStringToUInt64(const StringPiece& input, uint64_t* output) {
   return IteratorRangeToNumber<HexIteratorRangeToUInt64Traits>::Invoke(
       input.begin(), input.end(), output);
 }
 
-bool HexStringToBytes(const std::string& input, std::vector<uint8>* output) {
+bool HexStringToBytes(const std::string& input, std::vector<uint8_t>* output) {
   return HexStringToBytesT(input, output);
 }
 

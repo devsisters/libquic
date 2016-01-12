@@ -6,10 +6,10 @@
 #define NET_QUIC_IOVECTOR_H_
 
 #include <stddef.h>
+
 #include <algorithm>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "net/base/iovec.h"
 #include "net/base/net_export.h"
@@ -118,7 +118,8 @@ class NET_EXPORT_PRIVATE IOVector {
   // It returns the number of bytes actually consumed (it'll only be smaller
   // than the requested number if the IOVector contains less data).
   size_t Consume(size_t length) {
-    if (length == 0) return 0;
+    if (length == 0)
+      return 0;
 
     size_t bytes_to_consume = length;
     std::vector<struct iovec>::iterator iter = iovec_.begin();
@@ -198,7 +199,9 @@ class NET_EXPORT_PRIVATE IOVector {
   // Returns the pointer to the beginning of the iovec to be used for vector
   // I/O operations. If the IOVector has no blocks appened, this function
   // returns NULL.
-  struct iovec* iovec() { return !Empty() ? &iovec_[0] : NULL; }
+  struct iovec* iovec() {
+    return !Empty() ? &iovec_[0] : NULL;
+  }
 
   // Const version.
   const struct iovec* iovec() const { return !Empty() ? &iovec_[0] : NULL; }
@@ -206,17 +209,16 @@ class NET_EXPORT_PRIVATE IOVector {
   // Returns a pointer to one past the last byte of the last block. If the
   // IOVector is empty, NULL is returned.
   const char* LastBlockEnd() const {
-    return iovec_.size() > 0 ?
-        static_cast<char *>(iovec_.back().iov_base) + iovec_.back().iov_len :
-        NULL;
+    return iovec_.size() > 0
+               ? static_cast<char*>(iovec_.back().iov_base) +
+                     iovec_.back().iov_len
+               : NULL;
   }
 
   // Returns the total number of bytes in the IOVector.
   size_t TotalBufferSize() const { return TotalIovecLength(iovec(), Size()); }
 
-  void Resize(size_t count) {
-    iovec_.resize(count);
-  }
+  void Resize(size_t count) { iovec_.resize(count); }
 
  private:
   std::vector<struct iovec> iovec_;

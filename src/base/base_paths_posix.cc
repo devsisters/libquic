@@ -6,6 +6,9 @@
 // don't have their own base_paths_OS.cc implementation (i.e. all but Mac and
 // Android).
 
+#include <limits.h>
+#include <stddef.h>
+
 #include <ostream>
 #include <string>
 

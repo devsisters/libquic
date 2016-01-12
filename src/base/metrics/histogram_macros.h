@@ -6,7 +6,6 @@
 #define BASE_METRICS_HISTOGRAM_MACROS_H_
 
 #include "base/atomicops.h"
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/time/time.h"

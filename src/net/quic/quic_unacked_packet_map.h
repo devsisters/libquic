@@ -5,8 +5,11 @@
 #ifndef NET_QUIC_QUIC_UNACKED_PACKET_MAP_H_
 #define NET_QUIC_QUIC_UNACKED_PACKET_MAP_H_
 
+#include <stddef.h>
+
 #include <deque>
 
+#include "base/macros.h"
 #include "net/quic/quic_protocol.h"
 
 namespace net {
@@ -41,7 +44,7 @@ class NET_EXPORT_PRIVATE QuicUnackedPacketMap {
   bool IsUnacked(QuicPacketNumber packet_number) const;
 
   // Sets the nack count to the max of the current nack count and |min_nacks|.
-  void NackPacket(QuicPacketNumber packet_number, uint16 min_nacks);
+  void NackPacket(QuicPacketNumber packet_number, uint16_t min_nacks);
 
   // Notifies all the AckListeners attached to the |info| and
   // clears them to ensure they're not notified again.
@@ -87,9 +90,7 @@ class NET_EXPORT_PRIVATE QuicUnackedPacketMap {
   }
 
   // Returns the sum of bytes from all packets in flight.
-  QuicByteCount bytes_in_flight() const {
-    return bytes_in_flight_;
-  }
+  QuicByteCount bytes_in_flight() const { return bytes_in_flight_; }
 
   // Returns the smallest packet number of a serialized packet which has not
   // been acked by the peer.  If there are no unacked packets, returns 0.

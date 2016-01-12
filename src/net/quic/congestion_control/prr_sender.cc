@@ -17,11 +17,10 @@ PrrSender::PrrSender()
     : bytes_sent_since_loss_(0),
       bytes_delivered_since_loss_(0),
       ack_count_since_loss_(0),
-      bytes_in_flight_before_loss_(0) {
-}
+      bytes_in_flight_before_loss_(0) {}
 
 void PrrSender::OnPacketSent(QuicByteCount sent_bytes) {
-    bytes_sent_since_loss_ += sent_bytes;
+  bytes_sent_since_loss_ += sent_bytes;
 }
 
 void PrrSender::OnPacketLost(QuicByteCount bytes_in_flight) {

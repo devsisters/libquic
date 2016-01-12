@@ -41,8 +41,8 @@ SpdyAltSvcWireFormat::AlternativeService::AlternativeService() {}
 SpdyAltSvcWireFormat::AlternativeService::AlternativeService(
     const std::string& protocol_id,
     const std::string& host,
-    uint16 port,
-    uint32 max_age,
+    uint16_t port,
+    uint32_t max_age,
     double probability,
     VersionVector version)
     : protocol_id(protocol_id),
@@ -103,13 +103,13 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
     }
     DCHECK_EQ('"', *c);
     std::string host;
-    uint16 port;
+    uint16_t port;
     if (!ParseAltAuthority(alt_authority_begin, c, &host, &port)) {
       return false;
     }
     ++c;
     // Parse parameters.
-    uint32 max_age = 86400;
+    uint32_t max_age = 86400;
     double probability = 1.0;
     VersionVector version;
     StringPiece::const_iterator parameters_end = std::find(c, value.end(), ',');
@@ -174,7 +174,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
           while (v_end < c - 1 && *v_end != ',') {
             ++v_end;
           }
-          uint16 v;
+          uint16_t v;
           if (!ParsePositiveInteger16(v_begin, v_end, &v)) {
             return false;
           }
@@ -312,7 +312,7 @@ bool SpdyAltSvcWireFormat::PercentDecode(StringPiece::const_iterator c,
 bool SpdyAltSvcWireFormat::ParseAltAuthority(StringPiece::const_iterator c,
                                              StringPiece::const_iterator end,
                                              std::string* host,
-                                             uint16* port) {
+                                             uint16_t* port) {
   host->clear();
   for (; c != end && *c != ':'; ++c) {
     if (*c == '"') {
@@ -339,16 +339,16 @@ bool SpdyAltSvcWireFormat::ParseAltAuthority(StringPiece::const_iterator c,
 bool SpdyAltSvcWireFormat::ParsePositiveInteger16(
     StringPiece::const_iterator c,
     StringPiece::const_iterator end,
-    uint16* value) {
-  return ParsePositiveIntegerImpl<uint16>(c, end, value);
+    uint16_t* value) {
+  return ParsePositiveIntegerImpl<uint16_t>(c, end, value);
 }
 
 // static
 bool SpdyAltSvcWireFormat::ParsePositiveInteger32(
     StringPiece::const_iterator c,
     StringPiece::const_iterator end,
-    uint32* value) {
-  return ParsePositiveIntegerImpl<uint32>(c, end, value);
+    uint32_t* value) {
+  return ParsePositiveIntegerImpl<uint32_t>(c, end, value);
 }
 
 // Probability is a decimal fraction between 0.0 and 1.0, inclusive, with

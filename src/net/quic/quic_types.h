@@ -10,6 +10,7 @@
 // including quic_protocol.h.
 
 #include <stddef.h>
+
 #include <ostream>
 
 #include "net/base/net_export.h"
@@ -24,8 +25,8 @@ struct NET_EXPORT_PRIVATE QuicConsumedData {
   // member causes this object to have padding bytes, which causes the
   // default gtest object printer to read uninitialize memory. So we need
   // to teach gtest how to print this object.
-  NET_EXPORT_PRIVATE friend std::ostream& operator<<(
-      std::ostream& os, const QuicConsumedData& s);
+  NET_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
+                                                     const QuicConsumedData& s);
 
   // How many bytes were consumed.
   size_t bytes_consumed;
@@ -60,7 +61,7 @@ struct NET_EXPORT_PRIVATE WriteResult {
   WriteStatus status;
   union {
     int bytes_written;  // only valid when status is WRITE_STATUS_OK
-    int error_code;  // only valid when status is WRITE_STATUS_ERROR
+    int error_code;     // only valid when status is WRITE_STATUS_ERROR
   };
 };
 

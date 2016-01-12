@@ -5,9 +5,11 @@
 #ifndef NET_SPDY_SPDY_FRAME_BUILDER_H_
 #define NET_SPDY_SPDY_FRAME_BUILDER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/sys_byteorder.h"
@@ -54,13 +56,13 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   // Used only for SPDY versions <4.
   bool WriteControlFrameHeader(const SpdyFramer& framer,
                                SpdyFrameType type,
-                               uint8 flags);
+                               uint8_t flags);
 
   // Populates this frame with a SPDY data frame header using version-specific
   // information from the |framer| and length information from capacity_.
   bool WriteDataFrameHeader(const SpdyFramer& framer,
                             SpdyStreamId stream_id,
-                            uint8 flags);
+                            uint8_t flags);
 
   // Populates this frame with a SPDY4/HTTP2 frame prefix using
   // version-specific information from the |framer| and length information from
@@ -68,7 +70,7 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   // Used only for SPDY versions >=4.
   bool BeginNewFrame(const SpdyFramer& framer,
                      SpdyFrameType type,
-                     uint8 flags,
+                     uint8_t flags,
                      SpdyStreamId stream_id);
 
   // Takes the buffer from the SpdyFrameBuilder.
@@ -88,31 +90,29 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   // Methods for adding to the payload.  These values are appended to the end
   // of the SpdyFrameBuilder payload. Note - binary integers are converted from
   // host to network form.
-  bool WriteUInt8(uint8 value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteUInt16(uint16 value) {
+  bool WriteUInt8(uint8_t value) { return WriteBytes(&value, sizeof(value)); }
+  bool WriteUInt16(uint16_t value) {
     value = base::HostToNet16(value);
     return WriteBytes(&value, sizeof(value));
   }
-  bool WriteUInt24(uint32 value) {
+  bool WriteUInt24(uint32_t value) {
     value = base::HostToNet32(value);
     return WriteBytes(reinterpret_cast<char*>(&value) + 1,
                       sizeof(value) - 1);
   }
-  bool WriteUInt32(uint32 value) {
+  bool WriteUInt32(uint32_t value) {
     value = base::HostToNet32(value);
     return WriteBytes(&value, sizeof(value));
   }
-  bool WriteUInt64(uint64 value) {
-    uint32 upper = base::HostToNet32(static_cast<uint32>(value >> 32));
-    uint32 lower = base::HostToNet32(static_cast<uint32>(value));
+  bool WriteUInt64(uint64_t value) {
+    uint32_t upper = base::HostToNet32(static_cast<uint32_t>(value >> 32));
+    uint32_t lower = base::HostToNet32(static_cast<uint32_t>(value));
     return (WriteBytes(&upper, sizeof(upper)) &&
             WriteBytes(&lower, sizeof(lower)));
   }
   bool WriteStringPiece16(const base::StringPiece& value);
   bool WriteStringPiece32(const base::StringPiece& value);
-  bool WriteBytes(const void* data, uint32 data_len);
+  bool WriteBytes(const void* data, uint32_t data_len);
 
   // Update (in-place) the length field in the frame being built to reflect the
   // current actual length of bytes written to said frame through this builder.
@@ -131,7 +131,7 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   // Update (in-place) the flags field in the frame being built to reflect the
   // given flags value.
   // Used only for SPDY versions >=4.
-  bool OverwriteFlags(const SpdyFramer& framer, uint8 flags);
+  bool OverwriteFlags(const SpdyFramer& framer, uint8_t flags);
 
  private:
   // Checks to make sure that there is an appropriate amount of space for a

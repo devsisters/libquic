@@ -5,6 +5,8 @@
 #ifndef NET_QUIC_QUIC_SERVER_ID_H_
 #define NET_QUIC_QUIC_SERVER_ID_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "net/base/host_port_pair.h"
@@ -18,11 +20,10 @@ namespace net {
 class NET_EXPORT_PRIVATE QuicServerId {
  public:
   QuicServerId();
-  QuicServerId(const HostPortPair& host_port_pair,
-               PrivacyMode privacy_mode);
-  QuicServerId(const std::string& host, uint16 port);
+  QuicServerId(const HostPortPair& host_port_pair, PrivacyMode privacy_mode);
+  QuicServerId(const std::string& host, uint16_t port);
   QuicServerId(const std::string& host,
-               uint16 port,
+               uint16_t port,
                PrivacyMode privacy_mode);
   ~QuicServerId();
 
@@ -45,7 +46,7 @@ class NET_EXPORT_PRIVATE QuicServerId {
 
   const std::string& host() const { return host_port_pair_.host(); }
 
-  uint16 port() const { return host_port_pair_.port(); }
+  uint16_t port() const { return host_port_pair_.port(); }
 
   PrivacyMode privacy_mode() const { return privacy_mode_; }
 

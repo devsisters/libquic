@@ -5,11 +5,13 @@
 #ifndef NET_QUIC_CRYPTO_STRIKE_REGISTER_H_
 #define NET_QUIC_CRYPTO_STRIKE_REGISTER_H_
 
+#include <stdint.h>
+
 #include <set>
 #include <utility>
 #include <vector>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 
@@ -89,17 +91,17 @@ class NET_EXPORT_PRIVATE StrikeRegister {
   };
 
   // An external node takes 24 bytes as we don't record the orbit.
-  static const uint32 kExternalNodeSize;
+  static const uint32_t kExternalNodeSize;
 
   // We address the nodes by their index in the array. This means that 0 is a
   // valid index. Therefore this is our invalid index. It also has a one bit
   // in the LSB position because we tend to store indexes shifted up 8 bits
   // and this distinguishes kNil from (kExternalFlag | 0) << 8.
-  static const uint32 kNil;
+  static const uint32_t kNil;
 
   // Our pointers from internal nodes can either point to an internal or
   // external node. We flag the 24th bit to mark a pointer as external.
-  static const uint32 kExternalFlag;
+  static const uint32_t kExternalFlag;
 
   // Allows early validation before a strike register is created.
   static void ValidateStrikeRegisterConfig(unsigned max_entries);
@@ -113,9 +115,9 @@ class NET_EXPORT_PRIVATE StrikeRegister {
   // (Note that this code is independent of the actual units of time used, but
   // you should use seconds.)
   StrikeRegister(unsigned max_entries,
-                 uint32 current_time_external,
-                 uint32 window_secs,
-                 const uint8 orbit[8],
+                 uint32_t current_time_external,
+                 uint32_t window_secs,
+                 const uint8_t orbit[8],
                  StartupType startup);
 
   ~StrikeRegister();
@@ -137,14 +139,14 @@ class NET_EXPORT_PRIVATE StrikeRegister {
   //   20 bytes of random data
   //
   // Otherwise, it inserts |nonce| into the observed set and returns NONCE_OK.
-  InsertStatus Insert(const uint8 nonce[32], uint32 current_time);
+  InsertStatus Insert(const uint8_t nonce[32], uint32_t current_time);
 
   // orbit returns a pointer to the 8-byte orbit value for this
   // strike-register.
-  const uint8* orbit() const;
+  const uint8_t* orbit() const;
 
   // Time window for which the strike register has complete information.
-  uint32 GetCurrentValidWindowSecs(uint32 current_time_external) const;
+  uint32_t GetCurrentValidWindowSecs(uint32_t current_time_external) const;
 
   // This is a debugging aid which checks the tree for sanity.
   void Validate();
@@ -152,65 +154,66 @@ class NET_EXPORT_PRIVATE StrikeRegister {
  private:
   class InternalNode;
 
-  // TimeFromBytes returns a big-endian uint32 from |d|.
-  static uint32 TimeFromBytes(const uint8 d[4]);
+  // TimeFromBytes returns a big-endian uint32_t from |d|.
+  static uint32_t TimeFromBytes(const uint8_t d[4]);
 
   // Range of internal times for which the strike register has
   // complete information.  A nonce is within the valid range of the
   // strike register if:
   //   valid_range.first <= nonce_time_internal <= valid_range.second
-  std::pair<uint32, uint32> GetValidRange(uint32 current_time_internal) const;
+  std::pair<uint32_t, uint32_t> GetValidRange(
+      uint32_t current_time_internal) const;
 
   // ExternalTimeToInternal converts an external time value into an internal
   // time value using |internal_epoch_|.
-  uint32 ExternalTimeToInternal(uint32 external_time) const;
+  uint32_t ExternalTimeToInternal(uint32_t external_time) const;
 
   // BestMatch returns either kNil, or an external node index which could
   // possibly match |v|.
-  uint32 BestMatch(const uint8 v[24]) const;
+  uint32_t BestMatch(const uint8_t v[24]) const;
 
   // external_node_next_ptr returns the 'next' pointer embedded in external
   // node |i|. This is used to thread a free list through the external nodes.
-  uint32& external_node_next_ptr(unsigned i);
+  uint32_t& external_node_next_ptr(unsigned i);
 
-  uint8* external_node(unsigned i);
+  uint8_t* external_node(unsigned i);
 
-  uint32 GetFreeExternalNode();
+  uint32_t GetFreeExternalNode();
 
-  uint32 GetFreeInternalNode();
+  uint32_t GetFreeInternalNode();
 
   // DropOldestNode removes the oldest node in the tree and updates |horizon_|
   // accordingly.
   void DropOldestNode();
 
-  void FreeExternalNode(uint32 index);
+  void FreeExternalNode(uint32_t index);
 
-  void FreeInternalNode(uint32 index);
+  void FreeInternalNode(uint32_t index);
 
-  void ValidateTree(uint32 internal_node,
+  void ValidateTree(uint32_t internal_node,
                     int last_bit,
                     const std::vector<std::pair<unsigned, bool>>& bits,
-                    const std::set<uint32>& free_internal_nodes,
-                    const std::set<uint32>& free_external_nodes,
-                    std::set<uint32>* used_internal_nodes,
-                    std::set<uint32>* used_external_nodes);
+                    const std::set<uint32_t>& free_internal_nodes,
+                    const std::set<uint32_t>& free_external_nodes,
+                    std::set<uint32_t>* used_internal_nodes,
+                    std::set<uint32_t>* used_external_nodes);
 
-  const uint32 max_entries_;
-  const uint32 window_secs_;
+  const uint32_t max_entries_;
+  const uint32_t window_secs_;
   // internal_epoch_ contains the external time value of the start of internal
   // time.
-  const uint32 internal_epoch_;
-  uint8 orbit_[8];
+  const uint32_t internal_epoch_;
+  uint8_t orbit_[8];
   // The strike register will reject nonces with internal times < |horizon_| .
-  uint32 horizon_;
+  uint32_t horizon_;
 
-  uint32 internal_node_free_head_;
-  uint32 external_node_free_head_;
-  uint32 internal_node_head_;
+  uint32_t internal_node_free_head_;
+  uint32_t external_node_free_head_;
+  uint32_t internal_node_head_;
   // internal_nodes_ can't be a scoped_ptr because the type isn't defined in
   // this header.
   InternalNode* internal_nodes_;
-  scoped_ptr<uint8[]> external_nodes_;
+  scoped_ptr<uint8_t[]> external_nodes_;
 
   DISALLOW_COPY_AND_ASSIGN(StrikeRegister);
 };

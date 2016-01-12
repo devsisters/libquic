@@ -5,10 +5,12 @@
 #ifndef NET_QUIC_CRYPTO_CRYPTO_FRAMER_H_
 #define NET_QUIC_CRYPTO_CRYPTO_FRAMER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <utility>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
@@ -55,6 +57,7 @@ class NET_EXPORT_PRIVATE CryptoFramer {
   }
 
   QuicErrorCode error() const { return error_; }
+  const std::string& error_detail() const { return error_detail_; }
 
   // Processes input data, which must be delivered in order. Returns
   // false if there was an error, and true otherwise.
@@ -79,7 +82,7 @@ class NET_EXPORT_PRIVATE CryptoFramer {
 
   static bool WritePadTag(QuicDataWriter* writer,
                           size_t pad_length,
-                          uint32* end_offset);
+                          uint32_t* end_offset);
 
   // Represents the current state of the parsing state machine.
   enum CryptoFramerState {
@@ -99,8 +102,10 @@ class NET_EXPORT_PRIVATE CryptoFramer {
   CryptoFramerState state_;
   // The message currently being parsed.
   CryptoHandshakeMessage message_;
+  // The issue which caused |error_|
+  std::string error_detail_;
   // Number of entires in the message currently being parsed.
-  uint16 num_entries_;
+  uint16_t num_entries_;
   // tags_and_lengths_ contains the tags that are currently being parsed and
   // their lengths.
   std::vector<std::pair<QuicTag, size_t>> tags_and_lengths_;

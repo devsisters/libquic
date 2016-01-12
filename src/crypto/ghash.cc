@@ -4,6 +4,9 @@
 
 #include "crypto/ghash.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <algorithm>
 
 #include "base/logging.h"
@@ -27,14 +30,14 @@ namespace crypto {
 namespace {
 
 // Get64 reads a 64-bit, big-endian number from |bytes|.
-uint64 Get64(const uint8 bytes[8]) {
-  uint64 t;
+uint64_t Get64(const uint8_t bytes[8]) {
+  uint64_t t;
   memcpy(&t, bytes, sizeof(t));
   return base::NetToHost64(t);
 }
 
 // Put64 writes |x| to |bytes| as a 64-bit, big-endian number.
-void Put64(uint8 bytes[8], uint64 x) {
+void Put64(uint8_t bytes[8], uint64_t x) {
   x = base::HostToNet64(x);
   memcpy(bytes, &x, sizeof(x));
 }
@@ -48,7 +51,7 @@ int Reverse(int i) {
 
 }  // namespace
 
-GaloisHash::GaloisHash(const uint8 key[16]) {
+GaloisHash::GaloisHash(const uint8_t key[16]) {
   Reset();
 
   // We precompute 16 multiples of |key|. However, when we do lookups into this
@@ -76,13 +79,13 @@ void GaloisHash::Reset() {
   y_.hi = 0;
 }
 
-void GaloisHash::UpdateAdditional(const uint8* data, size_t length) {
+void GaloisHash::UpdateAdditional(const uint8_t* data, size_t length) {
   DCHECK_EQ(state_, kHashingAdditionalData);
   additional_bytes_ += length;
   Update(data, length);
 }
 
-void GaloisHash::UpdateCiphertext(const uint8* data, size_t length) {
+void GaloisHash::UpdateCiphertext(const uint8_t* data, size_t length) {
   if (state_ == kHashingAdditionalData) {
     // If there's any remaining additional data it's zero padded to the next
     // full block.
@@ -118,9 +121,9 @@ void GaloisHash::Finish(void* output, size_t len) {
   y_.hi ^= ciphertext_bytes_*8;
   MulAfterPrecomputation(product_table_, &y_);
 
-  uint8 *result, result_tmp[16];
+  uint8_t *result, result_tmp[16];
   if (len >= 16) {
-    result = reinterpret_cast<uint8*>(output);
+    result = reinterpret_cast<uint8_t*>(output);
   } else {
     result = result_tmp;
   }
@@ -177,7 +180,7 @@ void GaloisHash::MulAfterPrecomputation(const FieldElement* table,
   // characteristic 2 fields, repeated doublings are exceptionally cheap and
   // it's not worth spending more precomputation time to eliminate them.
   for (unsigned i = 0; i < 2; i++) {
-    uint64 word;
+    uint64_t word;
     if (i == 0) {
       word = x->hi;
     } else {
@@ -205,9 +208,9 @@ void GaloisHash::MulAfterPrecomputation(const FieldElement* table,
 // least-significant 8 bits, save for the term at x^128. Therefore we can
 // precompute the value to be added to the field element for each of the 16 bit
 // patterns at 2**128 and the values fit within 12 bits.
-static const uint16 kReductionTable[16] = {
-  0x0000, 0x1c20, 0x3840, 0x2460, 0x7080, 0x6ca0, 0x48c0, 0x54e0,
-  0xe100, 0xfd20, 0xd940, 0xc560, 0x9180, 0x8da0, 0xa9c0, 0xb5e0,
+static const uint16_t kReductionTable[16] = {
+    0x0000, 0x1c20, 0x3840, 0x2460, 0x7080, 0x6ca0, 0x48c0, 0x54e0,
+    0xe100, 0xfd20, 0xd940, 0xc560, 0x9180, 0x8da0, 0xa9c0, 0xb5e0,
 };
 
 // static
@@ -216,10 +219,10 @@ void GaloisHash::Mul16(FieldElement* x) {
   x->hi >>= 4;
   x->hi |= x->low << 60;
   x->low >>= 4;
-  x->low ^= static_cast<uint64>(kReductionTable[msw]) << 48;
+  x->low ^= static_cast<uint64_t>(kReductionTable[msw]) << 48;
 }
 
-void GaloisHash::UpdateBlocks(const uint8* bytes, size_t num_blocks) {
+void GaloisHash::UpdateBlocks(const uint8_t* bytes, size_t num_blocks) {
   for (size_t i = 0; i < num_blocks; i++) {
     y_.low ^= Get64(bytes);
     bytes += 8;
@@ -229,7 +232,7 @@ void GaloisHash::UpdateBlocks(const uint8* bytes, size_t num_blocks) {
   }
 }
 
-void GaloisHash::Update(const uint8* data, size_t length) {
+void GaloisHash::Update(const uint8_t* data, size_t length) {
   if (buf_used_ > 0) {
     const size_t n = std::min(length, sizeof(buf_) - buf_used_);
     memcpy(&buf_[buf_used_], data, n);

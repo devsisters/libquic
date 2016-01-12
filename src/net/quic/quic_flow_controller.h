@@ -5,7 +5,7 @@
 #ifndef NET_QUIC_QUIC_FLOW_CONTROLLER_H_
 #define NET_QUIC_QUIC_FLOW_CONTROLLER_H_
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
 
@@ -138,7 +138,6 @@ class NET_EXPORT_PRIVATE QuicFlowController {
   // The highest byte offset we have seen from the peer. This could be the
   // highest offset in a data frame, or a final value in a RST.
   QuicStreamOffset highest_received_byte_offset_;
-
 
   // The absolute offset in the incoming byte stream. The peer should never send
   // us bytes which are beyond this offset.

@@ -5,8 +5,11 @@
 #ifndef NET_QUIC_QUIC_CRYPTO_SERVER_STREAM_H_
 #define NET_QUIC_QUIC_CRYPTO_SERVER_STREAM_H_
 
+#include <stdint.h>
+
 #include <string>
 
+#include "base/macros.h"
 #include "net/quic/crypto/crypto_handshake.h"
 #include "net/quic/crypto/quic_crypto_server_config.h"
 #include "net/quic/proto/source_address_token.pb.h"
@@ -75,8 +78,8 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
   virtual void OnServerHelloAcked() = 0;
 
   // These are all accessors and setters to their respective counters.
-  virtual uint8 NumHandshakeMessages() const = 0;
-  virtual uint8 NumHandshakeMessagesWithServerNonces() const = 0;
+  virtual uint8_t NumHandshakeMessages() const = 0;
+  virtual uint8_t NumHandshakeMessagesWithServerNonces() const = 0;
   virtual bool UseStatelessRejectsIfPeerSupported() const = 0;
   virtual bool PeerSupportsStatelessRejects() const = 0;
   virtual void SetPeerSupportsStatelessRejects(bool set) = 0;
@@ -101,8 +104,8 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStream
   void SendServerConfigUpdate(
       const CachedNetworkParameters* cached_network_params) override;
   void OnServerHelloAcked() override;
-  uint8 NumHandshakeMessages() const override;
-  uint8 NumHandshakeMessagesWithServerNonces() const override;
+  uint8_t NumHandshakeMessages() const override;
+  uint8_t NumHandshakeMessagesWithServerNonces() const override;
   int NumServerConfigUpdateMessagesSent() const override;
   const CachedNetworkParameters* PreviousCachedNetworkParams() const override;
   bool UseStatelessRejectsIfPeerSupported() const override;
@@ -174,12 +177,12 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStream
   ValidateCallback* validate_client_hello_cb_;
 
   // Number of handshake messages received by this stream.
-  uint8 num_handshake_messages_;
+  uint8_t num_handshake_messages_;
 
   // Number of handshake messages received by this stream that contain
   // server nonces (indicating that this is a non-zero-RTT handshake
   // attempt).
-  uint8 num_handshake_messages_with_server_nonces_;
+  uint8_t num_handshake_messages_with_server_nonces_;
 
   // Number of server config update (SCUP) messages sent by this stream.
   int num_server_config_update_messages_sent_;

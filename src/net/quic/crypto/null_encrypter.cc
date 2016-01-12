@@ -16,7 +16,9 @@ const size_t kHashSizeShort = 12;  // size of uint128 serialized short
 
 NullEncrypter::NullEncrypter() {}
 
-bool NullEncrypter::SetKey(StringPiece key) { return key.empty(); }
+bool NullEncrypter::SetKey(StringPiece key) {
+  return key.empty();
+}
 
 bool NullEncrypter::SetNoncePrefix(StringPiece nonce_prefix) {
   return nonce_prefix.empty();
@@ -44,9 +46,13 @@ bool NullEncrypter::EncryptPacket(QuicPacketNumber /*packet_number*/,
   return true;
 }
 
-size_t NullEncrypter::GetKeySize() const { return 0; }
+size_t NullEncrypter::GetKeySize() const {
+  return 0;
+}
 
-size_t NullEncrypter::GetNoncePrefixSize() const { return 0; }
+size_t NullEncrypter::GetNoncePrefixSize() const {
+  return 0;
+}
 
 size_t NullEncrypter::GetMaxPlaintextSize(size_t ciphertext_size) const {
   return ciphertext_size - GetHashLength();
@@ -56,9 +62,13 @@ size_t NullEncrypter::GetCiphertextSize(size_t plaintext_size) const {
   return plaintext_size + GetHashLength();
 }
 
-StringPiece NullEncrypter::GetKey() const { return StringPiece(); }
+StringPiece NullEncrypter::GetKey() const {
+  return StringPiece();
+}
 
-StringPiece NullEncrypter::GetNoncePrefix() const { return StringPiece(); }
+StringPiece NullEncrypter::GetNoncePrefix() const {
+  return StringPiece();
+}
 
 size_t NullEncrypter::GetHashLength() const {
   return kHashSizeShort;

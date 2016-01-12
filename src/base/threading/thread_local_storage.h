@@ -7,7 +7,8 @@
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/macros.h"
+#include "build/build_config.h"
 
 #if defined(OS_WIN)
 #include <windows.h>

@@ -5,10 +5,12 @@
 #ifndef NET_QUIC_QUIC_STREAM_SEQUENCER_H_
 #define NET_QUIC_QUIC_STREAM_SEQUENCER_H_
 
+#include <stddef.h>
+
 #include <map>
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "net/quic/quic_frame_list.h"
 #include "net/quic/quic_protocol.h"
 

@@ -5,6 +5,7 @@
 #include "url/url_canon_internal.h"
 
 #include <errno.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 #include <cstdio>

@@ -8,6 +8,7 @@
 #include "base/compiler_specific.h"
 #include "base/debug/leak_annotations.h"
 #include "base/lazy_instance.h"
+#include "base/macros.h"
 #include "base/task_runner.h"
 #include "base/threading/post_task_and_reply_impl.h"
 #include "base/tracked_objects.h"

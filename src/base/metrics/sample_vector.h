@@ -8,11 +8,14 @@
 #ifndef BASE_METRICS_SAMPLE_VECTOR_H_
 #define BASE_METRICS_SAMPLE_VECTOR_H_
 
+#include <stddef.h>
 #include <stdint.h>
+
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"

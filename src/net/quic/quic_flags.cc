@@ -14,7 +14,7 @@ bool FLAGS_use_early_return_when_verifying_chlo = true;
 // If true, QUIC connections will support FEC protection of data while sending
 // packets, to reduce latency of data delivery to the application. The client
 // must also request FEC protection for the server to use FEC.
-bool FLAGS_enable_quic_fec = true;
+bool FLAGS_enable_quic_fec = false;
 
 // When true, defaults to BBR congestion control instead of Cubic.
 bool FLAGS_quic_use_bbr_congestion_control = false;
@@ -25,7 +25,7 @@ bool FLAGS_quic_allow_bbr = false;
 
 // Time period for which a given connection_id should live in the time-wait
 // state.
-int64 FLAGS_quic_time_wait_list_seconds = 200;
+int64_t FLAGS_quic_time_wait_list_seconds = 200;
 
 // Currently, this number is quite conservative.  The max QPS limit for an
 // individual server silo is currently set to 1000 qps, though the actual max
@@ -36,7 +36,7 @@ int64 FLAGS_quic_time_wait_list_seconds = 200;
 //
 // Maximum number of connections on the time-wait list. A negative value implies
 // no configured limit.
-int64 FLAGS_quic_time_wait_list_max_connections = 600000;
+int64_t FLAGS_quic_time_wait_list_max_connections = 600000;
 
 // Enables server-side support for QUIC stateless rejects.
 bool FLAGS_enable_quic_stateless_reject_support = true;
@@ -72,9 +72,6 @@ bool FLAGS_quic_disable_pacing = false;
 // TcpLossAlgorithm or TimeLossAlgorithm.
 bool FLAGS_quic_general_loss_algorithm = true;
 
-// If true, use the unrolled prefetch path in QuicPacketCreator::CopyToBuffer.
-bool FLAGS_quic_packet_creator_prefetch = false;
-
 // If true, only migrate QUIC connections when client address changes are
 // considered to be caused by NATs.
 bool FLAGS_quic_disable_non_nat_address_migration = true;
@@ -88,7 +85,7 @@ bool FLAGS_quic_use_new_idle_timeout = true;
 bool FLAGS_quic_use_stream_sequencer_buffer = true;
 
 // If true, don't send QUIC packets if the send alarm is set.
-bool FLAGS_quic_respect_send_alarm = true;
+bool FLAGS_quic_respect_send_alarm2 = true;
 
 // If ture, sets callback pointer to nullptr after calling Cancel() in
 // QuicCryptoServerStream::CancelOutstandingCallbacks.
@@ -133,3 +130,12 @@ bool FLAGS_quic_new_blocked_list = true;
 
 // If true, use inplace encryption for QUIC.
 bool FLAGS_quic_inplace_encryption = true;
+
+// If true, QUIC will support RFC 7539 variants of ChaCha20 Poly1305.
+bool FLAGS_quic_use_rfc7539 = true;
+
+// If true, drop not awaited QUIC packets before decrypting them.
+bool FLAGS_quic_drop_non_awaited_packets = false;
+
+// If true, use the fast implementation of IncrementalHash/FNV1a_128_Hash.
+bool FLAGS_quic_utils_use_fast_incremental_hash = true;

@@ -7,6 +7,8 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sched.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 
@@ -16,6 +18,7 @@
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
+#include "build/build_config.h"
 
 #if defined(OS_LINUX)
 #include <sys/syscall.h>
@@ -136,9 +139,9 @@ PlatformThreadId PlatformThread::CurrentId() {
   return pthread_self();
 #elif defined(OS_NACL) && !defined(__GLIBC__)
   // Pointers are 32-bits in NaCl.
-  return reinterpret_cast<int32>(pthread_self());
+  return reinterpret_cast<int32_t>(pthread_self());
 #elif defined(OS_POSIX)
-  return reinterpret_cast<int64>(pthread_self());
+  return reinterpret_cast<int64_t>(pthread_self());
 #endif
 }
 

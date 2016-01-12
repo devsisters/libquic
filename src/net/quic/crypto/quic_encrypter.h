@@ -5,6 +5,8 @@
 #ifndef NET_QUIC_CRYPTO_QUIC_ENCRYPTER_H_
 #define NET_QUIC_CRYPTO_QUIC_ENCRYPTER_H_
 
+#include <stddef.h>
+
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
 

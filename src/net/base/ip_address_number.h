@@ -5,10 +5,12 @@
 #ifndef NET_BASE_IP_ADDRESS_NUMBER_H_
 #define NET_BASE_IP_ADDRESS_NUMBER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 
@@ -23,8 +25,7 @@ namespace net {
 // TODO(Martijnc): Remove the IPAddressNumber typedef. New code should use
 // IPAddress instead and existing code should be switched over.
 // https://crbug.com/496258
-typedef std::vector<unsigned char>
-    IPAddressNumber;  // This is also duplicated in net_util.h
+typedef std::vector<unsigned char> IPAddressNumber;
 typedef std::vector<IPAddressNumber> IPAddressList;
 
 static const size_t kIPv4AddressSize = 4;

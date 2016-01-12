@@ -37,10 +37,11 @@
   TypeName() = delete;                           \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
-// The arraysize(arr) macro returns the # of elements in an array arr.
-// The expression is a compile-time constant, and therefore can be
-// used in defining new arrays, for example.  If you use arraysize on
-// a pointer by mistake, you will get a compile-time error.
+// The arraysize(arr) macro returns the # of elements in an array arr.  The
+// expression is a compile-time constant, and therefore can be used in defining
+// new arrays, for example.  If you use arraysize on a pointer by mistake, you
+// will get a compile-time error.  For the technical details, refer to
+// http://blogs.msdn.com/b/the1/archive/2004/05/07/128242.aspx.
 
 // This template function declaration is used in defining arraysize.
 // Note that the function doesn't need an implementation, as we only
@@ -54,7 +55,7 @@ template <typename T, size_t N> char (&ArraySizeHelper(T (&array)[N]))[N];
 // support.
 //
 //   float f = 3.14159265358979;
-//   int i = bit_cast<int32>(f);
+//   int i = bit_cast<int32_t>(f);
 //   // i = 0x40490fdb
 //
 // The classical address-casting method is:

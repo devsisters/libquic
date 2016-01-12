@@ -5,6 +5,7 @@
 #ifndef BASE_RAND_UTIL_H_
 #define BASE_RAND_UTIL_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <string>

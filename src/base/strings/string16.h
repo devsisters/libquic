@@ -26,11 +26,13 @@
 // libc functions with custom, 2-byte-char compatible routines. It is capable
 // of carrying UTF-16-encoded data.
 
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "build/build_config.h"
 
 #if defined(WCHAR_T_IS_UTF16)
 
@@ -46,7 +48,7 @@ typedef std::char_traits<wchar_t> string16_char_traits;
 
 namespace base {
 
-typedef uint16 char16;
+typedef uint16_t char16;
 
 // char16 versions of the functions required by string16_char_traits; these
 // are based on the wide character functions of similar names ("w" or "wcs"

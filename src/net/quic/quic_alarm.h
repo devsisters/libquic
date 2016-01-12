@@ -5,6 +5,7 @@
 #ifndef NET_QUIC_QUIC_ALARM_H_
 #define NET_QUIC_QUIC_ALARM_H_
 
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_time.h"

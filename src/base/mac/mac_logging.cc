@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/mac/mac_logging.h"
+#include "build/build_config.h"
 
 #include <iomanip>
 

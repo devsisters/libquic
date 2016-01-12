@@ -5,10 +5,12 @@
 #ifndef CRYPTO_NSS_UTIL_H_
 #define CRYPTO_NSS_UTIL_H_
 
+#include <stdint.h>
+
 #include <string>
-#include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "crypto/crypto_export.h"
 
 namespace base {
@@ -72,12 +74,12 @@ CRYPTO_EXPORT void InitializeTPMTokenAndSystemSlot(
 #endif
 
 // Convert a NSS PRTime value into a base::Time object.
-// We use a int64 instead of PRTime here to avoid depending on NSPR headers.
-CRYPTO_EXPORT base::Time PRTimeToBaseTime(int64 prtime);
+// We use a int64_t instead of PRTime here to avoid depending on NSPR headers.
+CRYPTO_EXPORT base::Time PRTimeToBaseTime(int64_t prtime);
 
 // Convert a base::Time object into a PRTime value.
-// We use a int64 instead of PRTime here to avoid depending on NSPR headers.
-CRYPTO_EXPORT int64 BaseTimeToPRTime(base::Time time);
+// We use a int64_t instead of PRTime here to avoid depending on NSPR headers.
+CRYPTO_EXPORT int64_t BaseTimeToPRTime(base::Time time);
 
 #if defined(USE_NSS_CERTS)
 // NSS has a bug which can cause a deadlock or stall in some cases when writing

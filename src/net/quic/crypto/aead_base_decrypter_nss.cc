@@ -55,7 +55,7 @@ bool AeadBaseDecrypter::DecryptPacket(QuicPacketNumber packet_number,
     return false;
   }
 
-  uint8 nonce[sizeof(nonce_prefix_) + sizeof(packet_number)];
+  uint8_t nonce[sizeof(nonce_prefix_) + sizeof(packet_number)];
   const size_t nonce_size = nonce_prefix_size_ + sizeof(packet_number);
   DCHECK_LE(nonce_size, sizeof(nonce));
   memcpy(nonce, nonce_prefix_, nonce_prefix_size_);
@@ -99,7 +99,7 @@ bool AeadBaseDecrypter::DecryptPacket(QuicPacketNumber packet_number,
 
   unsigned int output_len;
   if (PK11_Decrypt(aead_key.get(), aead_mechanism_, &param,
-                   reinterpret_cast<uint8*>(output), &output_len,
+                   reinterpret_cast<uint8_t*>(output), &output_len,
                    max_output_length,
                    reinterpret_cast<const unsigned char*>(ciphertext.data()),
                    ciphertext.length()) != SECSuccess) {

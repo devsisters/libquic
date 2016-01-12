@@ -7,8 +7,10 @@
 
 #include "base/base_export.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/synchronization/lock_impl.h"
 #include "base/threading/platform_thread.h"
+#include "build/build_config.h"
 
 namespace base {
 

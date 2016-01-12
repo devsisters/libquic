@@ -5,6 +5,9 @@
 #ifndef NET_QUIC_CRYPTO_CRYPTO_PROTOCOL_H_
 #define NET_QUIC_CRYPTO_CRYPTO_PROTOCOL_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
 #include "net/base/net_export.h"
@@ -14,13 +17,13 @@
 // representation of the name of the tag.  For example
 // the client hello tag (CHLO) will be written as the
 // following 4 bytes: 'C' 'H' 'L' 'O'.  Since it is
-// stored in memory as a little endian uint32, we need
+// stored in memory as a little endian uint32_t, we need
 // to reverse the order of the bytes.
 //
 // We use a macro to ensure that no static initialisers are created. Use the
 // MakeQuicTag function in normal code.
 #define TAG(a, b, c, d) \
-    static_cast<QuicTag>((d << 24) + (c << 16) + (b << 8) + a)
+  static_cast<QuicTag>((d << 24) + (c << 16) + (b << 8) + a)
 
 namespace net {
 
@@ -45,6 +48,7 @@ const QuicTag kC255 = TAG('C', '2', '5', '5');   // ECDH, Curve25519
 const QuicTag kNULL = TAG('N', 'U', 'L', 'N');   // null algorithm
 const QuicTag kAESG = TAG('A', 'E', 'S', 'G');   // AES128 + GCM-12
 const QuicTag kCC12 = TAG('C', 'C', '1', '2');   // ChaCha20 + Poly1305
+const QuicTag kCC20 = TAG('C', 'C', '2', '0');   // ChaCha20 + Poly1305 RFC7539
 
 // Socket receive buffer
 const QuicTag kSRBF = TAG('S', 'R', 'B', 'F');   // Socket receive buffer
@@ -187,12 +191,10 @@ const QuicTag kFIXD = TAG('F', 'I', 'X', 'D');   // Client hello
 // message because the server mightn't hold state for a rejected client hello
 // and therefore the client may have issues reassembling the rejection message
 // in the event that it sent two client hellos.
-const QuicTag kServerNonceTag =
-    TAG('S', 'N', 'O', 0);  // The server's nonce
+const QuicTag kServerNonceTag = TAG('S', 'N', 'O', 0);  // The server's nonce
 const QuicTag kSourceAddressTokenTag =
     TAG('S', 'T', 'K', 0);  // Source-address token
-const QuicTag kCertificateTag =
-    TAG('C', 'R', 'T', 255);  // Certificate chain
+const QuicTag kCertificateTag = TAG('C', 'R', 'T', 255);  // Certificate chain
 const QuicTag kCertificateSCTTag =
     TAG('C', 'S', 'C', 'T');  // Signed cert timestamp (RFC6962) of leaf cert.
 

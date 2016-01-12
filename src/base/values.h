@@ -9,7 +9,7 @@
 // JavaScript. As such, it is NOT a generalized variant type, since only the
 // types supported by JavaScript/JSON are supported.
 //
-// IN PARTICULAR this means that there is no support for int64 or unsigned
+// IN PARTICULAR this means that there is no support for int64_t or unsigned
 // numbers. Writing JSON with such types would violate the spec. If you need
 // something like this, either use a double or make a string value containing
 // the number you want.
@@ -18,6 +18,7 @@
 #define BASE_VALUES_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include <iosfwd>
 #include <map>
@@ -26,8 +27,8 @@
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"

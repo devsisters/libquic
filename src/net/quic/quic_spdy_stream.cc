@@ -195,12 +195,14 @@ void QuicSpdyStream::OnTrailingHeadersComplete(bool fin, size_t /*frame_len*/) {
   DCHECK(!trailers_decompressed_);
   if (fin_received()) {
     DLOG(ERROR) << "Received Trailers after FIN, on stream: " << id();
-    session()->CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA);
+    session()->CloseConnectionWithDetails(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                          "Trailers after fin");
     return;
   }
   if (!fin) {
     DLOG(ERROR) << "Trailers must have FIN set, on stream: " << id();
-    session()->CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA);
+    session()->CloseConnectionWithDetails(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                          "Fin missing from trailers");
     return;
   }
   trailers_decompressed_ = true;

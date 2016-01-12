@@ -5,6 +5,9 @@
 #ifndef NET_QUIC_CRYPTO_AES_128_GCM_12_ENCRYPTER_H_
 #define NET_QUIC_CRYPTO_AES_128_GCM_12_ENCRYPTER_H_
 
+#include <stddef.h>
+
+#include "base/macros.h"
 #include "net/quic/crypto/aead_base_encrypter.h"
 
 namespace net {

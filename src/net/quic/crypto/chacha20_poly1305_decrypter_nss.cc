@@ -52,7 +52,7 @@ const char* ChaCha20Poly1305Decrypter::cipher_name() const {
   return "ECDHE-RSA-CHACHA20-POLY1305";
 }
 
-uint32 ChaCha20Poly1305Decrypter::cipher_id() const {
+uint32_t ChaCha20Poly1305Decrypter::cipher_id() const {
   // TODO(rtenneti): when Chromium requires NSS 3.15.2 or later, use
   // TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305 instead of 0xCC13.
   // "OR" 0x03000000 to match OpenSSL/BoringSSL implementations.

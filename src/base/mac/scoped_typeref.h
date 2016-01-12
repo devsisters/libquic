@@ -5,7 +5,6 @@
 #ifndef BASE_MAC_SCOPED_TYPEREF_H_
 #define BASE_MAC_SCOPED_TYPEREF_H_
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/scoped_policy.h"
@@ -22,8 +21,12 @@ namespace base {
 //
 //   template<>
 //   struct ScopedTypeRefTraits<CGLContextObj> {
-//     void Retain(CGLContextObj object) { CGLContextRetain(object); }
-//     void Release(CGLContextObj object) { CGLContextRelease(object); }
+//     static CGLContextObj InvalidValue() { return nullptr; }
+//     static CGLContextObj Retain(CGLContextObj object) {
+//       CGLContextRetain(object);
+//       return object;
+//     }
+//     static void Release(CGLContextObj object) { CGLContextRelease(object); }
 //   };
 //
 // For the many types that have pass-by-pointer create functions, the function
@@ -51,17 +54,17 @@ class ScopedTypeRef {
   typedef T element_type;
 
   ScopedTypeRef(
-      T object = NULL,
+      T object = Traits::InvalidValue(),
       base::scoped_policy::OwnershipPolicy policy = base::scoped_policy::ASSUME)
       : object_(object) {
     if (object_ && policy == base::scoped_policy::RETAIN)
-      Traits::Retain(object_);
+      object_ = Traits::Retain(object_);
   }
 
   ScopedTypeRef(const ScopedTypeRef<T, Traits>& that)
       : object_(that.object_) {
     if (object_)
-      Traits::Retain(object_);
+      object_ = Traits::Retain(object_);
   }
 
   ~ScopedTypeRef() {
@@ -82,11 +85,11 @@ class ScopedTypeRef {
     return &object_;
   }
 
-  void reset(T object = NULL,
+  void reset(T object = Traits::InvalidValue(),
              base::scoped_policy::OwnershipPolicy policy =
                 base::scoped_policy::ASSUME) {
     if (object && policy == base::scoped_policy::RETAIN)
-      Traits::Retain(object);
+      object = Traits::Retain(object);
     if (object_)
       Traits::Release(object_);
     object_ = object;
@@ -119,7 +122,7 @@ class ScopedTypeRef {
   // Release(), use ScopedTypeRef<>::reset().
   T release() WARN_UNUSED_RESULT {
     T temp = object_;
-    object_ = NULL;
+    object_ = Traits::InvalidValue();
     return temp;
   }
 

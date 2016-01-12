@@ -5,9 +5,10 @@
 #ifndef BASE_MEMORY_SCOPED_VECTOR_H_
 #define BASE_MEMORY_SCOPED_VECTOR_H_
 
+#include <stddef.h>
+
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/move.h"

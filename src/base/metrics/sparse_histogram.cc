@@ -20,7 +20,7 @@ typedef HistogramBase::Sample Sample;
 
 // static
 HistogramBase* SparseHistogram::FactoryGet(const std::string& name,
-                                           int32 flags) {
+                                           int32_t flags) {
   HistogramBase* histogram = StatisticsRecorder::FindHistogram(name);
 
   if (!histogram) {
@@ -124,7 +124,7 @@ void SparseHistogram::GetParameters(DictionaryValue* params) const {
 }
 
 void SparseHistogram::GetCountAndBucketData(Count* count,
-                                            int64* sum,
+                                            int64_t* sum,
                                             ListValue* buckets) const {
   // TODO(kaiwang): Implement. (See HistogramBase::WriteJSON.)
 }

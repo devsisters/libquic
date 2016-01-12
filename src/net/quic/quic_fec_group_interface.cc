@@ -6,7 +6,6 @@
 
 #include <limits>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
 

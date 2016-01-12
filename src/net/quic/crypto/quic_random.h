@@ -6,8 +6,8 @@
 #define NET_QUIC_CRYPTO_QUIC_RANDOM_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
-#include "base/basictypes.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -25,7 +25,7 @@ class NET_EXPORT_PRIVATE QuicRandom {
   virtual void RandBytes(void* data, size_t len) = 0;
 
   // Returns a random number in the range [0, kuint64max].
-  virtual uint64 RandUint64() = 0;
+  virtual uint64_t RandUint64() = 0;
 
   // Reseeds the random number generator with additional entropy input.
   // NOTE: the constructor of a QuicRandom object is responsible for seeding

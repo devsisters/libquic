@@ -4,6 +4,7 @@
 
 #include "net/quic/quic_headers_stream.h"
 
+#include "base/macros.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
 #include "net/quic/quic_flags.h"
@@ -100,7 +101,7 @@ class QuicHeadersStream::SpdyFramerVisitor
     CloseConnection("SPDY RST_STREAM frame received.");
   }
 
-  void OnSetting(SpdySettingsIds id, uint8 flags, uint32 value) override {
+  void OnSetting(SpdySettingsIds id, uint8_t flags, uint32_t value) override {
     CloseConnection("SPDY SETTINGS frame received.");
   }
 
@@ -145,8 +146,7 @@ class QuicHeadersStream::SpdyFramerVisitor
     CloseConnection("SPDY PUSH_PROMISE frame received.");
   }
 
-  void OnContinuation(SpdyStreamId stream_id, bool end) override {
-  }
+  void OnContinuation(SpdyStreamId stream_id, bool end) override {}
 
   bool OnUnknownFrame(SpdyStreamId stream_id, int frame_type) override {
     CloseConnection("Unknown frame type received.");
@@ -170,8 +170,8 @@ class QuicHeadersStream::SpdyFramerVisitor
  private:
   void CloseConnection(const string& details) {
     if (stream_->IsConnected()) {
-      stream_->CloseConnectionWithDetails(
-          QUIC_INVALID_HEADERS_STREAM_DATA, details);
+      stream_->CloseConnectionWithDetails(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                          details);
     }
   }
 

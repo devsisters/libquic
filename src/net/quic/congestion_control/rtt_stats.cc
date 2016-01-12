@@ -32,7 +32,7 @@ RttStats::RttStats()
       num_min_rtt_samples_remaining_(0),
       recent_min_rtt_window_(QuicTime::Delta::Infinite()) {}
 
-void RttStats::SampleNewRecentMinRtt(uint32 num_samples) {
+void RttStats::SampleNewRecentMinRtt(uint32_t num_samples) {
   num_min_rtt_samples_remaining_ = num_samples;
   new_min_rtt_ = RttSample();
 }
@@ -76,14 +76,14 @@ void RttStats::UpdateRtt(QuicTime::Delta send_delta,
   // First time call.
   if (smoothed_rtt_.IsZero()) {
     smoothed_rtt_ = rtt_sample;
-    mean_deviation_ = QuicTime::Delta::FromMicroseconds(
-        rtt_sample.ToMicroseconds() / 2);
+    mean_deviation_ =
+        QuicTime::Delta::FromMicroseconds(rtt_sample.ToMicroseconds() / 2);
   } else {
-    mean_deviation_ = QuicTime::Delta::FromMicroseconds(static_cast<int64>(
+    mean_deviation_ = QuicTime::Delta::FromMicroseconds(static_cast<int64_t>(
         kOneMinusBeta * mean_deviation_.ToMicroseconds() +
         kBeta * std::abs(smoothed_rtt_.Subtract(rtt_sample).ToMicroseconds())));
-    smoothed_rtt_ = smoothed_rtt_.Multiply(kOneMinusAlpha).Add(
-        rtt_sample.Multiply(kAlpha));
+    smoothed_rtt_ =
+        smoothed_rtt_.Multiply(kOneMinusAlpha).Add(rtt_sample.Multiply(kAlpha));
     DVLOG(1) << " smoothed_rtt(us):" << smoothed_rtt_.ToMicroseconds()
              << " mean_deviation(us):" << mean_deviation_.ToMicroseconds();
   }
@@ -118,11 +118,11 @@ void RttStats::UpdateRecentMinRtt(QuicTime::Delta rtt_sample, QuicTime now) {
     half_window_rtt_ = quarter_window_rtt_;
     quarter_window_rtt_ = RttSample(rtt_sample, now);
   } else if (half_window_rtt_.time <
-      now.Subtract(recent_min_rtt_window_.Multiply(kHalfWindow))) {
+             now.Subtract(recent_min_rtt_window_.Multiply(kHalfWindow))) {
     half_window_rtt_ = quarter_window_rtt_;
     quarter_window_rtt_ = RttSample(rtt_sample, now);
   } else if (quarter_window_rtt_.time <
-      now.Subtract(recent_min_rtt_window_.Multiply(kQuarterWindow))) {
+             now.Subtract(recent_min_rtt_window_.Multiply(kQuarterWindow))) {
     quarter_window_rtt_ = RttSample(rtt_sample, now);
   }
 }

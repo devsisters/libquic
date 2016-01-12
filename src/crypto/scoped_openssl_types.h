@@ -13,6 +13,7 @@
 #include <openssl/evp.h>
 #include <openssl/mem.h>
 #include <openssl/rsa.h>
+#include <stdint.h>
 
 #include "base/memory/scoped_ptr.h"
 

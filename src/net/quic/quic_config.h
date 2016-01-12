@@ -5,9 +5,11 @@
 #ifndef NET_QUIC_QUIC_CONFIG_H_
 #define NET_QUIC_QUIC_CONFIG_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
-#include "base/basictypes.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_time.h"
 
@@ -63,9 +65,7 @@ class NET_EXPORT_PRIVATE QuicNegotiableValue : public QuicConfigValue {
   QuicNegotiableValue(QuicTag tag, QuicConfigPresence presence);
   ~QuicNegotiableValue() override;
 
-  bool negotiated() const {
-    return negotiated_;
-  }
+  bool negotiated() const { return negotiated_; }
 
  protected:
   void set_negotiated(bool negotiated) { negotiated_ = negotiated; }
@@ -84,11 +84,11 @@ class NET_EXPORT_PRIVATE QuicNegotiableUint32 : public QuicNegotiableValue {
   // also the default values to be assumed if PRESENCE_OPTIONAL and the *HLO msg
   // doesn't contain a value corresponding to |name_|. |max| is serialised via
   // ToHandshakeMessage call if |negotiated_| is false.
-  void set(uint32 max, uint32 default_value);
+  void set(uint32_t max, uint32_t default_value);
 
   // Returns the value negotiated if |negotiated_| is true, otherwise returns
   // default_value_ (used to set default values before negotiation finishes).
-  uint32 GetUint32() const;
+  uint32_t GetUint32() const;
 
   // Serialises |name_| and value to |out|. If |negotiated_| is true then
   // |negotiated_value_| is serialised, otherwise |max_value_| is serialised.
@@ -103,9 +103,9 @@ class NET_EXPORT_PRIVATE QuicNegotiableUint32 : public QuicNegotiableValue {
                                  std::string* error_details) override;
 
  private:
-  uint32 max_value_;
-  uint32 default_value_;
-  uint32 negotiated_value_;
+  uint32_t max_value_;
+  uint32_t default_value_;
+  uint32_t negotiated_value_;
 };
 
 class NET_EXPORT_PRIVATE QuicNegotiableTag : public QuicNegotiableValue {
@@ -144,7 +144,7 @@ class NET_EXPORT_PRIVATE QuicNegotiableTag : public QuicNegotiableValue {
   QuicTag default_value_;
 };
 
-// Stores uint32 from CHLO or SHLO messages that are not negotiated.
+// Stores uint32_t from CHLO or SHLO messages that are not negotiated.
 class NET_EXPORT_PRIVATE QuicFixedUint32 : public QuicConfigValue {
  public:
   QuicFixedUint32(QuicTag name, QuicConfigPresence presence);
@@ -152,15 +152,15 @@ class NET_EXPORT_PRIVATE QuicFixedUint32 : public QuicConfigValue {
 
   bool HasSendValue() const;
 
-  uint32 GetSendValue() const;
+  uint32_t GetSendValue() const;
 
-  void SetSendValue(uint32 value);
+  void SetSendValue(uint32_t value);
 
   bool HasReceivedValue() const;
 
-  uint32 GetReceivedValue() const;
+  uint32_t GetReceivedValue() const;
 
-  void SetReceivedValue(uint32 value);
+  void SetReceivedValue(uint32_t value);
 
   // If has_send_value is true, serialises |tag_| and |send_value_| to |out|.
   void ToHandshakeMessage(CryptoHandshakeMessage* out) const override;
@@ -171,9 +171,9 @@ class NET_EXPORT_PRIVATE QuicFixedUint32 : public QuicConfigValue {
                                  std::string* error_details) override;
 
  private:
-  uint32 send_value_;
+  uint32_t send_value_;
   bool has_send_value_;
-  uint32 receive_value_;
+  uint32_t receive_value_;
   bool has_receive_value_;
 };
 
@@ -253,7 +253,7 @@ class NET_EXPORT_PRIVATE QuicConfig {
 
   void SetMaxStreamsPerConnection(size_t max_streams, size_t default_streams);
 
-  uint32 MaxStreamsPerConnection() const;
+  uint32_t MaxStreamsPerConnection() const;
 
   void set_max_time_before_crypto_handshake(
       QuicTime::Delta max_time_before_crypto_handshake) {
@@ -285,47 +285,47 @@ class NET_EXPORT_PRIVATE QuicConfig {
   bool HasSetBytesForConnectionIdToSend() const;
 
   // Sets the peer's connection id length, in bytes.
-  void SetBytesForConnectionIdToSend(uint32 bytes);
+  void SetBytesForConnectionIdToSend(uint32_t bytes);
 
   bool HasReceivedBytesForConnectionId() const;
 
-  uint32 ReceivedBytesForConnectionId() const;
+  uint32_t ReceivedBytesForConnectionId() const;
 
   // Sets an estimated initial round trip time in us.
-  void SetInitialRoundTripTimeUsToSend(uint32 rtt_us);
+  void SetInitialRoundTripTimeUsToSend(uint32_t rtt_us);
 
   bool HasReceivedInitialRoundTripTimeUs() const;
 
-  uint32 ReceivedInitialRoundTripTimeUs() const;
+  uint32_t ReceivedInitialRoundTripTimeUs() const;
 
   bool HasInitialRoundTripTimeUsToSend() const;
 
-  uint32 GetInitialRoundTripTimeUsToSend() const;
+  uint32_t GetInitialRoundTripTimeUsToSend() const;
 
   // Sets an initial stream flow control window size to transmit to the peer.
-  void SetInitialStreamFlowControlWindowToSend(uint32 window_bytes);
+  void SetInitialStreamFlowControlWindowToSend(uint32_t window_bytes);
 
-  uint32 GetInitialStreamFlowControlWindowToSend() const;
+  uint32_t GetInitialStreamFlowControlWindowToSend() const;
 
   bool HasReceivedInitialStreamFlowControlWindowBytes() const;
 
-  uint32 ReceivedInitialStreamFlowControlWindowBytes() const;
+  uint32_t ReceivedInitialStreamFlowControlWindowBytes() const;
 
   // Sets an initial session flow control window size to transmit to the peer.
-  void SetInitialSessionFlowControlWindowToSend(uint32 window_bytes);
+  void SetInitialSessionFlowControlWindowToSend(uint32_t window_bytes);
 
-  uint32 GetInitialSessionFlowControlWindowToSend() const;
+  uint32_t GetInitialSessionFlowControlWindowToSend() const;
 
   bool HasReceivedInitialSessionFlowControlWindowBytes() const;
 
-  uint32 ReceivedInitialSessionFlowControlWindowBytes() const;
+  uint32_t ReceivedInitialSessionFlowControlWindowBytes() const;
 
   // Sets socket receive buffer to transmit to the peer.
-  void SetSocketReceiveBufferToSend(uint32 window_bytes);
+  void SetSocketReceiveBufferToSend(uint32_t window_bytes);
 
   bool HasReceivedSocketReceiveBuffer() const;
 
-  uint32 ReceivedSocketReceiveBuffer() const;
+  uint32_t ReceivedSocketReceiveBuffer() const;
 
   bool negotiated() const;
 

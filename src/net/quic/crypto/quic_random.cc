@@ -5,6 +5,7 @@
 #include "net/quic/crypto/quic_random.h"
 
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/memory/singleton.h"
 #include "crypto/random.h"
 
@@ -18,11 +19,11 @@ class DefaultRandom : public QuicRandom {
 
   // QuicRandom implementation
   void RandBytes(void* data, size_t len) override;
-  uint64 RandUint64() override;
+  uint64_t RandUint64() override;
   void Reseed(const void* additional_entropy, size_t entropy_len) override;
 
  private:
-  DefaultRandom() {};
+  DefaultRandom() {}
   ~DefaultRandom() override {}
 
   friend struct base::DefaultSingletonTraits<DefaultRandom>;
@@ -37,8 +38,8 @@ void DefaultRandom::RandBytes(void* data, size_t len) {
   crypto::RandBytes(data, len);
 }
 
-uint64 DefaultRandom::RandUint64() {
-  uint64 value;
+uint64_t DefaultRandom::RandUint64() {
+  uint64_t value;
   RandBytes(&value, sizeof(value));
   return value;
 }
@@ -50,6 +51,8 @@ void DefaultRandom::Reseed(const void* additional_entropy, size_t entropy_len) {
 }  // namespace
 
 // static
-QuicRandom* QuicRandom::GetInstance() { return DefaultRandom::GetInstance(); }
+QuicRandom* QuicRandom::GetInstance() {
+  return DefaultRandom::GetInstance();
+}
 
 }  // namespace net

@@ -9,12 +9,14 @@
 // necessary to not use ICU. Generally, you should not need this in Chrome,
 // but it is used in some shared code. Dependencies should be minimal.
 
+#include <stdint.h>
+
 #include <string>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
+#include "build/build_config.h"
 
 #if defined(OS_MACOSX)
 #include <CoreFoundation/CoreFoundation.h>
@@ -46,9 +48,9 @@ BASE_EXPORT std::wstring SysNativeMBToWide(const StringPiece& native_mb);
 // code page identifier is one accepted by the Windows function
 // MultiByteToWideChar().
 BASE_EXPORT std::wstring SysMultiByteToWide(const StringPiece& mb,
-                                            uint32 code_page);
+                                            uint32_t code_page);
 BASE_EXPORT std::string SysWideToMultiByte(const std::wstring& wide,
-                                           uint32 code_page);
+                                           uint32_t code_page);
 
 #endif  // defined(OS_WIN)
 

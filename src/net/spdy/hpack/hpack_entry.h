@@ -5,9 +5,10 @@
 #ifndef NET_SPDY_HPACK_ENTRY_H_
 #define NET_SPDY_HPACK_ENTRY_H_
 
+#include <stddef.h>
+
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"

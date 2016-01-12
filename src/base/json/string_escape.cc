@@ -4,6 +4,7 @@
 
 #include "base/json/string_escape.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <limits>

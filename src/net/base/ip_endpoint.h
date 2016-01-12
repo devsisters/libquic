@@ -5,9 +5,10 @@
 #ifndef NET_BASE_IP_ENDPOINT_H_
 #define NET_BASE_IP_ENDPOINT_H_
 
+#include <stdint.h>
+
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "net/base/address_family.h"
 #include "net/base/ip_address_number.h"
@@ -18,6 +19,8 @@ struct sockaddr;
 
 namespace net {
 
+class IPAddress;
+
 // An IPEndPoint represents the address of a transport endpoint:
 //  * IP address (either v4 or v6)
 //  * Port
@@ -25,7 +28,9 @@ class NET_EXPORT IPEndPoint {
  public:
   IPEndPoint();
   ~IPEndPoint();
+  // DEPRECATED(crbug.com/496258): Use the ctor that takes IPAddress instead.
   IPEndPoint(const IPAddressNumber& address, uint16_t port);
+  IPEndPoint(const IPAddress& address, uint16_t port);
   IPEndPoint(const IPEndPoint& endpoint);
 
   const IPAddressNumber& address() const { return address_; }

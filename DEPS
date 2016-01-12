@@ -3,7 +3,7 @@
 
 # START #
 {
-    "chromium_revision": "46e701f46fb69ed3c32b54e24fe904b76d01377e",
+    "chromium_revision": "b25d2d936da7620ff44ce4a2952f38402efad685",
     "automatic_dependency": [
         {
             "from": "net/quic/quic_connection.cc",
@@ -167,12 +167,20 @@
                 "net/base/net_util.cc",
                 "net/base/host_port_pair.h",
                 "net/base/host_port_pair.cc",
+                "net/quic/quic_simple_buffer_allocator.h",
+                "net/quic/quic_simple_buffer_allocator.cc",
                 "net/quic/crypto/chacha20_poly1305_decrypter.h",
                 "net/quic/crypto/chacha20_poly1305_decrypter_openssl.cc",
                 "net/quic/crypto/chacha20_poly1305_decrypter_nss.cc",
                 "net/quic/crypto/chacha20_poly1305_encrypter.h",
                 "net/quic/crypto/chacha20_poly1305_encrypter_openssl.cc",
                 "net/quic/crypto/chacha20_poly1305_encrypter_nss.cc",
+                "net/quic/crypto/chacha20_poly1305_rfc7539_decrypter.h",
+                "net/quic/crypto/chacha20_poly1305_rfc7539_decrypter_openssl.cc",
+                "net/quic/crypto/chacha20_poly1305_rfc7539_decrypter_nss.cc",
+                "net/quic/crypto/chacha20_poly1305_rfc7539_encrypter.h",
+                "net/quic/crypto/chacha20_poly1305_rfc7539_encrypter_openssl.cc",
+                "net/quic/crypto/chacha20_poly1305_rfc7539_encrypter_nss.cc",
                 "net/quic/crypto/aes_128_gcm_12_decrypter.h",
                 "net/quic/crypto/aes_128_gcm_12_decrypter_openssl.cc",
                 "net/quic/crypto/aes_128_gcm_12_decrypter_nss.cc",

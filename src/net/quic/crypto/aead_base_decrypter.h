@@ -5,7 +5,10 @@
 #ifndef NET_QUIC_CRYPTO_AEAD_BASE_DECRYPTER_H_
 #define NET_QUIC_CRYPTO_AEAD_BASE_DECRYPTER_H_
 
+#include <stddef.h>
+
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "net/quic/crypto/quic_decrypter.h"
 
 #if defined(USE_OPENSSL)

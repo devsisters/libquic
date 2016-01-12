@@ -7,9 +7,11 @@
 #ifndef NET_QUIC_CONGESTION_CONTROL_RTT_STATS_H_
 #define NET_QUIC_CONGESTION_CONTROL_RTT_STATS_H_
 
+#include <stdint.h>
+
 #include <algorithm>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_time.h"
 
@@ -36,23 +38,19 @@ class NET_EXPORT_PRIVATE RttStats {
 
   // Forces RttStats to sample a new recent min rtt within the next
   // |num_samples| UpdateRtt calls.
-  void SampleNewRecentMinRtt(uint32 num_samples);
+  void SampleNewRecentMinRtt(uint32_t num_samples);
 
   // Called when connection migrates and rtt measurement needs to be reset.
   void OnConnectionMigration();
 
   // Returns the EWMA smoothed RTT for the connection.
   // May return Zero if no valid updates have occurred.
-  QuicTime::Delta smoothed_rtt() const {
-    return smoothed_rtt_;
-  }
+  QuicTime::Delta smoothed_rtt() const { return smoothed_rtt_; }
 
-  int64 initial_rtt_us() const {
-    return initial_rtt_us_;
-  }
+  int64_t initial_rtt_us() const { return initial_rtt_us_; }
 
   // Sets an initial RTT to be used for SmoothedRtt before any RTT updates.
-  void set_initial_rtt_us(int64 initial_rtt_us) {
+  void set_initial_rtt_us(int64_t initial_rtt_us) {
     if (initial_rtt_us <= 0) {
       LOG(DFATAL) << "Attempt to set initial rtt to <= 0.";
       return;
@@ -62,25 +60,17 @@ class NET_EXPORT_PRIVATE RttStats {
 
   // The most recent rtt measurement.
   // May return Zero if no valid updates have occurred.
-  QuicTime::Delta latest_rtt() const {
-    return latest_rtt_;
-  }
+  QuicTime::Delta latest_rtt() const { return latest_rtt_; }
 
   // Returns the min_rtt for the entire connection.
   // May return Zero if no valid updates have occurred.
-  QuicTime::Delta min_rtt() const {
-    return min_rtt_;
-  }
+  QuicTime::Delta min_rtt() const { return min_rtt_; }
 
   // Returns the min_rtt since SampleNewRecentMinRtt has been called, or the
   // min_rtt for the entire connection if SampleNewMinRtt was never called.
-  QuicTime::Delta recent_min_rtt() const {
-    return recent_min_rtt_.rtt;
-  }
+  QuicTime::Delta recent_min_rtt() const { return recent_min_rtt_.rtt; }
 
-  QuicTime::Delta mean_deviation() const {
-    return mean_deviation_;
-  }
+  QuicTime::Delta mean_deviation() const { return mean_deviation_; }
 
   // Sets how old a recent min rtt sample can be.
   void set_recent_min_rtt_window(QuicTime::Delta recent_min_rtt_window) {
@@ -92,8 +82,8 @@ class NET_EXPORT_PRIVATE RttStats {
 
   // Used to track a sampled RTT window.
   struct RttSample {
-    RttSample() : rtt(QuicTime::Delta::Zero()), time(QuicTime::Zero()) { }
-    RttSample(QuicTime::Delta rtt, QuicTime time) : rtt(rtt), time(time) { }
+    RttSample() : rtt(QuicTime::Delta::Zero()), time(QuicTime::Zero()) {}
+    RttSample(QuicTime::Delta rtt, QuicTime time) : rtt(rtt), time(time) {}
 
     QuicTime::Delta rtt;
     QuicTime time;  // Time the rtt sample was recorded.
@@ -109,15 +99,15 @@ class NET_EXPORT_PRIVATE RttStats {
   // Approximation of standard deviation, the error is roughly 1.25 times
   // larger than the standard deviation, for a normally distributed signal.
   QuicTime::Delta mean_deviation_;
-  int64 initial_rtt_us_;
+  int64_t initial_rtt_us_;
 
   RttSample new_min_rtt_;
-  uint32 num_min_rtt_samples_remaining_;
+  uint32_t num_min_rtt_samples_remaining_;
 
   // State variables for Kathleen Nichols MinRTT algorithm.
   QuicTime::Delta recent_min_rtt_window_;
-  RttSample recent_min_rtt_;  // a in the windowed algorithm.
-  RttSample half_window_rtt_;  // b in the sampled algorithm.
+  RttSample recent_min_rtt_;      // a in the windowed algorithm.
+  RttSample half_window_rtt_;     // b in the sampled algorithm.
   RttSample quarter_window_rtt_;  // c in the sampled algorithm.
 
   DISALLOW_COPY_AND_ASSIGN(RttStats);

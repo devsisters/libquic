@@ -24,7 +24,7 @@ namespace {
 const QuicByteCount kDefaultMinimumCongestionWindow = 2 * kDefaultTCPMSS;
 const QuicByteCount kMaxBurstBytes = 3 * kDefaultTCPMSS;
 const float kRenoBeta = 0.7f;             // Reno backoff factor.
-const uint32 kDefaultNumConnections = 2;  // N-connection emulation.
+const uint32_t kDefaultNumConnections = 2;  // N-connection emulation.
 }  // namespace
 
 TcpCubicBytesSender::TcpCubicBytesSender(
@@ -54,8 +54,7 @@ TcpCubicBytesSender::TcpCubicBytesSender(
       initial_max_tcp_congestion_window_(max_congestion_window *
                                          kDefaultTCPMSS) {}
 
-TcpCubicBytesSender::~TcpCubicBytesSender() {
-}
+TcpCubicBytesSender::~TcpCubicBytesSender() {}
 
 void TcpCubicBytesSender::SetFromConfig(const QuicConfig& config,
                                         Perspective perspective) {
@@ -218,6 +217,7 @@ QuicTime::Delta TcpCubicBytesSender::TimeUntilSend(
     QuicByteCount bytes_in_flight,
     HasRetransmittableData has_retransmittable_data) const {
   if (has_retransmittable_data == NO_RETRANSMITTABLE_DATA) {
+    DCHECK(!FLAGS_quic_respect_send_alarm2);
     // For TCP we can always send an ACK immediately.
     return QuicTime::Delta::Zero();
   }

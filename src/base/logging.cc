@@ -4,6 +4,12 @@
 
 #include "base/logging.h"
 
+#include <limits.h>
+#include <stdint.h>
+
+#include "base/macros.h"
+#include "build/build_config.h"
+
 #if defined(OS_WIN)
 #include <io.h>
 #include <windows.h>
@@ -126,7 +132,7 @@ LogMessageHandlerFunction log_message_handler = nullptr;
 
 // Helper functions to wrap platform differences.
 
-int32 CurrentProcessId() {
+int32_t CurrentProcessId() {
 #if defined(OS_WIN)
   return GetCurrentProcessId();
 #elif defined(OS_POSIX)
@@ -134,7 +140,7 @@ int32 CurrentProcessId() {
 #endif
 }
 
-uint64 TickCount() {
+uint64_t TickCount() {
 #if defined(OS_WIN)
   return GetTickCount();
 #elif defined(OS_MACOSX)
@@ -147,9 +153,8 @@ uint64 TickCount() {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
 
-  uint64 absolute_micro =
-    static_cast<int64>(ts.tv_sec) * 1000000 +
-    static_cast<int64>(ts.tv_nsec) / 1000;
+  uint64_t absolute_micro = static_cast<int64_t>(ts.tv_sec) * 1000000 +
+                            static_cast<int64_t>(ts.tv_nsec) / 1000;
 
   return absolute_micro;
 #endif

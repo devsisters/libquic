@@ -9,15 +9,17 @@
 
 #include <ctype.h>
 #include <stdarg.h>   // va_list
+#include <stddef.h>
+#include <stdint.h>
 
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"  // For implicit conversions.
+#include "build/build_config.h"
 
 namespace base {
 
@@ -363,7 +365,7 @@ BASE_EXPORT bool IsUnicodeWhitespace(wchar_t c);
 // appropriate for use in any UI; use of FormatBytes and friends in ui/base is
 // highly recommended instead. TODO(avi): Figure out how to get callers to use
 // FormatBytes instead; remove this.
-BASE_EXPORT string16 FormatBytesUnlocalized(int64 bytes);
+BASE_EXPORT string16 FormatBytesUnlocalized(int64_t bytes);
 
 // Starting at |start_offset| (usually 0), replace the first instance of
 // |find_this| with |replace_with|.

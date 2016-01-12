@@ -7,12 +7,15 @@
 #ifndef NET_QUIC_QUIC_SESSION_H_
 #define NET_QUIC_QUIC_SESSION_H_
 
+#include <stddef.h>
+
 #include <map>
 #include <string>
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/containers/hash_tables.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "net/base/ip_endpoint.h"
@@ -146,9 +149,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   QuicConnection* connection() { return connection_.get(); }
   const QuicConnection* connection() const { return connection_.get(); }
   size_t num_active_requests() const { return dynamic_stream_map_.size(); }
-  const IPEndPoint& peer_address() const {
-    return connection_->peer_address();
-  }
+  const IPEndPoint& peer_address() const { return connection_->peer_address(); }
   QuicConnectionId connection_id() const {
     return connection_->connection_id();
   }
@@ -207,7 +208,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   void StreamDraining(QuicStreamId id);
 
   // Close the connection, if it is not already closed.
-  void CloseConnection(QuicErrorCode error);
+  void CloseConnectionWithDetails(QuicErrorCode error, const char* details);
 
  protected:
   typedef base::hash_map<QuicStreamId, ReliableQuicStream*> StreamMap;
@@ -225,7 +226,8 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // Return the reserved crypto stream.
   virtual QuicCryptoStream* GetCryptoStream() = 0;
 
-  // Adds 'stream' to the active stream map.
+  // Adds |stream| to the dynamic stream map.
+  // Takes ownership of |stream|.
   virtual void ActivateStream(ReliableQuicStream* stream);
 
   // Returns the stream ID for a new outgoing stream, and increments the
@@ -288,7 +290,8 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // When this data arrives (via stream frame w. FIN, or RST) this method
   // is called, and correctly updates the connection level flow controller.
   void UpdateFlowControlOnFinalReceivedByteOffset(
-      QuicStreamId id, QuicStreamOffset final_byte_offset);
+      QuicStreamId id,
+      QuicStreamOffset final_byte_offset);
 
   // Called in OnConfigNegotiated when we receive a new stream level flow
   // control window in a negotiated config. Closes the connection if invalid.
@@ -331,7 +334,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // that create these streams.
   StreamMap static_stream_map_;
 
-  // Map from StreamId to pointers to streams that are owned by the caller.
+  // Map from StreamId to pointers to streams. Owns the streams.
   StreamMap dynamic_stream_map_;
 
   // The ID to use for the next outgoing stream.

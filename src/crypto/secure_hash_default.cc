@@ -4,6 +4,8 @@
 
 #include "crypto/secure_hash.h"
 
+#include <stddef.h>
+
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "crypto/third_party/nss/chromium-blapi.h"

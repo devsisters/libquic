@@ -46,8 +46,8 @@
 #include <pk11pub.h>
 #include <secerr.h>
 #include <sechash.h>
+#include <stdint.h>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "build/build_config.h"
 
@@ -88,7 +88,7 @@ SECStatus DerSignData(PLArenaPool *arena,
   }
 
   // Hash the input.
-  std::vector<uint8> hash_data(HASH_ResultLen(hash_type));
+  std::vector<uint8_t> hash_data(HASH_ResultLen(hash_type));
   SECStatus rv = HASH_HashBuf(
       hash_type, &hash_data[0], input->data, input->len);
   if (rv != SECSuccess)
@@ -98,7 +98,7 @@ SECStatus DerSignData(PLArenaPool *arena,
 
   // Compute signature of hash.
   int signature_len = PK11_SignatureLen(key);
-  std::vector<uint8> signature_data(signature_len);
+  std::vector<uint8_t> signature_data(signature_len);
   SECItem sig = {siBuffer, &signature_data[0], 
 		 static_cast<unsigned int>(signature_len)};
   rv = PK11_Sign(key, &sig, &hash);

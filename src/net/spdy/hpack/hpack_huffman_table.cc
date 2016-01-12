@@ -20,9 +20,9 @@ using std::string;
 namespace {
 
 // How many bits to index in the root decode table.
-const uint8 kDecodeTableRootBits = 9;
+const uint8_t kDecodeTableRootBits = 9;
 // Maximum number of bits to index in successive decode tables.
-const uint8 kDecodeTableBranchBits = 6;
+const uint8_t kDecodeTableBranchBits = 6;
 
 bool SymbolLengthAndIdCompare(const HpackHuffmanSymbol& a,
                               const HpackHuffmanSymbol& b) {
@@ -39,9 +39,9 @@ bool SymbolIdCompare(const HpackHuffmanSymbol& a, const HpackHuffmanSymbol& b) {
 
 HpackHuffmanTable::DecodeEntry::DecodeEntry()
     : next_table_index(0), length(0), symbol_id(0) {}
-HpackHuffmanTable::DecodeEntry::DecodeEntry(uint8 next_table_index,
-                                            uint8 length,
-                                            uint16 symbol_id)
+HpackHuffmanTable::DecodeEntry::DecodeEntry(uint8_t next_table_index,
+                                            uint8_t length,
+                                            uint16_t symbol_id)
     : next_table_index(next_table_index),
       length(length),
       symbol_id(symbol_id) {}
@@ -56,11 +56,11 @@ HpackHuffmanTable::~HpackHuffmanTable() {}
 bool HpackHuffmanTable::Initialize(const HpackHuffmanSymbol* input_symbols,
                                    size_t symbol_count) {
   CHECK(!IsInitialized());
-  DCHECK(base::IsValueInRangeForNumericType<uint16>(symbol_count));
+  DCHECK(base::IsValueInRangeForNumericType<uint16_t>(symbol_count));
 
   std::vector<Symbol> symbols(symbol_count);
   // Validate symbol id sequence, and copy into |symbols|.
-  for (uint16 i = 0; i < symbol_count; i++) {
+  for (uint16_t i = 0; i < symbol_count; i++) {
     if (i != input_symbols[i].id) {
       failed_symbol_id_ = i;
       return false;
@@ -75,7 +75,7 @@ bool HpackHuffmanTable::Initialize(const HpackHuffmanSymbol* input_symbols,
   }
   for (size_t i = 1; i != symbols.size(); i++) {
     unsigned code_shift = 32 - symbols[i - 1].length;
-    uint32 code = symbols[i - 1].code + (1 << code_shift);
+    uint32_t code = symbols[i - 1].code + (1 << code_shift);
 
     if (code != symbols[i].code) {
       failed_symbol_id_ = symbols[i].id;
@@ -94,7 +94,7 @@ bool HpackHuffmanTable::Initialize(const HpackHuffmanSymbol* input_symbols,
     // of bytes.
     return false;
   }
-  pad_bits_ = static_cast<uint8>(symbols.back().code >> 24);
+  pad_bits_ = static_cast<uint8_t>(symbols.back().code >> 24);
 
   BuildDecodeTables(symbols);
   // Order on symbol ID ascending.
@@ -122,18 +122,18 @@ void HpackHuffmanTable::BuildDecodeTables(const std::vector<Symbol>& symbols) {
   // that entry without fear of introducing unneccesary branches later.
   for (std::vector<Symbol>::const_reverse_iterator it = symbols.rbegin();
        it != symbols.rend(); ++it) {
-    uint8 table_index = 0;
+    uint8_t table_index = 0;
     while (true) {
       const DecodeTable table = decode_tables_[table_index];
 
       // Mask and shift the portion of the code being indexed into low bits.
-      uint32 index = (it->code << table.prefix_length);
+      uint32_t index = (it->code << table.prefix_length);
       index = index >> (32 - table.indexed_length);
 
       CHECK_LT(index, table.size());
       DecodeEntry entry = Entry(table, index);
 
-      uint8 total_indexed = table.prefix_length + table.indexed_length;
+      uint8_t total_indexed = table.prefix_length + table.indexed_length;
       if (total_indexed >= it->length) {
         // We're writing a terminal entry.
         entry.length = it->length;
@@ -149,8 +149,8 @@ void HpackHuffmanTable::BuildDecodeTables(const std::vector<Symbol>& symbols) {
         entry.length = it->length;
         entry.next_table_index =
             AddDecodeTable(total_indexed,  // Becomes the new table prefix.
-                           std::min<uint8>(kDecodeTableBranchBits,
-                                           entry.length - total_indexed));
+                           std::min<uint8_t>(kDecodeTableBranchBits,
+                                             entry.length - total_indexed));
         SetEntry(table, index, entry);
       }
       CHECK_NE(entry.next_table_index, table_index);
@@ -160,7 +160,7 @@ void HpackHuffmanTable::BuildDecodeTables(const std::vector<Symbol>& symbols) {
   // Fill shorter table entries into the additional entry spots they map to.
   for (size_t i = 0; i != decode_tables_.size(); i++) {
     const DecodeTable& table = decode_tables_[i];
-    uint8 total_indexed = table.prefix_length + table.indexed_length;
+    uint8_t total_indexed = table.prefix_length + table.indexed_length;
 
     size_t j = 0;
     while (j != table.size()) {
@@ -183,7 +183,7 @@ void HpackHuffmanTable::BuildDecodeTables(const std::vector<Symbol>& symbols) {
   }
 }
 
-uint8 HpackHuffmanTable::AddDecodeTable(uint8 prefix, uint8 indexed) {
+uint8_t HpackHuffmanTable::AddDecodeTable(uint8_t prefix, uint8_t indexed) {
   CHECK_LT(decode_tables_.size(), 255u);
   {
     DecodeTable table;
@@ -193,19 +193,19 @@ uint8 HpackHuffmanTable::AddDecodeTable(uint8 prefix, uint8 indexed) {
     decode_tables_.push_back(table);
   }
   decode_entries_.resize(decode_entries_.size() + (size_t(1) << indexed));
-  return static_cast<uint8>(decode_tables_.size() - 1);
+  return static_cast<uint8_t>(decode_tables_.size() - 1);
 }
 
 const HpackHuffmanTable::DecodeEntry& HpackHuffmanTable::Entry(
     const DecodeTable& table,
-    uint32 index) const {
+    uint32_t index) const {
   DCHECK_LT(index, table.size());
   DCHECK_LT(table.entries_offset + index, decode_entries_.size());
   return decode_entries_[table.entries_offset + index];
 }
 
 void HpackHuffmanTable::SetEntry(const DecodeTable& table,
-                                 uint32 index,
+                                 uint32_t index,
                                  const DecodeEntry& entry) {
   CHECK_LT(index, table.size());
   CHECK_LT(table.entries_offset + index, decode_entries_.size());
@@ -220,28 +220,28 @@ void HpackHuffmanTable::EncodeString(StringPiece in,
                                      HpackOutputStream* out) const {
   size_t bit_remnant = 0;
   for (size_t i = 0; i != in.size(); i++) {
-    uint16 symbol_id = static_cast<uint8>(in[i]);
+    uint16_t symbol_id = static_cast<uint8_t>(in[i]);
     CHECK_GT(code_by_id_.size(), symbol_id);
 
     // Load, and shift code to low bits.
     unsigned length = length_by_id_[symbol_id];
-    uint32 code = code_by_id_[symbol_id] >> (32 - length);
+    uint32_t code = code_by_id_[symbol_id] >> (32 - length);
 
     bit_remnant = (bit_remnant + length) % 8;
 
     if (length > 24) {
-      out->AppendBits(static_cast<uint8>(code >> 24), length - 24);
+      out->AppendBits(static_cast<uint8_t>(code >> 24), length - 24);
       length = 24;
     }
     if (length > 16) {
-      out->AppendBits(static_cast<uint8>(code >> 16), length - 16);
+      out->AppendBits(static_cast<uint8_t>(code >> 16), length - 16);
       length = 16;
     }
     if (length > 8) {
-      out->AppendBits(static_cast<uint8>(code >> 8), length - 8);
+      out->AppendBits(static_cast<uint8_t>(code >> 8), length - 8);
       length = 8;
     }
-    out->AppendBits(static_cast<uint8>(code), length);
+    out->AppendBits(static_cast<uint8_t>(code), length);
   }
   if (bit_remnant != 0) {
     // Pad current byte as required.
@@ -252,7 +252,7 @@ void HpackHuffmanTable::EncodeString(StringPiece in,
 size_t HpackHuffmanTable::EncodedSize(StringPiece in) const {
   size_t bit_count = 0;
   for (size_t i = 0; i != in.size(); i++) {
-    uint16 symbol_id = static_cast<uint8>(in[i]);
+    uint16_t symbol_id = static_cast<uint8_t>(in[i]);
     CHECK_GT(code_by_id_.size(), symbol_id);
 
     bit_count += length_by_id_[symbol_id];
@@ -273,13 +273,13 @@ bool HpackHuffmanTable::DecodeString(HpackInputStream* in,
   out->clear();
 
   // Current input, stored in the high |bits_available| bits of |bits|.
-  uint32 bits = 0;
+  uint32_t bits = 0;
   size_t bits_available = 0;
   bool peeked_success = in->PeekBits(&bits_available, &bits);
 
   while (true) {
     const DecodeTable* table = &decode_tables_[0];
-    uint32 index = bits >> (32 - kDecodeTableRootBits);
+    uint32_t index = bits >> (32 - kDecodeTableRootBits);
 
     for (int i = 0; i != kDecodeIterations; i++) {
       DCHECK_LT(index, table->size());

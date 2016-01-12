@@ -5,10 +5,13 @@
 #ifndef BASE_METRICS_HISTOGRAM_SAMPLES_H_
 #define BASE_METRICS_HISTOGRAM_SAMPLES_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "base/atomicops.h"
-#include "base/basictypes.h"
-#include "base/metrics/histogram_base.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/metrics/histogram_base.h"
 
 namespace base {
 

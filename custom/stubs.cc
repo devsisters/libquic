@@ -151,7 +151,7 @@ void AppendIPv6Address(const unsigned char address[16], std::stringstream &ss) {
 
 }   // namespace url
 
-std::string IPAddressToString(const uint8* address,
+std::string IPAddressToString(const uint8_t* address,
                               size_t address_len) {
   std::string str;
   std::stringstream ss;
@@ -167,9 +167,9 @@ std::string IPAddressToString(const uint8* address,
   return ss.str();
 }
 
-std::string IPAddressToStringWithPort(const uint8* address,
+std::string IPAddressToStringWithPort(const uint8_t* address,
                                       size_t address_len,
-                                      uint16 port) {
+                                      uint16_t port) {
   std::string address_str = IPAddressToString(address, address_len);
 
   if (address_len == kIPv6AddressSize) {
@@ -184,7 +184,7 @@ std::string IPAddressToString(const IPAddressNumber& addr) {
 }
 
 std::string IPAddressToStringWithPort(const IPAddressNumber& addr,
-                                      uint16 port) {
+                                      uint16_t port) {
   return IPAddressToStringWithPort(&addr.front(), addr.size(), port);
 }
 

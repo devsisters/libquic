@@ -5,7 +5,7 @@
 #ifndef BASE_TEMPLATE_UTIL_H_
 #define BASE_TEMPLATE_UTIL_H_
 
-#include <cstddef>  // For size_t.
+#include <stddef.h>
 
 #include "build/build_config.h"
 

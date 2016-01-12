@@ -34,7 +34,7 @@ const char* ChaCha20Poly1305Decrypter::cipher_name() const {
   return TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305_OLD;
 }
 
-uint32 ChaCha20Poly1305Decrypter::cipher_id() const {
+uint32_t ChaCha20Poly1305Decrypter::cipher_id() const {
   return TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD;
 }
 

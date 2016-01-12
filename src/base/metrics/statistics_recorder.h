@@ -10,16 +10,18 @@
 #ifndef BASE_METRICS_STATISTICS_RECORDER_H_
 #define BASE_METRICS_STATISTICS_RECORDER_H_
 
+#include <stdint.h>
+
 #include <list>
 #include <map>
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/lazy_instance.h"
+#include "base/macros.h"
 #include "base/metrics/histogram_base.h"
 
 namespace base {
@@ -106,7 +108,7 @@ class BASE_EXPORT StatisticsRecorder {
   // We keep all |bucket_ranges_| in a map, from checksum to a list of
   // |bucket_ranges_|.  Checksum is calculated from the |ranges_| in
   // |bucket_ranges_|.
-  typedef std::map<uint32, std::list<const BucketRanges*>*> RangesMap;
+  typedef std::map<uint32_t, std::list<const BucketRanges*>*> RangesMap;
 
   friend struct DefaultLazyInstanceTraits<StatisticsRecorder>;
   friend class HistogramBaseTest;

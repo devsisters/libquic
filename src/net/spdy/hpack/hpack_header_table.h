@@ -9,7 +9,6 @@
 #include <deque>
 #include <set>
 
-#include "base/basictypes.h"
 #include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/spdy/hpack/hpack_entry.h"

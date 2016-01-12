@@ -5,13 +5,16 @@
 #ifndef BASE_METRICS_SPARSE_HISTOGRAM_H_
 #define BASE_METRICS_SPARSE_HISTOGRAM_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <map>
 #include <string>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/sample_map.h"
@@ -32,7 +35,7 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
  public:
   // If there's one with same name, return the existing one. If not, create a
   // new one.
-  static HistogramBase* FactoryGet(const std::string& name, int32 flags);
+  static HistogramBase* FactoryGet(const std::string& name, int32_t flags);
 
   ~SparseHistogram() override;
 
@@ -64,7 +67,7 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
 
   void GetParameters(DictionaryValue* params) const override;
   void GetCountAndBucketData(Count* count,
-                             int64* sum,
+                             int64_t* sum,
                              ListValue* buckets) const override;
 
   // Helpers for emitting Ascii graphic.  Each method appends data to output.

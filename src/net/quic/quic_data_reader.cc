@@ -12,25 +12,22 @@ using base::StringPiece;
 namespace net {
 
 QuicDataReader::QuicDataReader(const char* data, const size_t len)
-    : data_(data),
-      len_(len),
-      pos_(0) {
-}
+    : data_(data), len_(len), pos_(0) {}
 
-bool QuicDataReader::ReadUInt16(uint16* result) {
+bool QuicDataReader::ReadUInt16(uint16_t* result) {
   return ReadBytes(result, sizeof(*result));
 }
 
-bool QuicDataReader::ReadUInt32(uint32* result) {
+bool QuicDataReader::ReadUInt32(uint32_t* result) {
   return ReadBytes(result, sizeof(*result));
 }
 
-bool QuicDataReader::ReadUInt64(uint64* result) {
+bool QuicDataReader::ReadUInt64(uint64_t* result) {
   return ReadBytes(result, sizeof(*result));
 }
 
-bool QuicDataReader::ReadUFloat16(uint64* result) {
-  uint16 value;
+bool QuicDataReader::ReadUFloat16(uint64_t* result) {
+  uint16_t value;
   if (!ReadUInt16(&value)) {
     return false;
   }
@@ -44,7 +41,8 @@ bool QuicDataReader::ReadUFloat16(uint64* result) {
     return true;
   }
 
-  uint16 exponent = value >> kUFloat16MantissaBits;  // No sign extend on uint!
+  uint16_t exponent =
+      value >> kUFloat16MantissaBits;  // No sign extend on uint!
   // After the fast pass, the exponent is at least one (offset by one).
   // Un-offset the exponent.
   --exponent;
@@ -62,7 +60,7 @@ bool QuicDataReader::ReadUFloat16(uint64* result) {
 
 bool QuicDataReader::ReadStringPiece16(StringPiece* result) {
   // Read resultant length.
-  uint16 result_len;
+  uint16_t result_len;
   if (!ReadUInt16(&result_len)) {
     // OnFailure() already called.
     return false;

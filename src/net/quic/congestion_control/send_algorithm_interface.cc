@@ -40,7 +40,7 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
                                      initial_congestion_window,
                                      max_congestion_window, stats);
     case kBBR:
-  // TODO(rtenneti): Enable BbrTcpSender.
+// TODO(rtenneti): Enable BbrTcpSender.
 #if 0
       return new BbrTcpSender(clock, rtt_stats, initial_congestion_window,
                               max_congestion_window, stats, true);

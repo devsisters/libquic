@@ -23,7 +23,7 @@ static const double kEarlyRetransmitLossDelayMultiplier = 1.25;
 }  // namespace
 
 TCPLossAlgorithm::TCPLossAlgorithm()
-    : loss_detection_timeout_(QuicTime::Zero()) { }
+    : loss_detection_timeout_(QuicTime::Zero()) {}
 
 LossDetectionType TCPLossAlgorithm::GetLossDetectionType() const {
   return kNack;

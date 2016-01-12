@@ -8,6 +8,8 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/macros.h"
+#include "build/build_config.h"
 
 // TODO(crbug.com/566182): DEPRECATED!
 // Use DISALLOW_COPY_AND_ASSIGN instead, or if your type will be used in
@@ -29,6 +31,17 @@
 // for more details.
 // TODO(crbug.com/566182): Remove this macro and use DISALLOW_COPY_AND_ASSIGN
 // everywhere instead.
+#if defined(OS_ANDROID) || (defined(OS_LINUX) && !defined(OS_CHROMEOS))
+#define DISALLOW_COPY_AND_ASSIGN_WITH_MOVE_FOR_BIND(type)       \
+ private:                                                       \
+  type(const type&) = delete;                                   \
+  void operator=(const type&) = delete;                         \
+                                                                \
+ public:                                                        \
+  typedef void MoveOnlyTypeForCPP03;                            \
+                                                                \
+ private:
+#else
 #define DISALLOW_COPY_AND_ASSIGN_WITH_MOVE_FOR_BIND(type)       \
  private:                                                       \
   type(const type&) = delete;                                   \
@@ -39,5 +52,6 @@
   typedef void MoveOnlyTypeForCPP03;                            \
                                                                 \
  private:
+#endif
 
 #endif  // BASE_MOVE_H_

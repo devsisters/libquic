@@ -90,8 +90,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "base/move.h"
 #include "base/template_util.h"
 

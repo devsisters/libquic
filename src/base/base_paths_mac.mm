@@ -8,6 +8,7 @@
 #include <dlfcn.h>
 #import <Foundation/Foundation.h>
 #include <mach-o/dyld.h>
+#include <stdint.h>
 
 #include "base/base_paths.h"
 #include "base/compiler_specific.h"

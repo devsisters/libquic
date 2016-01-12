@@ -9,8 +9,10 @@
 #ifndef BASE_THREADING_PLATFORM_THREAD_H_
 #define BASE_THREADING_PLATFORM_THREAD_H_
 
+#include <stddef.h>
+
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 

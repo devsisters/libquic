@@ -5,11 +5,13 @@
 #ifndef NET_SPDY_HPACK_DECODER_H_
 #define NET_SPDY_HPACK_DECODER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <map>
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
@@ -91,7 +93,7 @@ class NET_EXPORT_PRIVATE HpackDecoder {
   bool HandleHeaderRepresentation(base::StringPiece name,
                                   base::StringPiece value);
 
-  const uint32 max_string_literal_size_;
+  const uint32_t max_string_literal_size_;
   HpackHeaderTable header_table_;
 
   // TODO(jgraettinger): Buffer for headers data, and storage for the last-

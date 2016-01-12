@@ -9,12 +9,13 @@
 #ifndef NET_QUIC_QUIC_SPDY_STREAM_H_
 #define NET_QUIC_QUIC_SPDY_STREAM_H_
 
+#include <stddef.h>
 #include <sys/types.h>
 
 #include <list>
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/iovec.h"
 #include "net/base/ip_endpoint.h"
@@ -99,8 +100,8 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
 
   // Writes the trailers contained in |trailer_block| to the dedicated
   // headers stream. Trailers will always have the FIN set.
-  size_t WriteTrailers(SpdyHeaderBlock trailer_block,
-                       QuicAckListenerInterface* ack_notifier_delegate);
+  virtual size_t WriteTrailers(SpdyHeaderBlock trailer_block,
+                               QuicAckListenerInterface* ack_notifier_delegate);
 
   // Marks |bytes_consumed| of the headers data as consumed.
   void MarkHeadersConsumed(size_t bytes_consumed);
