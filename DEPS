@@ -245,7 +245,8 @@
         }
     ],
     "patches": [
-        "patch/basepatch.patch"
+        "patch/basepatch.patch",
+        "patch/freebsd.patch"
     ],
     "custom_files": [
         {"from": "custom/net_util.h", "to": "net/base/net_util.h"},
