@@ -3,7 +3,7 @@ QUIC, a multiplexed stream transport over UDP
 
 QUIC is an experimental protocol aimed at reducing web latency over that of TCP.
 On the surface, QUIC is very similar to TCP+TLS+SPDY implemented on UDP. Because
-TCP is implement in operating system kernels, and middlebox firmware, making
+TCP is implemented in operating system kernels, and middlebox firmware, making
 significant changes to TCP is next to impossible. However, since QUIC is built
 on top of UDP, it suffers from no such limitations.
 
