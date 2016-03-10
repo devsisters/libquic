@@ -5,6 +5,7 @@
 #include "net/base/address_family.h"
 
 #include "base/logging.h"
+#include "net/base/ip_address.h"
 #include "net/base/sys_addrinfo.h"
 
 namespace net {
@@ -18,6 +19,10 @@ AddressFamily GetAddressFamily(const IPAddressNumber& address) {
     default:
       return ADDRESS_FAMILY_UNSPECIFIED;
   }
+}
+
+AddressFamily GetAddressFamily(const IPAddress& address) {
+  return GetAddressFamily(address.bytes());
 }
 
 int ConvertAddressFamily(AddressFamily address_family) {

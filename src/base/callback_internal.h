@@ -11,6 +11,7 @@
 #include <stddef.h>
 #include <memory>
 #include <type_traits>
+#include <vector>
 
 #include "base/atomic_ref_count.h"
 #include "base/base_export.h"
@@ -115,8 +116,14 @@ template <typename T> struct IsMoveOnlyType {
 
 // Specialization of IsMoveOnlyType so that std::unique_ptr is still considered
 // move-only, even without the sentinel member.
-template <typename T>
-struct IsMoveOnlyType<std::unique_ptr<T>> : std::true_type {};
+template <typename T, typename D>
+struct IsMoveOnlyType<std::unique_ptr<T, D>> : std::true_type {};
+
+// Specialization of std::vector, so that it's considered move-only if the
+// element type is move-only. Allocator is explicitly ignored when determining
+// move-only status of the std::vector.
+template <typename T, typename Allocator>
+struct IsMoveOnlyType<std::vector<T, Allocator>> : IsMoveOnlyType<T> {};
 
 template <typename>
 struct CallbackParamTraitsForMoveOnlyType;
@@ -129,16 +136,7 @@ struct CallbackParamTraitsForNonMoveOnlyType;
 // http://connect.microsoft.com/VisualStudio/feedbackdetail/view/957801/compilation-error-with-variadic-templates
 //
 // This is a typetraits object that's used to take an argument type, and
-// extract a suitable type for storing and forwarding arguments.
-//
-// In particular, it strips off references, and converts arrays to
-// pointers for storage; and it avoids accidentally trying to create a
-// "reference of a reference" if the argument is a reference type.
-//
-// This array type becomes an issue for storage because we are passing bound
-// parameters by const reference. In this case, we end up passing an actual
-// array type in the initializer list which C++ does not allow.  This will
-// break passing of C-string literals.
+// extract a suitable type for forwarding arguments.
 template <typename T>
 struct CallbackParamTraits
     : std::conditional<IsMoveOnlyType<T>::value,
@@ -149,18 +147,6 @@ struct CallbackParamTraits
 template <typename T>
 struct CallbackParamTraitsForNonMoveOnlyType {
   using ForwardType = const T&;
-  using StorageType = T;
-};
-
-// The Storage should almost be impossible to trigger unless someone manually
-// specifies type of the bind parameters.  However, in case they do,
-// this will guard against us accidentally storing a reference parameter.
-//
-// The ForwardType should only be used for unbound arguments.
-template <typename T>
-struct CallbackParamTraitsForNonMoveOnlyType<T&> {
-  using ForwardType = T&;
-  using StorageType = T;
 };
 
 // Note that for array types, we implicitly add a const in the conversion. This
@@ -171,14 +157,12 @@ struct CallbackParamTraitsForNonMoveOnlyType<T&> {
 template <typename T, size_t n>
 struct CallbackParamTraitsForNonMoveOnlyType<T[n]> {
   using ForwardType = const T*;
-  using StorageType = const T*;
 };
 
 // See comment for CallbackParamTraits<T[n]>.
 template <typename T>
 struct CallbackParamTraitsForNonMoveOnlyType<T[]> {
   using ForwardType = const T*;
-  using StorageType = const T*;
 };
 
 // Parameter traits for movable-but-not-copyable scopers.
@@ -197,7 +181,6 @@ struct CallbackParamTraitsForNonMoveOnlyType<T[]> {
 template <typename T>
 struct CallbackParamTraitsForMoveOnlyType {
   using ForwardType = T;
-  using StorageType = T;
 };
 
 // CallbackForward() is a very limited simulation of C++11's std::forward()

@@ -60,10 +60,6 @@ void QuicCryptoStream::OnDataAvailable() {
   }
 }
 
-SpdyPriority QuicCryptoStream::Priority() const {
-  return net::kV3HighestPriority;
-}
-
 void QuicCryptoStream::SendHandshakeMessage(
     const CryptoHandshakeMessage& message) {
   SendHandshakeMessage(message, nullptr);
@@ -91,6 +87,20 @@ bool QuicCryptoStream::ExportKeyingMaterial(StringPiece label,
   return CryptoUtils::ExportKeyingMaterial(
       crypto_negotiated_params_.subkey_secret, label, context, result_len,
       result);
+}
+
+bool QuicCryptoStream::ExportTokenBindingKeyingMaterial(string* result) const {
+  if (!encryption_established()) {
+    QUIC_BUG << "ExportTokenBindingKeyingMaterial was called before initial"
+             << "encryption was established.";
+    return false;
+  }
+  if (!FLAGS_quic_save_initial_subkey_secret) {
+    return false;
+  }
+  return CryptoUtils::ExportKeyingMaterial(
+      crypto_negotiated_params_.initial_subkey_secret, "EXPORTER-Token-Binding",
+      /* context= */ "", 32, result);
 }
 
 const QuicCryptoNegotiatedParameters&

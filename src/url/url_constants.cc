@@ -25,4 +25,6 @@ const char kWssScheme[] = "wss";
 
 const char kStandardSchemeSeparator[] = "://";
 
+const size_t kMaxURLChars = 2 * 1024 * 1024;
+
 }  // namespace url

@@ -248,6 +248,15 @@ string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
           done = true;
         }
         break;
+      case kRCID:
+        // uint64_t value
+        if (it->second.size() == 8) {
+          uint64_t value;
+          memcpy(&value, it->second.data(), sizeof(value));
+          ret += base::Uint64ToString(value);
+          done = true;
+        }
+        break;
       case kTBKP:
       case kKEXS:
       case kAEAD:

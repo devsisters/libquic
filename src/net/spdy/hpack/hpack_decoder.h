@@ -25,8 +25,6 @@
 
 namespace net {
 
-class HpackHuffmanTable;
-
 namespace test {
 class HpackDecoderPeer;
 }  // namespace test
@@ -35,9 +33,7 @@ class NET_EXPORT_PRIVATE HpackDecoder {
  public:
   friend class test::HpackDecoderPeer;
 
-  // |table| is an initialized HPACK Huffman table, having an
-  // externally-managed lifetime which spans beyond HpackDecoder.
-  explicit HpackDecoder(const HpackHuffmanTable& table);
+  HpackDecoder();
   ~HpackDecoder();
 
   // Called upon acknowledgement of SETTINGS_HEADER_TABLE_SIZE.
@@ -49,6 +45,7 @@ class NET_EXPORT_PRIVATE HpackDecoder {
   // headers to it rather than accumulating them in a SpdyHeaderBlock.
   void HandleControlFrameHeadersStart(SpdyHeadersHandlerInterface* handler) {
     handler_ = handler;
+    total_header_bytes_ = 0;
   }
 
   // Called as headers data arrives. Returns false if an error occurred.
@@ -102,13 +99,12 @@ class NET_EXPORT_PRIVATE HpackDecoder {
   std::string headers_block_buffer_;
   SpdyHeaderBlock decoded_block_;
 
-  // Huffman table to be applied to decoded Huffman literals,
-  // and scratch space for storing those decoded literals.
-  const HpackHuffmanTable& huffman_table_;
+  // Scratch space for storing decoded literals.
   std::string key_buffer_, value_buffer_;
 
   // If non-NULL, handles decoded headers.
   SpdyHeadersHandlerInterface* handler_;
+  size_t total_header_bytes_;
 
   // Flag to keep track of having seen a regular header field.
   bool regular_header_seen_;

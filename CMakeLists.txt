@@ -92,6 +92,7 @@ set(
 	src/net/quic/quic_socket_address_coder.cc
 	src/net/quic/quic_utils.cc
 	src/net/quic/quic_frame_list.cc
+	src/net/quic/spdy_utils.cc
 	src/net/quic/crypto/quic_crypto_server_config.cc
 	src/net/quic/crypto/crypto_handshake_message.cc
 	src/net/quic/crypto/p256_key_exchange_openssl.cc
@@ -122,21 +123,23 @@ set(
 	src/net/quic/crypto/aes_128_gcm_12_decrypter_openssl.cc
 	src/net/quic/crypto/quic_encrypter.cc
 	src/net/quic/crypto/quic_crypto_client_config.cc
+	src/net/quic/crypto/proof_source.cc
 	src/net/quic/quic_clock.cc
 	src/net/quic/quic_alarm.cc
 	src/net/quic/quic_sent_entropy_manager.cc
 	src/net/quic/congestion_control/pacing_sender.cc
-	src/net/quic/congestion_control/time_loss_algorithm.cc
 	src/net/quic/congestion_control/loss_detection_interface.cc
 	src/net/quic/congestion_control/general_loss_algorithm.cc
 	src/net/quic/congestion_control/send_algorithm_interface.cc
 	src/net/quic/congestion_control/cubic.cc
 	src/net/quic/congestion_control/cubic_bytes.cc
-	src/net/quic/congestion_control/tcp_loss_algorithm.cc
 	src/net/quic/congestion_control/prr_sender.cc
-	src/net/quic/congestion_control/tcp_cubic_sender.cc
 	src/net/quic/congestion_control/hybrid_slow_start.cc
 	src/net/quic/congestion_control/rtt_stats.cc
+	src/net/quic/congestion_control/tcp_cubic_sender.cc
+	src/net/quic/congestion_control/tcp_cubic_sender_base.cc
+	src/net/quic/congestion_control/tcp_cubic_sender_bytes.cc
+	src/net/quic/congestion_control/tcp_cubic_sender_packets.cc
 	src/net/quic/congestion_control/tcp_cubic_bytes_sender.cc
 	src/net/quic/quic_config.cc
 	src/net/quic/quic_crypto_server_stream.cc
@@ -147,6 +150,8 @@ set(
 	src/net/quic/quic_packet_creator.cc
 	src/net/quic/quic_sustained_bandwidth_recorder.cc
 	src/net/quic/quic_client_session_base.cc
+	src/net/quic/quic_client_promised_info.cc
+	src/net/quic/quic_client_push_promise_index.cc
 	src/net/quic/quic_crypto_client_stream.cc
 	src/net/quic/quic_server_id.cc
 	src/net/quic/quic_simple_buffer_allocator.cc
@@ -155,13 +160,16 @@ set(
 	src/net/quic/stream_sequencer_buffer.cc
 
 	src/net/base/int128.cc
+	src/net/base/escape.cc
 	src/net/base/io_buffer.cc
-	src/net/base/net_util.cc
 	src/net/base/net_errors.cc
+	src/net/base/ip_address.cc
+	src/net/base/ip_address_number.cc
 	src/net/base/ip_endpoint.cc
 	src/net/base/host_port_pair.cc
-	src/net/base/port_util.cc
 	src/net/base/address_family.cc
+	src/net/base/port_util.cc
+	src/net/base/url_util.cc
 
 	src/net/spdy/spdy_frame_reader.cc
 	src/net/spdy/spdy_frame_builder.cc
@@ -175,6 +183,7 @@ set(
 	src/net/spdy/hpack/hpack_entry.cc
 	src/net/spdy/hpack/hpack_header_table.cc
 	src/net/spdy/hpack/hpack_huffman_table.cc
+	src/net/spdy/hpack/hpack_huffman_decoder.cc
 	src/net/spdy/hpack/hpack_input_stream.cc
 	src/net/spdy/hpack/hpack_output_stream.cc
 	src/net/spdy/hpack/hpack_static_table.cc
@@ -256,6 +265,7 @@ set(
 	src/base/strings/string16.cc
 	src/base/strings/utf_string_conversion_utils.cc
 	src/base/strings/utf_string_conversions.cc
+	src/base/strings/utf_offset_string_conversions.cc
 	src/base/pickle.cc
 	src/base/debug/alias.cc
 	src/base/debug/stack_trace.cc
@@ -269,7 +279,6 @@ set(
 	src/base/lazy_instance.cc
 	src/base/callback_internal.cc
 	src/base/base_switches.cc
-	src/base/os_compat_nacl.cc
 	src/base/values.cc
 	src/base/at_exit.cc
 	src/base/process/process_handle_posix.cc
@@ -279,14 +288,16 @@ set(
 	src/base/base64.cc
 	src/base/md5.cc
 	src/base/metrics/statistics_recorder.cc
-	src/base/metrics/histogram_base.cc
 	src/base/metrics/sample_map.cc
-	src/base/metrics/histogram.cc
 	src/base/metrics/sample_vector.cc
+	src/base/metrics/histogram_base.cc
+	src/base/metrics/histogram.cc
+	src/base/metrics/histogram_persistence.cc
 	src/base/metrics/histogram_samples.cc
-	src/base/metrics/bucket_ranges.cc
 	src/base/metrics/sparse_histogram.cc
+	src/base/metrics/bucket_ranges.cc
 	src/base/metrics/metrics_hashes.cc
+	src/base/metrics/persistent_memory_allocator.cc
 	src/base/rand_util.cc
 	src/base/files/file_path_constants.cc
 	src/base/files/file_path.cc
@@ -318,6 +329,23 @@ set(
 	URL_SOURCES
 
 	src/url/url_constants.cc
+	src/url/url_canon_etc.cc
+	src/url/url_canon_filesystemurl.cc
+	src/url/url_canon_fileurl.cc
+	src/url/url_canon_host.cc
+	src/url/url_canon_internal.cc
+	src/url/url_canon_ip.cc
+	src/url/url_canon_mailtourl.cc
+	src/url/url_canon_path.cc
+	src/url/url_canon_pathurl.cc
+	src/url/url_canon_query.cc
+	src/url/url_canon_relative.cc
+	src/url/url_canon_stdstring.cc
+	src/url/url_canon_stdurl.cc
+	src/url/url_util.cc
+	src/url/url_parse_file.cc
+	src/url/gurl.cc
+	src/url/third_party/mozilla/url_parse.cc
 )
 
 add_library(
@@ -328,8 +356,6 @@ add_library(
 	${BASE_SOURCES}
 	${CRYPTO_SOURCES}
 	${URL_SOURCES}
-
-	src/stubs.cc
 
 	src/third_party/modp_b64/modp_b64.cc
 	src/third_party/zlib/gzwrite.c

@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file contains some protocol structures for use with SPDY 2 and 3
-// The SPDY 2 spec can be found at:
-// http://dev.chromium.org/spdy/spdy-protocol/spdy-protocol-draft2
+// This file contains some protocol structures for use with SPDY 3 and HTTP 2
 // The SPDY 3 spec can be found at:
 // http://dev.chromium.org/spdy/spdy-protocol/spdy-protocol-draft3
 
@@ -33,15 +31,15 @@ namespace net {
 
 // The major versions of SPDY. Major version differences indicate
 // framer-layer incompatibility, as opposed to minor version numbers
-// which indicate application-layer incompatibility. Do not rely on
-// the mapping from enum value SPDYn to the integer n.
+// which indicate application-layer incompatibility. It is NOT guaranteed
+// that the enum value SPDYn maps to the integer n.
 enum SpdyMajorVersion {
-  SPDY2 = 2,
-  SPDY_MIN_VERSION = SPDY2,
-  SPDY3 = 3,
-  HTTP2 = 4,
-  SPDY_MAX_VERSION = HTTP2
+  SPDY3 = 1,
+  HTTP2,
 };
+
+// 15 bit version field for SPDY/3 frames.
+const uint16_t kSpdy3Version = 3;
 
 // A SPDY stream id is a 31 bit entity.
 typedef uint32_t SpdyStreamId;
@@ -61,24 +59,6 @@ const int32_t kSpdyMaximumWindowSize = 0x7FFFFFFF;  // Max signed 32bit int
 
 // Maximum padding size in octets for one DATA or HEADERS or PUSH_PROMISE frame.
 const int32_t kPaddingSizePerFrame = 256;
-
-// SPDY 2 dictionary.
-// This is just a hacked dictionary to use for shrinking HTTP-like headers.
-const char kV2Dictionary[] =
-  "optionsgetheadpostputdeletetraceacceptaccept-charsetaccept-encodingaccept-"
-  "languageauthorizationexpectfromhostif-modified-sinceif-matchif-none-matchi"
-  "f-rangeif-unmodifiedsincemax-forwardsproxy-authorizationrangerefererteuser"
-  "-agent10010120020120220320420520630030130230330430530630740040140240340440"
-  "5406407408409410411412413414415416417500501502503504505accept-rangesageeta"
-  "glocationproxy-authenticatepublicretry-afterservervarywarningwww-authentic"
-  "ateallowcontent-basecontent-encodingcache-controlconnectiondatetrailertran"
-  "sfer-encodingupgradeviawarningcontent-languagecontent-lengthcontent-locati"
-  "oncontent-md5content-rangecontent-typeetagexpireslast-modifiedset-cookieMo"
-  "ndayTuesdayWednesdayThursdayFridaySaturdaySundayJanFebMarAprMayJunJulAugSe"
-  "pOctNovDecchunkedtext/htmlimage/pngimage/jpgimage/gifapplication/xmlapplic"
-  "ation/xhtmltext/plainpublicmax-agecharset=iso-8859-1utf-8gzipdeflateHTTP/1"
-  ".1statusversionurl";
-const int kV2DictionarySize = arraysize(kV2Dictionary);
 
 // SPDY 3 dictionary.
 const char kV3Dictionary[] = {
@@ -418,8 +398,6 @@ enum SpdyGoAwayStatus {
 };
 
 // A SPDY priority is a number between 0 and 7 (inclusive).
-// SPDY priority range is version-dependent. For SPDY 2 and below, priority is a
-// number between 0 and 3.
 typedef uint8_t SpdyPriority;
 
 // Lowest and Highest here refer to SPDY priorities as described in
@@ -529,9 +507,8 @@ class NET_EXPORT_PRIVATE SpdyConstants {
 
   static size_t GetFrameMaximumSize(SpdyMajorVersion version);
 
-  // Returns the size of a header block size field. Valid only for SPDY
-  // versions <= 3.
-  static size_t GetSizeOfSizeField(SpdyMajorVersion version);
+  // Returns the size of a header block size field. Valid only for SPDY 3.
+  static size_t GetSizeOfSizeField();
 
   // Returns the size (in bytes) of a wire setting ID and value.
   static size_t GetSettingSize(SpdyMajorVersion version);
@@ -541,10 +518,6 @@ class NET_EXPORT_PRIVATE SpdyConstants {
 
   // Initial window size for a session in bytes.
   static int32_t GetInitialSessionWindowSize(SpdyMajorVersion version);
-
-  static SpdyMajorVersion ParseMajorVersion(int version_number);
-
-  static int SerializeMajorVersion(SpdyMajorVersion version);
 
   static std::string GetVersionString(SpdyMajorVersion version);
 };

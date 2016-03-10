@@ -476,12 +476,31 @@ EVENT_TYPE(SSL_PRIVATE_KEY_OPERATION)
 //   {
 //     "net_error": <Net integer error code>,
 //   }
+// TODO(nharper): remove this event.
 EVENT_TYPE(SSL_GET_DOMAIN_BOUND_CERT)
 
+// The start/end of getting a Channel ID key.
+//
+// The START event contains these parameters:
+//   {
+//     "ephemeral": <Whether or not the Channel ID store is ephemeral>,
+//     "service": <Unique identifier for the ChannelIDService used>,
+//     "store": <Unique identifier for the ChannelIDStore used>,
+//   }
+//
+// The END event may contain these parameters:
+//   {
+//     "net_error": <Net error code>,
+//     "key": <Hex-encoded EC point of public key (uncompressed point format)>,
+//   }
+EVENT_TYPE(SSL_GET_CHANNEL_ID)
+
 // The SSL server requested a channel id.
+// TODO(nharper): Remove this event.
 EVENT_TYPE(SSL_CHANNEL_ID_REQUESTED)
 
 // A channel ID was provided to the SSL library to be sent to the SSL server.
+// TODO(nharper): Remove this event.
 EVENT_TYPE(SSL_CHANNEL_ID_PROVIDED)
 
 // A client certificate (or none) was provided to the SSL library to be sent
@@ -613,6 +632,18 @@ EVENT_TYPE(SIGNED_CERTIFICATE_TIMESTAMPS_RECEIVED)
 //    "signature_data": <base64-encoded signature bytes>,
 // }
 EVENT_TYPE(SIGNED_CERTIFICATE_TIMESTAMPS_CHECKED)
+
+// The certificate was checked for compliance with Certificate Transparency
+// requirements.
+//
+// The following parameters are attached to the event:
+// {
+//    "certificate": <An X.509 certificate, same format as in
+//                   CERT_VERIFIER_JOB.>
+//    "build_timely": <boolean>
+//    "ct_compliance_status": <string describing compliance status>
+// }
+EVENT_TYPE(CERT_CT_COMPLIANCE_CHECKED)
 
 // The EV certificate was checked for compliance with Certificate Transparency
 // requirements.
@@ -1029,6 +1060,12 @@ EVENT_TYPE(HTTP_STREAM_REQUEST_PROTO)
 // Job. The orphaned Job will continue to run to completion.
 EVENT_TYPE(HTTP_STREAM_JOB_ORPHANED)
 
+// Emitted when a job is asked to resume after non-zero microseconds.
+//   {
+//     "resume_after_ms": <Number of milliseconds until job will be unblocked>
+//   }
+EVENT_TYPE(HTTP_STREAM_JOB_DELAYED)
+
 // ------------------------------------------------------------------------
 // HttpNetworkTransaction
 // ------------------------------------------------------------------------
@@ -1109,6 +1146,9 @@ EVENT_TYPE(HTTP_TRANSACTION_READ_BODY)
 // restarting for authentication, on keep alive connections.
 EVENT_TYPE(HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART)
 
+// Measures the time taken to look up the key used for Token Binding.
+EVENT_TYPE(HTTP_TRANSACTION_GET_TOKEN_BINDING_KEY)
+
 // This event is sent when we try to restart a transaction after an error.
 // The following parameters are attached:
 //   {
@@ -1163,15 +1203,16 @@ EVENT_TYPE(HTTP2_SESSION_SYN_STREAM)
 //   }
 EVENT_TYPE(HTTP2_SESSION_PUSHED_SYN_STREAM)
 
-// This event is sent for sending an HTTP/2 (or SPDY) HEADERS frame.
+// This event is sent for sending an HTTP/2 HEADERS frame.
 // The following parameters are attached:
 //   {
-//     "flags": <The control frame flags>,
 //     "headers": <The list of header:value pairs>,
 //     "fin": <True if this is the final data set by the peer on this stream>,
-//     "unidirectional": <True if this stream is unidirectional>,
-//     "priority": <The priority value of the stream>,
 //     "stream_id": <The stream id>,
+//     "has_priority": <True if the PRIORITY flag is set>,
+//     "parent_stream_id": <Optional; the stream id of the parent stream>,
+//     "priority": <Optional; the priority value of the stream>,
+//     "exclusive": <Optional; true if the exclusive bit is set>.
 //   }
 EVENT_TYPE(HTTP2_SESSION_SEND_HEADERS)
 
@@ -1325,10 +1366,6 @@ EVENT_TYPE(HTTP2_SESSION_CLOSE)
 // Event when the creation of a stream is stalled because we're at
 // the maximum number of concurrent streams.
 EVENT_TYPE(HTTP2_SESSION_STALLED_MAX_STREAMS)
-
-// Received a value for initial window size in SETTINGS frame with
-// flow control turned off.
-EVENT_TYPE(HTTP2_SESSION_INITIAL_WINDOW_SIZE_NO_FLOW_CONTROL)
 
 // Received an out-of-range value for initial window size in SETTINGS
 // frame.
@@ -2426,14 +2463,12 @@ EVENT_TYPE(SIMPLE_CACHE_ENTRY_CREATE_BEGIN)
 // }
 EVENT_TYPE(SIMPLE_CACHE_ENTRY_CREATE_END)
 
-// This event is created when ReadEntry is called.
+// This event is created when ReadData is called.
 // It contains the following parameters:
 //   {
 //     "index": <Index being read/written>,
 //     "offset": <Offset being read/written>,
 //     "buf_len": <Length of buffer being read to/written from>,
-//     "truncate": <If present for a write, the truncate flag is set to true.
-//                  Not present in reads or writes where it is false>,
 //   }
 EVENT_TYPE(SIMPLE_CACHE_ENTRY_READ_CALL)
 
@@ -2444,12 +2479,10 @@ EVENT_TYPE(SIMPLE_CACHE_ENTRY_READ_CALL)
 //     "index": <Index being read/written>,
 //     "offset": <Offset being read/written>,
 //     "buf_len": <Length of buffer being read to/written from>,
-//     "truncate": <If present for a write, the truncate flag is set to true.
-//                  Not present in reads or writes where it is false>,
 //   }
 EVENT_TYPE(SIMPLE_CACHE_ENTRY_READ_BEGIN)
 
-// This event is created when the Simple Cache finishes a ReadEntry call.
+// This event is created when the Simple Cache finishes a ReadData call.
 // It contains the following parameters:
 //   {
 //     "bytes_copied": <Number of bytes copied.  Not present on error>,
@@ -2470,7 +2503,7 @@ EVENT_TYPE(SIMPLE_CACHE_ENTRY_CHECKSUM_BEGIN)
 // }
 EVENT_TYPE(SIMPLE_CACHE_ENTRY_CHECKSUM_END)
 
-// This event is created when WriteEntry is called.
+// This event is created when WriteData is called.
 // It contains the following parameters:
 //   {
 //     "index": <Index being read/written>,
@@ -2502,13 +2535,67 @@ EVENT_TYPE(SIMPLE_CACHE_ENTRY_WRITE_OPTIMISTIC)
 //   }
 EVENT_TYPE(SIMPLE_CACHE_ENTRY_WRITE_BEGIN)
 
-// This event is created when the Simple Cache finishes a WriteEntry call.
+// This event is created when the Simple Cache finishes a WriteData call.
 // It contains the following parameters:
 //   {
 //     "bytes_copied": <Number of bytes copied.  Not present on error>,
 //     "net_error": <Network error code.  Only present on error>,
 //   }
 EVENT_TYPE(SIMPLE_CACHE_ENTRY_WRITE_END)
+
+// This event is created when ReadSparseData is called.
+// It contains the following parameters:
+//   {
+//     "offset": <Offset being read/written>,
+//     "buf_len": <Length of buffer being read to/written from>,
+//     "truncate": <If present for a write, the truncate flag is set to true.
+//                  Not present in reads or writes where it is false>,
+//   }
+EVENT_TYPE(SIMPLE_CACHE_ENTRY_READ_SPARSE_CALL)
+
+// This event is created when the Simple Cache actually begins reading sparse
+// data from the cache entry.
+// It contains the following parameters:
+//   {
+//     "offset": <Offset being read/written>,
+//     "buf_len": <Length of buffer being read to/written from>,
+//     "truncate": <If present for a write, the truncate flag is set to true.
+//                  Not present in reads or writes where it is false>,
+//   }
+EVENT_TYPE(SIMPLE_CACHE_ENTRY_READ_SPARSE_BEGIN)
+
+// This event is created when the Simple Cache finishes a ReadSparseData call.
+// It contains the following parameters:
+//   {
+//     "bytes_copied": <Number of bytes copied.  Not present on error>,
+//     "net_error": <Network error code.  Only present on error>,
+//   }
+EVENT_TYPE(SIMPLE_CACHE_ENTRY_READ_SPARSE_END)
+
+// This event is created when WriteSparseData is called.
+// It contains the following parameters:
+//   {
+//     "offset": <Offset being read/written>,
+//     "buf_len": <Length of buffer being read to/written from>,
+//   }
+EVENT_TYPE(SIMPLE_CACHE_ENTRY_WRITE_SPARSE_CALL)
+
+// This event is created when the Simple Cache actually begins writing sparse
+// data to the cache entry.
+// It contains the following parameters:
+//   {
+//     "offset": <Offset being read/written>,
+//     "buf_len": <Length of buffer being read to/written from>,
+//   }
+EVENT_TYPE(SIMPLE_CACHE_ENTRY_WRITE_SPARSE_BEGIN)
+
+// This event is created when the Simple Cache finishes a WriteSparseData call.
+// It contains the following parameters:
+//   {
+//     "bytes_copied": <Number of bytes copied.  Not present on error>,
+//     "net_error": <Network error code.  Only present on error>,
+//   }
+EVENT_TYPE(SIMPLE_CACHE_ENTRY_WRITE_SPARSE_END)
 
 // This event is created when DoomEntry is called.  It contains no parameters.
 EVENT_TYPE(SIMPLE_CACHE_ENTRY_DOOM_CALL)

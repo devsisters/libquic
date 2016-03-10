@@ -73,6 +73,17 @@ typedef enum { PR_FAILURE = -1, PR_SUCCESS = 0 } PRStatus;
 #define PR_INT16_MAX 32767
 #define NSPR_API(__type) extern __type
 
+/*
+ * Long-long (64-bit signed integer type) support macros used by
+ * PR_ImplodeTime().
+ * See http://lxr.mozilla.org/nspr/source/pr/include/prlong.h
+ */
+
+#define LL_I2L(l, i) ((l) = (PRInt64)(i))
+#define LL_MUL(r, a, b) ((r) = (a) * (b))
+#define LL_ADD(r, a, b) ((r) = (a) + (b))
+#define LL_SUB(r, a, b) ((r) = (a) - (b))
+
 /**********************************************************************/
 /************************* TYPES AND CONSTANTS ************************/
 /**********************************************************************/

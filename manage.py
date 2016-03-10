@@ -56,7 +56,7 @@ def main():
     files = set()
 
     for autodep in deps.get("automatic_dependency", []):
-        tree = DependencyTree(chromium_root, autodep["exclude"], False)
+        tree = DependencyTree(chromium_root, autodep["exclude"], True)
         depmap = tree.get_dependencies(autodep["from"])
 
         for node in depmap.keys():

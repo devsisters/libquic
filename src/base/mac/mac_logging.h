@@ -29,6 +29,9 @@
 
 namespace logging {
 
+// Returns a UTF8 description from an OS X Status error.
+BASE_EXPORT std::string DescriptionFromOSStatus(OSStatus err);
+
 class BASE_EXPORT OSStatusLogMessage : public logging::LogMessage {
  public:
   OSStatusLogMessage(const char* file_path,

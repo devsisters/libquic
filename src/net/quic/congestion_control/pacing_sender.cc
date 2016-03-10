@@ -79,7 +79,7 @@ bool PacingSender::OnPacketSent(
   }
   // The next packet should be sent as soon as the current packets has been
   // transferred.
-  QuicTime::Delta delay = PacingRate().TransferTime(bytes);
+  QuicTime::Delta delay = sender_->PacingRate().TransferTime(bytes);
   // If the last send was delayed, and the alarm took a long time to get
   // invoked, allow the connection to make up for lost time.
   if (was_last_send_delayed_) {
@@ -109,6 +109,10 @@ bool PacingSender::OnPacketSent(
 
 void PacingSender::OnRetransmissionTimeout(bool packets_retransmitted) {
   sender_->OnRetransmissionTimeout(packets_retransmitted);
+}
+
+void PacingSender::OnConnectionMigration() {
+  sender_->OnConnectionMigration();
 }
 
 QuicTime::Delta PacingSender::TimeUntilSend(

@@ -363,6 +363,9 @@ NET_ERROR(CT_STH_INCOMPLETE, -169)
 // internally by the network stack.
 NET_ERROR(UNABLE_TO_REUSE_CONNECTION_FOR_PROXY_AUTH, -170)
 
+// Certificate Transparency: Failed to parse the received consistency proof.
+NET_ERROR(CT_CONSISTENCY_PROOF_PARSING_FAILED, -171)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
@@ -791,8 +794,7 @@ NET_ERROR(SELF_SIGNED_CERT_GENERATION_FAILED, -713)
 // The certificate database changed in some way.
 NET_ERROR(CERT_DATABASE_CHANGED, -714)
 
-// Failure to import Channel ID.
-NET_ERROR(CHANNEL_ID_IMPORT_FAILED, -715)
+// Error -715 was removed (CHANNEL_ID_IMPORT_FAILED)
 
 // DNS error codes.
 

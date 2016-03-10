@@ -275,6 +275,14 @@ std::string JSONParser::GetErrorMessage() const {
       JSONReader::ErrorCodeToString(error_code_));
 }
 
+int JSONParser::error_line() const {
+  return error_line_;
+}
+
+int JSONParser::error_column() const {
+  return error_column_;
+}
+
 // StringBuilder ///////////////////////////////////////////////////////////////
 
 JSONParser::StringBuilder::StringBuilder()

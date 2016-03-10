@@ -59,7 +59,9 @@ scoped_ptr<Value> JSONReader::Read(const StringPiece& json, int options) {
 scoped_ptr<Value> JSONReader::ReadAndReturnError(const StringPiece& json,
                                                  int options,
                                                  int* error_code_out,
-                                                 std::string* error_msg_out) {
+                                                 std::string* error_msg_out,
+                                                 int* error_line_out,
+                                                 int* error_column_out) {
   internal::JSONParser parser(options);
   scoped_ptr<Value> root(parser.Parse(json));
   if (!root) {
@@ -67,6 +69,10 @@ scoped_ptr<Value> JSONReader::ReadAndReturnError(const StringPiece& json,
       *error_code_out = parser.error_code();
     if (error_msg_out)
       *error_msg_out = parser.GetErrorMessage();
+    if (error_line_out)
+      *error_line_out = parser.error_line();
+    if (error_column_out)
+      *error_column_out = parser.error_column();
   }
 
   return root;

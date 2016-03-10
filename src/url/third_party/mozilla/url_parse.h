@@ -10,10 +10,6 @@
 
 namespace url {
 
-// Deprecated, but WebKit/WebCore/platform/KURLGooglePrivate.h and
-// KURLGoogle.cpp still rely on this type.
-typedef base::char16 UTF16Char;
-
 // Component ------------------------------------------------------------------
 
 // Represents a substring for URL parsing.

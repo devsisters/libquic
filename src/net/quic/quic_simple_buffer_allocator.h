@@ -12,6 +12,7 @@ namespace net {
 class NET_EXPORT_PRIVATE SimpleBufferAllocator : public QuicBufferAllocator {
  public:
   char* New(size_t size) override;
+  char* New(size_t size, bool flag_enable) override;
   void Delete(char* buffer) override;
 };
 

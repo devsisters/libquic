@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_clock.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_frame_list.h"
@@ -48,6 +49,8 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   const size_t data_len = frame.frame_length;
   if (data_len == 0 && !frame.fin) {
     // Stream frames must have data or a fin flag.
+    LOG(WARNING) << "QUIC_INVALID_STREAM_FRAM: Empty stream frame "
+                    "without FIN set.";
     stream_->CloseConnectionWithDetails(QUIC_INVALID_STREAM_FRAME,
                                         "Empty stream frame without FIN set.");
     return;
@@ -65,6 +68,8 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
       clock_->ApproximateNow(), &bytes_written);
 
   if (result == QUIC_INVALID_STREAM_DATA) {
+    LOG(WARNING) << "QUIC_INVALID_STREAM_FRAME: Stream frame "
+                    "overlaps with buffered data.";
     stream_->CloseConnectionWithDetails(
         QUIC_INVALID_STREAM_FRAME, "Stream frame overlaps with buffered data.");
     return;
@@ -158,9 +163,9 @@ void QuicStreamSequencer::MarkConsumed(size_t num_bytes_consumed) {
   DCHECK(!blocked_);
   bool result = buffered_frames_->MarkConsumed(num_bytes_consumed);
   if (!result) {
-    LOG(DFATAL) << "Invalid argument to MarkConsumed."
-                << " expect to consume: " << num_bytes_consumed
-                << ", but not enough bytes available.";
+    QUIC_BUG << "Invalid argument to MarkConsumed."
+             << " expect to consume: " << num_bytes_consumed
+             << ", but not enough bytes available.";
     stream_->Reset(QUIC_ERROR_PROCESSING_STREAM);
     return;
   }

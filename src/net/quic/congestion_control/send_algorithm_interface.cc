@@ -6,6 +6,9 @@
 
 #include "net/quic/congestion_control/tcp_cubic_bytes_sender.h"
 #include "net/quic/congestion_control/tcp_cubic_sender.h"
+#include "net/quic/congestion_control/tcp_cubic_sender_bytes.h"
+#include "net/quic/congestion_control/tcp_cubic_sender_packets.h"
+#include "net/quic/quic_flags.h"
 #include "net/quic/quic_protocol.h"
 
 namespace net {
@@ -24,18 +27,38 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
       kDefaultTCPMSS;
   switch (congestion_control_type) {
     case kCubic:
+      if (FLAGS_quic_use_new_tcp_sender) {
+        return new TcpCubicSenderPackets(
+            clock, rtt_stats, false /* don't use Reno */,
+            initial_congestion_window, max_congestion_window, stats);
+      }
       return new TcpCubicSender(clock, rtt_stats, false /* don't use Reno */,
                                 initial_congestion_window,
                                 max_congestion_window, stats);
     case kCubicBytes:
+      if (FLAGS_quic_use_new_tcp_sender) {
+        return new TcpCubicSenderBytes(
+            clock, rtt_stats, false /* don't use Reno */,
+            initial_congestion_window, max_congestion_window, stats);
+      }
       return new TcpCubicBytesSender(
           clock, rtt_stats, false /* don't use Reno */,
           initial_congestion_window, max_congestion_window, stats);
     case kReno:
+      if (FLAGS_quic_use_new_tcp_sender) {
+        return new TcpCubicSenderPackets(clock, rtt_stats, true /* use Reno */,
+                                         initial_congestion_window,
+                                         max_congestion_window, stats);
+      }
       return new TcpCubicSender(clock, rtt_stats, true /* use Reno */,
                                 initial_congestion_window,
                                 max_congestion_window, stats);
     case kRenoBytes:
+      if (FLAGS_quic_use_new_tcp_sender) {
+        return new TcpCubicSenderBytes(clock, rtt_stats, true /* use Reno */,
+                                       initial_congestion_window,
+                                       max_congestion_window, stats);
+      }
       return new TcpCubicBytesSender(clock, rtt_stats, true /* use Reno */,
                                      initial_congestion_window,
                                      max_congestion_window, stats);

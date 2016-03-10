@@ -1,0 +1,20 @@
+diff --git a/src/net/spdy/spdy_header_block.cc b/src/net/spdy/spdy_header_block.cc
+index b24085f..c0765ee 100644
+--- a/src/net/spdy/spdy_header_block.cc
++++ b/src/net/spdy/spdy_header_block.cc
+@@ -228,6 +228,7 @@ void SpdyHeaderBlock::AppendHeader(const StringPiece key,
+   block_.insert(make_pair(storage_->Write(key), storage_->Write(value)));
+ }
+ 
++#if 0
+ scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
+     const SpdyHeaderBlock* headers,
+     NetLogCaptureMode capture_mode) {
+@@ -243,6 +244,7 @@ scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
+   dict->Set("headers", headers_dict);
+   return std::move(dict);
+ }
++#endif
+ 
+ bool SpdyHeaderBlockFromNetLogParam(
+     const base::Value* event_param,

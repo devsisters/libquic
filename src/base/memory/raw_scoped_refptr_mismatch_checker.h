@@ -47,14 +47,14 @@ struct ParamsUseScopedRefptrCorrectly {
 };
 
 template <>
-struct ParamsUseScopedRefptrCorrectly<Tuple<>> {
+struct ParamsUseScopedRefptrCorrectly<std::tuple<>> {
   enum { value = 1 };
 };
 
 template <typename Head, typename... Tail>
-struct ParamsUseScopedRefptrCorrectly<Tuple<Head, Tail...>> {
+struct ParamsUseScopedRefptrCorrectly<std::tuple<Head, Tail...>> {
   enum { value = !NeedsScopedRefptrButGetsRawPtr<Head>::value &&
-                 ParamsUseScopedRefptrCorrectly<Tuple<Tail...>>::value };
+                  ParamsUseScopedRefptrCorrectly<std::tuple<Tail...>>::value };
 };
 
 }  // namespace internal

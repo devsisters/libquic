@@ -502,10 +502,10 @@ FilePath FilePath::Append(StringPieceType component) const {
   // Don't append a separator if the path is empty (indicating the current
   // directory) or if the path component is empty (indicating nothing to
   // append).
-  if (appended.length() > 0 && new_path.path_.length() > 0) {
+  if (!appended.empty() && !new_path.path_.empty()) {
     // Don't append a separator if the path still ends with a trailing
     // separator after stripping (indicating the root directory).
-    if (!IsSeparator(new_path.path_[new_path.path_.length() - 1])) {
+    if (!IsSeparator(new_path.path_.back())) {
       // Don't append a separator if the path is just a drive letter.
       if (FindDriveLetter(new_path.path_) + 1 != new_path.path_.length()) {
         new_path.path_.append(1, kSeparators[0]);
@@ -610,7 +610,7 @@ string16 FilePath::AsUTF16Unsafe() const {
 }
 
 // static
-FilePath FilePath::FromUTF8Unsafe(const std::string& utf8) {
+FilePath FilePath::FromUTF8Unsafe(StringPiece utf8) {
 #if defined(SYSTEM_NATIVE_UTF8)
   return FilePath(utf8);
 #else
@@ -619,11 +619,11 @@ FilePath FilePath::FromUTF8Unsafe(const std::string& utf8) {
 }
 
 // static
-FilePath FilePath::FromUTF16Unsafe(const string16& utf16) {
+FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
 #if defined(SYSTEM_NATIVE_UTF8)
   return FilePath(UTF16ToUTF8(utf16));
 #else
-  return FilePath(SysWideToNativeMB(UTF16ToWide(utf16)));
+  return FilePath(SysWideToNativeMB(UTF16ToWide(utf16.as_string())));
 #endif
 }
 
@@ -647,15 +647,23 @@ string16 FilePath::AsUTF16Unsafe() const {
 }
 
 // static
-FilePath FilePath::FromUTF8Unsafe(const std::string& utf8) {
+FilePath FilePath::FromUTF8Unsafe(StringPiece utf8) {
   return FilePath(UTF8ToWide(utf8));
 }
 
 // static
-FilePath FilePath::FromUTF16Unsafe(const string16& utf16) {
+FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
   return FilePath(utf16);
 }
 #endif
+
+void FilePath::GetSizeForPickle(PickleSizer* sizer) const {
+#if defined(OS_WIN)
+  sizer->AddString16(path_);
+#else
+  sizer->AddString(path_);
+#endif
+}
 
 void FilePath::WriteToPickle(Pickle* pickle) const {
 #if defined(OS_WIN)

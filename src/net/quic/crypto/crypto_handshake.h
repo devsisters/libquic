@@ -87,8 +87,7 @@ enum HandshakeFailureReason {
 };
 
 // These errors will be packed into an uint32_t and we don't want to set the
-// most
-// significant bit, which may be misinterpreted as the sign bit.
+// most significant bit, which may be misinterpreted as the sign bit.
 static_assert(MAX_FAILURE_REASON <= 32, "failure reason out of sync");
 
 // A CrypterPair contains the encrypter and decrypter for an encryption level.
@@ -109,6 +108,10 @@ struct NET_EXPORT_PRIVATE QuicCryptoNegotiatedParameters {
   QuicTag aead;
   std::string initial_premaster_secret;
   std::string forward_secure_premaster_secret;
+  // initial_subkey_secret is used as the PRK input to the HKDF used when
+  // performing key extraction that needs to happen before forward-secure keys
+  // are available.
+  std::string initial_subkey_secret;
   // subkey_secret is used as the PRK input to the HKDF used for key extraction.
   std::string subkey_secret;
   CrypterPair initial_crypters;
@@ -146,18 +149,6 @@ struct NET_EXPORT_PRIVATE QuicCryptoNegotiatedParameters {
   // Default to false; set to true if the client indicates that it supports sct
   // by sending CSCT tag with an empty value in client hello.
   bool sct_supported_by_client;
-};
-
-struct NET_EXPORT_PRIVATE QuicCryptoProof {
-  QuicCryptoProof();
-  ~QuicCryptoProof();
-
-  std::string signature;
-  // QuicCryptoProof does not take ownership of |certs|.
-  const std::vector<std::string>* certs;
-  std::string cert_sct;
-  // The SCID of the server config whose signature is |signature|.
-  std::string primary_scid;
 };
 
 // QuicCryptoConfig contains common configuration between clients and servers.

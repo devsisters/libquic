@@ -130,16 +130,43 @@ class PriorityWriteScheduler {
     return stream_id;
   }
 
-  // Returns true if the scheduler has any ready streams with a higher priority
-  // than that of the specified stream. If the stream is not registered, logs
-  // DFATAL and returns false.
-  bool HasHigherPriorityReadyStream(StreamIdType stream_id) {
+  // Returns true if there's another stream of greater or equal priority ahead
+  // of |stream_id| in the queue.  This function can be called to see if
+  // |stream_id| should yield work to another stream.
+  bool ShouldYield(StreamIdType stream_id) const {
+    // If there's a higher priority stream, this stream should yield.
+    if (HasHigherPriorityReadyStream(stream_id)) {
+      return true;
+    }
+
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       LOG(DFATAL) << "Stream " << stream_id << " not registered";
       return false;
     }
-    StreamInfo& stream_info = it->second;
+
+    // If this priority level is empty, or this stream is the next up, there's
+    // no need to yield.
+    auto ready_list = ready_lists_[it->second.priority];
+    if (ready_list.empty() || ready_list.front() == stream_id) {
+      return false;
+    }
+
+    // There are other streams in this priority level which take precedence.
+    // Yield.
+    return true;
+  }
+
+  // Returns true if the scheduler has any ready streams with a higher priority
+  // than that of the specified stream. If the stream is not registered, logs
+  // DFATAL and returns false.
+  bool HasHigherPriorityReadyStream(StreamIdType stream_id) const {
+    auto it = stream_infos_.find(stream_id);
+    if (it == stream_infos_.end()) {
+      LOG(DFATAL) << "Stream " << stream_id << " not registered";
+      return false;
+    }
+    const StreamInfo& stream_info = it->second;
     for (SpdyPriority p = kV3HighestPriority; p < stream_info.priority; ++p) {
       if (!ready_lists_[p].empty()) {
         return true;

@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <string>
+#include <utility>
 
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
@@ -20,6 +21,8 @@
 // http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-08
 
 namespace net {
+
+typedef std::pair<size_t, uint32_t> InitialPeekResult;
 
 // An HpackInputStream handles all the low-level details of decoding
 // header fields.
@@ -42,15 +45,25 @@ class NET_EXPORT_PRIVATE HpackInputStream {
 
   bool DecodeNextUint32(uint32_t* I);
   bool DecodeNextIdentityString(base::StringPiece* str);
-  bool DecodeNextHuffmanString(const HpackHuffmanTable& table,
-                               std::string* str);
+  bool DecodeNextHuffmanString(std::string* str);
 
   // Stores input bits into the most-significant, unfilled bits of |out|.
   // |peeked_count| is the number of filled bits in |out| which have been
   // previously peeked. PeekBits() will fill some number of remaining bits,
   // returning the new total number via |peeked_count|. Returns true if one
-  // or more additional bits could be peeked, and false otherwise.
+  // or more additional bits were added to |out|, and false otherwise.
   bool PeekBits(size_t* peeked_count, uint32_t* out) const;
+
+  // Similar to PeekBits, but intended to be used when starting to decode a
+  // Huffman encoded string. Returns a pair containing the peeked_count and
+  // out values as described for PeekBits, with the bits from the first N bytes
+  // of buffer_, where N == min(4, buffer_.size()), starting with the high
+  // order bits.
+  // Should only be called when first peeking at bits from the input stream as
+  // it does not take peeked_count as an input, so doesn't know how many bits
+  // have already been returned by previous calls to InitializePeekBits and
+  // PeekBits.
+  InitialPeekResult InitializePeekBits();
 
   // Consumes |count| bits of input. Generally paired with PeekBits().
   void ConsumeBits(size_t count);

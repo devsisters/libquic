@@ -33,6 +33,15 @@
 //     foo[10].Method();     // Foo::Method on the 10th element.
 //   }
 //
+// Scopers are testable as booleans:
+//   {
+//     scoped_ptr<Foo> foo;
+//     if (!foo)
+//       foo.reset(new Foo());
+//     if (foo)
+//       LOG(INFO) << "This code is reached."
+//   }
+//
 // These scopers also implement part of the functionality of C++11 unique_ptr
 // in that they are "movable but not copyable."  You can use the scopers in
 // the parameter and return types of functions to signify ownership transfer
@@ -81,7 +90,6 @@
 // This is an implementation designed to match the anticipated future TR2
 // implementation of the scoped_ptr class.
 
-#include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -91,16 +99,13 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/macros.h"
 #include "base/move.h"
 #include "base/template_util.h"
+#include "build/build_config.h"
 
 namespace base {
-
-namespace subtle {
-class RefCountedBase;
-class RefCountedThreadSafeBase;
-}  // namespace subtle
 
 // Function object which invokes 'free' on its parameter, which must be
 // a pointer. Can be used to store malloc-allocated pointers in scoped_ptr:
@@ -112,6 +117,63 @@ struct FreeDeleter {
     free(ptr);
   }
 };
+
+}  // namespace base
+
+// Now that scoped_ptr is almost 100% compatible with std::unique_ptr, we're
+// incrementally migrating scoped_ptr to just be a type alias for
+// std::unique_ptr. The eventual goal is to delete scoped_ptr altogether.
+#if defined(OS_LINUX)
+template <typename T, typename D = std::default_delete<T>>
+using scoped_ptr = std::unique_ptr<T, D>;
+
+// Versions of libstdc++ 4.8 lack overloads for <, <=, >, and >= when comparing
+// a std::unique_ptr and nullptr_t.
+#if defined(__GLIBCXX__) && __GLIBCXX__ < 20150426
+template <class T, class D>
+bool operator<(const scoped_ptr<T, D>& p, std::nullptr_t) {
+  return p.get() < nullptr;
+}
+template <class T, class D>
+bool operator<(std::nullptr_t, const scoped_ptr<T, D>& p) {
+  return nullptr < p.get();
+}
+
+template <class T, class D>
+bool operator>(const scoped_ptr<T, D>& p, std::nullptr_t) {
+  return nullptr < p;
+}
+template <class T, class D>
+bool operator>(std::nullptr_t, const scoped_ptr<T, D>& p) {
+  return p < nullptr;
+}
+
+template <class T, class D>
+bool operator<=(const scoped_ptr<T, D>& p, std::nullptr_t) {
+  return !(p > nullptr);
+}
+template <class T, class D>
+bool operator<=(std::nullptr_t, const scoped_ptr<T, D>& p) {
+  return !(nullptr > p);
+}
+
+template <class T, class D>
+bool operator>=(const scoped_ptr<T, D>& p, std::nullptr_t) {
+  return !(p < nullptr);
+}
+template <class T, class D>
+bool operator>=(std::nullptr_t, const scoped_ptr<T, D>& p) {
+  return !(nullptr < p);
+}
+#endif  // defined(__GLIBCXX__) && __GLIBCX__ < 20150426
+
+#else
+namespace base {
+
+namespace subtle {
+class RefCountedBase;
+class RefCountedThreadSafeBase;
+}  // namespace subtle
 
 namespace internal {
 
@@ -350,13 +412,13 @@ class scoped_ptr {
   void reset(element_type* p = nullptr) { impl_.reset(p); }
 
   // Accessors to get the owned object.
-  // operator* and operator-> will assert() if there is no current object.
+  // operator* and operator-> will DCHECK() if there is no current object.
   element_type& operator*() const {
-    assert(impl_.get() != nullptr);
+    DCHECK(impl_.get() != nullptr);
     return *impl_.get();
   }
   element_type* operator->() const  {
-    assert(impl_.get() != nullptr);
+    DCHECK(impl_.get() != nullptr);
     return impl_.get();
   }
   element_type* get() const { return impl_.get(); }
@@ -365,17 +427,27 @@ class scoped_ptr {
   deleter_type& get_deleter() { return impl_.get_deleter(); }
   const deleter_type& get_deleter() const { return impl_.get_deleter(); }
 
-  // Allow scoped_ptr<element_type> to be used in boolean expressions, but not
-  // implicitly convertible to a real bool (which is dangerous).
+  // Implement "Safe Bool Idiom"
+  // https://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Safe_bool
   //
-  // Note that this trick is only safe when the == and != operators
-  // are declared explicitly, as otherwise "scoped_ptr1 ==
-  // scoped_ptr2" will compile but do the wrong thing (i.e., convert
+  // Allow scoped_ptr<element_type> to be used in boolean expressions such as
+  //   if (scoped_ptr_instance)
+  // But do not become convertible to a real bool (which is dangerous).
+  //   Implementation requires:
+  //     typedef Testable
+  //     operator Testable() const
+  //     operator==
+  //     operator!=
+  //
+  // == and != operators must be declared explicitly or dissallowed, as
+  // otherwise "ptr1 == ptr2" will compile but do the wrong thing (i.e., convert
   // to Testable and then do the comparison).
+  //
+  // C++11 provides for "explicit operator bool()", however it is currently
+  // banned due to MSVS2013. https://chromium-cpp.appspot.com/#core-blacklist
  private:
   typedef base::internal::scoped_ptr_impl<element_type, deleter_type>
       scoped_ptr::*Testable;
-
  public:
   operator Testable() const {
     return impl_.get() ? &scoped_ptr::impl_ : nullptr;
@@ -453,7 +525,7 @@ class scoped_ptr<T[], D> {
 
   // Accessors to get the owned array.
   element_type& operator[](size_t i) const {
-    assert(impl_.get() != nullptr);
+    DCHECK(impl_.get() != nullptr);
     return impl_.get()[i];
   }
   element_type* get() const { return impl_.get(); }
@@ -591,17 +663,18 @@ bool operator>=(std::nullptr_t, const scoped_ptr<T, D>& p) {
   return !(nullptr < p);
 }
 
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const scoped_ptr<T>& p) {
+  return out << p.get();
+}
+#endif  // defined(OS_LINUX)
+
 // A function to convert T* into scoped_ptr<T>
 // Doing e.g. make_scoped_ptr(new FooBarBaz<type>(arg)) is a shorter notation
 // for scoped_ptr<FooBarBaz<type> >(new FooBarBaz<type>(arg))
 template <typename T>
 scoped_ptr<T> make_scoped_ptr(T* ptr) {
   return scoped_ptr<T>(ptr);
-}
-
-template <typename T>
-std::ostream& operator<<(std::ostream& out, const scoped_ptr<T>& p) {
-  return out << p.get();
 }
 
 #endif  // BASE_MEMORY_SCOPED_PTR_H_

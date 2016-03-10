@@ -82,14 +82,18 @@ class NET_EXPORT_PRIVATE HpackHuffmanTable {
   // Returns the encoded size of the input string.
   size_t EncodedSize(base::StringPiece in) const;
 
-  // Decodes symbols from |in| into |out|. It is the caller's responsibility
-  // to ensure |out| has a reserved a sufficient buffer to hold decoded output.
-  // DecodeString() halts when |in| runs out of input, in which case true is
-  // returned. It also halts (returning false) if an invalid Huffman code
-  // prefix is read, or if |out_capacity| would otherwise be overflowed.
-  bool DecodeString(HpackInputStream* in,
-                    size_t out_capacity,
-                    std::string* out) const;
+  // Decodes symbols from |in| into |out|, using the support for generic (any)
+  // huffman tables, not just those defined in the HPACK spec. It is the
+  // caller's responsibility to ensure |out| has reserved a sufficient buffer to
+  // hold decoded output. GenericDecodeString() halts when |in| runs out of
+  // input, in which case true is returned. It also halts (returning false) if
+  // an invalid Huffman code prefix is read, or if |out_capacity| would
+  // otherwise be overflowed.
+  // DEPRECATED: HpackHuffmanDecoder is now used for decoding strings encoded
+  // according to the Huffman Table in the HPACK spec.
+  bool GenericDecodeString(HpackInputStream* in,
+                           size_t out_capacity,
+                           std::string* out) const;
 
  private:
   // Expects symbols ordered on length & ID ascending.

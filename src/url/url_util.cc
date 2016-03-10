@@ -34,13 +34,21 @@ const SchemeWithType kStandardURLSchemes[kNumStandardURLSchemes] = {
   {kFileSystemScheme, SCHEME_WITHOUT_AUTHORITY},
 };
 
-// List of the currently installed standard schemes. This list is lazily
-// initialized by InitStandardSchemes and is leaked on shutdown to prevent
-// any destructors from being called that will slow us down or cause problems.
-std::vector<SchemeWithType>* standard_schemes = NULL;
+const int kNumReferrerURLSchemes = 2;
+const SchemeWithType kReferrerURLSchemes[kNumReferrerURLSchemes] = {
+  {kHttpScheme, SCHEME_WITH_PORT},
+  {kHttpsScheme, SCHEME_WITH_PORT},
+};
 
-// See the LockStandardSchemes declaration in the header.
-bool standard_schemes_locked = false;
+// Lists of the currently installed standard and referrer schemes. These lists
+// are lazily initialized by InitStandardSchemes and InitReferrerSchemes and are
+// leaked on shutdown to prevent any destructors from being called that will
+// slow us down or cause problems.
+std::vector<SchemeWithType>* standard_schemes = nullptr;
+std::vector<SchemeWithType>* referrer_schemes = nullptr;
+
+// See the LockSchemeRegistries declaration in the header.
+bool scheme_registries_locked = false;
 
 // This template converts a given character type to the corresponding
 // StringPiece type.
@@ -53,14 +61,27 @@ template<> struct CharToStringPiece<base::char16> {
   typedef base::StringPiece16 Piece;
 };
 
-// Ensures that the standard_schemes list is initialized, does nothing if it
-// already has values.
-void InitStandardSchemes() {
-  if (standard_schemes)
+void InitSchemes(std::vector<SchemeWithType>** schemes,
+                 const SchemeWithType* initial_schemes,
+                 size_t size) {
+  if (*schemes)
     return;
-  standard_schemes = new std::vector<SchemeWithType>;
-  for (int i = 0; i < kNumStandardURLSchemes; i++)
-    standard_schemes->push_back(kStandardURLSchemes[i]);
+  *schemes = new std::vector<SchemeWithType>(size);
+  for (size_t i = 0; i < size; i++) {
+    (*schemes)->push_back(initial_schemes[i]);
+  }
+}
+
+// Ensures that the standard_schemes list is initialized, does nothing if
+// it already has values.
+void InitStandardSchemes() {
+  InitSchemes(&standard_schemes, kStandardURLSchemes, kNumStandardURLSchemes);
+}
+
+// Ensures that the referrer_schemes list is initialized, does nothing if
+// it already has values.
+void InitReferrerSchemes() {
+  InitSchemes(&referrer_schemes, kReferrerURLSchemes, kNumReferrerURLSchemes);
 }
 
 // Given a string and a range inside the string, compares it to the given
@@ -78,27 +99,32 @@ inline bool DoCompareSchemeComponent(const CHAR* spec,
 }
 
 // Returns true and sets |type| to the SchemeType of the given scheme
-// identified by |scheme| within |spec| if the scheme is one of the registered
-// "standard" schemes.
+// identified by |scheme| within |spec| if in |schemes|.
 template<typename CHAR>
-bool DoIsStandard(const CHAR* spec,
-                  const Component& scheme,
-                  SchemeType* type) {
+bool DoIsInSchemes(const CHAR* spec,
+                   const Component& scheme,
+                   SchemeType* type,
+                   const std::vector<SchemeWithType>& schemes) {
   if (!scheme.is_nonempty())
     return false;  // Empty or invalid schemes are non-standard.
 
-  InitStandardSchemes();
-  for (size_t i = 0; i < standard_schemes->size(); i++) {
-    if (base::LowerCaseEqualsASCII(
-            typename CharToStringPiece<CHAR>::Piece(
-                &spec[scheme.begin], scheme.len),
-            standard_schemes->at(i).scheme)) {
-      *type = standard_schemes->at(i).type;
+  for (const SchemeWithType& scheme_with_type : schemes) {
+    if (base::LowerCaseEqualsASCII(typename CharToStringPiece<CHAR>::Piece(
+                                       &spec[scheme.begin], scheme.len),
+                                   scheme_with_type.scheme)) {
+      *type = scheme_with_type.type;
       return true;
     }
   }
   return false;
 }
+
+template<typename CHAR>
+bool DoIsStandard(const CHAR* spec, const Component& scheme, SchemeType* type) {
+  InitStandardSchemes();
+  return DoIsInSchemes(spec, scheme, type, *standard_schemes);
+}
+
 
 template<typename CHAR>
 bool DoFindAndCompareScheme(const CHAR* str,
@@ -364,31 +390,19 @@ bool DoReplaceComponents(const char* spec,
   return ReplacePathURL(spec, parsed, replacements, output, out_parsed);
 }
 
-}  // namespace
-
-void Initialize() {
-  InitStandardSchemes();
-}
-
-void Shutdown() {
-  if (standard_schemes) {
-    delete standard_schemes;
-    standard_schemes = NULL;
-  }
-}
-
-void AddStandardScheme(const char* new_scheme,
-                       SchemeType type) {
-  // If this assert triggers, it means you've called AddStandardScheme after
-  // LockStandardSchemes have been called (see the header file for
-  // LockStandardSchemes for more).
+void DoAddScheme(const char* new_scheme,
+                 SchemeType type,
+                 std::vector<SchemeWithType>* schemes) {
+  DCHECK(schemes);
+  // If this assert triggers, it means you've called Add*Scheme after
+  // LockSchemeRegistries has been called (see the header file for
+  // LockSchemeRegistries for more).
   //
-  // This normally means you're trying to set up a new standard scheme too late
-  // in your application's init process. Locate where your app does this
-  // initialization and calls LockStandardSchemes, and add your new standard
-  // scheme there.
-  DCHECK(!standard_schemes_locked) <<
-      "Trying to add a standard scheme after the list has been locked.";
+  // This normally means you're trying to set up a new scheme too late in your
+  // application's init process. Locate where your app does this initialization
+  // and calls LockSchemeRegistries, and add your new scheme there.
+  DCHECK(!scheme_registries_locked)
+      << "Trying to add a scheme after the lists have been locked.";
 
   size_t scheme_len = strlen(new_scheme);
   if (scheme_len == 0)
@@ -400,15 +414,42 @@ void AddStandardScheme(const char* new_scheme,
   ANNOTATE_LEAKING_OBJECT_PTR(dup_scheme);
   memcpy(dup_scheme, new_scheme, scheme_len + 1);
 
-  InitStandardSchemes();
   SchemeWithType scheme_with_type;
   scheme_with_type.scheme = dup_scheme;
   scheme_with_type.type = type;
-  standard_schemes->push_back(scheme_with_type);
+  schemes->push_back(scheme_with_type);
 }
 
-void LockStandardSchemes() {
-  standard_schemes_locked = true;
+}  // namespace
+
+void Initialize() {
+  InitStandardSchemes();
+  InitReferrerSchemes();
+}
+
+void Shutdown() {
+  if (standard_schemes) {
+    delete standard_schemes;
+    standard_schemes = NULL;
+  }
+  if (referrer_schemes) {
+    delete referrer_schemes;
+    referrer_schemes = NULL;
+  }
+}
+
+void AddStandardScheme(const char* new_scheme, SchemeType type) {
+  InitStandardSchemes();
+  DoAddScheme(new_scheme, type, standard_schemes);
+}
+
+void AddReferrerScheme(const char* new_scheme, SchemeType type) {
+  InitReferrerSchemes();
+  DoAddScheme(new_scheme, type, referrer_schemes);
+}
+
+void LockSchemeRegistries() {
+  scheme_registries_locked = true;
 }
 
 bool IsStandard(const char* spec, const Component& scheme) {
@@ -425,6 +466,12 @@ bool GetStandardSchemeType(const char* spec,
 bool IsStandard(const base::char16* spec, const Component& scheme) {
   SchemeType unused_scheme_type;
   return DoIsStandard(spec, scheme, &unused_scheme_type);
+}
+
+bool IsReferrerScheme(const char* spec, const Component& scheme) {
+  InitReferrerSchemes();
+  SchemeType unused_scheme_type;
+  return DoIsInSchemes(spec, scheme, &unused_scheme_type, *referrer_schemes);
 }
 
 bool FindAndCompareScheme(const char* str,

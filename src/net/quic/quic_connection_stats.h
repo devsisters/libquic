@@ -19,6 +19,7 @@ namespace net {
 // Structure to hold stats for a QuicConnection.
 struct NET_EXPORT_PRIVATE QuicConnectionStats {
   QuicConnectionStats();
+  QuicConnectionStats(const QuicConnectionStats& other);
   ~QuicConnectionStats();
 
   NET_EXPORT_PRIVATE friend std::ostream& operator<<(

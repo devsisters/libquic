@@ -58,6 +58,14 @@ class BASE_EXPORT JSONParser {
   // Returns the human-friendly error message.
   std::string GetErrorMessage() const;
 
+  // Returns the error line number if parse error happened. Otherwise always
+  // returns 0.
+  int error_line() const;
+
+  // Returns the error column number if parse error happened. Otherwise always
+  // returns 0.
+  int error_column() const;
+
  private:
   enum Token {
     T_OBJECT_BEGIN,           // {

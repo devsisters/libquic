@@ -47,7 +47,7 @@ HistogramType SparseHistogram::GetHistogramType() const {
 bool SparseHistogram::HasConstructionArguments(
     Sample expected_minimum,
     Sample expected_maximum,
-    size_t expected_bucket_count) const {
+    uint32_t expected_bucket_count) const {
   // SparseHistogram never has min/max/bucket_count limit.
   return false;
 }
@@ -74,6 +74,17 @@ scoped_ptr<HistogramSamples> SparseHistogram::SnapshotSamples() const {
 
   base::AutoLock auto_lock(lock_);
   snapshot->Add(samples_);
+  return std::move(snapshot);
+}
+
+scoped_ptr<HistogramSamples> SparseHistogram::SnapshotDelta() {
+  scoped_ptr<SampleMap> snapshot(new SampleMap(name_hash()));
+  base::AutoLock auto_lock(lock_);
+  snapshot->Add(samples_);
+
+  // Subtract what was previously logged and update that information.
+  snapshot->Subtract(logged_samples_);
+  logged_samples_.Add(*snapshot);
   return std::move(snapshot);
 }
 

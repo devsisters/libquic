@@ -154,9 +154,9 @@ BASE_EXPORT bool ReadFileToString(const FilePath& path, std::string* contents);
 // |max_size|.
 // |contents| may be NULL, in which case this function is useful for its side
 // effect of priming the disk cache (could be used for unit tests).
-BASE_EXPORT bool ReadFileToString(const FilePath& path,
-                                  std::string* contents,
-                                  size_t max_size);
+BASE_EXPORT bool ReadFileToStringWithMaxSize(const FilePath& path,
+                                             std::string* contents,
+                                             size_t max_size);
 
 #if defined(OS_POSIX)
 

@@ -12,9 +12,7 @@
 #include "base/logging.h"
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
-#if 0
 #include "base/tracked_objects.h"
-#endif
 #include "build/build_config.h"
 
 #if !defined(OS_NACL)
@@ -31,30 +29,19 @@ namespace internal {
 namespace {
 #if !defined(OS_NACL)
 const struct sched_param kRealTimePrio = {8};
-const struct sched_param kResetPrio = {0};
 #endif
 }  // namespace
 
 const ThreadPriorityToNiceValuePair kThreadPriorityToNiceValueMap[4] = {
     {ThreadPriority::BACKGROUND, 10},
     {ThreadPriority::NORMAL, 0},
-    {ThreadPriority::DISPLAY, -6},
+    {ThreadPriority::DISPLAY, -8},
     {ThreadPriority::REALTIME_AUDIO, -10},
 };
 
 bool SetCurrentThreadPriorityForPlatform(ThreadPriority priority) {
 #if !defined(OS_NACL)
-  ThreadPriority current_priority;
-  if (priority != ThreadPriority::REALTIME_AUDIO &&
-      GetCurrentThreadPriorityForPlatform(&current_priority) &&
-      current_priority == ThreadPriority::REALTIME_AUDIO) {
-    // If the pthread's round-robin scheduler is already enabled, and the new
-    // priority will use setpriority() instead, the pthread scheduler should be
-    // reset to use SCHED_OTHER so that setpriority() just works.
-    pthread_setschedparam(pthread_self(), SCHED_OTHER, &kResetPrio);
-    return false;
-  }
-  return priority == ThreadPriority::REALTIME_AUDIO  &&
+  return priority == ThreadPriority::REALTIME_AUDIO &&
          pthread_setschedparam(pthread_self(), SCHED_RR, &kRealTimePrio) == 0;
 #else
   return false;
@@ -81,9 +68,7 @@ bool GetCurrentThreadPriorityForPlatform(ThreadPriority* priority) {
 // static
 void PlatformThread::SetName(const std::string& name) {
   ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
-#if 0
   tracked_objects::ThreadData::InitializeThreadContext(name);
-#endif
 
 #if !defined(OS_NACL)
   // On linux we can get the thread names to show up in the debugger by setting
@@ -106,8 +91,6 @@ void PlatformThread::SetName(const std::string& name) {
 }
 
 void InitThreading() {}
-
-void InitOnThread() {}
 
 void TerminateOnThread() {}
 

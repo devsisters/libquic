@@ -73,7 +73,11 @@ HistogramSamples::HistogramSamples(uint64_t id)
 HistogramSamples::HistogramSamples(uint64_t id, Metadata* meta)
     : meta_(meta) {
   DCHECK(meta_->id == 0 || meta_->id == id);
-  meta_->id = id;
+
+  // It's possible that |meta| is contained in initialized, read-only memory
+  // so it's essential that no write be done in that case.
+  if (!meta_->id)
+    meta_->id = id;
 }
 
 HistogramSamples::~HistogramSamples() {}

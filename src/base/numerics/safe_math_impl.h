@@ -14,7 +14,6 @@
 #include <type_traits>
 
 #include "base/numerics/safe_conversions.h"
-#include "base/template_util.h"
 
 namespace base {
 namespace internal {

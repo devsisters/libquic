@@ -41,7 +41,6 @@ class NET_EXPORT_PRIVATE QuicCryptoStream
 
   // ReliableQuicStream implementation
   void OnDataAvailable() override;
-  SpdyPriority Priority() const override;
 
   // Sends |message| to the peer.
   // TODO(wtc): return a success/failure status.
@@ -59,6 +58,16 @@ class NET_EXPORT_PRIVATE QuicCryptoStream
                             base::StringPiece context,
                             size_t result_len,
                             std::string* result) const;
+
+  // Performs key extraction for Token Binding. Unlike ExportKeyingMaterial,
+  // this function can be called before forward-secure encryption is
+  // established. Returns false if initial encryption has not been established,
+  // and true on success.
+  //
+  // Since this depends only on the initial keys, a signature over it can be
+  // repurposed by an attacker who obtains the client's or server's DH private
+  // value.
+  bool ExportTokenBindingKeyingMaterial(std::string* result) const;
 
   bool encryption_established() const { return encryption_established_; }
   bool handshake_confirmed() const { return handshake_confirmed_; }

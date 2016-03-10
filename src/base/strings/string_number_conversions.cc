@@ -146,6 +146,7 @@ class IteratorRangeToNumber {
 
     if (begin != end && *begin == '-') {
       if (!std::numeric_limits<value_type>::is_signed) {
+        *output = 0;
         valid = false;
       } else if (!Negative::Invoke(begin + 1, end, output)) {
         valid = false;

@@ -97,7 +97,7 @@ bool HistogramBase::SerializeInfo(Pickle* pickle) const {
   return SerializeInfoImpl(pickle);
 }
 
-int HistogramBase::FindCorruption(const HistogramSamples& samples) const {
+uint32_t HistogramBase::FindCorruption(const HistogramSamples& samples) const {
   // Not supported by default.
   return NO_INCONSISTENCIES;
 }

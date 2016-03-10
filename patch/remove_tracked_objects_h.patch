@@ -1,0 +1,48 @@
+diff --git a/src/base/threading/platform_thread_linux.cc b/src/base/threading/platform_thread_linux.cc
+index 95ed324..054de87 100644
+--- a/src/base/threading/platform_thread_linux.cc
++++ b/src/base/threading/platform_thread_linux.cc
+@@ -12,7 +12,9 @@
+ #include "base/logging.h"
+ #include "base/threading/platform_thread_internal_posix.h"
+ #include "base/threading/thread_id_name_manager.h"
++#if 0
+ #include "base/tracked_objects.h"
++#endif
+ #include "build/build_config.h"
+ 
+ #if !defined(OS_NACL)
+@@ -68,7 +70,9 @@ bool GetCurrentThreadPriorityForPlatform(ThreadPriority* priority) {
+ // static
+ void PlatformThread::SetName(const std::string& name) {
+   ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
++#if 0
+   tracked_objects::ThreadData::InitializeThreadContext(name);
++#endif
+ 
+ #if !defined(OS_NACL)
+   // On linux we can get the thread names to show up in the debugger by setting
+diff --git a/src/base/threading/platform_thread_mac.mm b/src/base/threading/platform_thread_mac.mm
+index 7ab47cb..53819bc 100644
+--- a/src/base/threading/platform_thread_mac.mm
++++ b/src/base/threading/platform_thread_mac.mm
+@@ -17,7 +17,9 @@
+ #include "base/logging.h"
+ #include "base/mac/mach_logging.h"
+ #include "base/threading/thread_id_name_manager.h"
++#if 0
+ #include "base/tracked_objects.h"
++#endif
+ #include "build/build_config.h"
+ 
+ namespace base {
+@@ -46,7 +48,9 @@ void InitThreading() {
+ // static
+ void PlatformThread::SetName(const std::string& name) {
+   ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
++#if 0
+   tracked_objects::ThreadData::InitializeThreadContext(name);
++#endif
+ 
+   // Mac OS X does not expose the length limit of the name, so
+   // hardcode it.

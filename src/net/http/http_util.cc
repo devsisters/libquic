@@ -16,6 +16,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
+#include "net/base/url_util.h"
 
 namespace net {
 
@@ -39,6 +40,14 @@ static size_t FindStringEnd(const std::string& line, size_t start, char delim) {
 
 
 // HttpUtil -------------------------------------------------------------------
+
+// static
+std::string HttpUtil::SpecForRequest(const GURL& url) {
+  // We may get ftp scheme when fetching ftp resources through proxy.
+  DCHECK(url.is_valid() && (url.SchemeIsHTTPOrHTTPS() || url.SchemeIs("ftp") ||
+                            url.SchemeIsWSOrWSS()));
+  return SimplifyUrlForRequest(url).spec();
+}
 
 // static
 void HttpUtil::ParseContentType(const std::string& content_type_str,
@@ -729,6 +738,9 @@ bool HttpUtil::HasStrongValidators(HttpVersion version,
                                    const std::string& etag_header,
                                    const std::string& last_modified_header,
                                    const std::string& date_header) {
+  if (!HasValidators(version, etag_header, last_modified_header))
+    return false;
+
   if (version < HttpVersion(1, 1))
     return false;
 
@@ -752,7 +764,25 @@ bool HttpUtil::HasStrongValidators(HttpVersion version,
   if (!base::Time::FromString(date_header.c_str(), &date))
     return false;
 
+  // Last-Modified is implicitly weak unless it is at least 60 seconds before
+  // the Date value.
   return ((date - last_modified).InSeconds() >= 60);
+}
+
+bool HttpUtil::HasValidators(HttpVersion version,
+                             const std::string& etag_header,
+                             const std::string& last_modified_header) {
+  if (version < HttpVersion(1, 0))
+    return false;
+
+  base::Time last_modified;
+  if (base::Time::FromString(last_modified_header.c_str(), &last_modified))
+    return true;
+
+  // It is OK to consider an empty string in etag_header to be a missing header
+  // since valid ETags are always quoted-strings (see RFC 2616 3.11) and thus
+  // empty ETags aren't empty strings (i.e., an empty ETag might be "\"\"").
+  return version >= HttpVersion(1, 1) && !etag_header.empty();
 }
 
 // Functions for histogram initialization.  The code 0 is put in the map to
@@ -858,6 +888,8 @@ HttpUtil::ValuesIterator::ValuesIterator(
   values_.set_quote_chars("\'\"");
 }
 
+HttpUtil::ValuesIterator::ValuesIterator(const ValuesIterator& other) = default;
+
 HttpUtil::ValuesIterator::~ValuesIterator() {
 }
 
@@ -893,6 +925,9 @@ HttpUtil::NameValuePairsIterator::NameValuePairsIterator(
     std::string::const_iterator end,
     char delimiter)
     : NameValuePairsIterator(begin, end, delimiter, VALUES_NOT_OPTIONAL) {}
+
+HttpUtil::NameValuePairsIterator::NameValuePairsIterator(
+    const NameValuePairsIterator& other) = default;
 
 HttpUtil::NameValuePairsIterator::~NameValuePairsIterator() {}
 

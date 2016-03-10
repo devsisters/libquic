@@ -41,6 +41,9 @@ QuicConnectionStats::QuicConnectionStats()
       tcp_loss_events(0),
       connection_creation_time(QuicTime::Zero()) {}
 
+QuicConnectionStats::QuicConnectionStats(const QuicConnectionStats& other) =
+    default;
+
 QuicConnectionStats::~QuicConnectionStats() {}
 
 }  // namespace net

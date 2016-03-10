@@ -3,16 +3,18 @@
 
 # START #
 {
-    "chromium_revision": "b25d2d936da7620ff44ce4a2952f38402efad685",
+    "chromium_revision": "6e3a05d6080ba6ae25af2835573ff9e2406b90c0",
     "automatic_dependency": [
         {
             "from": "net/quic/quic_connection.cc",
             "exclude": [
                 "cached_network_parameters.pb.h",
-                "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
-                "base/files/file.h"
+                "base/files/file.h",
+                "base/feature_list.h",
+                "net/base/registry_controlled_domains/registry_controlled_domain.h",
+                "base/metrics/field_trial.h"
             ]
         },
         {
@@ -45,19 +47,20 @@
             "from": "net/quic/quic_session.cc",
             "exclude": [
                 "cached_network_parameters.pb.h",
-                "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
                 "base/files/file.h",
                 "net/ssl/ssl_info.h",
-                "net/spdy/spdy_header_block.h"
+                "net/spdy/spdy_header_block.h",
+                "base/feature_list.h",
+                "net/base/registry_controlled_domains/registry_controlled_domain.h",
+                "base/metrics/field_trial.h"
             ]
         },
         {
             "from": "net/quic/quic_client_session_base.cc",
             "exclude": [
                 "cached_network_parameters.pb.h",
-                "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
                 "base/files/file.h",
@@ -66,14 +69,16 @@
                 "net/ssl/ssl_info.h",
                 "net/spdy/spdy_header_block.h",
                 "base/cpu.h",
-                "net/base/host_port_pair.h"
+                "net/base/host_port_pair.h",
+                "base/feature_list.h",
+                "net/base/registry_controlled_domains/registry_controlled_domain.h",
+                "base/metrics/field_trial.h"
             ]
         },
         {
             "from": "net/quic/quic_crypto_client_stream.cc",
             "exclude": [
                 "cached_network_parameters.pb.h",
-                "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
                 "base/files/file.h",
@@ -82,7 +87,10 @@
                 "net/ssl/ssl_info.h",
                 "net/spdy/spdy_header_block.h",
                 "base/cpu.h",
-                "net/base/host_port_pair.h"
+                "net/base/host_port_pair.h",
+                "base/feature_list.h",
+                "net/base/registry_controlled_domains/registry_controlled_domain.h",
+                "base/metrics/field_trial.h"
             ]
         },
         {
@@ -90,7 +98,6 @@
             "exclude": [
                 "cached_network_parameters.pb.h",
                 "source_address_token.pb.h",
-                "net/base/net_util.h",
                 "base/debug/debugger.h",
                 "base/sequence_checker.h",
                 "base/files/file.h",
@@ -99,7 +106,10 @@
                 "net/spdy/spdy_header_block.h",
                 "modp_b64.h",
                 "modp_b64_data.h",
-                "base/cpu.h"
+                "base/cpu.h",
+                "base/feature_list.h",
+                "net/base/registry_controlled_domains/registry_controlled_domain.h",
+                "base/metrics/field_trial.h"
             ]
         },
         {
@@ -159,12 +169,11 @@
                 "base/synchronization/condition_variable.h",
                 "base/synchronization/condition_variable_posix.cc",
                 "base/files/file_path_constants.cc",
+                "base/files/file_util_posix.cc",
                 "base/process/process_handle_posix.cc",
                 "net/base/io_buffer.h",
                 "net/base/io_buffer.cc",
                 "net/base/completion_callback.h",
-                "net/base/net_util.h",
-                "net/base/net_util.cc",
                 "net/base/host_port_pair.h",
                 "net/base/host_port_pair.cc",
                 "net/quic/quic_simple_buffer_allocator.h",
@@ -211,8 +220,6 @@
                 "crypto/secure_hash_default.cc",
                 "crypto/curve25519-donna.c",
                 "crypto/curve25519_openssl.cc",
-                "crypto/ghash.cc",
-                "crypto/ghash.h",
                 "base/memory/scoped_vector.h",
                 "third_party/modp_b64/modp_b64_data.h",
                 "base/mac/mach_logging.cc",
@@ -221,11 +228,14 @@
                 "base/mac/scoped_mach_port.h",
                 "base/scoped_generic.h",
                 "base/time/time_mac.cc",
+                "base/feature_list.h",
                 "third_party/zlib/*.c",
                 "third_party/zlib/*.h",
                 "crypto/third_party/nss/*.c",
                 "crypto/third_party/nss/*.cc",
-                "crypto/third_party/nss/*.h"
+                "crypto/third_party/nss/*.h",
+                "url/url_canon_*.cc",
+                "url/url_parse_file.cc"
             ]
         },
         {
@@ -245,12 +255,19 @@
         }
     ],
     "patches": [
-        "patch/basepatch.patch",
-        "patch/freebsd.patch"
+        "patch/disable_sequence_checker.patch",
+        "patch/net_errors_remove_file_error.patch",
+        "patch/quic_session_remove_unused_include.patch",
+        "patch/pickle_remove_unused_include.patch",
+        "patch/platform_thread_remove_tracked_objects.patch",
+        "patch/rand_util_posix.patch",
+        "patch/persistent_memory_allocator_disable_sharing.patch",
+        "patch/spdy_header_block_remove_unused_callback.patch",
+        "patch/url_canon_host_disable_idn_host.patch",
+        "patch/url_util_remove_unused_function.patch",
+        "patch/disable_stack_trace.patch"
     ],
     "custom_files": [
-        {"from": "custom/net_util.h", "to": "net/base/net_util.h"},
-        {"from": "custom/net_util.cc", "to": "net/base/net_util.cc"},
         {"from": "custom/debugger.h", "to": "base/debug/debugger.h"},
         {"from": "custom/debugger.cc", "to": "base/debug/debugger.cc"},
         {"from": "custom/stubs.cc", "to": "stubs.cc"}

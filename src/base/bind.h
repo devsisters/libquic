@@ -6,7 +6,6 @@
 #define BASE_BIND_H_
 
 #include "base/bind_internal.h"
-#include "base/callback_internal.h"
 
 // -----------------------------------------------------------------------------
 // Usage documentation
@@ -47,14 +46,27 @@
 
 namespace base {
 
+namespace internal {
+
+// Don't use Alias Template directly here to avoid a compile error on MSVC2013.
 template <typename Functor, typename... Args>
-base::Callback<
-    typename internal::BindState<
-        typename internal::FunctorTraits<Functor>::RunnableType,
-        typename internal::FunctorTraits<Functor>::RunType,
-        typename internal::CallbackParamTraits<Args>::StorageType...>
-            ::UnboundRunType>
-Bind(Functor functor, const Args&... args) {
+struct MakeUnboundRunTypeImpl {
+  using Type =
+      typename BindState<
+          typename FunctorTraits<Functor>::RunnableType,
+          typename FunctorTraits<Functor>::RunType,
+          Args...>::UnboundRunType;
+};
+
+}  // namespace internal
+
+template <typename Functor, typename... Args>
+using MakeUnboundRunType =
+    typename internal::MakeUnboundRunTypeImpl<Functor, Args...>::Type;
+
+template <typename Functor, typename... Args>
+base::Callback<MakeUnboundRunType<Functor, Args...>>
+Bind(Functor functor, Args&&... args) {
   // Type aliases for how to store and run the functor.
   using RunnableType = typename internal::FunctorTraits<Functor>::RunnableType;
   using RunType = typename internal::FunctorTraits<Functor>::RunType;
@@ -88,12 +100,11 @@ Bind(Functor functor, const Args&... args) {
       !internal::HasRefCountedParamAsRawPtr<is_method, Args...>::value,
       "a parameter is a refcounted type and needs scoped_refptr");
 
-  using BindState = internal::BindState<
-      RunnableType, RunType,
-      typename internal::CallbackParamTraits<Args>::StorageType...>;
+  using BindState = internal::BindState<RunnableType, RunType, Args...>;
 
   return Callback<typename BindState::UnboundRunType>(
-      new BindState(internal::MakeRunnable(functor), args...));
+      new BindState(internal::MakeRunnable(functor),
+                    std::forward<Args>(args)...));
 }
 
 }  // namespace base

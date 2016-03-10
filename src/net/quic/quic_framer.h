@@ -9,6 +9,8 @@
 #include <stdint.h>
 
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "base/logging.h"
@@ -144,6 +146,9 @@ class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // Called when a BlockedFrame has been parsed.
   virtual bool OnBlockedFrame(const QuicBlockedFrame& frame) = 0;
 
+  // Called when a PathCloseFrame has been parsed.
+  virtual bool OnPathCloseFrame(const QuicPathCloseFrame& frame) = 0;
+
   // Called when FEC data has been parsed.
   virtual void OnFecData(base::StringPiece redundancy) = 0;
 
@@ -255,6 +260,8 @@ class NET_EXPORT_PRIVATE QuicFramer {
   static size_t GetWindowUpdateFrameSize();
   // Size in bytes of all Blocked frame fields.
   static size_t GetBlockedFrameSize();
+  // Size in bytes of all PathClose frame fields.
+  static size_t GetPathCloseFrameSize();
   // Size in bytes required to serialize the stream id.
   static size_t GetStreamIdSize(QuicStreamId stream_id);
   // Size in bytes required to serialize the stream offset.
@@ -278,6 +285,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
       const QuicEncryptedPacket& encrypted,
       QuicConnectionIdLength connection_id_length,
       bool includes_version,
+      bool includes_path_id,
       QuicPacketNumberLength packet_number_length);
 
   // Serializes a packet containing |frames| into |buffer|.
@@ -330,6 +338,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // Returns the length of the data encrypted into |buffer| if |buffer_len| is
   // long enough, and otherwise 0.
   size_t EncryptPayload(EncryptionLevel level,
+                        QuicPathId path_id,
                         QuicPacketNumber packet_number,
                         const QuicPacket& packet,
                         char* buffer,
@@ -367,6 +376,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
 
   struct AckFrameInfo {
     AckFrameInfo();
+    AckFrameInfo(const AckFrameInfo& other);
     ~AckFrameInfo();
 
     // The maximum delta between ranges.
@@ -423,6 +433,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
   bool ProcessWindowUpdateFrame(QuicDataReader* reader,
                                 QuicWindowUpdateFrame* frame);
   bool ProcessBlockedFrame(QuicDataReader* reader, QuicBlockedFrame* frame);
+  bool ProcessPathCloseFrame(QuicDataReader* reader, QuicPathCloseFrame* frame);
 
   bool DecryptPayload(QuicDataReader* encrypted_reader,
                       const QuicPacketHeader& header,
@@ -498,6 +509,8 @@ class NET_EXPORT_PRIVATE QuicFramer {
                                QuicDataWriter* writer);
   bool AppendBlockedFrame(const QuicBlockedFrame& frame,
                           QuicDataWriter* writer);
+  bool AppendPathCloseFrame(const QuicPathCloseFrame& frame,
+                            QuicDataWriter* writer);
 
   bool RaiseError(QuicErrorCode error);
 
@@ -513,10 +526,10 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // has been sent/received.
   // TODO(fayang): this set is never cleaned up. A possible improvement is to
   // use intervals.
-  base::hash_set<QuicPathId> closed_paths_;
+  std::unordered_set<QuicPathId> closed_paths_;
   // Map mapping path id to packet number of last successfully decrypted/revived
   // received packet.
-  base::hash_map<QuicPathId, QuicPacketNumber> last_packet_numbers_;
+  std::unordered_map<QuicPathId, QuicPacketNumber> last_packet_numbers_;
   // Updated by ProcessPacketHeader when it succeeds.
   QuicPacketNumber last_packet_number_;
   // The path on which last successfully decrypted/revived packet was received.

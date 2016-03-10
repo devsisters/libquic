@@ -22,9 +22,9 @@ inline uint64_t DigestToUInt64(const base::MD5Digest& digest) {
 
 }  // namespace
 
-uint64_t HashMetricName(const std::string& name) {
+uint64_t HashMetricName(base::StringPiece name) {
   base::MD5Digest digest;
-  base::MD5Sum(name.c_str(), name.size(), &digest);
+  base::MD5Sum(name.data(), name.size(), &digest);
   return DigestToUInt64(digest);
 }
 

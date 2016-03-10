@@ -16,6 +16,8 @@
 
 namespace net {
 
+class IPAddress;
+
 // Serializes and parses a socket address (IP address and port), to be used in
 // the kCADR tag in the ServerHello handshake message and the Public Reset
 // packet.
@@ -29,7 +31,7 @@ class NET_EXPORT_PRIVATE QuicSocketAddressCoder {
 
   bool Decode(const char* data, size_t length);
 
-  IPAddressNumber ip() const { return address_.address(); }
+  const IPAddress& ip() const { return address_.address(); }
 
   uint16_t port() const { return address_.port(); }
 

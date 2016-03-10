@@ -48,12 +48,12 @@ const uint32_t kDefaultHeaderTableSizeSetting = 4096;
 
 // Largest string literal an HpackDecoder/HpackEncoder will attempt to process
 // before returning an error.
-const uint32_t kDefaultMaxStringLiteralSize = 16 * 1024;
+const uint32_t kDefaultMaxStringLiteralSize = 256 * 1024;
 
 // Maximum amount of encoded header buffer HpackDecoder will retain before
 // returning an error.
 // TODO(jgraettinger): Remove with SpdyHeadersHandlerInterface switch.
-const uint32_t kMaxDecodeBufferSize = 32 * 1024;
+const uint32_t kMaxDecodeBufferSize = 256 * 1024;
 
 // 6.2: Flag for a string literal that is stored unmodified (i.e.,
 // without Huffman encoding).

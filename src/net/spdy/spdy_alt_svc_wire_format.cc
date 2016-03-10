@@ -4,6 +4,7 @@
 
 #include "net/spdy/spdy_alt_svc_wire_format.h"
 
+#include <algorithm>
 #include <limits>
 #include <string>
 
@@ -53,6 +54,9 @@ SpdyAltSvcWireFormat::AlternativeService::AlternativeService(
       version(version) {}
 
 SpdyAltSvcWireFormat::AlternativeService::~AlternativeService() {}
+
+SpdyAltSvcWireFormat::AlternativeService::AlternativeService(
+    const AlternativeService& other) = default;
 
 // static
 bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(

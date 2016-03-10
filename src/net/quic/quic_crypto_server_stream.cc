@@ -38,9 +38,8 @@ bool HasFixedTag(const CryptoHandshakeMessage& message) {
 }
 }  // namespace
 
-void ServerHelloNotifier::OnPacketAcked(
-    int acked_bytes,
-    QuicTime::Delta delta_largest_observed) {
+void ServerHelloNotifier::OnPacketAcked(int acked_bytes,
+                                        QuicTime::Delta ack_delay_time) {
   // The SHLO is sent in one packet.
   server_stream_->OnServerHelloAcked();
 }
@@ -70,9 +69,7 @@ void QuicCryptoServerStream::CancelOutstandingCallbacks() {
   // Detach from the validation callback.  Calling this multiple times is safe.
   if (validate_client_hello_cb_ != nullptr) {
     validate_client_hello_cb_->Cancel();
-    if (FLAGS_quic_set_client_hello_cb_nullptr) {
-      validate_client_hello_cb_ = nullptr;
-    }
+    validate_client_hello_cb_ = nullptr;
   }
 }
 
@@ -159,7 +156,8 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
                << session()->connection()->connection_id()
                << " because of a stateless reject.";
       session()->connection()->CloseConnection(
-          QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT, /* from_peer */ false);
+          QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT,
+          ConnectionCloseSource::FROM_SELF);
     }
     return;
   }

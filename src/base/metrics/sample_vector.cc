@@ -43,7 +43,7 @@ void SampleVector::Accumulate(Sample value, Count count) {
   size_t bucket_index = GetBucketIndex(value);
   subtle::NoBarrier_Store(&counts_[bucket_index],
       subtle::NoBarrier_Load(&counts_[bucket_index]) + count);
-  IncreaseSum(count * value);
+  IncreaseSum(static_cast<int64_t>(count) * value);
   IncreaseRedundantCount(count);
 }
 

@@ -26,12 +26,6 @@ class NET_EXPORT_PRIVATE LossDetectionInterface {
   virtual LossDetectionType GetLossDetectionType() const = 0;
 
   // Called when a new ack arrives or the loss alarm fires.
-  virtual PacketNumberSet DetectLostPackets(
-      const QuicUnackedPacketMap& unacked_packets,
-      const QuicTime& time,
-      QuicPacketNumber largest_observed,
-      const RttStats& rtt_stats) = 0;
-
   virtual void DetectLosses(
       const QuicUnackedPacketMap& unacked_packets,
       const QuicTime& time,

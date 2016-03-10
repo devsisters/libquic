@@ -29,7 +29,6 @@
 namespace base {
 
 void InitThreading();
-void InitOnThread();
 void TerminateOnThread();
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes);
 
@@ -45,8 +44,6 @@ struct ThreadParams {
 };
 
 void* ThreadFunc(void* params) {
-  base::InitOnThread();
-
   PlatformThread::Delegate* delegate = nullptr;
 
   {
@@ -56,8 +53,12 @@ void* ThreadFunc(void* params) {
     if (!thread_params->joinable)
       base::ThreadRestrictions::SetSingletonAllowed(false);
 
-    if (thread_params->priority != ThreadPriority::NORMAL)
-      PlatformThread::SetCurrentThreadPriority(thread_params->priority);
+#if !defined(OS_NACL)
+    // Threads on linux/android may inherit their priority from the thread
+    // where they were created. This explicitly sets the priority of all new
+    // threads.
+    PlatformThread::SetCurrentThreadPriority(thread_params->priority);
+#endif
   }
 
   ThreadIdNameManager::GetInstance()->RegisterThread(

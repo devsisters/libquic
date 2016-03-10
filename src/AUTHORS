@@ -34,6 +34,7 @@ Alexander Sulfrian <alexander@sulfrian.net>
 Alexandre Abreu <wiss1976@gmail.com>
 Alexandru Chiculita <achicu@adobe.com>
 Alexey Korepanov <alexkorep@gmail.com>
+Alexis Brenon <brenon.alexis@gmail.com>
 Alexis Menard <alexis.menard@intel.com>
 Alfredo Hernandez <ahernandez.miralles@gmail.com>
 Ali Vathi <ali.akbar@gmail.com>
@@ -97,6 +98,7 @@ Caio Marcelo de Oliveira Filho <caio.de.oliveira.filho@intel.com>
 Caitlin Potter <caitpotter88@gmail.com>
 Catalin Badea <badea@adobe.com>
 Cem Kocagil <cem.kocagil@gmail.com>
+Chakshu Ahuja <chakshu.a@samsung.com>
 Chamal De Silva <chamalsl@yahoo.com>
 Chandra Shekar Vallala <brk376@motorola.com>
 Chang Shu <c.shu@samsung.com>
@@ -197,6 +199,7 @@ Gao Chun <chun.gao@intel.com>
 Gao Chun <gaochun.dev@gmail.com>
 George Liaskos <geo.liaskos@gmail.com>
 Georgy Buranov <gburanov@gmail.com>
+Gergely Nagy <ngg@ngg.hu>
 Gitanshu Mehndiratta <g.mehndiratt@samsung.com>
 Giuseppe Iuculano <giuseppe@iuculano.it>
 Glenn Adams <glenn@chromium.org>
@@ -269,6 +272,7 @@ Jeado Ko <haibane84@gmail.com>
 Jeongeun Kim <je_julie.kim@samsung.com>
 Jeongmin Kim <kimwjdalsl@gmail.com>
 Jeremy Spiegel <jeremysspiegel@gmail.com>
+Jesper Storm Bache <jsbache@gmail.com>
 Jesse Miller <jesse@jmiller.biz>
 Jesus Sanchez-Palencia <jesus.sanchez-palencia.fernandez.fil@intel.com>
 Jiajia Qin <jiajia.qin@intel.com>
@@ -307,11 +311,13 @@ Juhui Lee <juhui24.lee@samsung.com>
 Julien Brianceau <jbriance@cisco.com>
 Julien Isorce <j.isorce@samsung.com>
 Julien Racle <jracle@logitech.com>
+Jun Fang <jun_fang@foxitsoftware.com>
 Jun Jiang <jun.a.jiang@intel.com>
 Junchao Han <junchao.han@intel.com>
 JungJik Lee <jungjik.lee@samsung.com>
 Jungkee Song <jungkee.song@samsung.com>
 Junmin Zhu <junmin.zhu@intel.com>
+Kai Jiang <jiangkai@gmail.com>
 Kal Conley <kcconley@gmail.com>
 Kalyan Kondapally <kalyan.kondapally@intel.com>
 Kamil Jiwa <kamil.jiwa@gmail.com>
@@ -371,6 +377,7 @@ Manuel Braun <thembrown@gmail.com>
 Mao Yujie <maojie0924@gmail.com>
 Mao Yujie <yujie.mao@intel.com>
 Marco Rodrigues <gothicx@gmail.com>
+Mario Pistrich <m.pistrich@gmail.com>
 Mario Sanchez Prada <mario.prada@samsung.com>
 Mariusz Mlynski <marius.mlynski@gmail.com>
 Mark Hahnenberg <mhahnenb@andrew.cmu.edu>
@@ -403,6 +410,7 @@ Mihai Tica <mihai.o.tica@gmail.com>
 Mihai Tica <mitica@adobe.com>
 Mike Tilburg <mtilburg@adobe.com>
 Mikhail Pozdnyakov <mikhail.pozdnyakov@intel.com>
+Milko Leporis <milko.leporis@imgtec.com>
 Milton Chiang <milton.chiang@mediatek.com>
 Mingmin Xie <melvinxie@gmail.com>
 Minsoo Max Koo <msu.koo@samsung.com>
@@ -428,6 +436,7 @@ Nikhil Bansal <n.bansal@samsung.com>
 Nikita Ofitserov <himikof@gmail.com>
 Ningxin Hu <ningxin.hu@intel.com>
 Nitish Mehrotra <nitish.m@samsung.com>
+Noj Vek <nojvek@gmail.com>
 Nolan Cao <nolan.robin.cao@gmail.com>
 Pan Deng <pan.deng@intel.com>
 Parag Radke <nrqv63@motorola.com>
@@ -488,6 +497,7 @@ Renata Hodovan <rhodovan.u-szeged@partner.samsung.com>
 Rene Bolldorf <rb@radix.io>
 Rene Ladan <r.c.ladan@gmail.com>
 Rijubrata Bhaumik <rijubrata.bhaumik@intel.com>
+Riku Voipio <riku.voipio@linaro.org>
 Rob Buis <rob.buis@samsung.com>
 Rob Wu <rob@robwu.nl>
 Robert Bear Travis <bear.travis@gmail.com>
@@ -619,9 +629,11 @@ Will Hirsch <chromium@willhirsch.co.uk>
 Will Shackleton <w.shackleton@gmail.com>
 William Xie <william.xie@intel.com>
 Xiang Long <xiang.long@intel.com>
+Xiangze Zhang <xiangze.zhang@intel.com>
 Xiaolei Yu <dreifachstein@gmail.com>
 Xinchao He <hexinchao@gmail.com>
 Xing Zhang <xzhang@adobe.com>
+Xinghua Cao <xinghua.cao@intel.com>
 Xu Samuel <samuel.xu@intel.com>
 Xuefei Ren <xrenishere@gmail.com>
 Xun Sun <xun.sun@intel.com>
@@ -639,6 +651,7 @@ Yongsheng Zhu <yongsheng.zhu@intel.com>
 Yoshinori Sano <yoshinori.sano@gmail.com>
 Youngho Seo <hazivoo@gmail.com>
 YoungKi Hong <simon.hong81@gmail.com>
+Youngmin Yoo <youngmin.yoo@samsung.com>
 Youngsoo Choi <kenshin.choi@samsung.com>
 Youngsun Suh <zard17@gmail.com>
 Yumikiyo Osanai <yumios.art@gmail.com>
@@ -680,6 +693,7 @@ Hewlett-Packard Development Company, L.P. <*@hp.com>
 Igalia S.L. <*@igalia.com>
 NVIDIA Corporation <*@nvidia.com>
 Opera Software ASA <*@opera.com>
+Spotify AB <*@spotify.com>
 TeamSpeak Systems GmbH <*@teamspeak.com>
 The Chromium Authors <*@chromium.org>
 The MathWorks, Inc. <binod.pant@mathworks.com>

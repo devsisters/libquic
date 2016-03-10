@@ -4,6 +4,7 @@
 
 #include "net/quic/quic_spdy_session.h"
 
+#include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_headers_stream.h"
 
 namespace net {
@@ -91,6 +92,21 @@ void QuicSpdySession::UpdateStreamPriority(QuicStreamId id,
 QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(
     const QuicStreamId stream_id) {
   return static_cast<QuicSpdyStream*>(GetOrCreateDynamicStream(stream_id));
+}
+
+void QuicSpdySession::OnPromiseHeaders(QuicStreamId stream_id,
+                                       StringPiece headers_data) {
+  QUIC_BUG << "OnPromiseHeaders should be overriden in client code.";
+  connection()->CloseConnection(QUIC_INTERNAL_ERROR,
+                                ConnectionCloseSource::FROM_SELF);
+}
+
+void QuicSpdySession::OnPromiseHeadersComplete(QuicStreamId stream_id,
+                                               QuicStreamId promised_stream_id,
+                                               size_t frame_len) {
+  QUIC_BUG << "OnPromiseHeadersComplete shoule be overriden in client code.";
+  connection()->CloseConnection(QUIC_INTERNAL_ERROR,
+                                ConnectionCloseSource::FROM_SELF);
 }
 
 }  // namespace net

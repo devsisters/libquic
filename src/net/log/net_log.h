@@ -219,9 +219,6 @@ class NET_EXPORT NetLog {
   // Adds an observer and sets its log capture mode.  The observer must not be
   // watching any NetLog, including this one, when this is called.
   //
-  // NetLog implementations must call NetLog::OnAddObserver to update the
-  // observer's internal state.
-  //
   // DEPRECATED: The ability to watch the netlog stream is being phased out
   // (crbug.com/472693) as it can be misused in production code. Please consult
   // with a net/log OWNER before introducing a new dependency on this.
@@ -234,8 +231,7 @@ class NET_EXPORT NetLog {
   void SetObserverCaptureMode(ThreadSafeObserver* observer,
                               NetLogCaptureMode capture_mode);
 
-  // Removes an observer.  NetLog implementations must call
-  // NetLog::OnAddObserver to update the observer's internal state.
+  // Removes an observer.
   //
   // For thread safety reasons, it is recommended that this not be called in
   // an object's destructor.

@@ -5,6 +5,7 @@
 #include "net/quic/congestion_control/general_loss_algorithm.h"
 
 #include "net/quic/congestion_control/rtt_stats.h"
+#include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_protocol.h"
 
 namespace net {
@@ -30,21 +31,6 @@ GeneralLossAlgorithm::GeneralLossAlgorithm(LossDetectionType loss_type)
 
 LossDetectionType GeneralLossAlgorithm::GetLossDetectionType() const {
   return loss_type_;
-}
-
-PacketNumberSet GeneralLossAlgorithm::DetectLostPackets(
-    const QuicUnackedPacketMap& unacked_packets,
-    const QuicTime& time,
-    QuicPacketNumber largest_observed,
-    const RttStats& rtt_stats) {
-  SendAlgorithmInterface::CongestionVector packets_lost;
-  DetectLosses(unacked_packets, time, rtt_stats, &packets_lost);
-  PacketNumberSet lost_packets;
-  for (const std::pair<QuicPacketNumber, QuicPacketLength>& pair :
-       packets_lost) {
-    lost_packets.insert(pair.first);
-  }
-  return lost_packets;
 }
 
 // Uses nack counts to decide when packets are lost.
@@ -80,9 +66,9 @@ void GeneralLossAlgorithm::DetectLosses(
     }
 
     // FACK based loss detection.
-    LOG_IF(DFATAL, it->nack_count == 0 && it->sent_time.IsInitialized())
+    QUIC_BUG_IF(it->nack_count == 0 && it->sent_time.IsInitialized())
         << "All packets less than largest observed should have been nacked."
-        << "packet_number:" << packet_number
+        << " packet_number:" << packet_number
         << " largest_observed:" << largest_observed;
     if (it->nack_count >= kNumberOfNacksBeforeRetransmission) {
       packets_lost->push_back(std::make_pair(packet_number, it->bytes_sent));
@@ -99,7 +85,7 @@ void GeneralLossAlgorithm::DetectLosses(
     // Only early retransmit(RFC5827) when the last packet gets acked and
     // there are retransmittable packets in flight.
     // This also implements a timer-protected variant of FACK.
-    if (it->retransmittable_frames &&
+    if (!it->retransmittable_frames.empty() &&
         unacked_packets.largest_sent_packet() == largest_observed) {
       // Early retransmit marks the packet as lost once 1.25RTTs have passed
       // since the packet was sent and otherwise sets an alarm.

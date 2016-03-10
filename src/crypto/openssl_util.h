@@ -58,12 +58,12 @@ class ScopedOpenSSLSafeSizeBuffer {
 // multiple times.
 // This function is thread-safe, and OpenSSL will only ever be initialized once.
 // OpenSSL will be properly shut down on program exit.
-void CRYPTO_EXPORT EnsureOpenSSLInit();
+CRYPTO_EXPORT void EnsureOpenSSLInit();
 
 // Drains the OpenSSL ERR_get_error stack. On a debug build the error codes
 // are send to VLOG(1), on a release build they are disregarded. In most
 // cases you should pass FROM_HERE as the |location|.
-void CRYPTO_EXPORT ClearOpenSSLERRStack(
+CRYPTO_EXPORT void ClearOpenSSLERRStack(
     const tracked_objects::Location& location);
 
 // Place an instance of this class on the call stack to automatically clear

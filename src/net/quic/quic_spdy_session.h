@@ -42,6 +42,18 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
                                        bool fin,
                                        size_t frame_len);
 
+  // Called by |headers_stream_| when push promise headers have been
+  // received for a stream.
+  virtual void OnPromiseHeaders(QuicStreamId stream_id,
+                                StringPiece headers_data);
+
+  // Called by |headers_stream_| when push promise headers have been
+  // completely received.  |fin| will be true if the fin flag was set
+  // in the headers.
+  virtual void OnPromiseHeadersComplete(QuicStreamId stream_id,
+                                        QuicStreamId promised_stream_id,
+                                        size_t frame_len);
+
   // Writes |headers| for the stream |id| to the dedicated headers stream.
   // If |fin| is true, then no more data will be sent for the stream |id|.
   // If provided, |ack_notifier_delegate| will be registered to be notified when

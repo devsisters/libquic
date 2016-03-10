@@ -114,6 +114,9 @@ SpdyHeaderBlock::StringPieceProxy::StringPieceProxy(
       lookup_result_(lookup_result),
       key_(key) {}
 
+SpdyHeaderBlock::StringPieceProxy::StringPieceProxy(
+    const StringPieceProxy& other) = default;
+
 SpdyHeaderBlock::StringPieceProxy::~StringPieceProxy() {}
 
 SpdyHeaderBlock::StringPieceProxy& SpdyHeaderBlock::StringPieceProxy::operator=(

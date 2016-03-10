@@ -21,6 +21,7 @@
 
 namespace base {
 
+class BucketRanges;
 class DictionaryValue;
 class HistogramBase;
 class HistogramSamples;
@@ -81,19 +82,30 @@ class BASE_EXPORT HistogramBase {
     // to shortcut looking up the callback if it doesn't exist.
     kCallbackExists = 0x20,
 
+    // Indicates that the histogram is held in "persistent" memory and may
+    // be accessible between processes. This is only possible if such a
+    // memory segment has been created/attached, used to create a Persistent-
+    // MemoryAllocator, and that loaded into the Histogram module before this
+    // histogram is created.
+    kIsPersistent = 0x40,
+
     // Only for Histogram and its sub classes: fancy bucket-naming support.
     kHexRangePrintingFlag = 0x8000,
   };
 
   // Histogram data inconsistency types.
-  enum Inconsistency {
+  enum Inconsistency : uint32_t {
     NO_INCONSISTENCIES = 0x0,
     RANGE_CHECKSUM_ERROR = 0x1,
     BUCKET_ORDER_ERROR = 0x2,
     COUNT_HIGH_ERROR = 0x4,
     COUNT_LOW_ERROR = 0x8,
 
-    NEVER_EXCEEDED_VALUE = 0x10
+    NEVER_EXCEEDED_VALUE = 0x10,
+
+    // This value is used only in HistogramSnapshotManager for marking
+    // internally when new inconsistencies are found.
+    NEW_INCONSISTENCY_FOUND = 0x8000000
   };
 
   explicit HistogramBase(const std::string& name);
@@ -119,9 +131,10 @@ class BASE_EXPORT HistogramBase {
   // Whether the histogram has construction arguments as parameters specified.
   // For histograms that don't have the concept of minimum, maximum or
   // bucket_count, this function always returns false.
-  virtual bool HasConstructionArguments(Sample expected_minimum,
-                                        Sample expected_maximum,
-                                        size_t expected_bucket_count) const = 0;
+  virtual bool HasConstructionArguments(
+      Sample expected_minimum,
+      Sample expected_maximum,
+      uint32_t expected_bucket_count) const = 0;
 
   virtual void Add(Sample value) = 0;
 
@@ -145,11 +158,16 @@ class BASE_EXPORT HistogramBase {
 
   // Try to find out data corruption from histogram and the samples.
   // The returned value is a combination of Inconsistency enum.
-  virtual int FindCorruption(const HistogramSamples& samples) const;
+  virtual uint32_t FindCorruption(const HistogramSamples& samples) const;
 
   // Snapshot the current complete set of sample data.
   // Override with atomic/locked snapshot if needed.
   virtual scoped_ptr<HistogramSamples> SnapshotSamples() const = 0;
+
+  // Calculate the change (delta) in histogram counts since the previous call
+  // to this method. Each successive call will return only those counts
+  // changed since the last call.
+  virtual scoped_ptr<HistogramSamples> SnapshotDelta() = 0;
 
   // The following methods provide graphical histogram displays.
   virtual void WriteHTMLGraph(std::string* output) const = 0;

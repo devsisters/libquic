@@ -1,0 +1,34 @@
+diff --git a/src/base/debug/stack_trace.cc b/src/base/debug/stack_trace.cc
+index 2250c8f..af54a1d 100644
+--- a/src/base/debug/stack_trace.cc
++++ b/src/base/debug/stack_trace.cc
+@@ -14,6 +14,8 @@
+ namespace base {
+ namespace debug {
+ 
++StackTrace::StackTrace() { }
++
+ StackTrace::StackTrace(const void* const* trace, size_t count) {
+   count = std::min(count, arraysize(trace_));
+   if (count)
+@@ -24,6 +26,8 @@ StackTrace::StackTrace(const void* const* trace, size_t count) {
+ StackTrace::~StackTrace() {
+ }
+ 
++void StackTrace::OutputToStream(std::ostream* os) const { }
++
+ const void *const *StackTrace::Addresses(size_t* count) const {
+   *count = count_;
+   if (count_)
+@@ -33,9 +37,11 @@ const void *const *StackTrace::Addresses(size_t* count) const {
+ 
+ std::string StackTrace::ToString() const {
+   std::stringstream stream;
++#if 0
+ #if !defined(__UCLIBC__)
+   OutputToStream(&stream);
+ #endif
++#endif
+   return stream.str();
+ }
+ 
