@@ -8,6 +8,8 @@ namespace net {
 
 IOVector::IOVector() {}
 
+IOVector::IOVector(const IOVector& other) = default;
+
 IOVector::~IOVector() {}
 
 }  // namespace net

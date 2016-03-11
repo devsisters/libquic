@@ -8,6 +8,7 @@
 #include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
+#include "net/quic/quic_arena_scoped_ptr.h"
 #include "net/quic/quic_time.h"
 
 namespace net {
@@ -29,7 +30,7 @@ class NET_EXPORT_PRIVATE QuicAlarm {
     virtual QuicTime OnAlarm() = 0;
   };
 
-  explicit QuicAlarm(Delegate* delegate);
+  explicit QuicAlarm(QuicArenaScopedPtr<Delegate> delegate);
   virtual ~QuicAlarm();
 
   // Sets the alarm to fire at |deadline|.  Must not be called while
@@ -72,7 +73,7 @@ class NET_EXPORT_PRIVATE QuicAlarm {
   void Fire();
 
  private:
-  scoped_ptr<Delegate> delegate_;
+  QuicArenaScopedPtr<Delegate> delegate_;
   QuicTime deadline_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicAlarm);

@@ -246,4 +246,4 @@ size_t QuicFrameList::BytesBuffered() const {
   return num_bytes_buffered_;
 }
 
-}  // namespace net_quic
+}  // namespace net

@@ -141,6 +141,9 @@ class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
   // this algorithm is created.
   const QuicPacketCount initial_max_tcp_congestion_window_;
 
+  // When true, exit slow start with large cutback of congestion window.
+  bool slow_start_large_reduction_;
+
   DISALLOW_COPY_AND_ASSIGN(TcpCubicSender);
 };
 

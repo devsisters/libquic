@@ -15,6 +15,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
+#include "net/base/ip_address.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_write_blocked_list.h"
 
@@ -55,6 +56,8 @@ uint128 IncrementalHashFast(uint128 uhash, const char* data, size_t len) {
 }
 #endif
 
+#ifndef QUIC_UTIL_HAS_UINT128
+// Slow implementation of IncrementalHash. In practice, only used by Chromium.
 uint128 IncrementalHashSlow(uint128 hash, const char* data, size_t len) {
   // kPrime = 309485009821345068724781371
   static const uint128 kPrime(16777216, 315);
@@ -65,15 +68,19 @@ uint128 IncrementalHashSlow(uint128 hash, const char* data, size_t len) {
   }
   return hash;
 }
+#endif
 
 uint128 IncrementalHash(uint128 hash, const char* data, size_t len) {
 #ifdef QUIC_UTIL_HAS_UINT128
-  return FLAGS_quic_utils_use_fast_incremental_hash
-             ? IncrementalHashFast(hash, data, len)
-             : IncrementalHashSlow(hash, data, len);
+  return IncrementalHashFast(hash, data, len);
 #else
   return IncrementalHashSlow(hash, data, len);
 #endif
+}
+
+bool IsInitializedIPEndPoint(const IPEndPoint& address) {
+  return net::GetAddressFamily(address.address().bytes()) !=
+         net::ADDRESS_FAMILY_UNSPECIFIED;
 }
 
 }  // namespace
@@ -191,6 +198,11 @@ const char* QuicUtils::StreamErrorToString(QuicRstStreamErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_RST_ACKNOWLEDGEMENT);
     RETURN_STRING_LITERAL(QUIC_REFUSED_STREAM);
     RETURN_STRING_LITERAL(QUIC_STREAM_LAST_ERROR);
+    RETURN_STRING_LITERAL(QUIC_INVALID_PROMISE_URL);
+    RETURN_STRING_LITERAL(QUIC_UNAUTHORIZED_PROMISE_URL);
+    RETURN_STRING_LITERAL(QUIC_DUPLICATE_PROMISE_URL);
+    RETURN_STRING_LITERAL(QUIC_PROMISE_VARY_MISMATCH);
+    RETURN_STRING_LITERAL(QUIC_INVALID_PROMISE_METHOD);
   }
   // Return a default value so that we return this when |error| doesn't match
   // any of the QuicRstStreamErrorCodes. This can happen when the RstStream
@@ -216,6 +228,7 @@ const char* QuicUtils::ErrorToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_INVALID_WINDOW_UPDATE_DATA);
     RETURN_STRING_LITERAL(QUIC_INVALID_BLOCKED_DATA);
     RETURN_STRING_LITERAL(QUIC_INVALID_STOP_WAITING_DATA);
+    RETURN_STRING_LITERAL(QUIC_INVALID_PATH_CLOSE_DATA);
     RETURN_STRING_LITERAL(QUIC_INVALID_ACK_DATA);
     RETURN_STRING_LITERAL(QUIC_INVALID_VERSION_NEGOTIATION_PACKET);
     RETURN_STRING_LITERAL(QUIC_INVALID_PUBLIC_RST_PACKET);
@@ -246,8 +259,8 @@ const char* QuicUtils::ErrorToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_INVALID_HEADER_ID);
     RETURN_STRING_LITERAL(QUIC_INVALID_NEGOTIATED_VALUE);
     RETURN_STRING_LITERAL(QUIC_DECOMPRESSION_FAILURE);
-    RETURN_STRING_LITERAL(QUIC_CONNECTION_TIMED_OUT);
-    RETURN_STRING_LITERAL(QUIC_CONNECTION_OVERALL_TIMED_OUT);
+    RETURN_STRING_LITERAL(QUIC_NETWORK_IDLE_TIMEOUT);
+    RETURN_STRING_LITERAL(QUIC_HANDSHAKE_TIMEOUT);
     RETURN_STRING_LITERAL(QUIC_ERROR_MIGRATING_ADDRESS);
     RETURN_STRING_LITERAL(QUIC_PACKET_WRITE_ERROR);
     RETURN_STRING_LITERAL(QUIC_PACKET_READ_ERROR);
@@ -274,6 +287,12 @@ const char* QuicUtils::ErrorToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_TIMEOUTS_WITH_OPEN_STREAMS);
     RETURN_STRING_LITERAL(QUIC_FAILED_TO_SERIALIZE_PACKET);
     RETURN_STRING_LITERAL(QUIC_TOO_MANY_AVAILABLE_STREAMS);
+    RETURN_STRING_LITERAL(QUIC_UNENCRYPTED_FEC_DATA);
+    RETURN_STRING_LITERAL(QUIC_BAD_MULTIPATH_FLAG);
+    RETURN_STRING_LITERAL(QUIC_IP_ADDRESS_CHANGED);
+    RETURN_STRING_LITERAL(QUIC_CONNECTION_MIGRATION_NO_MIGRATABLE_STREAMS);
+    RETURN_STRING_LITERAL(QUIC_CONNECTION_MIGRATION_TOO_MANY_CHANGES);
+    RETURN_STRING_LITERAL(QUIC_CONNECTION_MIGRATION_NO_NEW_NETWORK);
     RETURN_STRING_LITERAL(QUIC_LAST_ERROR);
     // Intentionally have no default case, so we'll break the build
     // if we add errors and don't put them here.
@@ -384,6 +403,127 @@ string QuicUtils::StringToHexASCIIDump(StringPiece in_buffer) {
     s += '\n';
   }
   return s;
+}
+
+// static
+void QuicUtils::DeleteFrames(QuicFrames* frames) {
+  for (QuicFrame& frame : *frames) {
+    switch (frame.type) {
+      // Frames smaller than a pointer are inlined, so don't need to be deleted.
+      case PADDING_FRAME:
+      case MTU_DISCOVERY_FRAME:
+      case PING_FRAME:
+        break;
+      case STREAM_FRAME:
+        delete frame.stream_frame;
+        break;
+      case ACK_FRAME:
+        delete frame.ack_frame;
+        break;
+      case STOP_WAITING_FRAME:
+        delete frame.stop_waiting_frame;
+        break;
+      case RST_STREAM_FRAME:
+        delete frame.rst_stream_frame;
+        break;
+      case CONNECTION_CLOSE_FRAME:
+        delete frame.connection_close_frame;
+        break;
+      case GOAWAY_FRAME:
+        delete frame.goaway_frame;
+        break;
+      case BLOCKED_FRAME:
+        delete frame.blocked_frame;
+        break;
+      case WINDOW_UPDATE_FRAME:
+        delete frame.window_update_frame;
+        break;
+      case PATH_CLOSE_FRAME:
+        delete frame.path_close_frame;
+        break;
+      case NUM_FRAME_TYPES:
+        DCHECK(false) << "Cannot delete type: " << frame.type;
+    }
+  }
+  frames->clear();
+}
+
+// static
+void QuicUtils::RemoveFramesForStream(QuicFrames* frames,
+                                      QuicStreamId stream_id) {
+  QuicFrames::iterator it = frames->begin();
+  while (it != frames->end()) {
+    if (it->type != STREAM_FRAME || it->stream_frame->stream_id != stream_id) {
+      ++it;
+      continue;
+    }
+    delete it->stream_frame;
+    it = frames->erase(it);
+  }
+}
+
+// static
+void QuicUtils::ClearSerializedPacket(SerializedPacket* serialized_packet) {
+  if (!serialized_packet->retransmittable_frames.empty()) {
+    DeleteFrames(&serialized_packet->retransmittable_frames);
+  }
+  serialized_packet->encrypted_buffer = nullptr;
+  serialized_packet->encrypted_length = 0;
+}
+
+// static
+uint64_t QuicUtils::PackPathIdAndPacketNumber(QuicPathId path_id,
+                                              QuicPacketNumber packet_number) {
+  // Setting the nonce below relies on QuicPathId and QuicPacketNumber being
+  // specific sizes.
+  static_assert(sizeof(path_id) == 1, "Size of QuicPathId changed.");
+  static_assert(sizeof(packet_number) == 8,
+                "Size of QuicPacketNumber changed.");
+  // Use path_id and lower 7 bytes of packet_number as lower 8 bytes of nonce.
+  uint64_t path_id_packet_number =
+      (static_cast<uint64_t>(path_id) << 56) | packet_number;
+  DCHECK(path_id != kDefaultPathId || path_id_packet_number == packet_number);
+  return path_id_packet_number;
+}
+
+// static
+char* QuicUtils::CopyBuffer(const SerializedPacket& packet) {
+  char* dst_buffer = new char[packet.encrypted_length];
+  memcpy(dst_buffer, packet.encrypted_buffer, packet.encrypted_length);
+  return dst_buffer;
+}
+
+// static
+PeerAddressChangeType QuicUtils::DetermineAddressChangeType(
+    const IPEndPoint& old_address,
+    const IPEndPoint& new_address) {
+  if (!IsInitializedIPEndPoint(old_address) ||
+      !IsInitializedIPEndPoint(new_address) || old_address == new_address) {
+    return NO_CHANGE;
+  }
+
+  if (old_address.address() == new_address.address()) {
+    return PORT_CHANGE;
+  }
+
+  bool old_ip_is_ipv4 = old_address.address().IsIPv4();
+  bool migrating_ip_is_ipv4 = new_address.address().IsIPv4();
+  if (old_ip_is_ipv4 && !migrating_ip_is_ipv4) {
+    return IPV4_TO_IPV6_CHANGE;
+  }
+
+  if (!old_ip_is_ipv4) {
+    return migrating_ip_is_ipv4 ? IPV6_TO_IPV4_CHANGE : IPV6_TO_IPV6_CHANGE;
+  }
+
+  if (IPAddressMatchesPrefix(old_address.address(), new_address.address(),
+                             24)) {
+    // Subnet part does not change (here, we use /24), which is considered to be
+    // caused by NATs.
+    return IPV4_SUBNET_CHANGE;
+  }
+
+  return UNSPECIFIED_CHANGE;
 }
 
 }  // namespace net

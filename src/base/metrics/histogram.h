@@ -92,6 +92,7 @@ class BooleanHistogram;
 class CustomHistogram;
 class Histogram;
 class LinearHistogram;
+class PersistentMemoryAllocator;
 class Pickle;
 class PickleIterator;
 class SampleVector;
@@ -99,7 +100,7 @@ class SampleVector;
 class BASE_EXPORT Histogram : public HistogramBase {
  public:
   // Initialize maximum number of buckets in histograms as 16,384.
-  static const size_t kBucketCount_MAX;
+  static const uint32_t kBucketCount_MAX;
 
   typedef std::vector<Count> Counts;
 
@@ -116,12 +117,12 @@ class BASE_EXPORT Histogram : public HistogramBase {
   static HistogramBase* FactoryGet(const std::string& name,
                                    Sample minimum,
                                    Sample maximum,
-                                   size_t bucket_count,
+                                   uint32_t bucket_count,
                                    int32_t flags);
   static HistogramBase* FactoryTimeGet(const std::string& name,
                                        base::TimeDelta minimum,
                                        base::TimeDelta maximum,
-                                       size_t bucket_count,
+                                       uint32_t bucket_count,
                                        int32_t flags);
 
   // Overloads of the above two functions that take a const char* |name| param,
@@ -130,13 +131,24 @@ class BASE_EXPORT Histogram : public HistogramBase {
   static HistogramBase* FactoryGet(const char* name,
                                    Sample minimum,
                                    Sample maximum,
-                                   size_t bucket_count,
+                                   uint32_t bucket_count,
                                    int32_t flags);
   static HistogramBase* FactoryTimeGet(const char* name,
                                        base::TimeDelta minimum,
                                        base::TimeDelta maximum,
-                                       size_t bucket_count,
+                                       uint32_t bucket_count,
                                        int32_t flags);
+
+  // Get a histogram using data in persistent storage.
+  static HistogramBase* PersistentGet(const std::string& name,
+                                      Sample minimum,
+                                      Sample maximum,
+                                      const BucketRanges* ranges,
+                                      HistogramBase::AtomicCount* counts,
+                                      HistogramBase::AtomicCount* logged_counts,
+                                      uint32_t counts_size,
+                                      HistogramSamples::Metadata* meta,
+                                      HistogramSamples::Metadata* logged_meta);
 
   static void InitializeBucketRanges(Sample minimum,
                                      Sample maximum,
@@ -155,16 +167,17 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // consistent with the bucket ranges and checksums in our histogram.  This can
   // produce a false-alarm if a race occurred in the reading of the data during
   // a SnapShot process, but should otherwise be false at all times (unless we
-  // have memory over-writes, or DRAM failures).
-  int FindCorruption(const HistogramSamples& samples) const override;
+  // have memory over-writes, or DRAM failures). Flag definitions are located
+  // under "enum Inconsistency" in base/metrics/histogram_base.h.
+  uint32_t FindCorruption(const HistogramSamples& samples) const override;
 
   //----------------------------------------------------------------------------
   // Accessors for factory construction, serialization and testing.
   //----------------------------------------------------------------------------
   Sample declared_min() const { return declared_min_; }
   Sample declared_max() const { return declared_max_; }
-  virtual Sample ranges(size_t i) const;
-  virtual size_t bucket_count() const;
+  virtual Sample ranges(uint32_t i) const;
+  virtual uint32_t bucket_count() const;
   const BucketRanges* bucket_ranges() const { return bucket_ranges_; }
 
   // This function validates histogram construction arguments. It returns false
@@ -176,23 +189,31 @@ class BASE_EXPORT Histogram : public HistogramBase {
   static bool InspectConstructionArguments(const std::string& name,
                                            Sample* minimum,
                                            Sample* maximum,
-                                           size_t* bucket_count);
+                                           uint32_t* bucket_count);
 
   // HistogramBase implementation:
   uint64_t name_hash() const override;
   HistogramType GetHistogramType() const override;
   bool HasConstructionArguments(Sample expected_minimum,
                                 Sample expected_maximum,
-                                size_t expected_bucket_count) const override;
+                                uint32_t expected_bucket_count) const override;
   void Add(Sample value) override;
   void AddCount(Sample value, int count) override;
   scoped_ptr<HistogramSamples> SnapshotSamples() const override;
+  scoped_ptr<HistogramSamples> SnapshotDelta() override;
   void AddSamples(const HistogramSamples& samples) override;
   bool AddSamplesFromPickle(base::PickleIterator* iter) override;
   void WriteHTMLGraph(std::string* output) const override;
   void WriteAscii(std::string* output) const override;
 
  protected:
+  // This class, defined entirely within the .cc file, contains all the
+  // common logic for building a Histogram and can be overridden by more
+  // specific types to alter details of how the creation is done. It is
+  // defined as an embedded class (rather than an anonymous one) so it
+  // can access the protected constructors.
+  class Factory;
+
   // |ranges| should contain the underflow and overflow buckets. See top
   // comments for example.
   Histogram(const std::string& name,
@@ -200,30 +221,43 @@ class BASE_EXPORT Histogram : public HistogramBase {
             Sample maximum,
             const BucketRanges* ranges);
 
+  // Traditionally, histograms allocate their own memory for the bucket
+  // vector but "shared" histograms use memory regions allocated from a
+  // special memory segment that is passed in here.  It is assumed that
+  // the life of this memory is managed externally and exceeds the lifetime
+  // of this object. Practically, this memory is never released until the
+  // process exits and the OS cleans it up.
+  Histogram(const std::string& name,
+            Sample minimum,
+            Sample maximum,
+            const BucketRanges* ranges,
+            HistogramBase::AtomicCount* counts,
+            HistogramBase::AtomicCount* logged_counts,
+            uint32_t counts_size,
+            HistogramSamples::Metadata* meta,
+            HistogramSamples::Metadata* logged_meta);
+
   ~Histogram() override;
 
   // HistogramBase implementation:
   bool SerializeInfoImpl(base::Pickle* pickle) const override;
 
   // Method to override to skip the display of the i'th bucket if it's empty.
-  virtual bool PrintEmptyBucket(size_t index) const;
+  virtual bool PrintEmptyBucket(uint32_t index) const;
 
   // Get normalized size, relative to the ranges(i).
-  virtual double GetBucketSize(Count current, size_t i) const;
+  virtual double GetBucketSize(Count current, uint32_t i) const;
 
   // Return a string description of what goes in a given bucket.
   // Most commonly this is the numeric value, but in derived classes it may
   // be a name (or string description) given to the bucket.
-  virtual const std::string GetAsciiBucketRange(size_t it) const;
+  virtual const std::string GetAsciiBucketRange(uint32_t it) const;
 
  private:
   // Allow tests to corrupt our innards for testing purposes.
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, BoundsTest);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, BucketPlacementTest);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptBucketBounds);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, NameMatchTest);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, AddCountTest);
 
   friend class StatisticsRecorder;  // To allow it to delete duplicates.
   friend class StatisticsRecorderTest;
@@ -255,7 +289,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
   void WriteAsciiBucketContext(const int64_t past,
                                const Count current,
                                const int64_t remaining,
-                               const size_t i,
+                               const uint32_t i,
                                std::string* output) const;
 
   // WriteJSON calls these.
@@ -275,6 +309,9 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // sample.
   scoped_ptr<SampleVector> samples_;
 
+  // Also keep a previous uploaded state for calculating deltas.
+  scoped_ptr<HistogramSamples> logged_samples_;
+
   DISALLOW_COPY_AND_ASSIGN(Histogram);
 };
 
@@ -291,12 +328,12 @@ class BASE_EXPORT LinearHistogram : public Histogram {
   static HistogramBase* FactoryGet(const std::string& name,
                                    Sample minimum,
                                    Sample maximum,
-                                   size_t bucket_count,
+                                   uint32_t bucket_count,
                                    int32_t flags);
   static HistogramBase* FactoryTimeGet(const std::string& name,
                                        TimeDelta minimum,
                                        TimeDelta maximum,
-                                       size_t bucket_count,
+                                       uint32_t bucket_count,
                                        int32_t flags);
 
   // Overloads of the above two functions that take a const char* |name| param,
@@ -305,13 +342,24 @@ class BASE_EXPORT LinearHistogram : public Histogram {
   static HistogramBase* FactoryGet(const char* name,
                                    Sample minimum,
                                    Sample maximum,
-                                   size_t bucket_count,
+                                   uint32_t bucket_count,
                                    int32_t flags);
   static HistogramBase* FactoryTimeGet(const char* name,
                                        TimeDelta minimum,
                                        TimeDelta maximum,
-                                       size_t bucket_count,
+                                       uint32_t bucket_count,
                                        int32_t flags);
+
+  // Get a histogram using data in persistent storage.
+  static HistogramBase* PersistentGet(const std::string& name,
+                                      Sample minimum,
+                                      Sample maximum,
+                                      const BucketRanges* ranges,
+                                      HistogramBase::AtomicCount* counts,
+                                      HistogramBase::AtomicCount* logged_counts,
+                                      uint32_t counts_size,
+                                      HistogramSamples::Metadata* meta,
+                                      HistogramSamples::Metadata* logged_meta);
 
   struct DescriptionPair {
     Sample sample;
@@ -327,7 +375,7 @@ class BASE_EXPORT LinearHistogram : public Histogram {
       const std::string& name,
       Sample minimum,
       Sample maximum,
-      size_t bucket_count,
+      uint32_t bucket_count,
       int32_t flags,
       const DescriptionPair descriptions[]);
 
@@ -339,20 +387,32 @@ class BASE_EXPORT LinearHistogram : public Histogram {
   HistogramType GetHistogramType() const override;
 
  protected:
+  class Factory;
+
   LinearHistogram(const std::string& name,
                   Sample minimum,
                   Sample maximum,
                   const BucketRanges* ranges);
 
-  double GetBucketSize(Count current, size_t i) const override;
+  LinearHistogram(const std::string& name,
+                  Sample minimum,
+                  Sample maximum,
+                  const BucketRanges* ranges,
+                  HistogramBase::AtomicCount* counts,
+                  HistogramBase::AtomicCount* logged_counts,
+                  uint32_t counts_size,
+                  HistogramSamples::Metadata* meta,
+                  HistogramSamples::Metadata* logged_meta);
+
+  double GetBucketSize(Count current, uint32_t i) const override;
 
   // If we have a description for a bucket, then return that.  Otherwise
   // let parent class provide a (numeric) description.
-  const std::string GetAsciiBucketRange(size_t i) const override;
+  const std::string GetAsciiBucketRange(uint32_t i) const override;
 
   // Skip printing of name for numeric range if we have a name (and if this is
   // an empty bucket).
-  bool PrintEmptyBucket(size_t index) const override;
+  bool PrintEmptyBucket(uint32_t index) const override;
 
  private:
   friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
@@ -380,10 +440,27 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
   // call sites.
   static HistogramBase* FactoryGet(const char* name, int32_t flags);
 
+  // Get a histogram using data in persistent storage.
+  static HistogramBase* PersistentGet(const std::string& name,
+                                      const BucketRanges* ranges,
+                                      HistogramBase::AtomicCount* counts,
+                                      HistogramBase::AtomicCount* logged_counts,
+                                      HistogramSamples::Metadata* meta,
+                                      HistogramSamples::Metadata* logged_meta);
+
   HistogramType GetHistogramType() const override;
+
+ protected:
+  class Factory;
 
  private:
   BooleanHistogram(const std::string& name, const BucketRanges* ranges);
+  BooleanHistogram(const std::string& name,
+                   const BucketRanges* ranges,
+                   HistogramBase::AtomicCount* counts,
+                   HistogramBase::AtomicCount* logged_counts,
+                   HistogramSamples::Metadata* meta,
+                   HistogramSamples::Metadata* logged_meta);
 
   friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
       base::PickleIterator* iter);
@@ -412,6 +489,15 @@ class BASE_EXPORT CustomHistogram : public Histogram {
                                    const std::vector<Sample>& custom_ranges,
                                    int32_t flags);
 
+  // Get a histogram using data in persistent storage.
+  static HistogramBase* PersistentGet(const std::string& name,
+                                      const BucketRanges* ranges,
+                                      HistogramBase::AtomicCount* counts,
+                                      HistogramBase::AtomicCount* logged_counts,
+                                      uint32_t counts_size,
+                                      HistogramSamples::Metadata* meta,
+                                      HistogramSamples::Metadata* logged_meta);
+
   // Overridden from Histogram:
   HistogramType GetHistogramType() const override;
 
@@ -422,15 +508,25 @@ class BASE_EXPORT CustomHistogram : public Histogram {
   // so that invalid samples never fall into the same bucket as valid samples.
   // TODO(kaiwang): Change name to ArrayToCustomEnumRanges.
   static std::vector<Sample> ArrayToCustomRanges(const Sample* values,
-                                                 size_t num_values);
+                                                 uint32_t num_values);
  protected:
+  class Factory;
+
   CustomHistogram(const std::string& name,
                   const BucketRanges* ranges);
+
+  CustomHistogram(const std::string& name,
+                  const BucketRanges* ranges,
+                  HistogramBase::AtomicCount* counts,
+                  HistogramBase::AtomicCount* logged_counts,
+                  uint32_t counts_size,
+                  HistogramSamples::Metadata* meta,
+                  HistogramSamples::Metadata* logged_meta);
 
   // HistogramBase implementation:
   bool SerializeInfoImpl(base::Pickle* pickle) const override;
 
-  double GetBucketSize(Count current, size_t i) const override;
+  double GetBucketSize(Count current, uint32_t i) const override;
 
  private:
   friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
@@ -438,8 +534,6 @@ class BASE_EXPORT CustomHistogram : public Histogram {
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
   static bool ValidateCustomRanges(const std::vector<Sample>& custom_ranges);
-  static BucketRanges* CreateBucketRangesFromCustomRanges(
-      const std::vector<Sample>& custom_ranges);
 
   DISALLOW_COPY_AND_ASSIGN(CustomHistogram);
 };

@@ -19,7 +19,10 @@ class Pickle;
 class PickleIterator;
 class SampleCountIterator;
 
-// HistogramSamples is a container storing all samples of a histogram.
+// HistogramSamples is a container storing all samples of a histogram. All
+// elements must be of a fixed width to ensure 32/64-bit interoperability.
+// If this structure changes, bump the version number for kTypeIdHistogram
+// in histogram_persistence.cc.
 class BASE_EXPORT HistogramSamples {
  public:
   struct Metadata {

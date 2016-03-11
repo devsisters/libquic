@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
@@ -263,9 +264,9 @@ size_t HpackHuffmanTable::EncodedSize(StringPiece in) const {
   return bit_count / 8;
 }
 
-bool HpackHuffmanTable::DecodeString(HpackInputStream* in,
-                                     size_t out_capacity,
-                                     string* out) const {
+bool HpackHuffmanTable::GenericDecodeString(HpackInputStream* in,
+                                            size_t out_capacity,
+                                            string* out) const {
   // Number of decode iterations required for a 32-bit code.
   const int kDecodeIterations = static_cast<int>(
       std::ceil((32.f - kDecodeTableRootBits) / kDecodeTableBranchBits));

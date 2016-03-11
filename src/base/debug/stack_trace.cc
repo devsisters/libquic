@@ -14,24 +14,35 @@
 namespace base {
 namespace debug {
 
-StackTrace::StackTrace() {
-}
+StackTrace::StackTrace() { }
 
 StackTrace::StackTrace(const void* const* trace, size_t count) {
+  count = std::min(count, arraysize(trace_));
+  if (count)
+    memcpy(trace_, trace, count * sizeof(trace_[0]));
+  count_ = count;
 }
 
 StackTrace::~StackTrace() {
 }
 
-void StackTrace::OutputToStream(std::ostream* os) const {
-}
+void StackTrace::OutputToStream(std::ostream* os) const { }
 
 const void *const *StackTrace::Addresses(size_t* count) const {
-    return NULL;
+  *count = count_;
+  if (count_)
+    return trace_;
+  return NULL;
 }
 
 std::string StackTrace::ToString() const {
-    return "";
+  std::stringstream stream;
+#if 0
+#if !defined(__UCLIBC__)
+  OutputToStream(&stream);
+#endif
+#endif
+  return stream.str();
 }
 
 }  // namespace debug

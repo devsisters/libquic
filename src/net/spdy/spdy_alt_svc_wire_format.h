@@ -47,6 +47,7 @@ class NET_EXPORT_PRIVATE SpdyAltSvcWireFormat {
                        uint32_t max_age,
                        double probability,
                        VersionVector version);
+    AlternativeService(const AlternativeService& other);
     ~AlternativeService();
 
     bool operator==(const AlternativeService& other) const {

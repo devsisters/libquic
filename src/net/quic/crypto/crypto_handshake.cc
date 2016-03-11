@@ -21,9 +21,6 @@ QuicCryptoNegotiatedParameters::QuicCryptoNegotiatedParameters()
 
 QuicCryptoNegotiatedParameters::~QuicCryptoNegotiatedParameters() {}
 
-QuicCryptoProof::QuicCryptoProof() : certs(nullptr) {}
-QuicCryptoProof::~QuicCryptoProof() {}
-
 CrypterPair::CrypterPair() {}
 
 CrypterPair::~CrypterPair() {}

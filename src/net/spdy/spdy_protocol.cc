@@ -9,7 +9,6 @@ namespace net {
 bool SpdyConstants::IsValidFrameType(SpdyMajorVersion version,
                                      int frame_type_field) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       // SYN_STREAM is the first valid frame.
       if (frame_type_field < SerializeFrameType(version, SYN_STREAM)) {
@@ -49,7 +48,6 @@ bool SpdyConstants::IsValidFrameType(SpdyMajorVersion version,
 SpdyFrameType SpdyConstants::ParseFrameType(SpdyMajorVersion version,
                                             int frame_type_field) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       switch (frame_type_field) {
         case 1:
@@ -107,7 +105,6 @@ SpdyFrameType SpdyConstants::ParseFrameType(SpdyMajorVersion version,
 int SpdyConstants::SerializeFrameType(SpdyMajorVersion version,
                                       SpdyFrameType frame_type) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       switch (frame_type) {
         case SYN_STREAM:
@@ -169,7 +166,6 @@ int SpdyConstants::SerializeFrameType(SpdyMajorVersion version,
 
 int SpdyConstants::DataFrameType(SpdyMajorVersion version) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       return 0;
     case HTTP2:
@@ -183,7 +179,6 @@ int SpdyConstants::DataFrameType(SpdyMajorVersion version) {
 bool SpdyConstants::IsValidSettingId(SpdyMajorVersion version,
                                      int setting_id_field) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       // UPLOAD_BANDWIDTH is the first valid setting id.
       if (setting_id_field <
@@ -221,7 +216,6 @@ bool SpdyConstants::IsValidSettingId(SpdyMajorVersion version,
 SpdySettingsIds SpdyConstants::ParseSettingId(SpdyMajorVersion version,
                                               int setting_id_field) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       switch (setting_id_field) {
         case 1:
@@ -265,7 +259,6 @@ SpdySettingsIds SpdyConstants::ParseSettingId(SpdyMajorVersion version,
 int SpdyConstants::SerializeSettingId(SpdyMajorVersion version,
                                        SpdySettingsIds id) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       switch (id) {
         case SETTINGS_UPLOAD_BANDWIDTH:
@@ -312,7 +305,6 @@ int SpdyConstants::SerializeSettingId(SpdyMajorVersion version,
 bool SpdyConstants::IsValidRstStreamStatus(SpdyMajorVersion version,
                                            int rst_stream_status_field) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       // PROTOCOL_ERROR is the valid first status code.
       if (rst_stream_status_field <
@@ -361,7 +353,6 @@ SpdyRstStreamStatus SpdyConstants::ParseRstStreamStatus(
     SpdyMajorVersion version,
     int rst_stream_status_field) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       switch (rst_stream_status_field) {
         case 1:
@@ -422,7 +413,6 @@ int SpdyConstants::SerializeRstStreamStatus(
     SpdyMajorVersion version,
     SpdyRstStreamStatus rst_stream_status) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       switch (rst_stream_status) {
         case RST_STREAM_PROTOCOL_ERROR:
@@ -487,7 +477,6 @@ int SpdyConstants::SerializeRstStreamStatus(
 bool SpdyConstants::IsValidGoAwayStatus(SpdyMajorVersion version,
                                         int goaway_status_field) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       // GOAWAY_OK is the first valid status.
       if (goaway_status_field < SerializeGoAwayStatus(version, GOAWAY_OK)) {
@@ -523,7 +512,6 @@ bool SpdyConstants::IsValidGoAwayStatus(SpdyMajorVersion version,
 SpdyGoAwayStatus SpdyConstants::ParseGoAwayStatus(SpdyMajorVersion version,
                                                   int goaway_status_field) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       switch (goaway_status_field) {
         case 0:
@@ -575,7 +563,6 @@ SpdyGoAwayStatus SpdyConstants::ParseGoAwayStatus(SpdyMajorVersion version,
 int SpdyConstants::SerializeGoAwayStatus(SpdyMajorVersion version,
                                          SpdyGoAwayStatus status) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       // TODO(jgraettinger): Merge this back to server-side.
       switch (status) {
@@ -640,7 +627,6 @@ int SpdyConstants::SerializeGoAwayStatus(SpdyMajorVersion version,
 
 size_t SpdyConstants::GetDataFrameMinimumSize(SpdyMajorVersion version) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       return 8;
     case HTTP2:
@@ -652,7 +638,6 @@ size_t SpdyConstants::GetDataFrameMinimumSize(SpdyMajorVersion version) {
 
 size_t SpdyConstants::GetControlFrameHeaderSize(SpdyMajorVersion version) {
   switch (version) {
-    case SPDY2:
     case SPDY3:
       return 8;
     case HTTP2:
@@ -672,9 +657,9 @@ size_t SpdyConstants::GetPrefixLength(SpdyFrameType type,
 }
 
 size_t SpdyConstants::GetFrameMaximumSize(SpdyMajorVersion version) {
-  if (version < HTTP2) {
+  if (version == SPDY3) {
     // 24-bit length field plus eight-byte frame header.
-    return ((1<<24) - 1) + 8;
+    return ((1 << 24) - 1) + 8;
   } else {
     // Max payload of 2^14 plus nine-byte frame header.
     // TODO(mlavan): In HTTP/2 this is actually not a constant;
@@ -684,54 +669,24 @@ size_t SpdyConstants::GetFrameMaximumSize(SpdyMajorVersion version) {
   }
 }
 
-size_t SpdyConstants::GetSizeOfSizeField(SpdyMajorVersion version) {
-  return (version < SPDY3) ? sizeof(uint16_t) : sizeof(uint32_t);
+size_t SpdyConstants::GetSizeOfSizeField() {
+  return sizeof(uint32_t);
 }
 
 size_t SpdyConstants::GetSettingSize(SpdyMajorVersion version) {
-  return version <= SPDY3 ? 8 : 6;
+  return version == SPDY3 ? 8 : 6;
 }
 
 int32_t SpdyConstants::GetInitialStreamWindowSize(SpdyMajorVersion version) {
-  return (version <= SPDY3) ? (64 * 1024) : (64 * 1024 - 1);
+  return (version == SPDY3) ? (64 * 1024) : (64 * 1024 - 1);
 }
 
 int32_t SpdyConstants::GetInitialSessionWindowSize(SpdyMajorVersion version) {
-  return (version <= SPDY3) ? (64 * 1024) : (64 * 1024 - 1);
-}
-
-SpdyMajorVersion SpdyConstants::ParseMajorVersion(int version_number) {
-  switch (version_number) {
-    case 2:
-      return SPDY2;
-    case 3:
-      return SPDY3;
-    case 4:
-      return HTTP2;
-    default:
-      LOG(DFATAL) << "Unsupported SPDY version number: " << version_number;
-      return SPDY3;
-  }
-}
-
-int SpdyConstants::SerializeMajorVersion(SpdyMajorVersion version) {
-  switch (version) {
-    case SPDY2:
-      return 2;
-    case SPDY3:
-      return 3;
-    case HTTP2:
-      return 4;
-    default:
-      LOG(DFATAL) << "Unsupported SPDY major version: " << version;
-      return -1;
-  }
+  return (version == SPDY3) ? (64 * 1024) : (64 * 1024 - 1);
 }
 
 std::string SpdyConstants::GetVersionString(SpdyMajorVersion version) {
   switch (version) {
-    case SPDY2:
-      return "spdy/2";
     case SPDY3:
       return "spdy/3";
     case HTTP2:

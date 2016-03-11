@@ -12,6 +12,7 @@
 #include <algorithm>
 
 #include "base/macros.h"
+#include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_time.h"
 
@@ -52,7 +53,7 @@ class NET_EXPORT_PRIVATE RttStats {
   // Sets an initial RTT to be used for SmoothedRtt before any RTT updates.
   void set_initial_rtt_us(int64_t initial_rtt_us) {
     if (initial_rtt_us <= 0) {
-      LOG(DFATAL) << "Attempt to set initial rtt to <= 0.";
+      QUIC_BUG << "Attempt to set initial rtt to <= 0.";
       return;
     }
     initial_rtt_us_ = initial_rtt_us;

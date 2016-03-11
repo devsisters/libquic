@@ -26,7 +26,10 @@ void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
                    base::StringPiece(it->value, it->value_len),
                    true,  // is_static
                    total_insertions));
-    CHECK(static_index_.insert(&static_entries_.back()).second);
+    HpackEntry* entry = &static_entries_.back();
+    CHECK(static_index_.insert(entry).second);
+    // Multiple static entries may have the same name, so inserts may fail.
+    static_name_index_.insert(make_pair(entry->name(), entry));
 
     ++total_insertions;
   }

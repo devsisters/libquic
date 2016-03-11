@@ -33,8 +33,6 @@
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_stream_sequencer.h"
 #include "net/quic/quic_types.h"
-//#include "std::strings/std::stringpiece.h"
-//#include "util/refcount/reffed_ptr.h"
 // TODO(alyssar) remove this after cleaning Priority logic from this class.
 #include "net/quic/quic_write_blocked_list.h"
 
@@ -75,7 +73,8 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
 
   // Called by the session when the endpoint receives or sends a connection
   // close, and should immediately close the stream.
-  virtual void OnConnectionClosed(QuicErrorCode error, bool from_peer);
+  virtual void OnConnectionClosed(QuicErrorCode error,
+                                  ConnectionCloseSource source);
 
   // Called by the stream subclass after it has consumed the final incoming
   // data.
@@ -92,12 +91,8 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
 
   // Called by the subclass or the sequencer to close the entire connection from
   // this end.
-  virtual void CloseConnection(QuicErrorCode error);
   virtual void CloseConnectionWithDetails(QuicErrorCode error,
                                           const std::string& details);
-
-  // Returns the priority for the stream.
-  virtual SpdyPriority Priority() const = 0;
 
   QuicStreamId id() const { return id_; }
 

@@ -210,6 +210,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   void FillInchoateClientHello(const QuicServerId& server_id,
                                const QuicVersion preferred_version,
                                const CachedState* cached,
+                               QuicRandom* rand,
                                QuicCryptoNegotiatedParameters* out_params,
                                CryptoHandshakeMessage* out) const;
 

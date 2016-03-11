@@ -20,9 +20,7 @@
 #include "net/spdy/hpack/hpack_decoder.h"
 #include "net/spdy/hpack/hpack_encoder.h"
 #include "net/spdy/spdy_alt_svc_wire_format.h"
-#if 0
 #include "net/spdy/spdy_header_block.h"
-#endif
 #include "net/spdy/spdy_protocol.h"
 
 typedef struct z_stream_s z_stream;  // Forward declaration for zlib.
@@ -66,8 +64,6 @@ class NET_EXPORT_PRIVATE SettingsFlagsAndId {
   uint8_t flags() const { return flags_; }
 
  private:
-  static void ConvertFlagsAndIdForSpdy2(uint32_t* val);
-
   uint8_t flags_;
   uint32_t id_;
 };
@@ -199,13 +195,13 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // OnControlFrameHeaderData().
   // |stream_id| The stream receiving the header.
   // |has_priority| Whether or not the headers frame included a priority value,
-  //     and, if protocol version >= HTTP2, stream dependency info.
-  // |priority| If |has_priority| is true and protocol version > SPDY3,
-  //     priority value for the receiving stream, else 0.
+  //     and, if protocol version == HTTP2, stream dependency info.
+  // |priority| If |has_priority| is true, then priority value for the receiving
+  //     stream, otherwise 0.
   // |parent_stream_id| If |has_priority| is true and protocol
-  //     version >= HTTP2, the parent stream of the receiving stream, else 0.
+  //     version == HTTP2, the parent stream of the receiving stream, else 0.
   // |exclusive| If |has_priority| is true and protocol
-  //     version >= HTTP2, the exclusivity of dependence on the parent stream,
+  //     version == HTTP2, the exclusivity of dependence on the parent stream,
   //     else false.
   // |fin| Whether FIN flag is set in frame headers.
   // |end| False if HEADERs frame is to be followed by a CONTINUATION frame,
@@ -321,6 +317,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     SPDY_CONTROL_FRAME_HEADER_BLOCK,
     SPDY_GOAWAY_FRAME_PAYLOAD,
     SPDY_RST_STREAM_FRAME_PAYLOAD,
+    SPDY_SETTINGS_FRAME_HEADER,
     SPDY_SETTINGS_FRAME_PAYLOAD,
     SPDY_ALTSVC_FRAME_PAYLOAD,
   };
@@ -550,9 +547,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
   bool probable_http_response() const { return probable_http_response_; }
 
-  SpdyPriority GetLowestPriority() const {
-    return protocol_version_ < SPDY3 ? 3 : 7;
-  }
+  SpdyPriority GetLowestPriority() const { return 7; }
 
   SpdyPriority GetHighestPriority() const { return 0; }
 
@@ -635,6 +630,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   size_t ProcessDataFramePayload(const char* data, size_t len);
   size_t ProcessGoAwayFramePayload(const char* data, size_t len);
   size_t ProcessRstStreamFramePayload(const char* data, size_t len);
+  size_t ProcessSettingsFrameHeader(const char* data, size_t len);
   size_t ProcessSettingsFramePayload(const char* data, size_t len);
   size_t ProcessAltSvcFramePayload(const char* data, size_t len);
   size_t ProcessIgnoredControlFramePayload(/*const char* data,*/ size_t len);

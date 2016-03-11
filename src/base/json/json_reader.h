@@ -107,7 +107,9 @@ class BASE_EXPORT JSONReader {
   static scoped_ptr<Value> ReadAndReturnError(const StringPiece& json,
                                               int options,  // JSONParserOptions
                                               int* error_code_out,
-                                              std::string* error_msg_out);
+                                              std::string* error_msg_out,
+                                              int* error_line_out = nullptr,
+                                              int* error_column_out = nullptr);
 
   // Converts a JSON parse error code into a human readable message.
   // Returns an empty string if error_code is JSON_NO_ERROR.

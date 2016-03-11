@@ -5,6 +5,7 @@
 #include "net/quic/quic_packet_generator.h"
 
 #include "base/logging.h"
+#include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_fec_group.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_utils.h"
@@ -32,40 +33,7 @@ QuicPacketGenerator::QuicPacketGenerator(QuicConnectionId connection_id,
       max_packet_length_(kDefaultMaxPacketSize) {}
 
 QuicPacketGenerator::~QuicPacketGenerator() {
-  for (QuicFrame& frame : queued_control_frames_) {
-    switch (frame.type) {
-      case PADDING_FRAME:
-      case MTU_DISCOVERY_FRAME:
-      case PING_FRAME:
-        break;
-      case STREAM_FRAME:
-        delete frame.stream_frame;
-        break;
-      case ACK_FRAME:
-        delete frame.ack_frame;
-        break;
-      case RST_STREAM_FRAME:
-        delete frame.rst_stream_frame;
-        break;
-      case CONNECTION_CLOSE_FRAME:
-        delete frame.connection_close_frame;
-        break;
-      case GOAWAY_FRAME:
-        delete frame.goaway_frame;
-        break;
-      case WINDOW_UPDATE_FRAME:
-        delete frame.window_update_frame;
-        break;
-      case BLOCKED_FRAME:
-        delete frame.blocked_frame;
-        break;
-      case STOP_WAITING_FRAME:
-        delete frame.stop_waiting_frame;
-        break;
-      case NUM_FRAME_TYPES:
-        DCHECK(false) << "Cannot delete type: " << frame.type;
-    }
-  }
+  QuicUtils::DeleteFrames(&queued_control_frames_);
 }
 
 void QuicPacketGenerator::OnCongestionWindowChange(
@@ -84,7 +52,7 @@ void QuicPacketGenerator::SetShouldSendAck(bool also_send_stop_waiting) {
   }
 
   if (also_send_stop_waiting && packet_creator_.has_stop_waiting()) {
-    LOG(DFATAL) << "Should only ever be one pending stop waiting frame.";
+    QUIC_BUG << "Should only ever be one pending stop waiting frame.";
     return;
   }
 
@@ -120,7 +88,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(
   }
 
   if (!fin && (iov.total_length == 0)) {
-    LOG(DFATAL) << "Attempt to consume empty data without FIN.";
+    QUIC_BUG << "Attempt to consume empty data without FIN.";
     return QuicConsumedData(0, false);
   }
 
@@ -132,7 +100,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(
                                      has_handshake, &frame, fec_protection)) {
       // The creator is always flushed if there's not enough room for a new
       // stream frame before ConsumeData, so ConsumeData should always succeed.
-      LOG(DFATAL) << "Failed to ConsumeData, stream:" << id;
+      QUIC_BUG << "Failed to ConsumeData, stream:" << id;
       return QuicConsumedData(0, false);
     }
 
@@ -231,7 +199,7 @@ void QuicPacketGenerator::SendQueuedFrames(bool flush, bool is_fec_timeout) {
 void QuicPacketGenerator::OnFecTimeout() {
   DCHECK(!InBatchMode());
   if (!packet_creator_.ShouldSendFec(true)) {
-    LOG(DFATAL) << "No FEC packet to send on FEC timeout.";
+    QUIC_BUG << "No FEC packet to send on FEC timeout.";
     return;
   }
   // Flush out any pending frames in the generator and the creator, and then
@@ -291,7 +259,7 @@ bool QuicPacketGenerator::AddNextPendingFrame() {
     return !should_send_stop_waiting_;
   }
 
-  LOG_IF(DFATAL, queued_control_frames_.empty())
+  QUIC_BUG_IF(queued_control_frames_.empty())
       << "AddNextPendingFrame called with no queued control frames.";
   if (!packet_creator_.AddSavedFrame(queued_control_frames_.back())) {
     // Packet was full.
@@ -339,14 +307,11 @@ QuicEncryptedPacket* QuicPacketGenerator::SerializeVersionNegotiationPacket(
   return packet_creator_.SerializeVersionNegotiationPacket(supported_versions);
 }
 
-SerializedPacket QuicPacketGenerator::ReserializeAllFrames(
-    const RetransmittableFrames& frames,
-    EncryptionLevel original_encryption_level,
-    QuicPacketNumberLength original_length,
+void QuicPacketGenerator::ReserializeAllFrames(
+    const PendingRetransmission& retransmission,
     char* buffer,
     size_t buffer_len) {
-  return packet_creator_.ReserializeAllFrames(
-      frames, original_encryption_level, original_length, buffer, buffer_len);
+  packet_creator_.ReserializeAllFrames(retransmission, buffer, buffer_len);
 }
 
 void QuicPacketGenerator::UpdateSequenceNumberLength(

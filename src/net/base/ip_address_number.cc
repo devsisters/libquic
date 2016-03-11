@@ -102,8 +102,6 @@ std::string IPAddressToString(const uint8_t* address, size_t address_len) {
     url::AppendIPv4Address(address, &output);
   } else if (address_len == kIPv6AddressSize) {
     url::AppendIPv6Address(address, &output);
-  } else {
-    CHECK(false) << "Invalid IP address with length: " << address_len;
   }
 
   output.Complete();
@@ -114,6 +112,8 @@ std::string IPAddressToStringWithPort(const uint8_t* address,
                                       size_t address_len,
                                       uint16_t port) {
   std::string address_str = IPAddressToString(address, address_len);
+  if (address_str.empty())
+    return address_str;
 
   if (address_len == kIPv6AddressSize) {
     // Need to bracket IPv6 addresses since they contain colons.
@@ -123,17 +123,16 @@ std::string IPAddressToStringWithPort(const uint8_t* address,
 }
 
 std::string IPAddressToString(const IPAddressNumber& addr) {
-  return IPAddressToString(&addr.front(), addr.size());
+  return IPAddressToString(addr.data(), addr.size());
 }
 
 std::string IPAddressToStringWithPort(const IPAddressNumber& addr,
                                       uint16_t port) {
-  return IPAddressToStringWithPort(&addr.front(), addr.size(), port);
+  return IPAddressToStringWithPort(addr.data(), addr.size(), port);
 }
 
 std::string IPAddressToPackedString(const IPAddressNumber& addr) {
-  return std::string(reinterpret_cast<const char *>(&addr.front()),
-                     addr.size());
+  return std::string(reinterpret_cast<const char*>(addr.data()), addr.size());
 }
 
 bool ParseURLHostnameToNumber(const std::string& hostname,

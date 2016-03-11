@@ -18,6 +18,16 @@
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
 
+#ifdef _MSC_VER
+// MSVC 2013 and prior don't have alignof or aligned(); they have __alignof and
+// a __declspec instead.
+#define QUIC_ALIGN_OF __alignof
+#define QUIC_ALIGNED(X) __declspec(align(X))
+#else
+#define QUIC_ALIGN_OF alignof
+#define QUIC_ALIGNED(X) __attribute__((aligned(X)))
+#endif  // _MSC_VER
+
 namespace net {
 
 class NET_EXPORT_PRIVATE QuicUtils {
@@ -94,6 +104,31 @@ class NET_EXPORT_PRIVATE QuicUtils {
   static char* AsChars(unsigned char* data) {
     return reinterpret_cast<char*>(data);
   }
+
+  // Deletes all the sub-frames contained in |frames|.
+  static void DeleteFrames(QuicFrames* frames);
+
+  // Deletes all the QuicStreamFrames for the specified |stream_id|.
+  static void RemoveFramesForStream(QuicFrames* frames, QuicStreamId stream_id);
+
+  // Deletes and clears all the frames and the packet from serialized packet.
+  static void ClearSerializedPacket(SerializedPacket* serialized_packet);
+
+  // Returns a packed representation of |path_id| and |packet_number| in which
+  // the highest byte is set to |path_id| and the lower 7 bytes are the lower
+  // 7 bytes of |packet_number|.
+  static uint64_t PackPathIdAndPacketNumber(QuicPathId path_id,
+                                            QuicPacketNumber packet_number);
+
+  // Allocates a new char[] of size |packet.encrypted_length| and copies in
+  // |packet.encrypted_buffer|.
+  static char* CopyBuffer(const SerializedPacket& packet);
+
+  // Determines and returns change type of address change from |old_address| to
+  // |new_address|.
+  static PeerAddressChangeType DetermineAddressChangeType(
+      const IPEndPoint& old_address,
+      const IPEndPoint& new_address);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(QuicUtils);

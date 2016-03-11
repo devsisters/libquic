@@ -62,6 +62,7 @@ class NET_EXPORT_PRIVATE IOVector {
   // Provide a default constructor so it'll never be inhibited by adding other
   // constructors.
   IOVector();
+  IOVector(const IOVector& other);
   ~IOVector();
 
   // Provides a way to convert system call-like iovec representation to

@@ -4,6 +4,7 @@
 
 #include "net/quic/quic_socket_address_coder.h"
 
+#include "net/base/ip_address.h"
 #include "net/base/sys_addrinfo.h"
 
 using std::string;
@@ -70,7 +71,7 @@ bool QuicSocketAddressCoder::Decode(const char* data, size_t length) {
   if (length < ip_length) {
     return false;
   }
-  IPAddressNumber ip(ip_length);
+  std::vector<uint8_t> ip(ip_length);
   memcpy(&ip[0], data, ip_length);
   data += ip_length;
   length -= ip_length;
@@ -81,7 +82,7 @@ bool QuicSocketAddressCoder::Decode(const char* data, size_t length) {
   }
   memcpy(&port, data, length);
 
-  address_ = IPEndPoint(ip, port);
+  address_ = IPEndPoint(IPAddress(ip), port);
   return true;
 }
 

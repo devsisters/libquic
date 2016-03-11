@@ -75,7 +75,7 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
 
   // Takes the buffer from the SpdyFrameBuilder.
   SpdyFrame* take() {
-    if (version_ > SPDY3) {
+    if (version_ == HTTP2) {
       DLOG_IF(DFATAL, SpdyConstants::GetFrameMaximumSize(version_) < length_)
           << "Frame length " << length_
           << " is longer than the maximum allowed length.";

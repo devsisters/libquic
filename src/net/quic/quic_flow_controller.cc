@@ -5,6 +5,7 @@
 #include "net/quic/quic_flow_controller.h"
 
 #include "base/strings/stringprintf.h"
+#include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_connection.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_protocol.h"
@@ -67,9 +68,9 @@ bool QuicFlowController::UpdateHighestReceivedOffset(
 
 void QuicFlowController::AddBytesSent(QuicByteCount bytes_sent) {
   if (bytes_sent_ + bytes_sent > send_window_offset_) {
-    LOG(DFATAL) << ENDPOINT << "Stream " << id_ << " Trying to send an extra "
-                << bytes_sent << " bytes, when bytes_sent = " << bytes_sent_
-                << ", and send_window_offset_ = " << send_window_offset_;
+    QUIC_BUG << ENDPOINT << "Stream " << id_ << " Trying to send an extra "
+             << bytes_sent << " bytes, when bytes_sent = " << bytes_sent_
+             << ", and send_window_offset_ = " << send_window_offset_;
     bytes_sent_ = send_window_offset_;
 
     // This is an error on our side, close the connection as soon as possible.
@@ -245,8 +246,8 @@ void QuicFlowController::UpdateReceiveWindowSize(QuicStreamOffset size) {
   DVLOG(1) << ENDPOINT << "UpdateReceiveWindowSize for stream " << id_ << ": "
            << size;
   if (receive_window_size_ != receive_window_offset_) {
-    LOG(DFATAL) << "receive_window_size_:" << receive_window_size_
-                << " != receive_window_offset:" << receive_window_offset_;
+    QUIC_BUG << "receive_window_size_:" << receive_window_size_
+             << " != receive_window_offset:" << receive_window_offset_;
     return;
   }
   receive_window_size_ = size;

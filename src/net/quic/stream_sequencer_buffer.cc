@@ -5,6 +5,7 @@
 #include "net/quic/stream_sequencer_buffer.h"
 
 #include "base/logging.h"
+#include "net/quic/quic_bug_tracker.h"
 
 using std::min;
 
@@ -64,7 +65,7 @@ QuicErrorCode StreamSequencerBuffer::OnStreamData(
   QuicStreamOffset offset = starting_offset;
   size_t size = data.size();
   if (size == 0) {
-    LOG(DFATAL) << "Attempted to write 0 bytes of data.";
+    QUIC_BUG << "Attempted to write 0 bytes of data.";
     return QUIC_INVALID_STREAM_FRAME;
   }
 

@@ -53,8 +53,8 @@
  * PR_NormalizeTime
  * PR_GMTParameters
  * PR_ImplodeTime
- *   This was modified to use the Win32 SYSTEMTIME/FILETIME structures
- *   and the timezone offsets are applied to the FILETIME structure.
+ *   Upstream implementation from
+ *   http://lxr.mozilla.org/nspr/source/pr/src/misc/prtime.c#221
  * All types and macros are defined in the base/third_party/prtime.h file.
  * These have been copied from the following nspr files. We have only copied
  * over the types we need.
@@ -71,135 +71,10 @@
 #include "base/third_party/nspr/prtime.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
-#include <windows.h>
-#elif defined(OS_MACOSX)
-#include <CoreFoundation/CoreFoundation.h>
-#elif defined(OS_ANDROID)
-#include <ctype.h>
-#include "base/os_compat_android.h"  // For timegm()
-#elif defined(OS_NACL)
-#include "base/os_compat_nacl.h"  // For timegm()
-#endif
 #include <errno.h>  /* for EINVAL */
 #include <time.h>
 
-/* Implements the Unix localtime_r() function for windows */
-#if defined(OS_WIN)
-static void localtime_r(const time_t* secs, struct tm* time) {
-  (void) localtime_s(time, secs);
-}
-#endif
-
 /*
- *------------------------------------------------------------------------
- *
- * PR_ImplodeTime --
- *
- *     Cf. time_t mktime(struct tm *tp)
- *     Note that 1 year has < 2^25 seconds.  So an PRInt32 is large enough.
- *
- *------------------------------------------------------------------------
- */
-PRTime
-PR_ImplodeTime(const PRExplodedTime *exploded)
-{
-    // This is important, we want to make sure multiplications are
-    // done with the correct precision.
-    static const PRTime kSecondsToMicroseconds = static_cast<PRTime>(1000000);
-#if defined(OS_WIN)
-   // Create the system struct representing our exploded time.
-    SYSTEMTIME st = {};
-    FILETIME ft = {};
-    ULARGE_INTEGER uli = {};
-
-    st.wYear = exploded->tm_year;
-    st.wMonth = static_cast<WORD>(exploded->tm_month + 1);
-    st.wDayOfWeek = exploded->tm_wday;
-    st.wDay = static_cast<WORD>(exploded->tm_mday);
-    st.wHour = static_cast<WORD>(exploded->tm_hour);
-    st.wMinute = static_cast<WORD>(exploded->tm_min);
-    st.wSecond = static_cast<WORD>(exploded->tm_sec);
-    st.wMilliseconds = static_cast<WORD>(exploded->tm_usec/1000);
-     // Convert to FILETIME.
-    if (!SystemTimeToFileTime(&st, &ft)) {
-      NOTREACHED() << "Unable to convert time";
-      return 0;
-    }
-    // Apply offsets.
-    uli.LowPart = ft.dwLowDateTime;
-    uli.HighPart = ft.dwHighDateTime;
-    // Convert from Windows epoch to NSPR epoch, and 100-nanoseconds units
-    // to microsecond units.
-    PRTime result =
-        static_cast<PRTime>((uli.QuadPart / 10) - 11644473600000000i64);
-    // Adjust for time zone and dst.  Convert from seconds to microseconds.
-    result -= (exploded->tm_params.tp_gmt_offset +
-               exploded->tm_params.tp_dst_offset) * kSecondsToMicroseconds;
-    // Add microseconds that cannot be represented in |st|.
-    result += exploded->tm_usec % 1000;
-    return result;
-#elif defined(OS_MACOSX)
-    // Create the system struct representing our exploded time.
-    CFGregorianDate gregorian_date;
-    gregorian_date.year = exploded->tm_year;
-    gregorian_date.month = exploded->tm_month + 1;
-    gregorian_date.day = exploded->tm_mday;
-    gregorian_date.hour = exploded->tm_hour;
-    gregorian_date.minute = exploded->tm_min;
-    gregorian_date.second = exploded->tm_sec;
-
-    // Compute |absolute_time| in seconds, correct for gmt and dst
-    // (note the combined offset will be negative when we need to add it), then
-    // convert to microseconds which is what PRTime expects.
-    CFAbsoluteTime absolute_time =
-        CFGregorianDateGetAbsoluteTime(gregorian_date, NULL);
-    PRTime result = static_cast<PRTime>(absolute_time);
-    result -= exploded->tm_params.tp_gmt_offset +
-              exploded->tm_params.tp_dst_offset;
-    result += kCFAbsoluteTimeIntervalSince1970;  // PRTime epoch is 1970
-    result *= kSecondsToMicroseconds;
-    result += exploded->tm_usec;
-    return result;
-#elif defined(OS_POSIX)
-    struct tm exp_tm = {0};
-    exp_tm.tm_sec  = exploded->tm_sec;
-    exp_tm.tm_min  = exploded->tm_min;
-    exp_tm.tm_hour = exploded->tm_hour;
-    exp_tm.tm_mday = exploded->tm_mday;
-    exp_tm.tm_mon  = exploded->tm_month;
-    exp_tm.tm_year = exploded->tm_year - 1900;
-
-    time_t absolute_time = timegm(&exp_tm);
-
-    // If timegm returned -1.  Since we don't pass it a time zone, the only
-    // valid case of returning -1 is 1 second before Epoch (Dec 31, 1969).
-    if (absolute_time == -1 &&
-        !(exploded->tm_year == 1969 && exploded->tm_month == 11 &&
-        exploded->tm_mday == 31 && exploded->tm_hour == 23 &&
-        exploded->tm_min == 59 && exploded->tm_sec == 59)) {
-      // If we get here, time_t must be 32 bits.
-      // Date was possibly too far in the future and would overflow.  Return
-      // the most future date possible (year 2038).
-      if (exploded->tm_year >= 1970)
-        return INT_MAX * kSecondsToMicroseconds;
-      // Date was possibly too far in the past and would underflow.  Return
-      // the most past date possible (year 1901).
-      return INT_MIN * kSecondsToMicroseconds;
-    }
-
-    PRTime result = static_cast<PRTime>(absolute_time);
-    result -= exploded->tm_params.tp_gmt_offset +
-              exploded->tm_params.tp_dst_offset;
-    result *= kSecondsToMicroseconds;
-    result += exploded->tm_usec;
-    return result;
-#else
-#error No PR_ImplodeTime implemented on your platform.
-#endif
-}
-
-/* 
  * The COUNT_LEAPS macro counts the number of leap years passed by
  * till the start of the given year Y.  At the start of the year 4
  * A.D. the number of leap years passed by is 0, while at the start of
@@ -214,9 +89,16 @@ PR_ImplodeTime(const PRExplodedTime *exploded)
  * midnight 00:00:00.
  */
 
-#define COUNT_LEAPS(Y)   ( ((Y)-1)/4 - ((Y)-1)/100 + ((Y)-1)/400 )
-#define COUNT_DAYS(Y)  ( ((Y)-1)*365 + COUNT_LEAPS(Y) )
-#define DAYS_BETWEEN_YEARS(A, B)  (COUNT_DAYS(B) - COUNT_DAYS(A))
+#define COUNT_LEAPS(Y) (((Y)-1) / 4 - ((Y)-1) / 100 + ((Y)-1) / 400)
+#define COUNT_DAYS(Y) (((Y)-1) * 365 + COUNT_LEAPS(Y))
+#define DAYS_BETWEEN_YEARS(A, B) (COUNT_DAYS(B) - COUNT_DAYS(A))
+
+/* Implements the Unix localtime_r() function for windows */
+#if defined(OS_WIN)
+static void localtime_r(const time_t* secs, struct tm* time) {
+  (void) localtime_s(time, secs);
+}
+#endif
 
 /*
  * Static variables used by functions in this file
@@ -240,6 +122,56 @@ static const PRInt8 nDays[2][12] = {
     {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
     {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 };
+
+/*
+ *------------------------------------------------------------------------
+ *
+ * PR_ImplodeTime --
+ *
+ *     Cf. time_t mktime(struct tm *tp)
+ *     Note that 1 year has < 2^25 seconds.  So an PRInt32 is large enough.
+ *
+ *------------------------------------------------------------------------
+ */
+PRTime
+PR_ImplodeTime(const PRExplodedTime *exploded)
+{
+  PRExplodedTime copy;
+  PRTime retVal;
+  PRInt64 secPerDay, usecPerSec;
+  PRInt64 temp;
+  PRInt64 numSecs64;
+  PRInt32 numDays;
+  PRInt32 numSecs;
+
+  /* Normalize first.  Do this on our copy */
+  copy = *exploded;
+  PR_NormalizeTime(&copy, PR_GMTParameters);
+
+  numDays = DAYS_BETWEEN_YEARS(1970, copy.tm_year);
+
+  numSecs = copy.tm_yday * 86400 + copy.tm_hour * 3600 + copy.tm_min * 60 +
+            copy.tm_sec;
+
+  LL_I2L(temp, numDays);
+  LL_I2L(secPerDay, 86400);
+  LL_MUL(temp, temp, secPerDay);
+  LL_I2L(numSecs64, numSecs);
+  LL_ADD(numSecs64, numSecs64, temp);
+
+  /* apply the GMT and DST offsets */
+  LL_I2L(temp, copy.tm_params.tp_gmt_offset);
+  LL_SUB(numSecs64, numSecs64, temp);
+  LL_I2L(temp, copy.tm_params.tp_dst_offset);
+  LL_SUB(numSecs64, numSecs64, temp);
+
+  LL_I2L(usecPerSec, 1000000L);
+  LL_MUL(temp, numSecs64, usecPerSec);
+  LL_I2L(retVal, copy.tm_usec);
+  LL_ADD(retVal, retVal, temp);
+
+  return retVal;
+}
 
 /*
  *-------------------------------------------------------------------------

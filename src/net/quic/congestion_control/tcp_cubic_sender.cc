@@ -11,6 +11,7 @@
 #include "net/quic/congestion_control/rtt_stats.h"
 #include "net/quic/crypto/crypto_protocol.h"
 #include "net/quic/proto/cached_network_parameters.pb.h"
+#include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_flags.h"
 
 using std::max;
@@ -50,7 +51,8 @@ TcpCubicSender::TcpCubicSender(const QuicClock* clock,
       last_cutback_exited_slowstart_(false),
       max_tcp_congestion_window_(max_tcp_congestion_window),
       initial_tcp_congestion_window_(initial_tcp_congestion_window),
-      initial_max_tcp_congestion_window_(max_tcp_congestion_window) {}
+      initial_max_tcp_congestion_window_(max_tcp_congestion_window),
+      slow_start_large_reduction_(false) {}
 
 TcpCubicSender::~TcpCubicSender() {
   UMA_HISTOGRAM_COUNTS("Net.QuicSession.FinalTcpCwnd", congestion_window_);
@@ -89,6 +91,11 @@ void TcpCubicSender::SetFromConfig(const QuicConfig& config,
       // Min CWND of 4 experiment.
       min4_mode_ = true;
       min_congestion_window_ = 1;
+    }
+    if (config.HasReceivedConnectionOptions() &&
+        ContainsQuicTag(config.ReceivedConnectionOptions(), kSSLR)) {
+      // Slow Start Fast Exit experiment.
+      slow_start_large_reduction_ = true;
     }
   }
 }
@@ -159,8 +166,9 @@ void TcpCubicSender::OnPacketAcked(QuicPacketNumber acked_packet_number,
     return;
   }
   MaybeIncreaseCwnd(acked_packet_number, bytes_in_flight);
-  // TODO(ianswett): Should this even be called when not in slow start?
-  hybrid_slow_start_.OnPacketAcked(acked_packet_number, InSlowStart());
+  if (InSlowStart()) {
+    hybrid_slow_start_.OnPacketAcked(acked_packet_number);
+  }
 }
 
 void TcpCubicSender::OnPacketLost(QuicPacketNumber packet_number,
@@ -170,6 +178,12 @@ void TcpCubicSender::OnPacketLost(QuicPacketNumber packet_number,
   if (packet_number <= largest_sent_at_last_cutback_) {
     if (last_cutback_exited_slowstart_) {
       ++stats_->slowstart_packets_lost;
+      if (slow_start_large_reduction_) {
+        // Reduce congestion window by 1 for every loss.
+        congestion_window_ =
+            max(congestion_window_ - 1, min_congestion_window_);
+        slowstart_threshold_ = congestion_window_;
+      }
     }
     DVLOG(1) << "Ignoring loss for largest_missing:" << packet_number
              << " because it was sent prior to the last CWND cutback.";
@@ -183,17 +197,21 @@ void TcpCubicSender::OnPacketLost(QuicPacketNumber packet_number,
 
   prr_.OnPacketLost(bytes_in_flight);
 
-  if (reno_) {
+  // TODO(jri): Separate out all of slow start into a separate class.
+  if (slow_start_large_reduction_ && InSlowStart()) {
+    DCHECK_LT(1u, congestion_window_);
+    congestion_window_ = congestion_window_ - 1;
+  } else if (reno_) {
     congestion_window_ = congestion_window_ * RenoBeta();
   } else {
     congestion_window_ =
         cubic_.CongestionWindowAfterPacketLoss(congestion_window_);
   }
-  slowstart_threshold_ = congestion_window_;
   // Enforce a minimum congestion window.
   if (congestion_window_ < min_congestion_window_) {
     congestion_window_ = min_congestion_window_;
   }
+  slowstart_threshold_ = congestion_window_;
   largest_sent_at_last_cutback_ = largest_sent_packet_number_;
   // reset packet count from congestion avoidance mode. We start
   // counting again when we're out of recovery.
@@ -311,7 +329,7 @@ bool TcpCubicSender::InRecovery() const {
 // represents, but quic has a separate ack for each packet.
 void TcpCubicSender::MaybeIncreaseCwnd(QuicPacketNumber acked_packet_number,
                                        QuicByteCount bytes_in_flight) {
-  LOG_IF(DFATAL, InRecovery()) << "Never increase the CWND during recovery.";
+  QUIC_BUG_IF(InRecovery()) << "Never increase the CWND during recovery.";
   // Do not increase the congestion window unless the sender is close to using
   // the current window.
   if (!IsCwndLimited(bytes_in_flight)) {

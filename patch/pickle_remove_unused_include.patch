@@ -1,0 +1,16 @@
+diff --git a/src/base/pickle.h b/src/base/pickle.h
+index eb4888a..37b1dd7 100644
+--- a/src/base/pickle.h
++++ b/src/base/pickle.h
+@@ -18,9 +18,11 @@
+ #include "base/strings/string16.h"
+ #include "base/strings/string_piece.h"
+ 
++#if 0
+ #if defined(OS_POSIX)
+ #include "base/files/file.h"
+ #endif
++#endif
+ 
+ namespace base {
+ 

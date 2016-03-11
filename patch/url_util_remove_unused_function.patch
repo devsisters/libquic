@@ -1,0 +1,30 @@
+diff --git a/src/net/base/url_util.cc b/src/net/base/url_util.cc
+index 86a6108..4decf0c 100644
+--- a/src/net/base/url_util.cc
++++ b/src/net/base/url_util.cc
+@@ -17,7 +17,9 @@
+ #include "base/strings/stringprintf.h"
+ #include "net/base/escape.h"
+ #include "net/base/ip_address_number.h"
++#if 0
+ #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
++#endif
+ #include "url/gurl.h"
+ #include "url/url_canon.h"
+ #include "url/url_canon_ip.h"
+@@ -305,6 +307,7 @@ bool IsCanonicalizedHostCompliant(const std::string& host) {
+   return most_recent_component_started_alphanumeric;
+ }
+ 
++#if 0
+ bool IsHostnameNonUnique(const std::string& hostname) {
+   // CanonicalizeHost requires surrounding brackets to parse an IPv6 address.
+   const std::string host_or_ip = hostname.find(':') != std::string::npos ?
+@@ -350,6 +353,7 @@ bool IsHostnameNonUnique(const std::string& hostname) {
+                   registry_controlled_domains::EXCLUDE_UNKNOWN_REGISTRIES,
+                   registry_controlled_domains::EXCLUDE_PRIVATE_REGISTRIES);
+ }
++#endif
+ 
+ bool IsLocalhost(base::StringPiece host) {
+   if (IsLocalHostname(host, nullptr))

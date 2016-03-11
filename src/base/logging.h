@@ -373,9 +373,6 @@ const LogSeverity LOG_0 = LOG_ERROR;
 #define LOG_IF(severity, condition) \
   LAZY_STREAM(LOG_STREAM(severity), LOG_IS_ON(severity) && (condition))
 
-#define SYSLOG(severity) LOG(severity)
-#define SYSLOG_IF(severity, condition) LOG_IF(severity, condition)
-
 // The VLOG macros log with negative verbosities.
 #define VLOG_STREAM(verbose_level) \
   logging::LogMessage(__FILE__, __LINE__, -verbose_level).stream()
@@ -408,8 +405,6 @@ const LogSeverity LOG_0 = LOG_ERROR;
 
 #define LOG_ASSERT(condition)  \
   LOG_IF(FATAL, !(condition)) << "Assert failed: " #condition ". "
-#define SYSLOG_ASSERT(condition) \
-  SYSLOG_IF(FATAL, !(condition)) << "Assert failed: " #condition ". "
 
 #if defined(OS_WIN)
 #define PLOG_STREAM(severity) \
@@ -806,12 +801,6 @@ class BASE_EXPORT LogMessage {
 
   DISALLOW_COPY_AND_ASSIGN(LogMessage);
 };
-
-// A non-macro interface to the log facility; (useful
-// when the logging level is not a compile-time constant).
-inline void LogAtLevel(int log_level, const std::string& msg) {
-  LogMessage(__FILE__, __LINE__, log_level).stream() << msg;
-}
 
 // This class is used to explicitly ignore values in the conditional
 // logging macros.  This avoids compiler warnings like "value computed

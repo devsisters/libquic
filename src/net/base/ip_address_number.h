@@ -37,12 +37,14 @@ static const size_t kIPv6AddressSize = 16;
 NET_EXPORT bool IsIPAddressReserved(const IPAddressNumber& address);
 
 // Returns the string representation of an IP address.
-// For example: "192.168.0.1" or "::1".
+// For example: "192.168.0.1" or "::1". Returns the empty string when |address|
+// is invalid.
 NET_EXPORT std::string IPAddressToString(const uint8_t* address,
                                          size_t address_len);
 
 // Returns the string representation of an IP address along with its port.
-// For example: "192.168.0.1:99" or "[::1]:80".
+// For example: "192.168.0.1:99" or "[::1]:80". Returns the empty string when
+// |address| is invalid (the port will be ignored).
 NET_EXPORT std::string IPAddressToStringWithPort(const uint8_t* address,
                                                  size_t address_len,
                                                  uint16_t port);

@@ -5,7 +5,7 @@
 #ifndef NET_QUIC_CRYPTO_COMMON_CERT_SET_H_
 #define NET_QUIC_CRYPTO_COMMON_CERT_SET_H_
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "base/compiler_specific.h"
 #include "base/strings/string_piece.h"

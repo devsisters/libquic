@@ -18,6 +18,9 @@
 #include "net/quic/crypto/p256_key_exchange.h"
 #include "net/quic/crypto/proof_verifier.h"
 #include "net/quic/crypto/quic_encrypter.h"
+#include "net/quic/crypto/quic_random.h"
+#include "net/quic/quic_bug_tracker.h"
+#include "net/quic/quic_flags.h"
 #include "net/quic/quic_utils.h"
 
 using base::StringPiece;
@@ -339,7 +342,7 @@ void QuicCryptoClientConfig::CachedState::InitializeFrom(
 QuicConnectionId
 QuicCryptoClientConfig::CachedState::GetNextServerDesignatedConnectionId() {
   if (server_designated_connection_ids_.empty()) {
-    LOG(DFATAL)
+    QUIC_BUG
         << "Attempting to consume a connection id that was never designated.";
     return 0;
   }
@@ -350,7 +353,7 @@ QuicCryptoClientConfig::CachedState::GetNextServerDesignatedConnectionId() {
 
 string QuicCryptoClientConfig::CachedState::GetNextServerNonce() {
   if (server_nonces_.empty()) {
-    LOG(DFATAL)
+    QUIC_BUG
         << "Attempting to consume a server nonce that was never designated.";
     return "";
   }
@@ -403,6 +406,7 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
     const QuicServerId& server_id,
     const QuicVersion preferred_version,
     const CachedState* cached,
+    QuicRandom* rand,
     QuicCryptoNegotiatedParameters* out_params,
     CryptoHandshakeMessage* out) const {
   out->set_tag(kCHLO);
@@ -418,6 +422,10 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
   if (!user_agent_id_.empty()) {
     out->SetStringPiece(kUAID, user_agent_id_);
   }
+
+  char proof_nonce[32];
+  rand->RandBytes(proof_nonce, arraysize(proof_nonce));
+  out->SetStringPiece(kNONP, StringPiece(proof_nonce, arraysize(proof_nonce)));
 
   // Even though this is an inchoate CHLO, send the SCID so that
   // the STK can be validated by the server.
@@ -477,8 +485,8 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     string* error_details) const {
   DCHECK(error_details != nullptr);
 
-  FillInchoateClientHello(server_id, preferred_version, cached, out_params,
-                          out);
+  FillInchoateClientHello(server_id, preferred_version, cached, rand,
+                          out_params, out);
 
   const CryptoHandshakeMessage* scfg = cached->GetServerConfig();
   if (!scfg) {
@@ -644,9 +652,9 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     scoped_ptr<char[]> output(new char[encrypted_len]);
     size_t output_size = 0;
     if (!crypters.encrypter->EncryptPacket(
-            0 /* packet number */, StringPiece() /* associated data */,
-            cetv_plaintext.AsStringPiece(), output.get(), &output_size,
-            encrypted_len)) {
+            kDefaultPathId /* path id */, 0 /* packet number */,
+            StringPiece() /* associated data */, cetv_plaintext.AsStringPiece(),
+            output.get(), &output_size, encrypted_len)) {
       *error_details = "Packet encryption failed";
       return QUIC_ENCRYPTION_FAILURE;
     }
@@ -682,11 +690,15 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   hkdf_input.append(QuicCryptoConfig::kInitialLabel, label_len);
   hkdf_input.append(out_params->hkdf_input_suffix);
 
-  if (!CryptoUtils::DeriveKeys(
-          out_params->initial_premaster_secret, out_params->aead,
-          out_params->client_nonce, out_params->server_nonce, hkdf_input,
-          Perspective::IS_CLIENT, &out_params->initial_crypters,
-          nullptr /* subkey secret */)) {
+  string* subkey_secret = nullptr;
+  if (FLAGS_quic_save_initial_subkey_secret) {
+    subkey_secret = &out_params->initial_subkey_secret;
+  }
+  if (!CryptoUtils::DeriveKeys(out_params->initial_premaster_secret,
+                               out_params->aead, out_params->client_nonce,
+                               out_params->server_nonce, hkdf_input,
+                               Perspective::IS_CLIENT,
+                               &out_params->initial_crypters, subkey_secret)) {
     *error_details = "Symmetric key setup failed";
     return QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED;
   }

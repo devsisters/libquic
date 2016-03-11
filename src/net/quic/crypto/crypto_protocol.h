@@ -89,11 +89,15 @@ const QuicTag kMIN4 = TAG('M', 'I', 'N', '4');   // Min CWND of 4 packets,
 const QuicTag kTLPR = TAG('T', 'L', 'P', 'R');   // Tail loss probe delay of
                                                  // 0.5RTT.
 const QuicTag kACKD = TAG('A', 'C', 'K', 'D');   // Ack decimation style acking.
+const QuicTag kSSLR = TAG('S', 'S', 'L', 'R');   // Slow Start Large Reduction.
 
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the
 // peer.
 const QuicTag kTCID = TAG('T', 'C', 'I', 'D');   // Connection ID truncation.
+
+// Multipath option.
+const QuicTag kMPTH = TAG('M', 'P', 'T', 'H');   // Enable multipath.
 
 // FEC options
 const QuicTag kFHDR = TAG('F', 'H', 'D', 'R');   // FEC protect headers
@@ -125,6 +129,7 @@ const QuicTag kCHID = TAG('C', 'H', 'I', 'D');   // Channel ID.
 // Client hello tags
 const QuicTag kVER  = TAG('V', 'E', 'R', '\0');  // Version
 const QuicTag kNONC = TAG('N', 'O', 'N', 'C');   // The client's nonce
+const QuicTag kNONP = TAG('N', 'O', 'N', 'P');   // The client's proof nonce
 const QuicTag kKEXS = TAG('K', 'E', 'X', 'S');   // Key exchange methods
 const QuicTag kAEAD = TAG('A', 'E', 'A', 'D');   // Authenticated
                                                  // encryption algorithms

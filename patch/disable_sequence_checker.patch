@@ -1,0 +1,22 @@
+diff --git a/src/base/sequence_checker.h b/src/base/sequence_checker.h
+index ad01828..dde18a9 100644
+--- a/src/base/sequence_checker.h
++++ b/src/base/sequence_checker.h
+@@ -6,6 +6,7 @@
+ #define BASE_SEQUENCE_CHECKER_H_
+ 
+ // See comments for the similar block in thread_checker.h.
++#if 0
+ #if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
+ #define ENABLE_SEQUENCE_CHECKER 1
+ #else
+@@ -13,6 +14,9 @@
+ #endif
+ 
+ #include "base/sequence_checker_impl.h"
++#else
++#define ENABLE_SEQUENCE_CHECKER 0
++#endif
+ 
+ namespace base {
+ 

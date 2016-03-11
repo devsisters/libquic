@@ -34,6 +34,8 @@ WeakReference::Flag::~Flag() {
 WeakReference::WeakReference() {
 }
 
+WeakReference::WeakReference(const WeakReference& other) = default;
+
 WeakReference::WeakReference(const Flag* flag) : flag_(flag) {
 }
 

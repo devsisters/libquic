@@ -144,6 +144,9 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager
 
   virtual bool ack_frame_updated() const;
 
+  // For logging purposes.
+  const QuicAckFrame& ack_frame() const { return ack_frame_; }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicReceivedPacketManagerPeer;
@@ -170,7 +173,7 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager
 
   // The time we received the largest_observed packet number, or zero if
   // no packet numbers have been received since UpdateReceivedPacketInfo.
-  // Needed for calculating delta_time_largest_observed.
+  // Needed for calculating ack_delay_time.
   QuicTime time_largest_observed_;
 
   QuicConnectionStats* stats_;

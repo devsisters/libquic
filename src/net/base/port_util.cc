@@ -4,6 +4,7 @@
 
 #include "net/base/port_util.h"
 
+#include <limits>
 #include <set>
 
 #include "base/lazy_instance.h"

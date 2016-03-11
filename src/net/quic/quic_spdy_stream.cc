@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_spdy_session.h"
 #include "net/quic/quic_utils.h"
 #include "net/quic/quic_write_blocked_list.h"
@@ -82,7 +83,7 @@ size_t QuicSpdyStream::WriteTrailers(
     return 0;
   }
   if (fin_sent()) {
-    LOG(DFATAL) << "Trailers cannot be sent after a FIN.";
+    QUIC_BUG << "Trailers cannot be sent after a FIN.";
     return 0;
   }
 
@@ -155,10 +156,6 @@ void QuicSpdyStream::SetPriority(SpdyPriority priority) {
   priority_ = priority;
 }
 
-SpdyPriority QuicSpdyStream::Priority() const {
-  return priority();
-}
-
 void QuicSpdyStream::OnStreamHeaders(StringPiece headers_data) {
   if (!FLAGS_quic_supports_trailers || !headers_decompressed_) {
     headers_data.AppendToString(&decompressed_headers_);
@@ -191,20 +188,36 @@ void QuicSpdyStream::OnInitialHeadersComplete(bool fin, size_t /*frame_len*/) {
   }
 }
 
+void QuicSpdyStream::OnPromiseHeaders(StringPiece headers_data) {
+  headers_data.AppendToString(&decompressed_headers_);
+}
+
+void QuicSpdyStream::OnPromiseHeadersComplete(
+    QuicStreamId /* promised_stream_id */,
+    size_t /* frame_len */) {
+  // To be overridden in QuicSpdyClientStream.  Not supported on
+  // server side.
+  session()->connection()->SendConnectionCloseWithDetails(
+      QUIC_INVALID_HEADERS_STREAM_DATA, "Promise headers received by server");
+  return;
+}
+
 void QuicSpdyStream::OnTrailingHeadersComplete(bool fin, size_t /*frame_len*/) {
   DCHECK(!trailers_decompressed_);
   if (fin_received()) {
     DLOG(ERROR) << "Received Trailers after FIN, on stream: " << id();
-    session()->CloseConnectionWithDetails(QUIC_INVALID_HEADERS_STREAM_DATA,
-                                          "Trailers after fin");
+    session()->connection()->SendConnectionCloseWithDetails(
+        QUIC_INVALID_HEADERS_STREAM_DATA, "Trailers after fin");
     return;
   }
   if (!fin) {
     DLOG(ERROR) << "Trailers must have FIN set, on stream: " << id();
-    session()->CloseConnectionWithDetails(QUIC_INVALID_HEADERS_STREAM_DATA,
-                                          "Fin missing from trailers");
+    session()->connection()->SendConnectionCloseWithDetails(
+        QUIC_INVALID_HEADERS_STREAM_DATA, "Fin missing from trailers");
     return;
   }
+
+  OnStreamFrame(QuicStreamFrame(id(), fin, stream_bytes_read(), StringPiece()));
   trailers_decompressed_ = true;
 }
 
@@ -247,4 +260,7 @@ bool QuicSpdyStream::FinishedReadingTrailers() const {
   return no_more_trailers && decompressed_trailers_.empty();
 }
 
+SpdyPriority QuicSpdyStream::priority() const {
+  return priority_;
+}
 }  // namespace net

@@ -18,9 +18,10 @@ namespace net {
 
 class QuicSpdySession;
 
-// Headers in QUIC are sent as HTTP/2 HEADERS frames over a reserved reliable
-// stream with the id 3.  Each endpoint (client and server) will allocate an
-// instance of QuicHeadersStream to send and receive headers.
+// Headers in QUIC are sent as HTTP/2 HEADERS or PUSH_PROMISE frames
+// over a reserved reliable stream with the id 3.  Each endpoint
+// (client and server) will allocate an instance of QuicHeadersStream
+// to send and receive headers.
 class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
  public:
   explicit QuicHeadersStream(QuicSpdySession* session);
@@ -29,23 +30,24 @@ class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
   // Writes |headers| for |stream_id| in an HTTP/2 HEADERS frame to the peer.
   // If |fin| is true, the fin flag will be set on the HEADERS frame.  Returns
   // the size, in bytes, of the resulting HEADERS frame.
-  size_t WriteHeaders(QuicStreamId stream_id,
-                      const SpdyHeaderBlock& headers,
-                      bool fin,
-                      SpdyPriority priority,
-                      QuicAckListenerInterface* ack_listener);
+  virtual size_t WriteHeaders(QuicStreamId stream_id,
+                              const SpdyHeaderBlock& headers,
+                              bool fin,
+                              SpdyPriority priority,
+                              QuicAckListenerInterface* ack_listener);
 
   // Write |headers| for |promised_stream_id| on |original_stream_id| in a
   // PUSH_PROMISE frame to peer.
   // Return the size, in bytes, of the resulting PUSH_PROMISE frame.
-  size_t WritePushPromise(QuicStreamId original_stream_id,
-                          QuicStreamId promised_stream_id,
-                          const SpdyHeaderBlock& headers,
-                          QuicAckListenerInterface* ack_listener);
+  virtual size_t WritePushPromise(QuicStreamId original_stream_id,
+                                  QuicStreamId promised_stream_id,
+                                  const SpdyHeaderBlock& headers,
+                                  QuicAckListenerInterface* ack_listener);
 
   // ReliableQuicStream implementation
   void OnDataAvailable() override;
-  SpdyPriority Priority() const override;
+
+  bool supports_push_promise() { return supports_push_promise_; }
 
  private:
   class SpdyFramerVisitor;
@@ -57,6 +59,11 @@ class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
                  bool has_priority,
                  SpdyPriority priority,
                  bool fin);
+
+  // Called when a PUSH_PROMISE frame has been received.
+  void OnPushPromise(SpdyStreamId stream_id,
+                     SpdyStreamId promised_stream_id,
+                     bool end);
 
   // Called when a chunk of header data is available. This is called
   // after OnHeaders.
@@ -78,11 +85,13 @@ class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
 
   // Data about the stream whose headers are being processed.
   QuicStreamId stream_id_;
+  QuicStreamId promised_stream_id_;
   bool fin_;
   size_t frame_len_;
 
-  // Helper variable that caches the corresponding feature flag.
+  // Helper variables that cache the corresponding feature flag.
   bool measure_headers_hol_blocking_time_;
+  bool supports_push_promise_;
 
   // Timestamps used to measure HOL blocking, these are recorded by
   // the sequencer approximate to the time of arrival off the wire.

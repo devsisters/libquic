@@ -29,7 +29,7 @@ class NET_EXPORT_PRIVATE HybridSlowStart {
  public:
   HybridSlowStart();
 
-  void OnPacketAcked(QuicPacketNumber acked_packet_number, bool in_slow_start);
+  void OnPacketAcked(QuicPacketNumber acked_packet_number);
 
   void OnPacketSent(QuicPacketNumber packet_number);
 

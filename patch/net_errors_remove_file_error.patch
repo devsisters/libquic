@@ -1,0 +1,44 @@
+diff --git a/src/net/base/net_errors.cc b/src/net/base/net_errors.cc
+index ddba87b..6f07590 100644
+--- a/src/net/base/net_errors.cc
++++ b/src/net/base/net_errors.cc
+@@ -52,6 +52,7 @@ bool IsClientCertificateError(int error) {
+   }
+ }
+ 
++#if 0
+ Error FileErrorToNetError(base::File::Error file_error) {
+   switch (file_error) {
+     case base::File::FILE_OK:
+@@ -66,5 +67,6 @@ Error FileErrorToNetError(base::File::Error file_error) {
+       return ERR_FAILED;
+   }
+ }
++#endif
+ 
+ }  // namespace net
+diff --git a/src/net/base/net_errors.h b/src/net/base/net_errors.h
+index 27a2e51..97a716d 100644
+--- a/src/net/base/net_errors.h
++++ b/src/net/base/net_errors.h
+@@ -8,7 +8,9 @@
+ #include <string>
+ #include <vector>
+ 
++#if 0
+ #include "base/files/file.h"
++#endif
+ #include "base/logging.h"
+ #include "net/base/net_export.h"
+ 
+@@ -47,8 +49,10 @@ NET_EXPORT bool IsClientCertificateError(int error);
+ // Map system error code to Error.
+ NET_EXPORT Error MapSystemError(logging::SystemErrorCode os_error);
+ 
++#if 0
+ // A convenient function to translate file error to net error code.
+ NET_EXPORT Error FileErrorToNetError(base::File::Error file_error);
++#endif
+ 
+ }  // namespace net
+ 

@@ -54,6 +54,7 @@ class BASE_EXPORT SampleVector : public HistogramSamples {
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
+  FRIEND_TEST_ALL_PREFIXES(SharedHistogramTest, CorruptSampleCounts);
 
   // In the case where this class manages the memory, here it is.
   std::vector<HistogramBase::AtomicCount> local_counts_;

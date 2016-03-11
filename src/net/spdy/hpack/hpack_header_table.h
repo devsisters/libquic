@@ -7,9 +7,11 @@
 
 #include <cstddef>
 #include <deque>
-#include <set>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "base/macros.h"
+#include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/spdy/hpack/hpack_entry.h"
 
@@ -33,15 +35,18 @@ class NET_EXPORT_PRIVATE HpackHeaderTable {
   // extended to map to list iterators.
   typedef std::deque<HpackEntry> EntryTable;
 
-  // Implements a total ordering of HpackEntry on name(), value(), then index
-  // ascending. Note that index may change over the lifetime of an HpackEntry,
-  // but the relative index order of two entries will not. This comparator is
-  // composed with the 'lookup' HpackEntry constructor to allow for efficient
-  // lower-bounding of matching entries.
-  struct NET_EXPORT_PRIVATE EntryComparator {
+  struct NET_EXPORT_PRIVATE EntryHasher {
+    size_t operator()(const HpackEntry* entry) const;
+  };
+  struct NET_EXPORT_PRIVATE EntriesEq {
     bool operator()(const HpackEntry* lhs, const HpackEntry* rhs) const;
   };
-  typedef std::set<HpackEntry*, EntryComparator> OrderedEntrySet;
+
+  using UnorderedEntrySet =
+      std::unordered_set<HpackEntry*, EntryHasher, EntriesEq>;
+  using NameToEntryMap = std::unordered_map<base::StringPiece,
+                                            const HpackEntry*,
+                                            base::StringPieceHash>;
 
   HpackHeaderTable();
 
@@ -109,8 +114,18 @@ class NET_EXPORT_PRIVATE HpackHeaderTable {
   const EntryTable& static_entries_;
   EntryTable dynamic_entries_;
 
-  const OrderedEntrySet& static_index_;
-  OrderedEntrySet dynamic_index_;
+  // Tracks the unique HpackEntry for a given header name and value.
+  const UnorderedEntrySet& static_index_;
+
+  // Tracks the first static entry for each name in the static table.
+  const NameToEntryMap& static_name_index_;
+
+  // Tracks the most recently inserted HpackEntry for a given header name and
+  // value.
+  UnorderedEntrySet dynamic_index_;
+
+  // Tracks the most recently inserted HpackEntry for a given header name.
+  NameToEntryMap dynamic_name_index_;
 
   // Last acknowledged value for SETTINGS_HEADER_TABLE_SIZE.
   size_t settings_size_bound_;

@@ -20,7 +20,7 @@ namespace url {
 // Initialization is NOT required, it will be implicitly initialized when first
 // used. However, this implicit initialization is NOT threadsafe. If you are
 // using this library in a threaded environment and don't have a consistent
-// "first call" (an example might be calling AddStandardScheme with your special
+// "first call" (an example might be calling Add*Scheme with your special
 // application-specific schemes) then you will want to call initialize before
 // spawning any threads.
 //
@@ -61,24 +61,33 @@ struct URL_EXPORT SchemeWithType {
 // URI syntax" (https://tools.ietf.org/html/rfc3986#section-3).
 //
 // This function is not threadsafe and can not be called concurrently with any
-// other url_util function. It will assert if the list of standard schemes has
-// been locked (see LockStandardSchemes).
+// other url_util function. It will assert if the lists of schemes have
+// been locked (see LockSchemeRegistries).
 URL_EXPORT void AddStandardScheme(const char* new_scheme,
                                   SchemeType scheme_type);
 
-// Sets a flag to prevent future calls to AddStandardScheme from succeeding.
+// Adds an application-defined scheme to the internal list of schemes allowed
+// for referrers.
+//
+// This function is not threadsafe and can not be called concurrently with any
+// other url_util function. It will assert if the lists of schemes have
+// been locked (see LockSchemeRegistries).
+URL_EXPORT void AddReferrerScheme(const char* new_scheme,
+                                  SchemeType scheme_type);
+
+// Sets a flag to prevent future calls to Add*Scheme from succeeding.
 //
 // This is designed to help prevent errors for multithreaded applications.
-// Normal usage would be to call AddStandardScheme for your custom schemes at
-// the beginning of program initialization, and then LockStandardSchemes. This
-// prevents future callers from mistakenly calling AddStandardScheme when the
+// Normal usage would be to call Add*Scheme for your custom schemes at
+// the beginning of program initialization, and then LockSchemeRegistries. This
+// prevents future callers from mistakenly calling Add*Scheme when the
 // program is running with multiple threads, where such usage would be
 // dangerous.
 //
-// We could have had AddStandardScheme use a lock instead, but that would add
+// We could have had Add*Scheme use a lock instead, but that would add
 // some platform-specific dependencies we don't otherwise have now, and is
 // overkill considering the normal usage is so simple.
-URL_EXPORT void LockStandardSchemes();
+URL_EXPORT void LockSchemeRegistries();
 
 // Locates the scheme in the given string and places it into |found_scheme|,
 // which may be NULL to indicate the caller does not care about the range.
@@ -111,6 +120,10 @@ inline bool FindAndCompareScheme(const base::string16& str,
 // the list of known standard-format schemes (see AddStandardScheme).
 URL_EXPORT bool IsStandard(const char* spec, const Component& scheme);
 URL_EXPORT bool IsStandard(const base::char16* spec, const Component& scheme);
+
+// Returns true if the given scheme identified by |scheme| within |spec| is in
+// the list of allowed schemes for referrers (see AddReferrerScheme).
+URL_EXPORT bool IsReferrerScheme(const char* spec, const Component& scheme);
 
 // Returns true and sets |type| to the SchemeType of the given scheme
 // identified by |scheme| within |spec| if the scheme is in the list of known

@@ -261,6 +261,7 @@ BASE_EXPORT void SetFdLimit(unsigned int max_descriptors);
 // Linux/Android/Chrome OS. Shmem/slab/gem_objects/gem_size are Chrome OS only.
 struct BASE_EXPORT SystemMemoryInfoKB {
   SystemMemoryInfoKB();
+  SystemMemoryInfoKB(const SystemMemoryInfoKB& other);
 
   // Serializes the platform specific fields to value.
   scoped_ptr<Value> ToValue() const;
@@ -336,6 +337,7 @@ BASE_EXPORT bool ParseProcVmstat(const std::string& input,
 // Data from /proc/diskstats about system-wide disk I/O.
 struct BASE_EXPORT SystemDiskInfo {
   SystemDiskInfo();
+  SystemDiskInfo(const SystemDiskInfo& other);
 
   // Serializes the platform specific fields to value.
   scoped_ptr<Value> ToValue() const;

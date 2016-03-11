@@ -4,6 +4,8 @@
 
 #include "net/quic/crypto/common_cert_set.h"
 
+#include <cstddef>
+
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/memory/singleton.h"

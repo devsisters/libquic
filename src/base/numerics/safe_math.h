@@ -6,6 +6,7 @@
 #define BASE_NUMERICS_SAFE_MATH_H_
 
 #include <stddef.h>
+#include <type_traits>
 
 #include "base/numerics/safe_math_impl.h"
 
@@ -190,7 +191,7 @@ class CheckedNumeric {
   template <typename Src>
   static CheckedNumeric<T> cast(
       const CheckedNumeric<Src>& u,
-      typename std::enable_if<!is_same<Src, T>::value, int>::type = 0) {
+      typename std::enable_if<!std::is_same<Src, T>::value, int>::type = 0) {
     return u;
   }
 

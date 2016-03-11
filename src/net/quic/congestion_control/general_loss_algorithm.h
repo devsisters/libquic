@@ -33,12 +33,6 @@ class NET_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
     loss_type_ = loss_type;
   }
 
-  // Only supported for tests.
-  PacketNumberSet DetectLostPackets(const QuicUnackedPacketMap& unacked_packets,
-                                    const QuicTime& time,
-                                    QuicPacketNumber largest_observed,
-                                    const RttStats& rtt_stats) override;
-
   // Uses |largest_observed| and time to decide when packets are lost.
   void DetectLosses(
       const QuicUnackedPacketMap& unacked_packets,

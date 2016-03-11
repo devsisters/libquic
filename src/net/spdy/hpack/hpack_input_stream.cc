@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "net/spdy/hpack/hpack_huffman_decoder.h"
 
 namespace net {
 
@@ -45,6 +46,7 @@ bool HpackInputStream::MatchPrefixAndConsume(HpackPrefix prefix) {
 
 bool HpackInputStream::PeekNextOctet(uint8_t* next_octet) {
   if ((bit_offset_ > 0) || buffer_.empty()) {
+    DVLOG(1) << "HpackInputStream::PeekNextOctet bit_offset_=" << bit_offset_;
     return false;
   }
 
@@ -73,6 +75,7 @@ bool HpackInputStream::DecodeNextUint32(uint32_t* I) {
   uint8_t next_marker = (1 << N) - 1;
   uint8_t next_octet = 0;
   if (!DecodeNextOctet(&next_octet)) {
+    DVLOG(1) << "HpackInputStream::DecodeNextUint32 initial octet error";
     return false;
   }
   *I = next_octet & next_marker;
@@ -82,6 +85,7 @@ bool HpackInputStream::DecodeNextUint32(uint32_t* I) {
   while (has_more && (shift < 32)) {
     uint8_t next_octet = 0;
     if (!DecodeNextOctet(&next_octet)) {
+      DVLOG(1) << "HpackInputStream::DecodeNextUint32 shift=" << shift;
       return false;
     }
     has_more = (next_octet & 0x80) != 0;
@@ -89,6 +93,7 @@ bool HpackInputStream::DecodeNextUint32(uint32_t* I) {
     uint32_t addend = next_octet << shift;
     // Check for overflow.
     if ((addend >> shift) != next_octet) {
+      DVLOG(1) << "HpackInputStream::DecodeNextUint32 overflow";
       return false;
     }
     *I += addend;
@@ -117,14 +122,17 @@ bool HpackInputStream::DecodeNextIdentityString(StringPiece* str) {
   return true;
 }
 
-bool HpackInputStream::DecodeNextHuffmanString(const HpackHuffmanTable& table,
-                                               string* str) {
+bool HpackInputStream::DecodeNextHuffmanString(string* str) {
   uint32_t encoded_size = 0;
   if (!DecodeNextUint32(&encoded_size)) {
+    DVLOG(1) << "HpackInputStream::DecodeNextHuffmanString "
+             << "unable to decode size";
     return false;
   }
 
   if (encoded_size > buffer_.size()) {
+    DVLOG(1) << "HpackInputStream::DecodeNextHuffmanString " << encoded_size
+             << " > " << buffer_.size();
     return false;
   }
 
@@ -132,8 +140,10 @@ bool HpackInputStream::DecodeNextHuffmanString(const HpackHuffmanTable& table,
                                   StringPiece(buffer_.data(), encoded_size));
   buffer_.remove_prefix(encoded_size);
 
-  // HpackHuffmanTable will not decode beyond |max_string_literal_size_|.
-  return table.DecodeString(&bounded_reader, max_string_literal_size_, str);
+  // DecodeString will not append more than |max_string_literal_size_| chars
+  // to |str|.
+  return HpackHuffmanDecoder::DecodeString(&bounded_reader,
+                                           max_string_literal_size_, str);
 }
 
 bool HpackInputStream::PeekBits(size_t* peeked_count, uint32_t* out) const {
@@ -159,6 +169,41 @@ bool HpackInputStream::PeekBits(size_t* peeked_count, uint32_t* out) const {
 
   *peeked_count += bits_to_read;
   return true;
+}
+
+std::pair<size_t, uint32_t> HpackInputStream::InitializePeekBits() {
+  size_t peeked_count = 0;
+  uint32_t bits = 0;
+  if (bit_offset_ == 0) {
+    switch (buffer_.size()) {
+      default:
+        DCHECK_LE(4u, buffer_.size());
+        bits = static_cast<uint32_t>(static_cast<unsigned char>(buffer_[3]));
+        peeked_count += 8;
+      /* FALLTHROUGH */
+      case 3:
+        bits |= (static_cast<uint32_t>(static_cast<unsigned char>(buffer_[2]))
+                 << 8);
+        peeked_count += 8;
+      /* FALLTHROUGH */
+      case 2:
+        bits |= (static_cast<uint32_t>(static_cast<unsigned char>(buffer_[1]))
+                 << 16);
+        peeked_count += 8;
+      /* FALLTHROUGH */
+      case 1:
+        bits |= (static_cast<uint32_t>(static_cast<unsigned char>(buffer_[0]))
+                 << 24);
+        peeked_count += 8;
+        break;
+      case 0:
+        break;
+    }
+  } else {
+    LOG(DFATAL) << "InitializePeekBits called with non-zero bit_offset_: "
+                << bit_offset_;
+  }
+  return std::make_pair(peeked_count, bits);
 }
 
 void HpackInputStream::ConsumeBits(size_t bit_count) {

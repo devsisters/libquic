@@ -56,6 +56,15 @@ class InFlightIO;
 namespace gles2 {
 class CommandBufferClientImpl;
 }
+namespace mojo {
+namespace common {
+class MessagePumpMojo;
+}
+}
+namespace mus {
+class CommandBufferLocal;
+class GpuState;
+}
 namespace net {
 class NetworkChangeNotifierMac;
 namespace internal {
@@ -72,7 +81,7 @@ class WindowResizeHelperMac;
 }
 
 namespace views {
-class WindowManagerConnection;
+class ScreenMus;
 }
 
 namespace base {
@@ -199,6 +208,9 @@ class BASE_EXPORT ThreadRestrictions {
   friend class PlatformThread;
   friend class android::JavaHandlerThread;
   friend class gles2::CommandBufferClientImpl;
+  friend class mojo::common::MessagePumpMojo;
+  friend class mus::CommandBufferLocal;
+  friend class mus::GpuState;
 
   // END ALLOWED USAGE.
   // BEGIN USAGE THAT NEEDS TO BE FIXED.
@@ -221,7 +233,7 @@ class BASE_EXPORT ThreadRestrictions {
 #if !defined(OFFICIAL_BUILD)
   friend class content::SoftwareOutputDeviceMus;  // Interim non-production code
 #endif
-  friend class views::WindowManagerConnection;
+  friend class views::ScreenMus;
 // END USAGE THAT NEEDS TO BE FIXED.
 
 #if ENABLE_THREAD_RESTRICTIONS

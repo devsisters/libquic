@@ -30,12 +30,11 @@ HybridSlowStart::HybridSlowStart()
       rtt_sample_count_(0),
       current_min_rtt_(QuicTime::Delta::Zero()) {}
 
-void HybridSlowStart::OnPacketAcked(QuicPacketNumber acked_packet_number,
-                                    bool in_slow_start) {
+void HybridSlowStart::OnPacketAcked(QuicPacketNumber acked_packet_number) {
   // OnPacketAcked gets invoked after ShouldExitSlowStart, so it's best to end
   // the round when the final packet of the burst is received and start it on
   // the next incoming ack.
-  if (in_slow_start && IsEndOfRound(acked_packet_number)) {
+  if (IsEndOfRound(acked_packet_number)) {
     started_ = false;
   }
 }

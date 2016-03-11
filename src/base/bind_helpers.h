@@ -378,7 +378,7 @@ class PassedWrapper {
       : is_valid_(true), scoper_(std::move(scoper)) {}
   PassedWrapper(const PassedWrapper& other)
       : is_valid_(other.is_valid_), scoper_(std::move(other.scoper_)) {}
-  T Pass() const {
+  T Take() const {
     CHECK(is_valid_);
     is_valid_ = false;
     return std::move(scoper_);
@@ -391,98 +391,39 @@ class PassedWrapper {
 
 // Unwrap the stored parameters for the wrappers above.
 template <typename T>
-struct UnwrapTraits {
-  using ForwardType = const T&;
-  static ForwardType Unwrap(const T& o) { return o; }
-};
+const T& Unwrap(const T& o) {
+  return o;
+}
 
 template <typename T>
-struct UnwrapTraits<UnretainedWrapper<T> > {
-  using ForwardType = T*;
-  static ForwardType Unwrap(UnretainedWrapper<T> unretained) {
-    return unretained.get();
-  }
-};
+T* Unwrap(UnretainedWrapper<T> unretained) {
+  return unretained.get();
+}
 
 template <typename T>
-struct UnwrapTraits<ConstRefWrapper<T> > {
-  using ForwardType = const T&;
-  static ForwardType Unwrap(ConstRefWrapper<T> const_ref) {
-    return const_ref.get();
-  }
-};
+const T& Unwrap(ConstRefWrapper<T> const_ref) {
+  return const_ref.get();
+}
 
 template <typename T>
-struct UnwrapTraits<scoped_refptr<T> > {
-  using ForwardType = T*;
-  static ForwardType Unwrap(const scoped_refptr<T>& o) { return o.get(); }
-};
+T* Unwrap(const scoped_refptr<T>& o) {
+  return o.get();
+}
 
 template <typename T>
-struct UnwrapTraits<WeakPtr<T> > {
-  using ForwardType = const WeakPtr<T>&;
-  static ForwardType Unwrap(const WeakPtr<T>& o) { return o; }
-};
+const WeakPtr<T>& Unwrap(const WeakPtr<T>& o) {
+  return o;
+}
 
 template <typename T>
-struct UnwrapTraits<OwnedWrapper<T> > {
-  using ForwardType = T*;
-  static ForwardType Unwrap(const OwnedWrapper<T>& o) {
-    return o.get();
-  }
-};
+T* Unwrap(const OwnedWrapper<T>& o) {
+  return o.get();
+}
 
 template <typename T>
-struct UnwrapTraits<PassedWrapper<T> > {
-  using ForwardType = T;
-  static T Unwrap(PassedWrapper<T>& o) {
-    return o.Pass();
-  }
-};
-
-// Utility for handling different refcounting semantics in the Bind()
-// function.
-template <bool is_method, typename... T>
-struct MaybeScopedRefPtr;
-
-template <bool is_method>
-struct MaybeScopedRefPtr<is_method> {
-  MaybeScopedRefPtr() {}
-};
-
-template <typename T, typename... Rest>
-struct MaybeScopedRefPtr<false, T, Rest...> {
-  MaybeScopedRefPtr(const T&, const Rest&...) {}
-};
-
-template <typename T, size_t n, typename... Rest>
-struct MaybeScopedRefPtr<false, T[n], Rest...> {
-  MaybeScopedRefPtr(const T*, const Rest&...) {}
-};
-
-template <typename T, typename... Rest>
-struct MaybeScopedRefPtr<true, T, Rest...> {
-  MaybeScopedRefPtr(const T& o, const Rest&...) {}
-};
-
-template <typename T, typename... Rest>
-struct MaybeScopedRefPtr<true, T*, Rest...> {
-  MaybeScopedRefPtr(T* o, const Rest&...) : ref_(o) {}
-  scoped_refptr<T> ref_;
-};
-
-// No need to additionally AddRef() and Release() since we are storing a
-// scoped_refptr<> inside the storage object already.
-template <typename T, typename... Rest>
-struct MaybeScopedRefPtr<true, scoped_refptr<T>, Rest...> {
-  MaybeScopedRefPtr(const scoped_refptr<T>&, const Rest&...) {}
-};
-
-template <typename T, typename... Rest>
-struct MaybeScopedRefPtr<true, const T*, Rest...> {
-  MaybeScopedRefPtr(const T* o, const Rest&...) : ref_(o) {}
-  scoped_refptr<const T> ref_;
-};
+T Unwrap(PassedWrapper<T>& o) {
+  return o.Take();
+}
 
 // IsWeakMethod is a helper that determine if we are binding a WeakPtr<> to a
 // method.  It is used internally by Bind() to select the correct

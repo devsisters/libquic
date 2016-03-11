@@ -21,10 +21,10 @@ const char kCookieKey[] = "cookie";
 
 }  // namespace
 
-HpackDecoder::HpackDecoder(const HpackHuffmanTable& table)
+HpackDecoder::HpackDecoder()
     : max_string_literal_size_(kDefaultMaxStringLiteralSize),
-      huffman_table_(table),
       handler_(nullptr),
+      total_header_bytes_(0),
       regular_header_seen_(false),
       header_block_started_(false) {}
 
@@ -62,7 +62,7 @@ bool HpackDecoder::HandleControlFrameHeadersComplete(size_t* compressed_len) {
     }
   }
   if (handler_ != nullptr) {
-    handler_->OnHeaderBlockEnd(headers_block_buffer_.size());
+    handler_->OnHeaderBlockEnd(total_header_bytes_);
   }
   headers_block_buffer_.clear();
   header_block_started_ = false;
@@ -72,6 +72,8 @@ bool HpackDecoder::HandleControlFrameHeadersComplete(size_t* compressed_len) {
 
 bool HpackDecoder::HandleHeaderRepresentation(StringPiece name,
                                               StringPiece value) {
+  total_header_bytes_ += name.size() + value.size();
+
   // Fail if pseudo-header follows regular header.
   if (name.size() > 0) {
     if (name[0] == kPseudoHeaderPrefix) {
@@ -209,7 +211,7 @@ bool HpackDecoder::DecodeNextStringLiteral(HpackInputStream* input_stream,
                                            StringPiece* output) {
   if (input_stream->MatchPrefixAndConsume(kStringLiteralHuffmanEncoded)) {
     string* buffer = is_key ? &key_buffer_ : &value_buffer_;
-    bool result = input_stream->DecodeNextHuffmanString(huffman_table_, buffer);
+    bool result = input_stream->DecodeNextHuffmanString(buffer);
     *output = StringPiece(*buffer);
     return result;
   }

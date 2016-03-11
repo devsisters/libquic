@@ -95,8 +95,7 @@ class CRYPTO_EXPORT ECPrivateKey {
 
   // Exports private key data for testing. The format of data stored into output
   // doesn't matter other than that it is consistent for the same key.
-  bool ExportValue(std::vector<uint8_t>* output);
-  bool ExportECParams(std::vector<uint8_t>* output);
+  bool ExportValueForTesting(std::vector<uint8_t>* output);
 
  private:
   // Constructor is private. Use one of the Create*() methods above instead.
