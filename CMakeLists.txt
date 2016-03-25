@@ -10,7 +10,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	#	"MinSizeRel" "RelWithDebInfo")
 endif()
 
-set(COMMON_C_FLAGS "${COMMON_C_FLAGS} -Wall")
+set(COMMON_C_FLAGS "${COMMON_C_FLAGS} -Wall -fpic")
 
 set(COMMON_DEBUG_FLAGS "-gdwarf-4")
 set(COMMON_RELEASE_FLAGS "")
