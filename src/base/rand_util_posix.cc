@@ -51,7 +51,11 @@ uint64_t RandUint64() {
   return number;
 }
 
-bool ReadFromFD(int fd, char* buffer, size_t bytes) {
+// ReadFromFD is originally defined in base/files/file_util.h
+// libquic removed base/files/file_util.h dependency and copied the function
+// here. Use static to avoid linker conflict in other projects using libquic
+// along with chromium sources.
+static bool ReadFromFD(int fd, char* buffer, size_t bytes) {
   size_t total_read = 0;
   while (total_read < bytes) {
     ssize_t bytes_read =
