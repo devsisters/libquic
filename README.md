@@ -59,8 +59,9 @@ Building with CMake and Make:
 $ mkdir build/
 $ cd build/
 $ cmake ..
-$ make -j
+$ make -j 4
 ```
+make -j <numOfRecepies> limits the number of simultaneously executed Recepies. Adapt this number to the capabilities of your build machine.
 
 `libquic.a` library file will be generated. `libssl.a`, `libcrypto.a` will be
 located in build/boringssl directory.
