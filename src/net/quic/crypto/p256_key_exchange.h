@@ -42,7 +42,7 @@ class NET_EXPORT_PRIVATE P256KeyExchange : public KeyExchange {
 
   // KeyExchange interface.
   KeyExchange* NewKeyPair(QuicRandom* rand) const override;
-  bool CalculateSharedKey(const base::StringPiece& peer_public_value,
+  bool CalculateSharedKey(base::StringPiece peer_public_value,
                           std::string* shared_key) const override;
   base::StringPiece public_value() const override;
   QuicTag tag() const override;

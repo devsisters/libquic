@@ -65,6 +65,11 @@ class QuicHeadersStream::SpdyFramerVisitor
     CloseConnection("SPDY DATA frame received.");
   }
 
+  void OnStreamEnd(SpdyStreamId stream_id) override {
+    // The framer invokes OnStreamEnd after processing a SYN_STREAM
+    // or SYN_REPLY frame that had the fin bit set.
+  }
+
   void OnStreamPadding(SpdyStreamId stream_id, size_t len) override {
     CloseConnection("SPDY frame padding received.");
   }

@@ -91,8 +91,8 @@ set(
 	src/net/quic/quic_crypto_stream.cc
 	src/net/quic/quic_socket_address_coder.cc
 	src/net/quic/quic_utils.cc
-	src/net/quic/quic_frame_list.cc
 	src/net/quic/spdy_utils.cc
+	src/net/quic/crypto/quic_compressed_certs_cache.cc
 	src/net/quic/crypto/quic_crypto_server_config.cc
 	src/net/quic/crypto/crypto_handshake_message.cc
 	src/net/quic/crypto/p256_key_exchange_openssl.cc
@@ -100,8 +100,6 @@ set(
 	src/net/quic/crypto/crypto_secret_boxer.cc
 	src/net/quic/crypto/aes_128_gcm_12_encrypter_openssl.cc
 	src/net/quic/crypto/curve25519_key_exchange.cc
-	src/net/quic/crypto/chacha20_poly1305_encrypter_openssl.cc
-	src/net/quic/crypto/chacha20_poly1305_decrypter_openssl.cc
 	src/net/quic/crypto/chacha20_poly1305_rfc7539_encrypter_openssl.cc
 	src/net/quic/crypto/chacha20_poly1305_rfc7539_decrypter_openssl.cc
 	src/net/quic/crypto/quic_decrypter.cc
@@ -136,11 +134,9 @@ set(
 	src/net/quic/congestion_control/prr_sender.cc
 	src/net/quic/congestion_control/hybrid_slow_start.cc
 	src/net/quic/congestion_control/rtt_stats.cc
-	src/net/quic/congestion_control/tcp_cubic_sender.cc
 	src/net/quic/congestion_control/tcp_cubic_sender_base.cc
 	src/net/quic/congestion_control/tcp_cubic_sender_bytes.cc
 	src/net/quic/congestion_control/tcp_cubic_sender_packets.cc
-	src/net/quic/congestion_control/tcp_cubic_bytes_sender.cc
 	src/net/quic/quic_config.cc
 	src/net/quic/quic_crypto_server_stream.cc
 	src/net/quic/quic_flags.cc
@@ -157,7 +153,7 @@ set(
 	src/net/quic/quic_simple_buffer_allocator.cc
 	src/net/quic/proto/cached_network_parameters.pb.cc
 	src/net/quic/proto/source_address_token.pb.cc
-	src/net/quic/stream_sequencer_buffer.cc
+	src/net/quic/quic_stream_sequencer_buffer.cc
 
 	src/net/base/int128.cc
 	src/net/base/escape.cc
@@ -170,6 +166,7 @@ set(
 	src/net/base/address_family.cc
 	src/net/base/port_util.cc
 	src/net/base/url_util.cc
+	src/net/base/parse_number.cc
 
 	src/net/spdy/spdy_frame_reader.cc
 	src/net/spdy/spdy_frame_builder.cc
@@ -242,6 +239,8 @@ set(
 	src/base/memory/ref_counted.cc
 	src/base/memory/aligned_memory.cc
 	src/base/rand_util_posix.cc
+	src/base/trace_event/heap_profiler_allocation_context_tracker.cc
+	src/base/trace_event/heap_profiler_allocation_context.cc
 	src/base/threading/thread_id_name_manager.cc
 	src/base/threading/platform_thread_posix.cc
 	src/base/threading/platform_thread_internal_posix.cc
@@ -287,17 +286,19 @@ set(
 	src/base/location.cc
 	src/base/base64.cc
 	src/base/md5.cc
+	src/base/hash.cc
 	src/base/metrics/statistics_recorder.cc
 	src/base/metrics/sample_map.cc
 	src/base/metrics/sample_vector.cc
 	src/base/metrics/histogram_base.cc
 	src/base/metrics/histogram.cc
-	src/base/metrics/histogram_persistence.cc
 	src/base/metrics/histogram_samples.cc
 	src/base/metrics/sparse_histogram.cc
 	src/base/metrics/bucket_ranges.cc
 	src/base/metrics/metrics_hashes.cc
 	src/base/metrics/persistent_memory_allocator.cc
+	src/base/metrics/persistent_sample_map.cc
+	src/base/metrics/persistent_histogram_allocator.cc
 	src/base/rand_util.cc
 	src/base/files/file_path_constants.cc
 	src/base/files/file_path.cc

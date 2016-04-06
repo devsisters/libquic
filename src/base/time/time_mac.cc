@@ -237,6 +237,15 @@ bool TimeTicks::IsHighResolution() {
 }
 
 // static
+TimeTicks::Clock TimeTicks::GetClock() {
+#if defined(OS_IOS)
+  return Clock::IOS_CF_ABSOLUTE_TIME_MINUS_KERN_BOOTTIME;
+#else
+  return Clock::MAC_MACH_ABSOLUTE_TIME;
+#endif  // defined(OS_IOS)
+}
+
+// static
 ThreadTicks ThreadTicks::Now() {
   return ThreadTicks(ComputeThreadTicks());
 }

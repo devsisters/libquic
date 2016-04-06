@@ -105,6 +105,10 @@ class NET_EXPORT_PRIVATE CryptoUtils {
   static const char* HandshakeFailureReasonToString(
       HandshakeFailureReason reason);
 
+  // Writes a hash of the serialized |message| into |output|.
+  static void HashHandshakeMessage(const CryptoHandshakeMessage& message,
+                                   std::string* output);
+
  private:
   DISALLOW_COPY_AND_ASSIGN(CryptoUtils);
 };

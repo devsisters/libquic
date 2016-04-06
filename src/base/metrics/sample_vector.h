@@ -11,12 +11,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <memory>
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
 
@@ -40,7 +40,7 @@ class BASE_EXPORT SampleVector : public HistogramSamples {
                   HistogramBase::Count count) override;
   HistogramBase::Count GetCount(HistogramBase::Sample value) const override;
   HistogramBase::Count TotalCount() const override;
-  scoped_ptr<SampleCountIterator> Iterator() const override;
+  std::unique_ptr<SampleCountIterator> Iterator() const override;
 
   // Get count of a specific bucket.
   HistogramBase::Count GetCountAtIndex(size_t bucket_index) const;

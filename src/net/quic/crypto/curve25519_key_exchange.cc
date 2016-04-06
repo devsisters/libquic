@@ -18,8 +18,7 @@ Curve25519KeyExchange::Curve25519KeyExchange() {}
 Curve25519KeyExchange::~Curve25519KeyExchange() {}
 
 // static
-Curve25519KeyExchange* Curve25519KeyExchange::New(
-    const StringPiece& private_key) {
+Curve25519KeyExchange* Curve25519KeyExchange::New(StringPiece private_key) {
   Curve25519KeyExchange* ka;
   // We don't want to #include the NaCl headers in the public header file, so
   // we use literals for the sizes of private_key_ and public_key_. Here we
@@ -58,9 +57,8 @@ KeyExchange* Curve25519KeyExchange::NewKeyPair(QuicRandom* rand) const {
   return Curve25519KeyExchange::New(private_value);
 }
 
-bool Curve25519KeyExchange::CalculateSharedKey(
-    const StringPiece& peer_public_value,
-    string* out_result) const {
+bool Curve25519KeyExchange::CalculateSharedKey(StringPiece peer_public_value,
+                                               string* out_result) const {
   if (peer_public_value.size() != crypto::curve25519::kBytes) {
     return false;
   }

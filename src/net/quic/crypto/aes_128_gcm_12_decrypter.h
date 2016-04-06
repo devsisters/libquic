@@ -33,7 +33,7 @@ class NET_EXPORT_PRIVATE Aes128Gcm12Decrypter : public AeadBaseDecrypter {
  protected:
   // AeadBaseDecrypter methods:
   void FillAeadParams(base::StringPiece nonce,
-                      const base::StringPiece& associated_data,
+                      base::StringPiece associated_data,
                       size_t auth_tag_size,
                       AeadParams* aead_params) const override;
 #endif

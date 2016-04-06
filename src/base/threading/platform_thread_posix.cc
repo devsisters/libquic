@@ -12,9 +12,10 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
+#include <memory>
+
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
@@ -47,7 +48,8 @@ void* ThreadFunc(void* params) {
   PlatformThread::Delegate* delegate = nullptr;
 
   {
-    scoped_ptr<ThreadParams> thread_params(static_cast<ThreadParams*>(params));
+    std::unique_ptr<ThreadParams> thread_params(
+        static_cast<ThreadParams*>(params));
 
     delegate = thread_params->delegate;
     if (!thread_params->joinable)
@@ -98,7 +100,7 @@ bool CreateThread(size_t stack_size,
   if (stack_size > 0)
     pthread_attr_setstacksize(&attributes, stack_size);
 
-  scoped_ptr<ThreadParams> params(new ThreadParams);
+  std::unique_ptr<ThreadParams> params(new ThreadParams);
   params->delegate = delegate;
   params->joinable = joinable;
   params->priority = priority;

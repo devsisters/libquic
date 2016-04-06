@@ -135,7 +135,6 @@ class NET_EXPORT_PRIVATE QuicWriteBlockedList {
       return;
     }
     bool push_front =
-        FLAGS_quic_batch_writes &&
         stream_id == batch_write_stream_id_[last_priority_popped_] &&
         bytes_left_for_batch_write_[last_priority_popped_] > 0;
     priority_write_scheduler_.MarkStreamReady(stream_id, push_front);

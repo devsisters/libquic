@@ -642,6 +642,15 @@ BASE_EXPORT std::ostream& operator<<(std::ostream& os, Time time);
 // Represents monotonically non-decreasing clock time.
 class BASE_EXPORT TimeTicks : public time_internal::TimeBase<TimeTicks> {
  public:
+  // The underlying clock used to generate new TimeTicks.
+  enum class Clock {
+    LINUX_CLOCK_MONOTONIC,
+    IOS_CF_ABSOLUTE_TIME_MINUS_KERN_BOOTTIME,
+    MAC_MACH_ABSOLUTE_TIME,
+    WIN_QPC,
+    WIN_ROLLOVER_PROTECTED_TIME_GET_TIME
+  };
+
   TimeTicks() : TimeBase(0) {
   }
 
@@ -679,6 +688,11 @@ class BASE_EXPORT TimeTicks : public time_internal::TimeBase<TimeTicks> {
   // after, or equal to the |tick_phase|.
   TimeTicks SnappedToNextTick(TimeTicks tick_phase,
                               TimeDelta tick_interval) const;
+
+  // Returns an enum indicating the underlying clock being used to generate
+  // TimeTicks timestamps. This function should only be used for debugging and
+  // logging purposes.
+  static Clock GetClock();
 
 #if defined(OS_WIN)
  protected:

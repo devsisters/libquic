@@ -5,6 +5,8 @@
 #ifndef NET_QUIC_QUIC_CLIENT_SESSION_BASE_H_
 #define NET_QUIC_QUIC_CLIENT_SESSION_BASE_H_
 
+#include <string>
+
 #include "base/macros.h"
 #include "net/quic/quic_crypto_client_stream.h"
 #include "net/quic/quic_spdy_session.h"
@@ -63,8 +65,11 @@ class NET_EXPORT_PRIVATE QuicClientSessionBase
 
   // Called by |QuicSpdyClientStream| on receipt of PUSH_PROMISE, does
   // some session level validation and creates the
-  // |QuicClientPromisedInfo| inserting into maps by id and url.
-  void HandlePromised(QuicStreamId id, const SpdyHeaderBlock& headers);
+  // |QuicClientPromisedInfo| inserting into maps by (promised) id and
+  // url.
+  virtual void HandlePromised(QuicStreamId associated_id,
+                              QuicStreamId promised_id,
+                              const SpdyHeaderBlock& headers);
 
   // For cross-origin server push, this should verify the server is
   // authoritative per [RFC2818], Section 3.  Roughly, subjectAltName
@@ -86,7 +91,7 @@ class NET_EXPORT_PRIVATE QuicClientSessionBase
 
   // Removes |promised| from the maps by url and id and destroys
   // promised.
-  void DeletePromised(QuicClientPromisedInfo* promised);
+  virtual void DeletePromised(QuicClientPromisedInfo* promised);
 
   // Sends Rst for the stream, and makes sure that future calls to
   // IsClosedStream(id) return true, which ensures that any subsequent

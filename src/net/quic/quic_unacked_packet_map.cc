@@ -49,8 +49,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
       packet->has_crypto_handshake == IS_HANDSHAKE;
   TransmissionInfo info(packet->encryption_level, packet->packet_number_length,
                         transmission_type, sent_time, bytes_sent,
-                        packet->is_fec_packet, has_crypto_handshake,
-                        packet->needs_padding);
+                        has_crypto_handshake, packet->needs_padding);
   if (old_packet_number > 0) {
     TransferRetransmissionInfo(old_packet_number, packet_number,
                                transmission_type, &info);

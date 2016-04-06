@@ -140,6 +140,9 @@ NET_EXPORT_PRIVATE extern const char* const kFinalOffsetHeaderKey;
 // Maximum delayed ack time, in ms.
 const int64_t kMaxDelayedAckTimeMs = 25;
 
+// Minimum tail loss probe time in ms.
+static const int64_t kMinTailLossProbeTimeoutMs = 10;
+
 // The timeout before the handshake succeeds.
 const int64_t kInitialIdleTimeoutSecs = 5;
 // The default idle timeout.
@@ -231,29 +234,14 @@ enum class Perspective { IS_SERVER, IS_CLIENT };
 // Describes whether a ConnectionClose was originated by the peer.
 enum class ConnectionCloseSource { FROM_PEER, FROM_SELF };
 
+// Should a connection be closed silently or not.
+enum class ConnectionCloseBehavior {
+  SILENT_CLOSE,
+  SEND_CONNECTION_CLOSE_PACKET
+};
+
 NET_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                             const Perspective& s);
-
-// Indicates FEC protection level for data being written.
-enum FecProtection {
-  MUST_FEC_PROTECT,  // Callee must FEC protect this data.
-  MAY_FEC_PROTECT    // Callee does not have to but may FEC protect this data.
-};
-
-// Indicates FEC policy.
-enum FecPolicy {
-  FEC_PROTECT_ALWAYS,   // All data in the stream should be FEC protected.
-  FEC_PROTECT_OPTIONAL  // Data in the stream does not need FEC protection.
-};
-
-// Indicates FEC policy about when to send FEC packet.
-enum FecSendPolicy {
-  // Send FEC packet when FEC group is full or when FEC alarm goes off.
-  FEC_ANY_TRIGGER,
-  // Send FEC packet only when FEC alarm goes off.
-  FEC_ALARM_TRIGGER
-};
-
 enum QuicFrameType {
   // Regular frame types. The values set here cannot change without the
   // introduction of a new QUIC version.
@@ -354,7 +342,10 @@ enum QuicPacketPrivateFlags {
   PACKET_PRIVATE_FLAGS_FEC = 1 << 2,
 
   // All bits set (bits 3-7 are not currently used): 00000111
-  PACKET_PRIVATE_FLAGS_MAX = (1 << 3) - 1
+  PACKET_PRIVATE_FLAGS_MAX = (1 << 3) - 1,
+
+  // For version 32 (bits 1-7 are not used): 00000001
+  PACKET_PRIVATE_FLAGS_MAX_VERSION_32 = (1 << 1) - 1
 };
 
 // The available versions of QUIC. Guaranteed that the integer value of the enum
@@ -374,6 +365,8 @@ enum QuicVersion {
   QUIC_VERSION_28 = 28,  // Receiver can refuse to create a requested stream.
   QUIC_VERSION_29 = 29,  // Server and client honor QUIC_STREAM_NO_ERROR.
   QUIC_VERSION_30 = 30,  // Add server side support of cert transparency.
+  QUIC_VERSION_31 = 31,  // Adds a hash of the client hello to crypto proof.
+  QUIC_VERSION_32 = 32,  // FEC related fields are removed from wire format.
 };
 
 // This vector contains QUIC versions which we currently support.
@@ -384,8 +377,8 @@ enum QuicVersion {
 // IMPORTANT: if you are adding to this list, follow the instructions at
 // http://sites/quic/adding-and-removing-versions
 static const QuicVersion kSupportedQuicVersions[] = {
-    QUIC_VERSION_30, QUIC_VERSION_29, QUIC_VERSION_28,
-    QUIC_VERSION_27, QUIC_VERSION_26, QUIC_VERSION_25};
+    QUIC_VERSION_32, QUIC_VERSION_31, QUIC_VERSION_30, QUIC_VERSION_29,
+    QUIC_VERSION_28, QUIC_VERSION_27, QUIC_VERSION_26, QUIC_VERSION_25};
 
 typedef std::vector<QuicVersion> QuicVersionVector;
 
@@ -426,24 +419,19 @@ NET_EXPORT_PRIVATE QuicTag MakeQuicTag(char a, char b, char c, char d);
 NET_EXPORT_PRIVATE bool ContainsQuicTag(const QuicTagVector& tag_vector,
                                         QuicTag tag);
 
-// Size in bytes of the data or fec packet header.
+// Size in bytes of the data packet header.
 NET_EXPORT_PRIVATE size_t GetPacketHeaderSize(const QuicPacketHeader& header);
 
 NET_EXPORT_PRIVATE size_t
 GetPacketHeaderSize(QuicConnectionIdLength connection_id_length,
                     bool include_version,
                     bool include_path_id,
-                    QuicPacketNumberLength packet_number_length,
-                    InFecGroup is_in_fec_group);
-
-// Index of the first byte in a QUIC packet of FEC protected data.
-NET_EXPORT_PRIVATE size_t
-GetStartOfFecProtectedData(QuicConnectionIdLength connection_id_length,
-                           bool include_version,
-                           bool include_path_id,
-                           QuicPacketNumberLength packet_number_length);
+                    QuicPacketNumberLength packet_number_length);
 
 // Index of the first byte in a QUIC packet of encrypted data.
+NET_EXPORT_PRIVATE size_t
+GetStartOfEncryptedData(const QuicPacketHeader& header);
+
 NET_EXPORT_PRIVATE size_t
 GetStartOfEncryptedData(QuicConnectionIdLength connection_id_length,
                         bool include_version,
@@ -515,8 +503,12 @@ enum QuicErrorCode {
   QUIC_INVALID_FEC_DATA = 5,
   // STREAM frame data is malformed.
   QUIC_INVALID_STREAM_DATA = 46,
-  // STREAM frame data is not encrypted.
+  // STREAM frame data overlaps with buffered data.
+  QUIC_OVERLAPPING_STREAM_DATA = 87,
+  // Received STREAM frame data is not encrypted.
   QUIC_UNENCRYPTED_STREAM_DATA = 61,
+  // Attempt to send unencrypted STREAM frame.
+  QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA = 88,
   // FEC frame data is not encrypted.
   QUIC_UNENCRYPTED_FEC_DATA = 77,
   // RST_STREAM frame data is malformed.
@@ -571,14 +563,16 @@ enum QuicErrorCode {
   QUIC_NETWORK_IDLE_TIMEOUT = 25,
   // The connection timed out waiting for the handshake to complete.
   QUIC_HANDSHAKE_TIMEOUT = 67,
-  // There was an error encountered migrating addresses
+  // There was an error encountered migrating addresses.
   QUIC_ERROR_MIGRATING_ADDRESS = 26,
+  // There was an error encountered migrating port only.
+  QUIC_ERROR_MIGRATING_PORT = 86,
   // There was an error while writing to the socket.
   QUIC_PACKET_WRITE_ERROR = 27,
   // There was an error while reading from the socket.
   QUIC_PACKET_READ_ERROR = 51,
   // We received a STREAM_FRAME with no data and no fin flag set.
-  QUIC_INVALID_STREAM_FRAME = 50,
+  QUIC_EMPTY_STREAM_FRAME_NO_FIN = 50,
   // We received invalid data on the headers stream.
   QUIC_INVALID_HEADERS_STREAM_DATA = 56,
   // The peer received too much data, violating flow control.
@@ -603,6 +597,8 @@ enum QuicErrorCode {
   QUIC_TIMEOUTS_WITH_OPEN_STREAMS = 74,
   // Closed because we failed to serialize a packet.
   QUIC_FAILED_TO_SERIALIZE_PACKET = 75,
+  // QUIC timed out after too many RTOs.
+  QUIC_TOO_MANY_RTOS = 85,
 
   // Crypto errors.
 
@@ -675,9 +671,11 @@ enum QuicErrorCode {
   // Connection migration was attempted, but there was no new network to
   // migrate to.
   QUIC_CONNECTION_MIGRATION_NO_NEW_NETWORK = 83,
+  // Network changed, but connection had one or more non-migratable streams.
+  QUIC_CONNECTION_MIGRATION_NON_MIGRATABLE_STREAM = 84,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 84,
+  QUIC_LAST_ERROR = 89,
 };
 
 // Must be updated any time a QuicErrorCode is deprecated.
@@ -703,7 +701,7 @@ struct NET_EXPORT_PRIVATE QuicPacketPublicHeader {
 // An integer which cannot be a packet number.
 const QuicPacketNumber kInvalidPacketNumber = 0;
 
-// Header for Data or FEC packets.
+// Header for Data packets.
 struct NET_EXPORT_PRIVATE QuicPacketHeader {
   QuicPacketHeader();
   explicit QuicPacketHeader(const QuicPacketPublicHeader& header);
@@ -992,10 +990,6 @@ struct NET_EXPORT_PRIVATE QuicAckFrame {
 
   // The set of packets which we're expecting and have not received.
   PacketNumberQueue missing_packets;
-
-  // Packet most recently revived via FEC, 0 if no packet was revived by FEC.
-  // If non-zero, must be present in missing_packets.
-  QuicPacketNumber latest_revived_packet;
 };
 
 // True if the packet number is greater than largest_observed or is listed
@@ -1229,7 +1223,6 @@ class NET_EXPORT_PRIVATE QuicPacket : public QuicData {
              bool includes_path_id,
              QuicPacketNumberLength packet_number_length);
 
-  base::StringPiece FecProtectedData() const;
   base::StringPiece AssociatedData() const;
   base::StringPiece Plaintext() const;
 
@@ -1263,6 +1256,35 @@ class NET_EXPORT_PRIVATE QuicEncryptedPacket : public QuicData {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(QuicEncryptedPacket);
+};
+
+// A received encrypted QUIC packet, with a recorded time of receipt.
+class NET_EXPORT_PRIVATE QuicReceivedPacket : public QuicEncryptedPacket {
+ public:
+  QuicReceivedPacket(const char* buffer, size_t length, QuicTime receipt_time);
+  QuicReceivedPacket(char* buffer,
+                     size_t length,
+                     QuicTime receipt_time,
+                     bool owns_buffer);
+
+  // Clones the packet into a new packet which owns the buffer.
+  QuicReceivedPacket* Clone() const;
+
+  // Returns the time at which the packet was received.
+  QuicTime receipt_time() const { return receipt_time_; }
+
+  // By default, gtest prints the raw bytes of an object. The bool data
+  // member (in the base class QuicData) causes this object to have padding
+  // bytes, which causes the default gtest object printer to read
+  // uninitialize memory. So we need to teach gtest how to print this object.
+  NET_EXPORT_PRIVATE friend std::ostream& operator<<(
+      std::ostream& os,
+      const QuicReceivedPacket& s);
+
+ private:
+  const QuicTime receipt_time_;
+
+  DISALLOW_COPY_AND_ASSIGN(QuicReceivedPacket);
 };
 
 // Pure virtual class to listen for packet acknowledgements.
@@ -1320,7 +1342,6 @@ struct NET_EXPORT_PRIVATE SerializedPacket {
   QuicPacketNumberLength packet_number_length;
   EncryptionLevel encryption_level;
   QuicPacketEntropyHash entropy_hash;
-  bool is_fec_packet;
   bool has_ack;
   bool has_stop_waiting;
   QuicPacketNumber original_packet_number;
@@ -1341,7 +1362,6 @@ struct NET_EXPORT_PRIVATE TransmissionInfo {
                    TransmissionType transmission_type,
                    QuicTime sent_time,
                    QuicPacketLength bytes_sent,
-                   bool is_fec_packet,
                    bool has_crypto_handshake,
                    bool needs_padding);
 
@@ -1361,8 +1381,6 @@ struct NET_EXPORT_PRIVATE TransmissionInfo {
   bool in_flight;
   // True if the packet can never be acked, so it can be removed.
   bool is_unackable;
-  // True if the packet is an FEC packet.
-  bool is_fec_packet;
   // True if the packet contains stream data from the crypto stream.
   bool has_crypto_handshake;
   // True if the packet needs padding if it's retransmitted.

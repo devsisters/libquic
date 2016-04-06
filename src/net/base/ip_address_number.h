@@ -26,7 +26,6 @@ namespace net {
 // IPAddress instead and existing code should be switched over.
 // https://crbug.com/496258
 typedef std::vector<unsigned char> IPAddressNumber;
-typedef std::vector<IPAddressNumber> IPAddressList;
 
 static const size_t kIPv4AddressSize = 4;
 static const size_t kIPv6AddressSize = 16;
@@ -59,11 +58,6 @@ NET_EXPORT std::string IPAddressToStringWithPort(const IPAddressNumber& addr,
 // Returns the address as a sequence of bytes in network-byte-order.
 NET_EXPORT std::string IPAddressToPackedString(const IPAddressNumber& addr);
 
-// Parses a URL-safe IP literal (see RFC 3986, Sec 3.2.2) to its numeric value.
-// Returns true on success, and fills |ip_number| with the numeric value
-NET_EXPORT bool ParseURLHostnameToNumber(const std::string& hostname,
-                                         IPAddressNumber* ip_number);
-
 // Parses an IP address literal (either IPv4 or IPv6) to its numeric value.
 // Returns true on success and fills |ip_number| with the numeric value.
 NET_EXPORT bool ParseIPLiteralToNumber(const base::StringPiece& ip_literal,
@@ -81,20 +75,6 @@ NET_EXPORT_PRIVATE bool IsIPv4Mapped(const IPAddressNumber& address);
 // on IPv4-mapped IPv6 addresses.
 NET_EXPORT_PRIVATE IPAddressNumber ConvertIPv4MappedToIPv4(
     const IPAddressNumber& address);
-
-// Parses an IP block specifier from CIDR notation to an
-// (IP address, prefix length) pair. Returns true on success and fills
-// |*ip_number| with the numeric value of the IP address and sets
-// |*prefix_length_in_bits| with the length of the prefix.
-//
-// CIDR notation literals can use either IPv4 or IPv6 literals. Some examples:
-//
-//    10.10.3.1/20
-//    a:b:c::/46
-//    ::1/128
-NET_EXPORT bool ParseCIDRBlock(const std::string& cidr_literal,
-                               IPAddressNumber* ip_number,
-                               size_t* prefix_length_in_bits);
 
 // Compares an IP address to see if it falls within the specified IP block.
 // Returns true if it does, false otherwise.

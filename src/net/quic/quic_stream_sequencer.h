@@ -8,11 +8,10 @@
 #include <stddef.h>
 
 #include <map>
-#include <string>
 
 #include "base/macros.h"
-#include "net/quic/quic_frame_list.h"
 #include "net/quic/quic_protocol.h"
+#include "net/quic/quic_stream_sequencer_buffer.h"
 
 namespace net {
 
@@ -114,7 +113,7 @@ class NET_EXPORT_PRIVATE QuicStreamSequencer {
   ReliableQuicStream* stream_;
 
   // Stores received data in offset order.
-  scoped_ptr<QuicStreamSequencerBufferInterface> buffered_frames_;
+  QuicStreamSequencerBuffer buffered_frames_;
 
   // The offset, if any, we got a stream termination for.  When this many bytes
   // have been processed, the sequencer will be closed.

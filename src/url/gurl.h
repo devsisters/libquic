@@ -8,9 +8,9 @@
 #include <stddef.h>
 
 #include <iosfwd>
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "url/third_party/mozilla/url_parse.h"
@@ -437,7 +437,7 @@ class URL_EXPORT GURL {
   url::Parsed parsed_;
 
   // Used for nested schemes [currently only filesystem:].
-  scoped_ptr<GURL> inner_url_;
+  std::unique_ptr<GURL> inner_url_;
 };
 
 // Stream operator so GURL can be used in assertion statements.

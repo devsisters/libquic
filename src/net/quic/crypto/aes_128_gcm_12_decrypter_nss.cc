@@ -28,7 +28,7 @@ Aes128Gcm12Decrypter::Aes128Gcm12Decrypter()
 Aes128Gcm12Decrypter::~Aes128Gcm12Decrypter() {}
 
 void Aes128Gcm12Decrypter::FillAeadParams(StringPiece nonce,
-                                          const StringPiece& associated_data,
+                                          StringPiece associated_data,
                                           size_t auth_tag_size,
                                           AeadParams* aead_params) const {
   aead_params->len = sizeof(aead_params->data.gcm_params);

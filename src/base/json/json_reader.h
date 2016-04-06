@@ -28,10 +28,10 @@
 #ifndef BASE_JSON_JSON_READER_H_
 #define BASE_JSON_JSON_READER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/base_export.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 
 namespace base {
@@ -93,30 +93,31 @@ class BASE_EXPORT JSONReader {
 
   // Reads and parses |json|, returning a Value. The caller owns the returned
   // instance. If |json| is not a properly formed JSON string, returns NULL.
-  static scoped_ptr<Value> Read(const StringPiece& json);
+  static std::unique_ptr<Value> Read(const StringPiece& json);
 
   // Reads and parses |json|, returning a Value owned by the caller. The
   // parser respects the given |options|. If the input is not properly formed,
   // returns NULL.
-  static scoped_ptr<Value> Read(const StringPiece& json, int options);
+  static std::unique_ptr<Value> Read(const StringPiece& json, int options);
 
   // Reads and parses |json| like Read(). |error_code_out| and |error_msg_out|
   // are optional. If specified and NULL is returned, they will be populated
   // an error code and a formatted error message (including error location if
   // appropriate). Otherwise, they will be unmodified.
-  static scoped_ptr<Value> ReadAndReturnError(const StringPiece& json,
-                                              int options,  // JSONParserOptions
-                                              int* error_code_out,
-                                              std::string* error_msg_out,
-                                              int* error_line_out = nullptr,
-                                              int* error_column_out = nullptr);
+  static std::unique_ptr<Value> ReadAndReturnError(
+      const StringPiece& json,
+      int options,  // JSONParserOptions
+      int* error_code_out,
+      std::string* error_msg_out,
+      int* error_line_out = nullptr,
+      int* error_column_out = nullptr);
 
   // Converts a JSON parse error code into a human readable message.
   // Returns an empty string if error_code is JSON_NO_ERROR.
   static std::string ErrorCodeToString(JsonParseError error_code);
 
   // Parses an input string into a Value that is owned by the caller.
-  scoped_ptr<Value> ReadToValue(const std::string& json);
+  std::unique_ptr<Value> ReadToValue(const std::string& json);
 
   // Returns the error code if the last call to ReadToValue() failed.
   // Returns JSON_NO_ERROR otherwise.
@@ -127,7 +128,7 @@ class BASE_EXPORT JSONReader {
   std::string GetErrorMessage() const;
 
  private:
-  scoped_ptr<internal::JSONParser> parser_;
+  std::unique_ptr<internal::JSONParser> parser_;
 };
 
 }  // namespace base

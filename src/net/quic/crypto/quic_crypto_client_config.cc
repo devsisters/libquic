@@ -191,9 +191,10 @@ void QuicCryptoClientConfig::CachedState::InvalidateServerConfig() {
 
 void QuicCryptoClientConfig::CachedState::SetProof(const vector<string>& certs,
                                                    StringPiece cert_sct,
+                                                   StringPiece chlo_hash,
                                                    StringPiece signature) {
-  bool has_changed =
-      signature != server_config_sig_ || certs_.size() != certs.size();
+  bool has_changed = signature != server_config_sig_ ||
+                     chlo_hash != chlo_hash_ || certs_.size() != certs.size();
 
   if (!has_changed) {
     for (size_t i = 0; i < certs_.size(); i++) {
@@ -212,6 +213,7 @@ void QuicCryptoClientConfig::CachedState::SetProof(const vector<string>& certs,
   SetProofInvalid();
   certs_ = certs;
   cert_sct_ = cert_sct.as_string();
+  chlo_hash_ = chlo_hash.as_string();
   server_config_sig_ = signature.as_string();
 }
 
@@ -220,6 +222,7 @@ void QuicCryptoClientConfig::CachedState::Clear() {
   source_address_token_.clear();
   certs_.clear();
   cert_sct_.clear();
+  chlo_hash_.clear();
   server_config_sig_.clear();
   server_config_valid_ = false;
   proof_verify_details_.reset();
@@ -233,6 +236,7 @@ void QuicCryptoClientConfig::CachedState::ClearProof() {
   SetProofInvalid();
   certs_.clear();
   cert_sct_.clear();
+  chlo_hash_.clear();
   server_config_sig_.clear();
 }
 
@@ -249,7 +253,8 @@ bool QuicCryptoClientConfig::CachedState::Initialize(
     StringPiece server_config,
     StringPiece source_address_token,
     const vector<string>& certs,
-    const string& cert_sct,
+    StringPiece cert_sct,
+    StringPiece chlo_hash,
     StringPiece signature,
     QuicWallTime now) {
   DCHECK(server_config_.empty());
@@ -269,8 +274,9 @@ bool QuicCryptoClientConfig::CachedState::Initialize(
 
   signature.CopyToString(&server_config_sig_);
   source_address_token.CopyToString(&source_address_token_);
+  cert_sct.CopyToString(&cert_sct_);
+  chlo_hash.CopyToString(&chlo_hash_);
   certs_ = certs;
-  cert_sct_ = cert_sct;
   return true;
 }
 
@@ -289,6 +295,10 @@ const vector<string>& QuicCryptoClientConfig::CachedState::certs() const {
 
 const string& QuicCryptoClientConfig::CachedState::cert_sct() const {
   return cert_sct_;
+}
+
+const string& QuicCryptoClientConfig::CachedState::chlo_hash() const {
+  return chlo_hash_;
 }
 
 const string& QuicCryptoClientConfig::CachedState::signature() const {
@@ -330,6 +340,7 @@ void QuicCryptoClientConfig::CachedState::InitializeFrom(
   source_address_token_ = other.source_address_token_;
   certs_ = other.certs_;
   cert_sct_ = other.cert_sct_;
+  chlo_hash_ = other.chlo_hash_;
   server_config_sig_ = other.server_config_sig_;
   server_config_valid_ = other.server_config_valid_;
   server_designated_connection_ids_ = other.server_designated_connection_ids_;
@@ -373,7 +384,6 @@ void QuicCryptoClientConfig::SetDefaults() {
   if (ChaCha20Poly1305Rfc7539Encrypter::IsSupported()) {
     aead.push_back(kCC20);
   }
-  aead.push_back(kCC12);
   aead.push_back(kAESG);
 
   disable_ecdsa_ = false;
@@ -690,10 +700,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   hkdf_input.append(QuicCryptoConfig::kInitialLabel, label_len);
   hkdf_input.append(out_params->hkdf_input_suffix);
 
-  string* subkey_secret = nullptr;
-  if (FLAGS_quic_save_initial_subkey_secret) {
-    subkey_secret = &out_params->initial_subkey_secret;
-  }
+  string* subkey_secret = &out_params->initial_subkey_secret;
   if (!CryptoUtils::DeriveKeys(out_params->initial_premaster_secret,
                                out_params->aead, out_params->client_nonce,
                                out_params->server_nonce, hkdf_input,
@@ -709,7 +716,8 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
 QuicErrorCode QuicCryptoClientConfig::CacheNewServerConfig(
     const CryptoHandshakeMessage& message,
     QuicWallTime now,
-    const QuicVersion version,
+    QuicVersion version,
+    StringPiece chlo_hash,
     const vector<string>& cached_certs,
     CachedState* cached,
     string* error_details) {
@@ -751,7 +759,7 @@ QuicErrorCode QuicCryptoClientConfig::CacheNewServerConfig(
     if (version > QUIC_VERSION_29) {
       message.GetStringPiece(kCertificateSCTTag, &cert_sct);
     }
-    cached->SetProof(certs, cert_sct, proof);
+    cached->SetProof(certs, cert_sct, chlo_hash, proof);
   } else {
     // Secure QUIC: clear existing proof as we have been sent a new SCFG
     // without matching proof/certs.
@@ -775,6 +783,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
     const CryptoHandshakeMessage& rej,
     QuicWallTime now,
     const QuicVersion version,
+    StringPiece chlo_hash,
     CachedState* cached,
     QuicCryptoNegotiatedParameters* out_params,
     string* error_details) {
@@ -785,8 +794,9 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
     return QUIC_CRYPTO_INTERNAL_ERROR;
   }
 
-  QuicErrorCode error = CacheNewServerConfig(
-      rej, now, version, out_params->cached_certs, cached, error_details);
+  QuicErrorCode error =
+      CacheNewServerConfig(rej, now, version, chlo_hash,
+                           out_params->cached_certs, cached, error_details);
   if (error != QUIC_NO_ERROR) {
     return error;
   }
@@ -879,6 +889,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerConfigUpdate(
     const CryptoHandshakeMessage& server_config_update,
     QuicWallTime now,
     const QuicVersion version,
+    StringPiece chlo_hash,
     CachedState* cached,
     QuicCryptoNegotiatedParameters* out_params,
     string* error_details) {
@@ -888,7 +899,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerConfigUpdate(
     *error_details = "ServerConfigUpdate must have kSCUP tag.";
     return QUIC_INVALID_CRYPTO_MESSAGE_TYPE;
   }
-  return CacheNewServerConfig(server_config_update, now, version,
+  return CacheNewServerConfig(server_config_update, now, version, chlo_hash,
                               out_params->cached_certs, cached, error_details);
 }
 

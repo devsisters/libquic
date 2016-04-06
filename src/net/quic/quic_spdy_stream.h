@@ -105,10 +105,15 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
                               bool fin,
                               QuicAckListenerInterface* ack_notifier_delegate);
 
+  // Sends |data| to the peer, or buffers if it can't be sent immediately.
+  void WriteOrBufferBody(const std::string& data,
+                         bool fin,
+                         QuicAckListenerInterface* ack_notifier_delegate);
+
   // Writes the trailers contained in |trailer_block| to the dedicated
   // headers stream. Trailers will always have the FIN set.
-  virtual size_t WriteTrailers(SpdyHeaderBlock trailer_block,
-                               QuicAckListenerInterface* ack_notifier_delegate);
+  size_t WriteTrailers(SpdyHeaderBlock trailer_block,
+                       QuicAckListenerInterface* ack_notifier_delegate);
 
   // Marks |bytes_consumed| of the headers data as consumed.
   void MarkHeadersConsumed(size_t bytes_consumed);
@@ -122,6 +127,10 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
   virtual size_t Readv(const struct iovec* iov, size_t iov_len);
   virtual int GetReadableRegions(iovec* iov, size_t iov_len) const;
   void MarkConsumed(size_t num_bytes);
+
+  // Returns true if header contains a valid 3-digit status and parse the status
+  // code to |status_code|.
+  bool ParseHeaderStatusCode(SpdyHeaderBlock* header, int* status_code) const;
 
   // Returns true when all data has been read from the peer, including the fin.
   bool IsDoneReading() const;
@@ -139,6 +148,11 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
 
   const std::string& decompressed_trailers() const {
     return decompressed_trailers_;
+  }
+
+  // Returns whatever trailers have been received for this stream.
+  const SpdyHeaderBlock& received_trailers() const {
+    return received_trailers_;
   }
 
   virtual SpdyPriority priority() const;
@@ -182,6 +196,8 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
   // Contains a copy of the decompressed trailers until they are consumed
   // via ProcessData or Readv.
   std::string decompressed_trailers_;
+  // The parsed trailers received from the peer.
+  SpdyHeaderBlock received_trailers_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicSpdyStream);
 };

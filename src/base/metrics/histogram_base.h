@@ -9,13 +9,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
 
@@ -30,7 +30,7 @@ class Pickle;
 class PickleIterator;
 
 ////////////////////////////////////////////////////////////////////////////////
-// These enums are used to facilitate deserialization of histograms from other
+// This enum is used to facilitate deserialization of histograms from other
 // processes into the browser. If you create another class that inherits from
 // HistogramBase, add new histogram types and names below.
 
@@ -43,6 +43,39 @@ enum HistogramType {
 };
 
 std::string HistogramTypeToString(HistogramType type);
+
+// This enum is used for reporting how many histograms and of what types and
+// variations are being created. It has to be in the main .h file so it is
+// visible to files that define the various histogram types.
+enum HistogramReport {
+  // Count the number of reports created. The other counts divided by this
+  // number will give the average per run of the program.
+  HISTOGRAM_REPORT_CREATED = 0,
+
+  // Count the total number of histograms created. It is the limit against
+  // which all others are compared.
+  HISTOGRAM_REPORT_HISTOGRAM_CREATED = 1,
+
+  // Count the total number of histograms looked-up. It's better to cache
+  // the result of a single lookup rather than do it repeatedly.
+  HISTOGRAM_REPORT_HISTOGRAM_LOOKUP = 2,
+
+  // These count the individual histogram types. This must follow the order
+  // of HistogramType above.
+  HISTOGRAM_REPORT_TYPE_LOGARITHMIC = 3,
+  HISTOGRAM_REPORT_TYPE_LINEAR = 4,
+  HISTOGRAM_REPORT_TYPE_BOOLEAN = 5,
+  HISTOGRAM_REPORT_TYPE_CUSTOM = 6,
+  HISTOGRAM_REPORT_TYPE_SPARSE = 7,
+
+  // These indicate the individual flags that were set.
+  HISTOGRAM_REPORT_FLAG_UMA_TARGETED = 8,
+  HISTOGRAM_REPORT_FLAG_UMA_STABILITY = 9,
+  HISTOGRAM_REPORT_FLAG_PERSISTENT = 10,
+
+  // This must be last.
+  HISTOGRAM_REPORT_MAX = 11
+};
 
 // Create or find existing histogram that matches the pickled info.
 // Returns NULL if the pickled data has problems.
@@ -162,12 +195,12 @@ class BASE_EXPORT HistogramBase {
 
   // Snapshot the current complete set of sample data.
   // Override with atomic/locked snapshot if needed.
-  virtual scoped_ptr<HistogramSamples> SnapshotSamples() const = 0;
+  virtual std::unique_ptr<HistogramSamples> SnapshotSamples() const = 0;
 
   // Calculate the change (delta) in histogram counts since the previous call
   // to this method. Each successive call will return only those counts
   // changed since the last call.
-  virtual scoped_ptr<HistogramSamples> SnapshotDelta() = 0;
+  virtual std::unique_ptr<HistogramSamples> SnapshotDelta() = 0;
 
   // The following methods provide graphical histogram displays.
   virtual void WriteHTMLGraph(std::string* output) const = 0;
@@ -178,7 +211,17 @@ class BASE_EXPORT HistogramBase {
   // customize the output.
   void WriteJSON(std::string* output) const;
 
+  // This enables a histogram that reports the what types of histograms are
+  // created and their flags. It must be called while still single-threaded.
+  //
+  // IMPORTANT: Callers must update tools/metrics/histograms/histograms.xml
+  // with the following histogram:
+  //    UMA.Histograms.process_type.Creations
+  static void EnableActivityReportHistogram(const std::string& process_type);
+
  protected:
+  enum ReportActivity { HISTOGRAM_CREATED, HISTOGRAM_LOOKUP };
+
   // Subclasses should implement this function to make SerializeInfo work.
   virtual bool SerializeInfoImpl(base::Pickle* pickle) const = 0;
 
@@ -210,7 +253,16 @@ class BASE_EXPORT HistogramBase {
   // passing |sample| as the parameter.
   void FindAndRunCallback(Sample sample) const;
 
+  // Update report with an |activity| that occurred for |histogram|.
+  static void ReportHistogramActivity(const HistogramBase& histogram,
+                                      ReportActivity activicty);
+
+  // Retrieves the global histogram reporting what histograms are created.
+  static HistogramBase* report_histogram_;
+
  private:
+  friend class HistogramBaseTest;
+
   const std::string histogram_name_;
   AtomicCount flags_;
 

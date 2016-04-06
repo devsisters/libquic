@@ -46,6 +46,11 @@ const char kNoErrorDialogs[]                = "noerrdialogs";
 // to the test framework that the current process is a child process.
 const char kTestChildProcess[]              = "test-child-process";
 
+// When running certain tests that spawn child processes, this switch indicates
+// to the test framework that the current process should not initialize ICU to
+// avoid creating any scoped handles too early in startup.
+const char kTestDoNotInitializeIcu[]        = "test-do-not-initialize-icu";
+
 // Gives the default maximal active V-logging level; 0 is the default.
 // Normally positive values are used for V-logging levels.
 const char kV[]                             = "v";

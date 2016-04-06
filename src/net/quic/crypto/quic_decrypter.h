@@ -52,8 +52,8 @@ class NET_EXPORT_PRIVATE QuicDecrypter {
   // to non-authentic inputs, as opposed to other reasons for failure.
   virtual bool DecryptPacket(QuicPathId path_id,
                              QuicPacketNumber packet_number,
-                             const base::StringPiece& associated_data,
-                             const base::StringPiece& ciphertext,
+                             base::StringPiece associated_data,
+                             base::StringPiece ciphertext,
                              char* output,
                              size_t* output_length,
                              size_t max_output_length) = 0;

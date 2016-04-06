@@ -36,19 +36,6 @@
 // full, it will be serialized and sent to the packet.  When batch
 // mode is ended via |FinishBatchOperations|, the current packet
 // will be serialzied, even if it is not full.
-//
-// FEC behavior also depends on batch mode.  In batch mode, FEC packets
-// will be sent after |max_packets_per_group| have been sent, as well
-// as after batch operations are complete.  When not in batch mode,
-// an FEC packet will be sent after each write call completes.
-//
-// TODO(rch): This behavior should probably be tuned.  When not in batch
-// mode, we should probably set a timer so that several independent
-// operations can be grouped into the same FEC group.
-//
-// When an FEC packet is generated, it will be send to the Delegate,
-// even if the Delegate has become unwritable after handling the
-// data packet immediately proceeding the FEC packet.
 
 #ifndef NET_QUIC_QUIC_PACKET_GENERATOR_H_
 #define NET_QUIC_QUIC_PACKET_GENERATOR_H_
@@ -79,6 +66,7 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
     virtual bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                                       IsHandshake handshake) = 0;
     virtual void PopulateAckFrame(QuicAckFrame* ack) = 0;
+    virtual const QuicFrame GetUpdatedAckFrame() = 0;
     virtual void PopulateStopWaitingFrame(
         QuicStopWaitingFrame* stop_waiting) = 0;
   };
@@ -90,12 +78,6 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
                       DelegateInterface* delegate);
 
   ~QuicPacketGenerator();
-
-  // Called by the connection in the event of the congestion window changing.
-  void OnCongestionWindowChange(QuicPacketCount max_packets_in_flight);
-
-  // Called by the connection when the RTT may have changed.
-  void OnRttChange(QuicTime::Delta rtt);
 
   // Indicates that an ACK frame should be sent.
   // If |also_send_stop_waiting| is true, then it also indicates that a
@@ -115,7 +97,6 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
                                QuicIOVector iov,
                                QuicStreamOffset offset,
                                bool fin,
-                               FecProtection fec_protection,
                                QuicAckListenerInterface* listener);
 
   // Generates an MTU discovery packet of specified size.
@@ -134,6 +115,9 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
 
   bool HasQueuedFrames() const;
 
+  // Whether the pending packet has no frames in it at the moment.
+  bool IsPendingPacketEmpty() const;
+
   // Makes the framer not serialize the protocol version in sent packets.
   void StopSendingVersion();
 
@@ -146,8 +130,6 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
 
   // Re-serializes frames with the original packet's packet number length.
   // Used for retransmitting packets to ensure they aren't too long.
-  // Caller must ensure that any open FEC group is closed before calling this
-  // method.
   void ReserializeAllFrames(const PendingRetransmission& retransmission,
                             char* buffer,
                             size_t buffer_len);
@@ -160,16 +142,6 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
   // Set the minimum number of bytes for the connection id length;
   void SetConnectionIdLength(uint32_t length);
 
-  // Called when the FEC alarm fires.
-  void OnFecTimeout();
-
-  // Called after sending |packet_number| to determine whether an FEC alarm
-  // should be set for sending out an FEC packet. Returns a positive and finite
-  // timeout if an FEC alarm should be set, and infinite if no alarm should be
-  // set. OnFecTimeout should be called to send the FEC packet when the alarm
-  // fires.
-  QuicTime::Delta GetFecTimeout(QuicPacketNumber packet_number);
-
   // Sets the encrypter to use for the encryption level.
   void SetEncrypter(EncryptionLevel level, QuicEncrypter* encrypter);
 
@@ -180,18 +152,12 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
   // created.
   QuicPacketNumber packet_number() const;
 
-  // Returns the maximum packet length.  Note that this is the long-term maximum
-  // packet length, and it may not be the maximum length of the current packet,
-  // if the generator is in the middle of the packet (in batch mode) or FEC
-  // group.
-  QuicByteCount GetMaxPacketLength() const;
-  // Returns the maximum length current packet can actually have.
+  // Returns the maximum length a current packet can actually have.
   QuicByteCount GetCurrentMaxPacketLength() const;
 
-  // Set maximum packet length sent.  If |force| is set to true, all pending
-  // unfinished packets and FEC groups are closed, and the change is enacted
-  // immediately.  Otherwise, it is enacted at the next opportunity.
-  void SetMaxPacketLength(QuicByteCount length, bool force);
+  // Set maximum packet length in the creator immediately.  May not be called
+  // when there are frames queued in the creator.
+  void SetMaxPacketLength(QuicByteCount length);
 
   // Sets |path_id| to be the path on which next packet is generated.
   void SetCurrentPath(QuicPathId path_id,
@@ -202,15 +168,12 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
     packet_creator_.set_debug_delegate(debug_delegate);
   }
 
-  void set_rtt_multiplier_for_fec_timeout(float rtt_multiplier_for_fec_timeout);
-
-  FecSendPolicy fec_send_policy();
-  void set_fec_send_policy(FecSendPolicy fec_send_policy);
+  const QuicAckFrame& pending_ack_frame() const { return pending_ack_frame_; }
 
  private:
   friend class test::QuicPacketGeneratorPeer;
 
-  void SendQueuedFrames(bool flush, bool is_fec_timeout);
+  void SendQueuedFrames(bool flush);
 
   // Test to see if we have pending ack, or control frames.
   bool HasPendingFrames() const;
@@ -240,11 +203,6 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
   // retransmitted.
   QuicAckFrame pending_ack_frame_;
   QuicStopWaitingFrame pending_stop_waiting_frame_;
-
-  // Stores the maximum packet size we are allowed to send.  This might not be
-  // the maximum size we are actually using now, if we are in the middle of the
-  // packet.
-  QuicByteCount max_packet_length_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicPacketGenerator);
 };

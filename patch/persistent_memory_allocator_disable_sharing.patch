@@ -1,5 +1,5 @@
 diff --git a/src/base/metrics/persistent_memory_allocator.cc b/src/base/metrics/persistent_memory_allocator.cc
-index a1a960c..e2ed44d 100644
+index 1d5df33..5992ead 100644
 --- a/src/base/metrics/persistent_memory_allocator.cc
 +++ b/src/base/metrics/persistent_memory_allocator.cc
 @@ -7,9 +7,13 @@
@@ -23,8 +23,8 @@ index a1a960c..e2ed44d 100644
 +#if 0
  
  SharedPersistentMemoryAllocator::SharedPersistentMemoryAllocator(
-     scoped_ptr<SharedMemory> memory,
-@@ -702,5 +707,6 @@ bool FilePersistentMemoryAllocator::IsFileAcceptable(
+     std::unique_ptr<SharedMemory> memory,
+@@ -710,5 +715,6 @@ bool FilePersistentMemoryAllocator::IsFileAcceptable(
      const MemoryMappedFile& file) {
    return IsMemoryAcceptable(file.data(), file.length(), 0, true);
  }

@@ -10,6 +10,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
+#include "net/quic/quic_protocol.h"
 
 namespace net {
 
@@ -55,10 +56,14 @@ class NET_EXPORT_PRIVATE ProofSource {
   // the ProofSource retains ownership of the contents of |out_certs|. The
   // expectation is that they will be cached forever.
   //
-  // The signature values should be cached because |server_config| will be
-  // somewhat static. However, since they aren't bounded, the ProofSource may
-  // wish to evicit entries from that cache, thus the caller takes ownership of
-  // |*out_signature|.
+  // For version before QUIC_VERSION_30, the signature values should be cached
+  // because |server_config| will be somewhat static. However, since they aren't
+  // bounded, the ProofSource may wish to evicit entries from that cache, thus
+  // the caller takes ownership of |*out_signature|.
+  //
+  // For QUIC_VERSION_30 and later, the signature depends on |chlo_hash|
+  // which means that the signature can not be cached. The caller takes
+  // ownership of |*out_signature|.
   //
   // |hostname| may be empty to signify that a default certificate should be
   // used.
@@ -69,6 +74,8 @@ class NET_EXPORT_PRIVATE ProofSource {
   virtual bool GetProof(const IPAddress& server_ip,
                         const std::string& hostname,
                         const std::string& server_config,
+                        QuicVersion quic_version,
+                        base::StringPiece chlo_hash,
                         bool ecdsa_ok,
                         scoped_refptr<Chain>* out_chain,
                         std::string* out_signature,

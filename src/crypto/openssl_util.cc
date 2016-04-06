@@ -4,65 +4,17 @@
 
 #include "crypto/openssl_util.h"
 
-#include <openssl/err.h>
-#include <openssl/cpu.h>
 #include <openssl/crypto.h>
+#include <openssl/err.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include "base/logging.h"
-#include "base/macros.h"
-#include "base/memory/singleton.h"
 #include "base/strings/string_piece.h"
-#include "build/build_config.h"
-
-#if defined(OS_ANDROID) && defined(ARCH_CPU_ARMEL)
-#include <cpu-features.h>
-#include "base/cpu.h"
-#endif
 
 namespace crypto {
 
 namespace {
-
-// Singleton for initializing and cleaning up the OpenSSL library.
-class OpenSSLInitSingleton {
- public:
-  static OpenSSLInitSingleton* GetInstance() {
-    // We allow the SSL environment to leak for multiple reasons:
-    //   -  it is used from a non-joinable worker thread that is not stopped on
-    //      shutdown, hence may still be using OpenSSL library after the AtExit
-    //      runner has completed.
-    //   -  There are other OpenSSL related singletons (e.g. the client socket
-    //      context) who's cleanup depends on the global environment here, but
-    //      we can't control the order the AtExit handlers will run in so
-    //      allowing the global environment to leak at least ensures it is
-    //      available for those other singletons to reliably cleanup.
-    return base::Singleton<
-        OpenSSLInitSingleton,
-        base::LeakySingletonTraits<OpenSSLInitSingleton>>::get();
-  }
- private:
-  friend struct base::DefaultSingletonTraits<OpenSSLInitSingleton>;
-  OpenSSLInitSingleton() {
-#if defined(OS_ANDROID) && defined(ARCH_CPU_ARMEL)
-    const bool has_neon =
-        (android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_NEON) != 0;
-    base::CPU cpu;
-    // CRYPTO_set_NEON_capable is called before |CRYPTO_library_init| because
-    // this stops BoringSSL from probing for NEON support via SIGILL in the case
-    // that getauxval isn't present. Also workaround a CPU with broken NEON
-    // support. See https://code.google.com/p/chromium/issues/detail?id=341598
-    CRYPTO_set_NEON_capable(has_neon && !cpu.has_broken_neon());
-#endif
-
-    CRYPTO_library_init();
-  }
-
-  ~OpenSSLInitSingleton() {}
-
-  DISALLOW_COPY_AND_ASSIGN(OpenSSLInitSingleton);
-};
 
 // Callback routine for OpenSSL to print error messages. |str| is a
 // NULL-terminated string of length |len| containing diagnostic information
@@ -81,7 +33,8 @@ int OpenSSLErrorCallback(const char* str, size_t len, void* context) {
 }  // namespace
 
 void EnsureOpenSSLInit() {
-  (void)OpenSSLInitSingleton::GetInstance();
+  // CRYPTO_library_init may be safely called concurrently.
+  CRYPTO_library_init();
 }
 
 void ClearOpenSSLERRStack(const tracked_objects::Location& location) {

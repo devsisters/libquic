@@ -43,7 +43,7 @@ uint32_t ChaCha20Poly1305Rfc7539Decrypter::cipher_id() const {
 
 void ChaCha20Poly1305Rfc7539Decrypter::FillAeadParams(
     base::StringPiece nonce,
-    const base::StringPiece& associated_data,
+    base::StringPiece associated_data,
     size_t auth_tag_size,
     AeadParams* aead_params) const {}
 

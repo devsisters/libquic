@@ -14,6 +14,7 @@
 #include "base/lazy_instance.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram_macros.h"
+#include "net/quic/quic_flags.h"
 #include "net/spdy/hpack/hpack_constants.h"
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_frame_reader.h"
@@ -171,7 +172,8 @@ SpdyFramer::SpdyFramer(SpdyMajorVersion version)
       enable_compression_(true),
       syn_frame_processed_(false),
       probable_http_response_(false),
-      end_stream_when_done_(false) {
+      end_stream_when_done_(false),
+      spdy_on_stream_end_(FLAGS_spdy_on_stream_end) {
   DCHECK(protocol_version_ == SPDY3 || protocol_version_ == HTTP2);
   DCHECK_LE(kMaxControlFrameSize,
             SpdyConstants::GetFrameMaximumSize(protocol_version_) +
@@ -830,8 +832,12 @@ size_t SpdyFramer::ProcessCommonHeader(const char* data, size_t len) {
       } else {
         // Empty data frame.
         if (current_frame_flags_ & DATA_FLAG_FIN) {
-          visitor_->OnStreamFrameData(
-              current_frame_stream_id_, NULL, 0, true);
+          if (spdy_on_stream_end_) {
+            visitor_->OnStreamEnd(current_frame_stream_id_);
+          } else {
+            visitor_->OnStreamFrameData(current_frame_stream_id_, nullptr, 0,
+                                        true);
+          }
         }
         CHANGE_STATE(SPDY_FRAME_COMPLETE);
       }
@@ -1172,17 +1178,6 @@ size_t SpdyFramer::GetSerializedLength(
                     length_of_value_size + header.second.size();
   }
   return total_length;
-}
-
-void SpdyFramer::WriteHeaderBlock(SpdyFrameBuilder* frame,
-                                  const SpdyMajorVersion spdy_version,
-                                  const SpdyHeaderBlock* headers) {
-  frame->WriteUInt32(headers->size());
-  SpdyHeaderBlock::const_iterator it;
-  for (it = headers->begin(); it != headers->end(); ++it) {
-    frame->WriteStringPiece32(it->first);
-    frame->WriteStringPiece32(it->second);
-  }
 }
 
 // TODO(phajdan.jr): Clean up after we no longer need
@@ -2110,7 +2105,11 @@ size_t SpdyFramer::ProcessFramePadding(const char* data, size_t len) {
         ((current_frame_flags_ & CONTROL_FLAG_FIN) != 0 ||
          end_stream_when_done_)) {
       end_stream_when_done_ = false;
-      visitor_->OnStreamFrameData(current_frame_stream_id_, NULL, 0, true);
+      if (spdy_on_stream_end_) {
+        visitor_->OnStreamEnd(current_frame_stream_id_);
+      } else {
+        visitor_->OnStreamFrameData(current_frame_stream_id_, nullptr, 0, true);
+      }
     }
     CHANGE_STATE(SPDY_FRAME_COMPLETE);
   }

@@ -4,11 +4,12 @@
 
 #include "base/metrics/statistics_recorder.h"
 
+#include <memory>
+
 #include "base/at_exit.h"
 #include "base/debug/leak_annotations.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/metrics_hashes.h"
 #include "base/stl_util.h"
@@ -65,6 +66,15 @@ StatisticsRecorder::HistogramIterator::operator++() {
   }
 
   return *this;
+}
+
+StatisticsRecorder::~StatisticsRecorder() {
+  DCHECK(lock_);
+  DCHECK(histograms_);
+  DCHECK(ranges_);
+
+  // Global clean up.
+  Reset();
 }
 
 // static
@@ -138,7 +148,7 @@ HistogramBase* StatisticsRecorder::RegisterOrDeleteDuplicate(
 const BucketRanges* StatisticsRecorder::RegisterOrDeleteDuplicateRanges(
     const BucketRanges* ranges) {
   DCHECK(ranges->HasValidChecksum());
-  scoped_ptr<const BucketRanges> ranges_deleter;
+  std::unique_ptr<const BucketRanges> ranges_deleter;
 
   if (lock_ == NULL) {
     ANNOTATE_LEAKING_OBJECT_PTR(ranges);
@@ -369,6 +379,17 @@ StatisticsRecorder::OnSampleCallback StatisticsRecorder::FindCallback(
 }
 
 // static
+size_t StatisticsRecorder::GetHistogramCount() {
+  if (!lock_)
+    return 0;
+
+  base::AutoLock auto_lock(*lock_);
+  if (!histograms_)
+    return 0;
+  return histograms_->size();
+}
+
+// static
 void StatisticsRecorder::ResetForTesting() {
   // Just call the private version that is used also by the destructor.
   Reset();
@@ -403,22 +424,15 @@ StatisticsRecorder::StatisticsRecorder() {
     AtExitManager::RegisterCallback(&DumpHistogramsToVlog, this);
 }
 
-StatisticsRecorder::~StatisticsRecorder() {
-  DCHECK(histograms_ && ranges_ && lock_);
-
-  // Global clean up.
-  Reset();
-}
-
 // static
 void StatisticsRecorder::Reset() {
   // If there's no lock then there is nothing to reset.
   if (!lock_)
     return;
 
-  scoped_ptr<HistogramMap> histograms_deleter;
-  scoped_ptr<CallbackMap> callbacks_deleter;
-  scoped_ptr<RangesMap> ranges_deleter;
+  std::unique_ptr<HistogramMap> histograms_deleter;
+  std::unique_ptr<CallbackMap> callbacks_deleter;
+  std::unique_ptr<RangesMap> ranges_deleter;
   // We don't delete lock_ on purpose to avoid having to properly protect
   // against it going away after we checked for NULL in the static methods.
   {

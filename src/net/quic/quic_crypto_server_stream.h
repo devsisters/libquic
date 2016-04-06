@@ -11,6 +11,7 @@
 
 #include "base/macros.h"
 #include "net/quic/crypto/crypto_handshake.h"
+#include "net/quic/crypto/quic_compressed_certs_cache.h"
 #include "net/quic/crypto/quic_crypto_server_config.h"
 #include "net/quic/proto/source_address_token.pb.h"
 #include "net/quic/quic_config.h"
@@ -52,7 +53,6 @@ class NET_EXPORT_PRIVATE ServerHelloNotifier : public QuicAckListenerInterface {
 // various code and test refactoring.
 class NET_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
  public:
-  // |crypto_config| must outlive the stream.
   explicit QuicCryptoServerStreamBase(QuicSession* session)
       : QuicCryptoStream(session) {}
   ~QuicCryptoServerStreamBase() override {}
@@ -93,6 +93,8 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStream
  public:
   // |crypto_config| must outlive the stream.
   QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
+                         QuicCompressedCertsCache* compressed_certs_cache,
+                         bool use_stateless_rejects_if_peer_supported,
                          QuicSession* session);
   ~QuicCryptoServerStream() override;
 
@@ -164,6 +166,10 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStream
 
   // crypto_config_ contains crypto parameters for the handshake.
   const QuicCryptoServerConfig* crypto_config_;
+
+  // compressed_certs_cache_ contains a set of most recently compressed certs.
+  // Owned by QuicDispatcher.
+  QuicCompressedCertsCache* compressed_certs_cache_;
 
   // Server's certificate chain and signature of the server config, as provided
   // by ProofSource::GetProof.

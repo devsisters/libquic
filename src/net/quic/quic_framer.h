@@ -91,10 +91,6 @@ class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
   virtual void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) = 0;
 
-  // Called when a lost packet has been recovered via FEC,
-  // before it has been processed.
-  virtual void OnRevivedPacket() = 0;
-
   // Called when the public header has been parsed, but has not been
   // authenticated. If it returns false, framing for this packet will cease.
   virtual bool OnUnauthenticatedPublicHeader(
@@ -112,10 +108,6 @@ class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // Called when the complete header of a packet had been parsed.
   // If OnPacketHeader returns false, framing for this packet will cease.
   virtual bool OnPacketHeader(const QuicPacketHeader& header) = 0;
-
-  // Called when a data packet is parsed that is part of an FEC group.
-  // |payload| is the non-encrypted FEC protected payload of the packet.
-  virtual void OnFecProtectedPayload(base::StringPiece payload) = 0;
 
   // Called when a StreamFrame has been parsed.
   virtual bool OnStreamFrame(const QuicStreamFrame& frame) = 0;
@@ -149,9 +141,6 @@ class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // Called when a PathCloseFrame has been parsed.
   virtual bool OnPathCloseFrame(const QuicPathCloseFrame& frame) = 0;
 
-  // Called when FEC data has been parsed.
-  virtual void OnFecData(base::StringPiece redundancy) = 0;
-
   // Called when a packet has been completely processed.
   virtual void OnPacketComplete() = 0;
 };
@@ -173,8 +162,6 @@ class NET_EXPORT_PRIVATE QuicReceivedEntropyHashCalculatorInterface {
 
 // Class for parsing and constructing QUIC packets.  It has a
 // QuicFramerVisitorInterface that is called when packets are parsed.
-// It also has a QuicFecBuilder that is called when packets are constructed
-// in order to generate FEC data for subsequently building FEC packets.
 class NET_EXPORT_PRIVATE QuicFramer {
  public:
   // Constructs a new framer that installs a kNULL QuicEncrypter and
@@ -228,18 +215,10 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // ignored.
   bool ProcessPacket(const QuicEncryptedPacket& packet);
 
-  // Pass a data packet that was revived from FEC data into the framer
-  // for parsing.
-  // Return true if the packet was processed succesfully. |payload| must be
-  // the complete DECRYPTED payload of the revived packet.
-  bool ProcessRevivedPacket(QuicPacketHeader* header,
-                            base::StringPiece payload);
-
   // Largest size in bytes of all stream frame fields without the payload.
   static size_t GetMinStreamFrameSize(QuicStreamId stream_id,
                                       QuicStreamOffset offset,
-                                      bool last_frame_in_packet,
-                                      InFecGroup is_in_fec_group);
+                                      bool last_frame_in_packet);
   // Size in bytes of all ack frame fields without the missing packets.
   static size_t GetMinAckFrameSize(
       QuicPacketNumberLength largest_observed_length);
@@ -276,7 +255,6 @@ class NET_EXPORT_PRIVATE QuicFramer {
                                   size_t free_bytes,
                                   bool first_frame_in_packet,
                                   bool last_frame_in_packet,
-                                  InFecGroup is_in_fec_group,
                                   QuicPacketNumberLength packet_number_length);
 
   // Returns the associated data from the encrypted packet |encrypted| as a
@@ -295,12 +273,6 @@ class NET_EXPORT_PRIVATE QuicFramer {
                          const QuicFrames& frames,
                          char* buffer,
                          size_t packet_length);
-
-  // Returns a QuicPacket* that is owned by the caller, and is populated with
-  // the fields in |header| and |fec|.  Returns nullptr if the packet could
-  // not be created.
-  QuicPacket* BuildFecPacket(const QuicPacketHeader& header,
-                             base::StringPiece redundancy);
 
   // Returns a new public reset packet, owned by the caller.
   static QuicEncryptedPacket* BuildPublicResetPacket(
@@ -335,6 +307,17 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // takes ownership of |encrypter|.
   void SetEncrypter(EncryptionLevel level, QuicEncrypter* encrypter);
 
+  // Encrypts a payload in |buffer|.  |ad_len| is the length of the associated
+  // data. |total_len| is the length of the associated data plus plaintext.
+  // |buffer_len| is the full length of the allocated buffer.
+  size_t EncryptInPlace(EncryptionLevel level,
+                        QuicPathId path_id,
+                        QuicPacketNumber packet_number,
+                        size_t ad_len,
+                        size_t total_len,
+                        size_t buffer_len,
+                        char* buffer);
+
   // Returns the length of the data encrypted into |buffer| if |buffer_len| is
   // long enough, and otherwise 0.
   size_t EncryptPayload(EncryptionLevel level,
@@ -368,6 +351,8 @@ class NET_EXPORT_PRIVATE QuicFramer {
 
   // Called when a PATH_CLOSED frame has been sent/received on |path_id|.
   void OnPathClosed(QuicPathId path_id);
+
+  QuicTag last_version_tag() { return last_version_tag_; }
 
  private:
   friend class test::QuicFramerPeer;
@@ -465,7 +450,6 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // Computes the wire size in bytes of the payload of |frame|.
   size_t ComputeFrameLength(const QuicFrame& frame,
                             bool last_frame_in_packet,
-                            InFecGroup is_in_fec_group,
                             QuicPacketNumberLength packet_number_length);
 
   static bool AppendPacketSequenceNumber(
@@ -527,15 +511,17 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // TODO(fayang): this set is never cleaned up. A possible improvement is to
   // use intervals.
   std::unordered_set<QuicPathId> closed_paths_;
-  // Map mapping path id to packet number of last successfully decrypted/revived
+  // Map mapping path id to packet number of last successfully decrypted
   // received packet.
   std::unordered_map<QuicPathId, QuicPacketNumber> last_packet_numbers_;
   // Updated by ProcessPacketHeader when it succeeds.
   QuicPacketNumber last_packet_number_;
-  // The path on which last successfully decrypted/revived packet was received.
+  // The path on which last successfully decrypted packet was received.
   QuicPathId last_path_id_;
   // Updated by WritePacketHeader.
   QuicConnectionId last_serialized_connection_id_;
+  // The last QUIC version tag received.
+  QuicTag last_version_tag_;
   // Version of the protocol being used.
   QuicVersion quic_version_;
   // This vector contains QUIC versions which we currently support.

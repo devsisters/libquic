@@ -56,10 +56,8 @@ class NET_EXPORT_PRIVATE TcpCubicSenderBase : public SendAlgorithmInterface {
                     HasRetransmittableData is_retransmittable) override;
   void OnRetransmissionTimeout(bool packets_retransmitted) override;
   void OnConnectionMigration() override;
-  QuicTime::Delta TimeUntilSend(
-      QuicTime now,
-      QuicByteCount bytes_in_flight,
-      HasRetransmittableData has_retransmittable_data) const override;
+  QuicTime::Delta TimeUntilSend(QuicTime now,
+                                QuicByteCount bytes_in_flight) const override;
   QuicBandwidth PacingRate() const override;
   QuicBandwidth BandwidthEstimate() const override;
   QuicTime::Delta RetransmissionDelay() const override;
@@ -84,6 +82,7 @@ class NET_EXPORT_PRIVATE TcpCubicSenderBase : public SendAlgorithmInterface {
 
   // Called when a packet is lost.
   virtual void OnPacketLost(QuicPacketNumber largest_loss,
+                            QuicByteCount lost_bytes,
                             QuicByteCount bytes_in_flight) = 0;
 
   // Called when a packet has been acked to possibly increase the congestion

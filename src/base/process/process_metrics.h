@@ -236,7 +236,10 @@ class BASE_EXPORT ProcessMetrics {
 // Returns 0 if it can't compute the commit charge.
 BASE_EXPORT size_t GetSystemCommitCharge();
 
-// Returns the number of bytes in a memory page.
+// Returns the number of bytes in a memory page. Do not use this to compute
+// the number of pages in a block of memory for calling mincore(). On some
+// platforms, e.g. iOS, mincore() uses a different page size from what is
+// returned by GetPageSize().
 BASE_EXPORT size_t GetPageSize();
 
 #if defined(OS_POSIX)
@@ -264,7 +267,7 @@ struct BASE_EXPORT SystemMemoryInfoKB {
   SystemMemoryInfoKB(const SystemMemoryInfoKB& other);
 
   // Serializes the platform specific fields to value.
-  scoped_ptr<Value> ToValue() const;
+  std::unique_ptr<Value> ToValue() const;
 
   int total;
   int free;
@@ -340,7 +343,7 @@ struct BASE_EXPORT SystemDiskInfo {
   SystemDiskInfo(const SystemDiskInfo& other);
 
   // Serializes the platform specific fields to value.
-  scoped_ptr<Value> ToValue() const;
+  std::unique_ptr<Value> ToValue() const;
 
   uint64_t reads;
   uint64_t reads_merged;
@@ -377,7 +380,7 @@ struct BASE_EXPORT SwapInfo {
   }
 
   // Serializes the platform specific fields to value.
-  scoped_ptr<Value> ToValue() const;
+  std::unique_ptr<Value> ToValue() const;
 
   uint64_t num_reads;
   uint64_t num_writes;
@@ -401,7 +404,7 @@ class SystemMetrics {
   static SystemMetrics Sample();
 
   // Serializes the system metrics to value.
-  scoped_ptr<Value> ToValue() const;
+  std::unique_ptr<Value> ToValue() const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SystemMetricsTest, SystemMetrics);

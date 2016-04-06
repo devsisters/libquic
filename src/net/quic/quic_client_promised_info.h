@@ -83,7 +83,7 @@ class NET_EXPORT_PRIVATE QuicClientPromisedInfo
     explicit CleanupAlarm(QuicClientPromisedInfo* promised)
         : promised_(promised) {}
 
-    QuicTime OnAlarm() override;
+    void OnAlarm() override;
 
     QuicClientPromisedInfo* promised_;
   };

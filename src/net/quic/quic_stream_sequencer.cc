@@ -6,16 +6,17 @@
 
 #include <algorithm>
 #include <limits>
+#include <string>
 #include <utility>
 
 #include "base/logging.h"
 #include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_clock.h"
 #include "net/quic/quic_flags.h"
-#include "net/quic/quic_frame_list.h"
 #include "net/quic/quic_protocol.h"
+#include "net/quic/quic_stream_sequencer_buffer.h"
+#include "net/quic/quic_utils.h"
 #include "net/quic/reliable_quic_stream.h"
-#include "net/quic/stream_sequencer_buffer.h"
 
 using std::min;
 using std::numeric_limits;
@@ -26,20 +27,14 @@ namespace net {
 QuicStreamSequencer::QuicStreamSequencer(ReliableQuicStream* quic_stream,
                                          const QuicClock* clock)
     : stream_(quic_stream),
+      buffered_frames_(kStreamReceiveWindowLimit),
       close_offset_(numeric_limits<QuicStreamOffset>::max()),
       blocked_(false),
       num_frames_received_(0),
       num_duplicate_frames_received_(0),
       num_early_frames_received_(0),
       clock_(clock),
-      ignore_read_data_(false) {
-  if (FLAGS_quic_use_stream_sequencer_buffer) {
-    buffered_frames_.reset(
-        new StreamSequencerBuffer(kStreamReceiveWindowLimit));
-  } else {
-    buffered_frames_.reset(new QuicFrameList());
-  }
-}
+      ignore_read_data_(false) {}
 
 QuicStreamSequencer::~QuicStreamSequencer() {}
 
@@ -47,11 +42,12 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   ++num_frames_received_;
   const QuicStreamOffset byte_offset = frame.offset;
   const size_t data_len = frame.frame_length;
-  if (data_len == 0 && !frame.fin) {
+  bool consolidate_errors = FLAGS_quic_consolidate_onstreamframe_errors;
+  if (!consolidate_errors && data_len == 0 && !frame.fin) {
     // Stream frames must have data or a fin flag.
     LOG(WARNING) << "QUIC_INVALID_STREAM_FRAM: Empty stream frame "
                     "without FIN set.";
-    stream_->CloseConnectionWithDetails(QUIC_INVALID_STREAM_FRAME,
+    stream_->CloseConnectionWithDetails(QUIC_EMPTY_STREAM_FRAME_NO_FIN,
                                         "Empty stream frame without FIN set.");
     return;
   }
@@ -63,24 +59,34 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
     }
   }
   size_t bytes_written;
-  QuicErrorCode result = buffered_frames_->OnStreamData(
+  string error_details;
+  QuicErrorCode result = buffered_frames_.OnStreamData(
       byte_offset, StringPiece(frame.frame_buffer, frame.frame_length),
-      clock_->ApproximateNow(), &bytes_written);
-
-  if (result == QUIC_INVALID_STREAM_DATA) {
-    LOG(WARNING) << "QUIC_INVALID_STREAM_FRAME: Stream frame "
-                    "overlaps with buffered data.";
-    stream_->CloseConnectionWithDetails(
-        QUIC_INVALID_STREAM_FRAME, "Stream frame overlaps with buffered data.");
-    return;
+      clock_->ApproximateNow(), &bytes_written, &error_details);
+  if (!consolidate_errors) {
+    if (result == QUIC_OVERLAPPING_STREAM_DATA) {
+      LOG(WARNING) << "QUIC_INVALID_STREAM_FRAME: Stream frame "
+                      "overlaps with buffered data.";
+      stream_->CloseConnectionWithDetails(
+          QUIC_EMPTY_STREAM_FRAME_NO_FIN,
+          "Stream frame overlaps with buffered data.");
+      return;
+    }
+  } else {
+    if (result != QUIC_NO_ERROR) {
+      LOG(WARNING) << QuicUtils::ErrorToString(result) << ": " << error_details;
+      stream_->CloseConnectionWithDetails(result, error_details);
+      return;
+    }
   }
-  if (result == QUIC_NO_ERROR && bytes_written == 0) {
+
+  if ((consolidate_errors || result == QUIC_NO_ERROR) && bytes_written == 0) {
     ++num_duplicate_frames_received_;
     // Silently ignore duplicates.
     return;
   }
 
-  if (byte_offset > buffered_frames_->BytesConsumed()) {
+  if (byte_offset > buffered_frames_.BytesConsumed()) {
     ++num_early_frames_received_;
   }
 
@@ -88,7 +94,7 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
     return;
   }
 
-  if (byte_offset == buffered_frames_->BytesConsumed()) {
+  if (byte_offset == buffered_frames_.BytesConsumed()) {
     if (ignore_read_data_) {
       FlushBufferedFrames();
     } else {
@@ -117,7 +123,7 @@ bool QuicStreamSequencer::MaybeCloseStream() {
   }
 
   DVLOG(1) << "Passing up termination, as we've processed "
-           << buffered_frames_->BytesConsumed() << " of " << close_offset_
+           << buffered_frames_.BytesConsumed() << " of " << close_offset_
            << " bytes.";
   // This will cause the stream to consume the FIN.
   // Technically it's an error if |num_bytes_consumed| isn't exactly
@@ -129,39 +135,39 @@ bool QuicStreamSequencer::MaybeCloseStream() {
   } else {
     stream_->OnDataAvailable();
   }
-  buffered_frames_->Clear();
+  buffered_frames_.Clear();
   return true;
 }
 
 int QuicStreamSequencer::GetReadableRegions(iovec* iov, size_t iov_len) const {
   DCHECK(!blocked_);
-  return buffered_frames_->GetReadableRegions(iov, iov_len);
+  return buffered_frames_.GetReadableRegions(iov, iov_len);
 }
 
 bool QuicStreamSequencer::GetReadableRegion(iovec* iov,
                                             QuicTime* timestamp) const {
   DCHECK(!blocked_);
-  return buffered_frames_->GetReadableRegion(iov, timestamp);
+  return buffered_frames_.GetReadableRegion(iov, timestamp);
 }
 
 int QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
   DCHECK(!blocked_);
-  size_t bytes_read = buffered_frames_->Readv(iov, iov_len);
+  size_t bytes_read = buffered_frames_.Readv(iov, iov_len);
   stream_->AddBytesConsumed(bytes_read);
   return static_cast<int>(bytes_read);
 }
 
 bool QuicStreamSequencer::HasBytesToRead() const {
-  return buffered_frames_->HasBytesToRead();
+  return buffered_frames_.HasBytesToRead();
 }
 
 bool QuicStreamSequencer::IsClosed() const {
-  return buffered_frames_->BytesConsumed() >= close_offset_;
+  return buffered_frames_.BytesConsumed() >= close_offset_;
 }
 
 void QuicStreamSequencer::MarkConsumed(size_t num_bytes_consumed) {
   DCHECK(!blocked_);
-  bool result = buffered_frames_->MarkConsumed(num_bytes_consumed);
+  bool result = buffered_frames_.MarkConsumed(num_bytes_consumed);
   if (!result) {
     QUIC_BUG << "Invalid argument to MarkConsumed."
              << " expect to consume: " << num_bytes_consumed
@@ -193,20 +199,20 @@ void QuicStreamSequencer::StopReading() {
 
 void QuicStreamSequencer::FlushBufferedFrames() {
   DCHECK(ignore_read_data_);
-  size_t bytes_flushed = buffered_frames_->FlushBufferedFrames();
+  size_t bytes_flushed = buffered_frames_.FlushBufferedFrames();
   DVLOG(1) << "Flushing buffered data at offset "
-           << buffered_frames_->BytesConsumed() << " length " << bytes_flushed
+           << buffered_frames_.BytesConsumed() << " length " << bytes_flushed
            << " for stream " << stream_->id();
   stream_->AddBytesConsumed(bytes_flushed);
   MaybeCloseStream();
 }
 
 size_t QuicStreamSequencer::NumBytesBuffered() const {
-  return buffered_frames_->BytesBuffered();
+  return buffered_frames_.BytesBuffered();
 }
 
 QuicStreamOffset QuicStreamSequencer::NumBytesConsumed() const {
-  return buffered_frames_->BytesConsumed();
+  return buffered_frames_.BytesConsumed();
 }
 
 }  // namespace net

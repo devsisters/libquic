@@ -95,9 +95,6 @@ bool QuicCryptoStream::ExportTokenBindingKeyingMaterial(string* result) const {
              << "encryption was established.";
     return false;
   }
-  if (!FLAGS_quic_save_initial_subkey_secret) {
-    return false;
-  }
   return CryptoUtils::ExportKeyingMaterial(
       crypto_negotiated_params_.initial_subkey_secret, "EXPORTER-Token-Binding",
       /* context= */ "", 32, result);

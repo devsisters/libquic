@@ -30,8 +30,8 @@ bool ThreadTaskRunnerHandle::IsSet() {
 }
 
 ThreadTaskRunnerHandle::ThreadTaskRunnerHandle(
-    const scoped_refptr<SingleThreadTaskRunner>& task_runner)
-    : task_runner_(task_runner) {
+    scoped_refptr<SingleThreadTaskRunner> task_runner)
+    : task_runner_(std::move(task_runner)) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(!lazy_tls_ptr.Pointer()->Get());
   lazy_tls_ptr.Pointer()->Set(this);

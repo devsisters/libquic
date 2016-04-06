@@ -133,7 +133,7 @@ class BASE_EXPORT JSONParser {
     size_t length_;
 
     // The copied string representation. NULL until Convert() is called.
-    // Strong. scoped_ptr<T> has too much of an overhead here.
+    // Strong. std::unique_ptr<T> has too much of an overhead here.
     std::string* string_;
   };
 

@@ -36,7 +36,7 @@ class NET_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   // Uses |largest_observed| and time to decide when packets are lost.
   void DetectLosses(
       const QuicUnackedPacketMap& unacked_packets,
-      const QuicTime& time,
+      QuicTime time,
       const RttStats& rtt_stats,
       SendAlgorithmInterface::CongestionVector* packets_lost) override;
 

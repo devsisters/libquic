@@ -22,6 +22,7 @@ extern const char kNoErrorDialogs[];
 extern const char kProfilerTiming[];
 extern const char kProfilerTimingDisabledValue[];
 extern const char kTestChildProcess[];
+extern const char kTestDoNotInitializeIcu[];
 extern const char kTraceToFile[];
 extern const char kTraceToFileName[];
 extern const char kV[];

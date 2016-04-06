@@ -70,6 +70,7 @@
 #include <stdint.h>
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -78,7 +79,6 @@
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram_base.h"
 // TODO(asvitkine): Migrate callers to to include this directly and remove this.
@@ -103,6 +103,8 @@ class BASE_EXPORT Histogram : public HistogramBase {
   static const uint32_t kBucketCount_MAX;
 
   typedef std::vector<Count> Counts;
+
+  ~Histogram() override;
 
   //----------------------------------------------------------------------------
   // For a valid histogram, input should follow these restrictions:
@@ -139,16 +141,17 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                        uint32_t bucket_count,
                                        int32_t flags);
 
-  // Get a histogram using data in persistent storage.
-  static HistogramBase* PersistentGet(const std::string& name,
-                                      Sample minimum,
-                                      Sample maximum,
-                                      const BucketRanges* ranges,
-                                      HistogramBase::AtomicCount* counts,
-                                      HistogramBase::AtomicCount* logged_counts,
-                                      uint32_t counts_size,
-                                      HistogramSamples::Metadata* meta,
-                                      HistogramSamples::Metadata* logged_meta);
+  // Create a histogram using data in persistent storage.
+  static std::unique_ptr<HistogramBase> PersistentCreate(
+      const std::string& name,
+      Sample minimum,
+      Sample maximum,
+      const BucketRanges* ranges,
+      HistogramBase::AtomicCount* counts,
+      HistogramBase::AtomicCount* logged_counts,
+      uint32_t counts_size,
+      HistogramSamples::Metadata* meta,
+      HistogramSamples::Metadata* logged_meta);
 
   static void InitializeBucketRanges(Sample minimum,
                                      Sample maximum,
@@ -199,8 +202,8 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                 uint32_t expected_bucket_count) const override;
   void Add(Sample value) override;
   void AddCount(Sample value, int count) override;
-  scoped_ptr<HistogramSamples> SnapshotSamples() const override;
-  scoped_ptr<HistogramSamples> SnapshotDelta() override;
+  std::unique_ptr<HistogramSamples> SnapshotSamples() const override;
+  std::unique_ptr<HistogramSamples> SnapshotDelta() override;
   void AddSamples(const HistogramSamples& samples) override;
   bool AddSamplesFromPickle(base::PickleIterator* iter) override;
   void WriteHTMLGraph(std::string* output) const override;
@@ -237,8 +240,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
             HistogramSamples::Metadata* meta,
             HistogramSamples::Metadata* logged_meta);
 
-  ~Histogram() override;
-
   // HistogramBase implementation:
   bool SerializeInfoImpl(base::Pickle* pickle) const override;
 
@@ -267,7 +268,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
   // Implementation of SnapshotSamples function.
-  scoped_ptr<SampleVector> SnapshotSampleVector() const;
+  std::unique_ptr<SampleVector> SnapshotSampleVector() const;
 
   //----------------------------------------------------------------------------
   // Helpers for emitting Ascii graphic.  Each method appends data to output.
@@ -307,10 +308,10 @@ class BASE_EXPORT Histogram : public HistogramBase {
 
   // Finally, provide the state that changes with the addition of each new
   // sample.
-  scoped_ptr<SampleVector> samples_;
+  std::unique_ptr<SampleVector> samples_;
 
   // Also keep a previous uploaded state for calculating deltas.
-  scoped_ptr<HistogramSamples> logged_samples_;
+  std::unique_ptr<HistogramSamples> logged_samples_;
 
   DISALLOW_COPY_AND_ASSIGN(Histogram);
 };
@@ -350,16 +351,17 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                                        uint32_t bucket_count,
                                        int32_t flags);
 
-  // Get a histogram using data in persistent storage.
-  static HistogramBase* PersistentGet(const std::string& name,
-                                      Sample minimum,
-                                      Sample maximum,
-                                      const BucketRanges* ranges,
-                                      HistogramBase::AtomicCount* counts,
-                                      HistogramBase::AtomicCount* logged_counts,
-                                      uint32_t counts_size,
-                                      HistogramSamples::Metadata* meta,
-                                      HistogramSamples::Metadata* logged_meta);
+  // Create a histogram using data in persistent storage.
+  static std::unique_ptr<HistogramBase> PersistentCreate(
+      const std::string& name,
+      Sample minimum,
+      Sample maximum,
+      const BucketRanges* ranges,
+      HistogramBase::AtomicCount* counts,
+      HistogramBase::AtomicCount* logged_counts,
+      uint32_t counts_size,
+      HistogramSamples::Metadata* meta,
+      HistogramSamples::Metadata* logged_meta);
 
   struct DescriptionPair {
     Sample sample;
@@ -440,13 +442,14 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
   // call sites.
   static HistogramBase* FactoryGet(const char* name, int32_t flags);
 
-  // Get a histogram using data in persistent storage.
-  static HistogramBase* PersistentGet(const std::string& name,
-                                      const BucketRanges* ranges,
-                                      HistogramBase::AtomicCount* counts,
-                                      HistogramBase::AtomicCount* logged_counts,
-                                      HistogramSamples::Metadata* meta,
-                                      HistogramSamples::Metadata* logged_meta);
+  // Create a histogram using data in persistent storage.
+  static std::unique_ptr<HistogramBase> PersistentCreate(
+      const std::string& name,
+      const BucketRanges* ranges,
+      HistogramBase::AtomicCount* counts,
+      HistogramBase::AtomicCount* logged_counts,
+      HistogramSamples::Metadata* meta,
+      HistogramSamples::Metadata* logged_meta);
 
   HistogramType GetHistogramType() const override;
 
@@ -489,14 +492,15 @@ class BASE_EXPORT CustomHistogram : public Histogram {
                                    const std::vector<Sample>& custom_ranges,
                                    int32_t flags);
 
-  // Get a histogram using data in persistent storage.
-  static HistogramBase* PersistentGet(const std::string& name,
-                                      const BucketRanges* ranges,
-                                      HistogramBase::AtomicCount* counts,
-                                      HistogramBase::AtomicCount* logged_counts,
-                                      uint32_t counts_size,
-                                      HistogramSamples::Metadata* meta,
-                                      HistogramSamples::Metadata* logged_meta);
+  // Create a histogram using data in persistent storage.
+  static std::unique_ptr<HistogramBase> PersistentCreate(
+      const std::string& name,
+      const BucketRanges* ranges,
+      HistogramBase::AtomicCount* counts,
+      HistogramBase::AtomicCount* logged_counts,
+      uint32_t counts_size,
+      HistogramSamples::Metadata* meta,
+      HistogramSamples::Metadata* logged_meta);
 
   // Overridden from Histogram:
   HistogramType GetHistogramType() const override;

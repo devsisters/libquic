@@ -6,10 +6,10 @@
 #define BASE_ENVIRONMENT_H_
 
 #include <map>
+#include <memory>
 #include <string>
 
 #include "base/base_export.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string16.h"
 #include "build/build_config.h"
 
@@ -79,7 +79,7 @@ typedef std::map<NativeEnvironmentString, NativeEnvironmentString>
 // returned array will have appended to it the storage for the array itself so
 // there is only one pointer to manage, but this means that you can't copy the
 // array without keeping the original around.
-BASE_EXPORT scoped_ptr<char*[]> AlterEnvironment(
+BASE_EXPORT std::unique_ptr<char* []> AlterEnvironment(
     const char* const* env,
     const EnvironmentMap& changes);
 

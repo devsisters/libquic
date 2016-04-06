@@ -8,6 +8,8 @@
 #include "net/quic/quic_flags.h"
 #include "net/quic/spdy_utils.h"
 
+using std::string;
+
 namespace net {
 
 QuicClientSessionBase::QuicClientSessionBase(
@@ -28,16 +30,6 @@ QuicClientSessionBase::~QuicClientSessionBase() {
 
 void QuicClientSessionBase::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   QuicSession::OnCryptoHandshakeEvent(event);
-  // Set FEC policy for streams immediately after sending CHLO and before any
-  // more data is sent.
-  if (!FLAGS_enable_quic_fec || event != ENCRYPTION_FIRST_ESTABLISHED ||
-      !config()->HasSendConnectionOptions() ||
-      !ContainsQuicTag(config()->SendConnectionOptions(), kFHDR)) {
-    return;
-  }
-  // kFHDR config maps to FEC protection always for headers stream.
-  // TODO(jri): Add crypto stream in addition to headers for kHDR.
-  headers_stream()->set_fec_policy(FEC_PROTECT_ALWAYS);
 }
 
 void QuicClientSessionBase::OnPromiseHeaders(QuicStreamId stream_id,
@@ -71,10 +63,11 @@ void QuicClientSessionBase::OnPromiseHeadersComplete(
     size_t frame_len) {
   if (promised_stream_id != kInvalidStreamId &&
       promised_stream_id <= largest_promised_stream_id_) {
-    connection()->SendConnectionCloseWithDetails(
+    connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID,
         "Received push stream id lesser or equal to the"
-        " last accepted before");
+        " last accepted before",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
   largest_promised_stream_id_ = promised_stream_id;
@@ -87,7 +80,8 @@ void QuicClientSessionBase::OnPromiseHeadersComplete(
   stream->OnPromiseHeadersComplete(promised_stream_id, frame_len);
 }
 
-void QuicClientSessionBase::HandlePromised(QuicStreamId id,
+void QuicClientSessionBase::HandlePromised(QuicStreamId /* associated_id */,
+                                           QuicStreamId id,
                                            const SpdyHeaderBlock& headers) {
   // Due to pathalogical packet re-ordering, it is possible that
   // frames for the promised stream have already arrived, and the

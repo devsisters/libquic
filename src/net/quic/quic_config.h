@@ -335,6 +335,10 @@ class NET_EXPORT_PRIVATE QuicConfig {
 
   bool MultipathEnabled() const;
 
+  void SetDisableConnectionMigration();
+
+  bool DisableConnectionMigration() const;
+
   bool negotiated() const;
 
   // ToHandshakeMessage serialises the settings in this object as a series of
@@ -384,6 +388,9 @@ class NET_EXPORT_PRIVATE QuicConfig {
 
   // Whether to support multipath for this connection.
   QuicNegotiableUint32 multipath_enabled_;
+
+  // Whether tell peer not to attempt connection migration.
+  QuicFixedUint32 connection_migration_disabled_;
 };
 
 }  // namespace net

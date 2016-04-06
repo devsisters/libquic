@@ -6,8 +6,19 @@
 #define BASE_CALLBACK_FORWARD_H_
 
 namespace base {
+namespace internal {
 
-template <typename Sig>
+// CopyMode is used to control the copyablity of a Callback.
+// MoveOnly indicates the Callback is not copyable but movable, and Copyable
+// indicates it is copyable and movable.
+enum class CopyMode {
+  MoveOnly, Copyable,
+};
+
+}  // namespace internal
+
+template <typename Signature,
+          internal::CopyMode copy_mode = internal::CopyMode::Copyable>
 class Callback;
 
 // Syntactic sugar to make Callback<void()> easier to declare since it

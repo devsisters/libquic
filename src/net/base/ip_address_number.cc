@@ -135,28 +135,6 @@ std::string IPAddressToPackedString(const IPAddressNumber& addr) {
   return std::string(reinterpret_cast<const char*>(addr.data()), addr.size());
 }
 
-bool ParseURLHostnameToNumber(const std::string& hostname,
-                              IPAddressNumber* ip_number) {
-  // |hostname| is an already canoncalized hostname, conforming to RFC 3986.
-  // For an IP address, this is defined in Section 3.2.2 of RFC 3986, with
-  // the canonical form for IPv6 addresses defined in Section 4 of RFC 5952.
-  url::Component host_comp(0, hostname.size());
-
-  // If it has a bracket, try parsing it as an IPv6 address.
-  if (hostname[0] == '[') {
-    ip_number->resize(16);  // 128 bits.
-    return url::IPv6AddressToNumber(
-        hostname.data(), host_comp, &(*ip_number)[0]);
-  }
-
-  // Otherwise, try IPv4.
-  ip_number->resize(4);  // 32 bits.
-  int num_components;
-  url::CanonHostInfo::Family family = url::IPv4AddressToNumber(
-      hostname.data(), host_comp, &(*ip_number)[0], &num_components);
-  return family == url::CanonHostInfo::IPV4;
-}
-
 bool ParseIPLiteralToNumber(const base::StringPiece& ip_literal,
                             IPAddressNumber* ip_number) {
   // |ip_literal| could be either a IPv4 or an IPv6 literal. If it contains
@@ -216,36 +194,6 @@ IPAddressNumber ConvertIPv4MappedToIPv4(const IPAddressNumber& address) {
   DCHECK(IsIPv4Mapped(address));
   return IPAddressNumber(address.begin() + arraysize(kIPv4MappedPrefix),
                          address.end());
-}
-
-bool ParseCIDRBlock(const std::string& cidr_literal,
-                    IPAddressNumber* ip_number,
-                    size_t* prefix_length_in_bits) {
-  // We expect CIDR notation to match one of these two templates:
-  //   <IPv4-literal> "/" <number of bits>
-  //   <IPv6-literal> "/" <number of bits>
-
-  std::vector<base::StringPiece> parts = base::SplitStringPiece(
-      cidr_literal, "/", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-  if (parts.size() != 2)
-    return false;
-
-  // Parse the IP address.
-  if (!ParseIPLiteralToNumber(parts[0], ip_number))
-    return false;
-
-  // Parse the prefix length.
-  int number_of_bits = -1;
-  if (!base::StringToInt(parts[1], &number_of_bits))
-    return false;
-
-  // Make sure the prefix length is in a valid range.
-  if (number_of_bits < 0 ||
-      number_of_bits > static_cast<int>(ip_number->size() * 8))
-    return false;
-
-  *prefix_length_in_bits = static_cast<size_t>(number_of_bits);
-  return true;
 }
 
 bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,

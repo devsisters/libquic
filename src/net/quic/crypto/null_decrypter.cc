@@ -27,8 +27,8 @@ bool NullDecrypter::SetNoncePrefix(StringPiece nonce_prefix) {
 
 bool NullDecrypter::DecryptPacket(QuicPathId /*path_id*/,
                                   QuicPacketNumber /*packet_number*/,
-                                  const StringPiece& associated_data,
-                                  const StringPiece& ciphertext,
+                                  StringPiece associated_data,
+                                  StringPiece ciphertext,
                                   char* output,
                                   size_t* output_length,
                                   size_t max_output_length) {

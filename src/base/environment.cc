@@ -69,7 +69,7 @@ class EnvironmentImpl : public Environment {
     if (value_length == 0)
       return false;
     if (result) {
-      scoped_ptr<wchar_t[]> value(new wchar_t[value_length]);
+      std::unique_ptr<wchar_t[]> value(new wchar_t[value_length]);
       ::GetEnvironmentVariable(UTF8ToWide(variable_name).c_str(), value.get(),
                                value_length);
       *result = WideToUTF8(value.get());
@@ -184,8 +184,8 @@ string16 AlterEnvironment(const wchar_t* env,
 
 #elif defined(OS_POSIX)
 
-scoped_ptr<char*[]> AlterEnvironment(const char* const* const env,
-                                     const EnvironmentMap& changes) {
+std::unique_ptr<char* []> AlterEnvironment(const char* const* const env,
+                                           const EnvironmentMap& changes) {
   std::string value_storage;  // Holds concatenated null-terminated strings.
   std::vector<size_t> result_indices;  // Line indices into value_storage.
 
@@ -218,7 +218,7 @@ scoped_ptr<char*[]> AlterEnvironment(const char* const* const env,
   size_t pointer_count_required =
       result_indices.size() + 1 +  // Null-terminated array of pointers.
       (value_storage.size() + sizeof(char*) - 1) / sizeof(char*);  // Buffer.
-  scoped_ptr<char*[]> result(new char*[pointer_count_required]);
+  std::unique_ptr<char* []> result(new char*[pointer_count_required]);
 
   // The string storage goes after the array of pointers.
   char* storage_data = reinterpret_cast<char*>(

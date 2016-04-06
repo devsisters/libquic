@@ -153,7 +153,7 @@ KeyExchange* P256KeyExchange::NewKeyPair(QuicRandom* /*rand*/) const {
   return P256KeyExchange::New(private_value);
 }
 
-bool P256KeyExchange::CalculateSharedKey(const StringPiece& peer_public_value,
+bool P256KeyExchange::CalculateSharedKey(StringPiece peer_public_value,
                                          string* out_result) const {
   if (peer_public_value.size() != kUncompressedP256PointBytes ||
       peer_public_value[0] != kUncompressedECPointForm) {

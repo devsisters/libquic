@@ -11,10 +11,10 @@
 
 namespace base {
 
-// ScopedCFTypeRef<> is patterned after scoped_ptr<>, but maintains ownership
-// of a CoreFoundation object: any object that can be represented as a
-// CFTypeRef.  Style deviations here are solely for compatibility with
-// scoped_ptr<>'s interface, with which everyone is already familiar.
+// ScopedCFTypeRef<> is patterned after std::unique_ptr<>, but maintains
+// ownership of a CoreFoundation object: any object that can be represented
+// as a CFTypeRef.  Style deviations here are solely for compatibility with
+// std::unique_ptr<>'s interface, with which everyone is already familiar.
 //
 // By default, ScopedCFTypeRef<> takes ownership of an object (in the
 // constructor or in reset()) by taking over the caller's existing ownership

@@ -117,10 +117,9 @@ void PacingSender::OnConnectionMigration() {
 
 QuicTime::Delta PacingSender::TimeUntilSend(
     QuicTime now,
-    QuicByteCount bytes_in_flight,
-    HasRetransmittableData has_retransmittable_data) const {
+    QuicByteCount bytes_in_flight) const {
   QuicTime::Delta time_until_send =
-      sender_->TimeUntilSend(now, bytes_in_flight, has_retransmittable_data);
+      sender_->TimeUntilSend(now, bytes_in_flight);
   if (burst_tokens_ > 0 || bytes_in_flight == 0) {
     // Don't pace if we have burst tokens available or leaving quiescence.
     return time_until_send;
@@ -130,12 +129,6 @@ QuicTime::Delta PacingSender::TimeUntilSend(
     DCHECK(time_until_send.IsInfinite());
     // The underlying sender prevents sending.
     return time_until_send;
-  }
-
-  if (has_retransmittable_data == NO_RETRANSMITTABLE_DATA) {
-    // Don't pace ACK packets, since they do not count against CWND and do not
-    // cause CWND to grow.
-    return QuicTime::Delta::Zero();
   }
 
   // If the next send time is within the alarm granularity, send immediately.

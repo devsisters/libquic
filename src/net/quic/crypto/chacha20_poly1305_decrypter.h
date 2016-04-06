@@ -34,7 +34,7 @@ class NET_EXPORT_PRIVATE ChaCha20Poly1305Decrypter : public AeadBaseDecrypter {
  protected:
   // AeadBaseDecrypter methods:
   void FillAeadParams(base::StringPiece nonce,
-                      const base::StringPiece& associated_data,
+                      base::StringPiece associated_data,
                       size_t auth_tag_size,
                       AeadParams* aead_params) const override;
 #endif

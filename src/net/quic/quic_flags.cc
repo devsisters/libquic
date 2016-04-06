@@ -11,11 +11,6 @@ bool FLAGS_quic_use_time_loss_detection = false;
 // CHLO.
 bool FLAGS_use_early_return_when_verifying_chlo = true;
 
-// If true, QUIC connections will support FEC protection of data while sending
-// packets, to reduce latency of data delivery to the application. The client
-// must also request FEC protection for the server to use FEC.
-bool FLAGS_enable_quic_fec = true;
-
 // When true, defaults to BBR congestion control instead of Cubic.
 bool FLAGS_quic_use_bbr_congestion_control = false;
 
@@ -67,63 +62,17 @@ bool FLAGS_quic_measure_headers_hol_blocking_time = true;
 // Disable QUIC's userspace pacing.
 bool FLAGS_quic_disable_pacing = false;
 
-// If true, QUIC connections will timeout when packets are not being recieved,
-// even if they are being sent.
-bool FLAGS_quic_use_new_idle_timeout = true;
-
-// If true, replace QuicFrameList with StreamSequencerBuffer as underlying data
-// structure for QuicStreamSequencer bufferring.
-bool FLAGS_quic_use_stream_sequencer_buffer = true;
-
-// If true, don't send QUIC packets if the send alarm is set.
-bool FLAGS_quic_respect_send_alarm2 = true;
-
-// If true, allow each quic stream to write 16k blocks rather than doing a round
-// robin of one packet per session when ack clocked or paced.
-bool FLAGS_quic_batch_writes = true;
-
-// If true, QUIC sessions will write block streams that attempt to write
-// unencrypted data.
-bool FLAGS_quic_block_unencrypted_writes = true;
-
 // If true, Close the connection instead of writing unencrypted stream data.
 bool FLAGS_quic_never_write_unencrypted_data = true;
-
-// If true, clear the FEC group instead of sending it with ENCRYPTION_NONE.
-// Close the connection if we ever try to serialized unencrypted FEC.
-bool FLAGS_quic_no_unencrypted_fec = true;
 
 // If true, reject any incoming QUIC which does not have the FIXD tag.
 bool FLAGS_quic_require_fix = true;
 
-// If true, QUIC supports sending trailers from Server to Client.
-bool FLAGS_quic_supports_trailers = true;
-
 // If true, headers stream will support receiving PUSH_PROMISE frames.
-bool FLAGS_quic_supports_push_promise = false;
-
-// Enable counters for incoming/outgoing streams which are used as condition
-// check while creating a new stream.
-bool FLAGS_quic_distinguish_incoming_outgoing_streams = true;
-
-// If true, QUIC servers will attempt to validate a client's source
-// address token using the primary config, even if no server config id
-// is present in the client hello.
-bool FLAGS_quic_validate_stk_without_scid = true;
-
-// If true, QUIC will support RFC 7539 variants of ChaCha20 Poly1305.
-bool FLAGS_quic_use_rfc7539 = true;
-
-// If true, require QUIC connections to use a valid server nonce or a non-local
-// strike register.
-bool FLAGS_require_strike_register_or_server_nonce = true;
+bool FLAGS_quic_supports_push_promise = true;
 
 // When turn on, log packet loss into transport connection stats LossEvent.
 bool FLAGS_quic_log_loss_event = true;
-
-// If true, for QUIC authenticated encryption algorithms, last 8 bytes
-// of IV comprise packet path id and lower 7 bytes of packet number.
-bool FLAGS_quic_include_path_id_in_iv = true;
 
 // If true, make sure new incoming streams correctly cede to higher
 // priority (or batch) streams when doing QUIC writes.
@@ -139,10 +88,6 @@ bool FLAGS_quic_different_max_num_open_streams = true;
 // AES-GCM.
 bool FLAGS_quic_crypto_server_config_default_has_chacha20 = true;
 
-// If true, checking for peer address change is postponed after the packet gets
-// decrypted.
-bool FLAGS_check_peer_address_change_after_decryption = true;
-
 // If true, always log the cached network parameters, regardless of whether
 // bandwidth-resumption has been enabled.
 bool FLAGS_quic_log_received_parameters = true;
@@ -150,6 +95,50 @@ bool FLAGS_quic_log_received_parameters = true;
 // If true, QUIC will use newly refactored TCP sender code.
 bool FLAGS_quic_use_new_tcp_sender = true;
 
-// Saves the initial subkey secret in QUIC crypto when deriving keys from the
-// initial premaster secret.
-bool FLAGS_quic_save_initial_subkey_secret = true;
+// If true, the QUIC dispatcher will directly send version negotiation packets
+// without needing to create a QUIC session first.
+bool FLAGS_quic_stateless_version_negotiation = false;
+
+// QUIC Ack Decimation with tolerance for packet reordering.
+bool FLAGS_quic_ack_decimation2 = true;
+
+// If true, QUIC connections will defer responding to ACKs to their send alarms.
+bool FLAGS_quic_connection_defer_ack_response = true;
+
+// If true, calls to QuicAlarm::Cancel don't do anything  if the alarm is not
+// set.
+bool FLAGS_quic_only_cancel_set_alarms = true;
+
+// Simplify QUIC's write path for inplace encryption now that FEC is gone.
+bool FLAGS_quic_inplace_encryption2 = true;
+
+// If true, SpdyFramer will call OnStreamEnd from SpdyFramerVisitorInterface
+// instead of empty-data sentinel calls when the stream is to be ended.
+bool FLAGS_spdy_on_stream_end = true;
+
+// If true, QuicCryptoServerConfig will use cached compressed certificates
+// if the uncompressed certs to be compressed hits the cache.
+bool FLAGS_quic_use_cached_compressed_certs = true;
+
+// Enable a connection option allowing connections to time out if more than 5
+// consecutive RTOs are sent.
+bool FLAGS_quic_enable_rto_timeout = true;
+
+// Don't copy QuicAckFrame or QuicStopWaitingFrame into the
+// QuicPacketGenerator.
+bool FLAGS_quic_dont_copy_acks = true;
+
+// Use a byte conservation approach instead of packet conservation in the
+// Slow Start Large Reduction experiment.
+bool FLAGS_quic_sslr_byte_conservation = true;
+
+// Try to use the socket timestamp to determine the time a packet was
+// received instead of Now().
+bool FLAGS_quic_use_socket_timestamp = true;
+
+// If true, handling of errors from invalid stream frames is done in
+// one place in QuicStreamSequencer::OnStreamFrame.
+bool FLAGS_quic_consolidate_onstreamframe_errors = true;
+
+// Resend 0RTT requests in response to an REJ that re-establishes encryption.
+bool FLAGS_quic_reply_to_rej = true;

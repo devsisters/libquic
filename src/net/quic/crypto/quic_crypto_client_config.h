@@ -86,6 +86,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     // SetProof stores a certificate chain and signature.
     void SetProof(const std::vector<std::string>& certs,
                   base::StringPiece cert_sct,
+                  base::StringPiece chlo_hash,
                   base::StringPiece signature);
 
     // Clears all the data.
@@ -108,6 +109,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     const std::string& source_address_token() const;
     const std::vector<std::string>& certs() const;
     const std::string& cert_sct() const;
+    const std::string& chlo_hash() const;
     const std::string& signature() const;
     bool proof_valid() const;
     uint64_t generation_counter() const;
@@ -146,10 +148,10 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     // SetProofVerifyDetails takes ownership of |details|.
     void SetProofVerifyDetails(ProofVerifyDetails* details);
 
-    // Copy the |server_config_|, |source_address_token_|, |certs_| and
-    // |server_config_sig_| from the |other|.  The remaining fields,
-    // |generation_counter_|, |proof_verify_details_|, and |scfg_| remain
-    // unchanged.
+    // Copy the |server_config_|, |source_address_token_|, |certs_|,
+    // |cert_sct_|, |chlo_hash_| and |server_config_sig_| from the |other|.  The
+    // remaining fields, |generation_counter_|, |proof_verify_details_|, and
+    // |scfg_| remain unchanged.
     void InitializeFrom(const CachedState& other);
 
     // Initializes this cached state based on the arguments provided.
@@ -157,7 +159,8 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     bool Initialize(base::StringPiece server_config,
                     base::StringPiece source_address_token,
                     const std::vector<std::string>& certs,
-                    const std::string& cert_sct,
+                    base::StringPiece cert_sct,
+                    base::StringPiece chlo_hash,
                     base::StringPiece signature,
                     QuicWallTime now);
 
@@ -167,6 +170,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     std::vector<std::string> certs_;    // A list of certificates in leaf-first
                                         // order.
     std::string cert_sct_;              // Signed timestamp of the leaf cert.
+    std::string chlo_hash_;             // Hash of the CHLO message.
     std::string server_config_sig_;     // A signature of |server_config_|.
     bool server_config_valid_;          // True if |server_config_| is correctly
                                         // signed and |certs_| has been
@@ -248,6 +252,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   QuicErrorCode ProcessRejection(const CryptoHandshakeMessage& rej,
                                  QuicWallTime now,
                                  QuicVersion version,
+                                 base::StringPiece chlo_hash,
                                  CachedState* cached,
                                  QuicCryptoNegotiatedParameters* out_params,
                                  std::string* error_details);
@@ -278,6 +283,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       const CryptoHandshakeMessage& server_update,
       QuicWallTime now,
       const QuicVersion version,
+      base::StringPiece chlo_hash,
       CachedState* cached,
       QuicCryptoNegotiatedParameters* out_params,
       std::string* error_details);
@@ -334,6 +340,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       const CryptoHandshakeMessage& message,
       QuicWallTime now,
       const QuicVersion version,
+      base::StringPiece chlo_hash,
       const std::vector<std::string>& cached_certs,
       CachedState* cached,
       std::string* error_details);

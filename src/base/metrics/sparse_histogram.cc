@@ -6,7 +6,10 @@
 
 #include <utility>
 
+#include "base/memory/ptr_util.h"
 #include "base/metrics/metrics_hashes.h"
+#include "base/metrics/persistent_histogram_allocator.h"
+#include "base/metrics/persistent_sample_map.h"
 #include "base/metrics/sample_map.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/pickle.h"
@@ -21,23 +24,75 @@ typedef HistogramBase::Sample Sample;
 // static
 HistogramBase* SparseHistogram::FactoryGet(const std::string& name,
                                            int32_t flags) {
-  HistogramBase* histogram = StatisticsRecorder::FindHistogram(name);
+  // Import histograms from known persistent storage. Histograms could have
+  // been added by other processes and they must be fetched and recognized
+  // locally in order to be found by FindHistograms() below. If the persistent
+  // memory segment is not shared between processes, this call does nothing.
+  PersistentHistogramAllocator::ImportGlobalHistograms();
 
+  HistogramBase* histogram = StatisticsRecorder::FindHistogram(name);
   if (!histogram) {
-    // To avoid racy destruction at shutdown, the following will be leaked.
-    HistogramBase* tentative_histogram = new SparseHistogram(name);
-    tentative_histogram->SetFlags(flags);
-    histogram =
-        StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
+    // Try to create the histogram using a "persistent" allocator. As of
+    // 2016-02-25, the availability of such is controlled by a base::Feature
+    // that is off by default. If the allocator doesn't exist or if
+    // allocating from it fails, code below will allocate the histogram from
+    // the process heap.
+    PersistentMemoryAllocator::Reference histogram_ref = 0;
+    std::unique_ptr<HistogramBase> tentative_histogram;
+    PersistentHistogramAllocator* allocator =
+        PersistentHistogramAllocator::GetGlobalAllocator();
+    if (allocator) {
+      tentative_histogram = allocator->AllocateHistogram(
+          SPARSE_HISTOGRAM, name, 0, 0, nullptr, flags, &histogram_ref);
+    }
+
+    // Handle the case where no persistent allocator is present or the
+    // persistent allocation fails (perhaps because it is full).
+    if (!tentative_histogram) {
+      DCHECK(!histogram_ref);  // Should never have been set.
+      DCHECK(!allocator);      // Shouldn't have failed.
+      flags &= ~HistogramBase::kIsPersistent;
+      tentative_histogram.reset(new SparseHistogram(name));
+      tentative_histogram->SetFlags(flags);
+    }
+
+    // Register this histogram with the StatisticsRecorder. Keep a copy of
+    // the pointer value to tell later whether the locally created histogram
+    // was registered or deleted. The type is "void" because it could point
+    // to released memory after the following line.
+    const void* tentative_histogram_ptr = tentative_histogram.get();
+    histogram = StatisticsRecorder::RegisterOrDeleteDuplicate(
+        tentative_histogram.release());
+
+    // Persistent histograms need some follow-up processing.
+    if (histogram_ref) {
+      allocator->FinalizeHistogram(histogram_ref,
+                                   histogram == tentative_histogram_ptr);
+    }
+
+    ReportHistogramActivity(*histogram, HISTOGRAM_CREATED);
+  } else {
+    ReportHistogramActivity(*histogram, HISTOGRAM_LOOKUP);
   }
+
   DCHECK_EQ(SPARSE_HISTOGRAM, histogram->GetHistogramType());
   return histogram;
+}
+
+// static
+std::unique_ptr<HistogramBase> SparseHistogram::PersistentCreate(
+    PersistentMemoryAllocator* allocator,
+    const std::string& name,
+    HistogramSamples::Metadata* meta,
+    HistogramSamples::Metadata* logged_meta) {
+  return WrapUnique(
+      new SparseHistogram(allocator, name, meta, logged_meta));
 }
 
 SparseHistogram::~SparseHistogram() {}
 
 uint64_t SparseHistogram::name_hash() const {
-  return samples_.id();
+  return samples_->id();
 }
 
 HistogramType SparseHistogram::GetHistogramType() const {
@@ -63,39 +118,39 @@ void SparseHistogram::AddCount(Sample value, int count) {
   }
   {
     base::AutoLock auto_lock(lock_);
-    samples_.Accumulate(value, count);
+    samples_->Accumulate(value, count);
   }
 
   FindAndRunCallback(value);
 }
 
-scoped_ptr<HistogramSamples> SparseHistogram::SnapshotSamples() const {
-  scoped_ptr<SampleMap> snapshot(new SampleMap(name_hash()));
+std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotSamples() const {
+  std::unique_ptr<SampleMap> snapshot(new SampleMap(name_hash()));
 
   base::AutoLock auto_lock(lock_);
-  snapshot->Add(samples_);
+  snapshot->Add(*samples_);
   return std::move(snapshot);
 }
 
-scoped_ptr<HistogramSamples> SparseHistogram::SnapshotDelta() {
-  scoped_ptr<SampleMap> snapshot(new SampleMap(name_hash()));
+std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotDelta() {
+  std::unique_ptr<SampleMap> snapshot(new SampleMap(name_hash()));
   base::AutoLock auto_lock(lock_);
-  snapshot->Add(samples_);
+  snapshot->Add(*samples_);
 
   // Subtract what was previously logged and update that information.
-  snapshot->Subtract(logged_samples_);
-  logged_samples_.Add(*snapshot);
+  snapshot->Subtract(*logged_samples_);
+  logged_samples_->Add(*snapshot);
   return std::move(snapshot);
 }
 
 void SparseHistogram::AddSamples(const HistogramSamples& samples) {
   base::AutoLock auto_lock(lock_);
-  samples_.Add(samples);
+  samples_->Add(samples);
 }
 
 bool SparseHistogram::AddSamplesFromPickle(PickleIterator* iter) {
   base::AutoLock auto_lock(lock_);
-  return samples_.AddFromPickle(iter);
+  return samples_->AddFromPickle(iter);
 }
 
 void SparseHistogram::WriteHTMLGraph(std::string* output) const {
@@ -114,7 +169,28 @@ bool SparseHistogram::SerializeInfoImpl(Pickle* pickle) const {
 
 SparseHistogram::SparseHistogram(const std::string& name)
     : HistogramBase(name),
-      samples_(HashMetricName(name)) {}
+      samples_(new SampleMap(HashMetricName(name))),
+      logged_samples_(new SampleMap(samples_->id())) {}
+
+SparseHistogram::SparseHistogram(PersistentMemoryAllocator* allocator,
+                                 const std::string& name,
+                                 HistogramSamples::Metadata* meta,
+                                 HistogramSamples::Metadata* logged_meta)
+    : HistogramBase(name),
+      // While other histogram types maintain a static vector of values with
+      // sufficient space for both "active" and "logged" samples, with each
+      // SampleVector being given the appropriate half, sparse histograms
+      // have no such initial allocation. Each sample has its own record
+      // attached to a single PersistentSampleMap by a common 64-bit identifier.
+      // Since a sparse histogram has two sample maps (active and logged),
+      // there must be two sets of sample records with diffent IDs. The
+      // "active" samples use, for convenience purposes, an ID matching
+      // that of the histogram while the "logged" samples use that number
+      // plus 1.
+      samples_(new PersistentSampleMap(HashMetricName(name), allocator, meta)),
+      logged_samples_(
+          new PersistentSampleMap(samples_->id() + 1, allocator, logged_meta)) {
+}
 
 HistogramBase* SparseHistogram::DeserializeInfoImpl(PickleIterator* iter) {
   std::string histogram_name;
@@ -144,7 +220,7 @@ void SparseHistogram::WriteAsciiImpl(bool graph_it,
                                      const std::string& newline,
                                      std::string* output) const {
   // Get a local copy of the data so we are consistent.
-  scoped_ptr<HistogramSamples> snapshot = SnapshotSamples();
+  std::unique_ptr<HistogramSamples> snapshot = SnapshotSamples();
   Count total_count = snapshot->TotalCount();
   double scaled_total_count = total_count / 100.0;
 
@@ -157,7 +233,7 @@ void SparseHistogram::WriteAsciiImpl(bool graph_it,
   // normalize the graphical bar-width relative to that sample count.
   Count largest_count = 0;
   Sample largest_sample = 0;
-  scoped_ptr<SampleCountIterator> it = snapshot->Iterator();
+  std::unique_ptr<SampleCountIterator> it = snapshot->Iterator();
   while (!it->Done()) {
     Sample min;
     Sample max;

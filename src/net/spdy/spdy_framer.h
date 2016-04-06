@@ -119,6 +119,10 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
                                  size_t len,
                                  bool fin) = 0;
 
+  // Called when the other side has finished sending data on this stream.
+  // |stream_id| The stream that was receivin data.
+  virtual void OnStreamEnd(SpdyStreamId stream_id) = 0;
+
   // Called when padding is received (padding length field or padding octets).
   // |stream_id| The stream receiving data.
   // |len| The number of padding octets.
@@ -348,10 +352,9 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // purposes.)
   static const size_t kHeaderDataChunkMaxSize;
 
-  // Serializes a SpdyHeaderBlock.
-  static void WriteHeaderBlock(SpdyFrameBuilder* frame,
-                               const SpdyMajorVersion spdy_version,
-                               const SpdyHeaderBlock* headers);
+  void SerializeHeaderBlockWithoutCompression(
+      SpdyFrameBuilder* builder,
+      const SpdyHeaderBlock& header_block) const;
 
   // Retrieve serialized length of SpdyHeaderBlock.
   // TODO(hkhalil): Remove, or move to quic code.
@@ -687,10 +690,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   void WriteHeaderBlockToZ(const SpdyHeaderBlock* headers,
                            z_stream* out) const;
 
-  void SerializeHeaderBlockWithoutCompression(
-      SpdyFrameBuilder* builder,
-      const SpdyHeaderBlock& header_block) const;
-
   // Compresses automatically according to enable_compression_.
   void SerializeHeaderBlock(SpdyFrameBuilder* builder,
                             const SpdyFrameWithHeaderBlockIR& frame);
@@ -796,6 +795,11 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // If true, then ProcessInput returns after processing a full frame,
   // rather than reading all available input.
   bool process_single_input_frame_ = false;
+
+  // Latched value of --FLAGS_spdy_on_stream_end.
+  // If true, OnStreamEnd will be called instead of the sentinel call of
+  // OnStreamFrameData(stream_id, nullptr, 0, true)
+  bool spdy_on_stream_end_;
 };
 
 }  // namespace net

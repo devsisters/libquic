@@ -28,7 +28,7 @@ class NET_EXPORT_PRIVATE LossDetectionInterface {
   // Called when a new ack arrives or the loss alarm fires.
   virtual void DetectLosses(
       const QuicUnackedPacketMap& unacked_packets,
-      const QuicTime& time,
+      QuicTime time,
       const RttStats& rtt_stats,
       SendAlgorithmInterface::CongestionVector* packets_lost) = 0;
 

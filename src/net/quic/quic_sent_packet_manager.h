@@ -133,7 +133,7 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   // Processes the incoming ack.
   void OnIncomingAck(const QuicAckFrame& ack_frame, QuicTime ack_receive_time);
 
-  // Returns true if the non-FEC packet |packet_number| is unacked.
+  // Returns true if packet |packet_number| is unacked.
   bool IsUnacked(QuicPacketNumber packet_number) const;
 
   // Requests retransmission of all unacked packets of |retransmission_type|.
@@ -322,8 +322,7 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Update the RTT if the ack is for the largest acked packet number.
   // Returns true if the rtt was updated.
-  bool MaybeUpdateRTT(const QuicAckFrame& ack_frame,
-                      const QuicTime& ack_receive_time);
+  bool MaybeUpdateRTT(const QuicAckFrame& ack_frame, QuicTime ack_receive_time);
 
   // Invokes the loss detection algorithm and loses and retransmits packets if
   // necessary.
@@ -337,7 +336,10 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
                                   QuicByteCount bytes_in_flight);
 
   // Called when frames of |packet_number| has been received but the packet
-  // itself has not been received by the peer (e.g., packet is revived by FEC).
+  // itself has not been received by the peer. Currently, this method is not
+  // used.
+  // TODO(fayang): Update the comment when multipath sent packet manager is
+  // landed.
   // The packet needs no longer to be retransmitted, but the packet remains
   // pending if it is and the congestion control does not consider the packet
   // acked.
@@ -375,8 +377,8 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   // RTT measurement purposes.
   void RemoveObsoletePackets();
 
-  // Newly serialized retransmittable and fec packets are added to this map,
-  // which contains owning pointers to any contained frames.  If a packet is
+  // Newly serialized retransmittable packets are added to this map, which
+  // contains owning pointers to any contained frames.  If a packet is
   // retransmitted, this map will contain entries for both the old and the new
   // packet. The old packet's retransmittable frames entry will be nullptr,
   // while the new packet's entry will contain the frames to retransmit.

@@ -5,6 +5,7 @@
 #include "net/quic/quic_alarm.h"
 
 #include "base/logging.h"
+#include "net/quic/quic_flags.h"
 
 namespace net {
 
@@ -13,29 +14,33 @@ QuicAlarm::QuicAlarm(QuicArenaScopedPtr<Delegate> delegate)
 
 QuicAlarm::~QuicAlarm() {}
 
-void QuicAlarm::Set(QuicTime deadline) {
+void QuicAlarm::Set(QuicTime new_deadline) {
   DCHECK(!IsSet());
-  DCHECK(deadline.IsInitialized());
-  deadline_ = deadline;
+  DCHECK(new_deadline.IsInitialized());
+  deadline_ = new_deadline;
   SetImpl();
 }
 
 void QuicAlarm::Cancel() {
+  if (FLAGS_quic_only_cancel_set_alarms && !IsSet()) {
+    // Don't try to cancel an alarm that hasn't been set.
+    return;
+  }
   deadline_ = QuicTime::Zero();
   CancelImpl();
 }
 
-void QuicAlarm::Update(QuicTime deadline, QuicTime::Delta granularity) {
-  if (!deadline.IsInitialized()) {
+void QuicAlarm::Update(QuicTime new_deadline, QuicTime::Delta granularity) {
+  if (!new_deadline.IsInitialized()) {
     Cancel();
     return;
   }
-  if (std::abs(deadline.Subtract(deadline_).ToMicroseconds()) <
+  if (std::abs(new_deadline.Subtract(deadline_).ToMicroseconds()) <
       granularity.ToMicroseconds()) {
     return;
   }
   Cancel();
-  Set(deadline);
+  Set(new_deadline);
 }
 
 bool QuicAlarm::IsSet() const {
@@ -43,19 +48,12 @@ bool QuicAlarm::IsSet() const {
 }
 
 void QuicAlarm::Fire() {
-  if (!deadline_.IsInitialized()) {
+  if (!IsSet()) {
     return;
   }
 
   deadline_ = QuicTime::Zero();
-  QuicTime deadline = delegate_->OnAlarm();
-  // delegate_->OnAlarm() might call Set(), in which case deadline_
-  // will already contain the new value, so don't overwrite it.  Also,
-  // OnAlarm() might delete |this| so check |deadline| before
-  // |deadline_|.
-  if (deadline.IsInitialized() && !deadline_.IsInitialized()) {
-    Set(deadline);
-  }
+  delegate_->OnAlarm();
 }
 
 }  // namespace net

@@ -11,7 +11,7 @@
 
 namespace base {
 
-// ScopedTypeRef<> is patterned after scoped_ptr<>, but maintains a ownership
+// ScopedTypeRef<> is patterned after std::unique_ptr<>, but maintains ownership
 // of a reference to any type that is maintained by Retain and Release methods.
 //
 // The Traits structure must provide the Retain and Release methods for type T.
@@ -67,6 +67,20 @@ class ScopedTypeRef {
       object_ = Traits::Retain(object_);
   }
 
+  // Without this, passing a ScopedTypeRef<A,TraitsX> to construct a
+  // ScopedTypeRef<A,TraitsY> would automatically cast down to an A, and then
+  // ASSUME ownership of A, when a retain is what was needed.
+  template<typename OtherTraits>
+  ScopedTypeRef(const ScopedTypeRef<T, OtherTraits>& that_with_other_traits)
+      : object_(that_with_other_traits.get()) {
+    if (object_)
+      object_ = Traits::Retain(object_);
+  }
+
+  ScopedTypeRef(ScopedTypeRef<T, Traits>&& that) : object_(that.object_) {
+    that.object_ = Traits::InvalidValue();
+  }
+
   ~ScopedTypeRef() {
     if (object_)
       Traits::Release(object_);
@@ -117,7 +131,7 @@ class ScopedTypeRef {
     object_ = temp;
   }
 
-  // ScopedTypeRef<>::release() is like scoped_ptr<>::release.  It is NOT
+  // ScopedTypeRef<>::release() is like std::unique_ptr<>::release.  It is NOT
   // a wrapper for Release().  To force a ScopedTypeRef<> object to call
   // Release(), use ScopedTypeRef<>::reset().
   T release() WARN_UNUSED_RESULT {

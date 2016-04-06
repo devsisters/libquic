@@ -110,28 +110,6 @@ struct MakeIndexSequenceImpl<N, Ns...>
 template <size_t N>
 using MakeIndexSequence = typename MakeIndexSequenceImpl<N>::Type;
 
-// Traits ----------------------------------------------------------------------
-//
-// A simple traits class for tuple arguments.
-//
-// ValueType: the bare, nonref version of a type (same as the type for nonrefs).
-// RefType: the ref version of a type (same as the type for refs).
-// ParamType: what type to pass to functions (refs should not be constified).
-
-template <class P>
-struct TupleTraits {
-  typedef P ValueType;
-  typedef P& RefType;
-  typedef const P& ParamType;
-};
-
-template <class P>
-struct TupleTraits<P&> {
-  typedef P ValueType;
-  typedef P& RefType;
-  typedef P& ParamType;
-};
-
 // Tuple -----------------------------------------------------------------------
 //
 // This set of classes is useful for bundling 0 or more heterogeneous data types
@@ -150,21 +128,6 @@ template <typename... Ts>
 using Tuple = std::tuple<Ts...>;
 
 using std::get;
-
-// Tuple types ----------------------------------------------------------------
-//
-// Allows for selection of ValueTuple/RefTuple/ParamTuple without needing the
-// definitions of class types the tuple takes as parameters.
-
-template <typename T>
-struct TupleTypes;
-
-template <typename... Ts>
-struct TupleTypes<Tuple<Ts...>> {
-  using ValueTuple = Tuple<typename TupleTraits<Ts>::ValueType...>;
-  using RefTuple = Tuple<typename TupleTraits<Ts>::RefType...>;
-  using ParamTuple = Tuple<typename TupleTraits<Ts>::ParamType...>;
-};
 
 // Tuple creators -------------------------------------------------------------
 //

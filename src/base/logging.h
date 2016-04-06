@@ -430,7 +430,7 @@ const LogSeverity LOG_0 = LOG_ERROR;
 // boolean.
 class CheckOpResult {
  public:
-  // |message| must be null if and only if the check failed.
+  // |message| must be non-null if and only if the check failed.
   CheckOpResult(std::string* message) : message_(message) {}
   // Returns true if the check succeeded.
   operator bool() const { return !message_; }

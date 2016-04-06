@@ -348,7 +348,8 @@ QuicConfig::QuicConfig()
       initial_stream_flow_control_window_bytes_(kSFCW, PRESENCE_OPTIONAL),
       initial_session_flow_control_window_bytes_(kCFCW, PRESENCE_OPTIONAL),
       socket_receive_buffer_(kSRBF, PRESENCE_OPTIONAL),
-      multipath_enabled_(kMPTH, PRESENCE_OPTIONAL) {
+      multipath_enabled_(kMPTH, PRESENCE_OPTIONAL),
+      connection_migration_disabled_(kNCMR, PRESENCE_OPTIONAL) {
   SetDefaults();
 }
 
@@ -536,6 +537,14 @@ bool QuicConfig::MultipathEnabled() const {
   return multipath_enabled_.GetUint32() > 0;
 }
 
+void QuicConfig::SetDisableConnectionMigration() {
+  connection_migration_disabled_.SetSendValue(1);
+}
+
+bool QuicConfig::DisableConnectionMigration() const {
+  return connection_migration_disabled_.HasReceivedValue();
+}
+
 bool QuicConfig::negotiated() const {
   // TODO(ianswett): Add the negotiated parameters once and iterate over all
   // of them in negotiated, ToHandshakeMessage, ProcessClientHello, and
@@ -569,6 +578,7 @@ void QuicConfig::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
   initial_stream_flow_control_window_bytes_.ToHandshakeMessage(out);
   initial_session_flow_control_window_bytes_.ToHandshakeMessage(out);
   socket_receive_buffer_.ToHandshakeMessage(out);
+  connection_migration_disabled_.ToHandshakeMessage(out);
   connection_options_.ToHandshakeMessage(out);
 }
 
@@ -610,6 +620,10 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
   if (error == QUIC_NO_ERROR) {
     error = socket_receive_buffer_.ProcessPeerHello(peer_hello, hello_type,
                                                     error_details);
+  }
+  if (error == QUIC_NO_ERROR) {
+    error = connection_migration_disabled_.ProcessPeerHello(
+        peer_hello, hello_type, error_details);
   }
   if (error == QUIC_NO_ERROR) {
     error = connection_options_.ProcessPeerHello(peer_hello, hello_type,

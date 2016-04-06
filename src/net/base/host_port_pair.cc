@@ -10,6 +10,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "net/base/ip_endpoint.h"
+#include "net/base/parse_number.h"
 #include "net/base/port_util.h"
 #include "url/gurl.h"
 
@@ -37,7 +38,7 @@ HostPortPair HostPortPair::FromString(const std::string& str) {
   if (key_port.size() != 2)
     return HostPortPair();
   int port;
-  if (!base::StringToInt(key_port[1], &port))
+  if (!ParseNonNegativeDecimalInt(key_port[1], &port))
     return HostPortPair();
   if (!IsPortValid(port))
     return HostPortPair();

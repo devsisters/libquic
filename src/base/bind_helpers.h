@@ -28,6 +28,9 @@
 // argument will CHECK() because the first invocation would have already
 // transferred ownership to the target function.
 //
+// RetainedRef() accepts a ref counted object and retains a reference to it.
+// When the callback is called, the object is passed as a raw pointer.
+//
 // ConstRef() allows binding a constant reference to an argument rather
 // than a copy.
 //
@@ -71,6 +74,19 @@
 // Without Owned(), someone would have to know to delete |pn| when the last
 // reference to the Callback is deleted.
 //
+// EXAMPLE OF RetainedRef():
+//
+//    void foo(RefCountedBytes* bytes) {}
+//
+//    scoped_refptr<RefCountedBytes> bytes = ...;
+//    Closure callback = Bind(&foo, base::RetainedRef(bytes));
+//    callback.Run();
+//
+// Without RetainedRef, the scoped_refptr would try to implicitly convert to
+// a raw pointer and fail compilation:
+//
+//    Closure callback = Bind(&foo, bytes); // ERROR!
+//
 //
 // EXAMPLE OF ConstRef():
 //
@@ -105,10 +121,11 @@
 //
 // EXAMPLE OF Passed():
 //
-//   void TakesOwnership(scoped_ptr<Foo> arg) { }
-//   scoped_ptr<Foo> CreateFoo() { return scoped_ptr<Foo>(new Foo()); }
+//   void TakesOwnership(std::unique_ptr<Foo> arg) { }
+//   std::unique_ptr<Foo> CreateFoo() { return std::unique_ptr<Foo>(new Foo());
+//   }
 //
-//   scoped_ptr<Foo> f(new Foo());
+//   std::unique_ptr<Foo> f(new Foo());
 //
 //   // |cb| is given ownership of Foo(). |f| is now NULL.
 //   // You can use std::move(f) in place of &f, but it's more verbose.
@@ -150,7 +167,6 @@
 
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
-#include "base/template_util.h"
 #include "build/build_config.h"
 
 namespace base {
@@ -262,21 +278,21 @@ class SupportsAddRefAndRelease {
 // Helpers to assert that arguments of a recounted type are bound with a
 // scoped_refptr.
 template <bool IsClasstype, typename T>
-struct UnsafeBindtoRefCountedArgHelper : false_type {
+struct UnsafeBindtoRefCountedArgHelper : std::false_type {
 };
 
 template <typename T>
 struct UnsafeBindtoRefCountedArgHelper<true, T>
-    : integral_constant<bool, SupportsAddRefAndRelease<T>::value> {
+    : std::integral_constant<bool, SupportsAddRefAndRelease<T>::value> {
 };
 
 template <typename T>
-struct UnsafeBindtoRefCountedArg : false_type {
+struct UnsafeBindtoRefCountedArg : std::false_type {
 };
 
 template <typename T>
 struct UnsafeBindtoRefCountedArg<T*>
-    : UnsafeBindtoRefCountedArgHelper<is_class<T>::value, T> {
+    : UnsafeBindtoRefCountedArgHelper<std::is_class<T>::value, T> {
 };
 
 template <typename T>
@@ -313,6 +329,16 @@ class ConstRefWrapper {
 };
 
 template <typename T>
+class RetainedRefWrapper {
+ public:
+  explicit RetainedRefWrapper(T* o) : ptr_(o) {}
+  explicit RetainedRefWrapper(scoped_refptr<T> o) : ptr_(std::move(o)) {}
+  T* get() const { return ptr_.get(); }
+ private:
+  scoped_refptr<T> ptr_;
+};
+
+template <typename T>
 struct IgnoreResultHelper {
   explicit IgnoreResultHelper(T functor) : functor_(functor) {}
 
@@ -328,7 +354,7 @@ struct IgnoreResultHelper<Callback<T> > {
 
 // An alternate implementation is to avoid the destructive copy, and instead
 // specialize ParamTraits<> for OwnedWrapper<> to change the StorageType to
-// a class that is essentially a scoped_ptr<>.
+// a class that is essentially a std::unique_ptr<>.
 //
 // The current implementation has the benefit though of leaving ParamTraits<>
 // fully in callback_internal.h as well as avoiding type conversions during
@@ -406,7 +432,7 @@ const T& Unwrap(ConstRefWrapper<T> const_ref) {
 }
 
 template <typename T>
-T* Unwrap(const scoped_refptr<T>& o) {
+T* Unwrap(const RetainedRefWrapper<T>& o) {
   return o.get();
 }
 
@@ -433,14 +459,14 @@ T Unwrap(PassedWrapper<T>& o) {
 // The first argument should be the type of the object that will be received by
 // the method.
 template <bool IsMethod, typename... Args>
-struct IsWeakMethod : public false_type {};
+struct IsWeakMethod : public std::false_type {};
 
 template <typename T, typename... Args>
-struct IsWeakMethod<true, WeakPtr<T>, Args...> : public true_type {};
+struct IsWeakMethod<true, WeakPtr<T>, Args...> : public std::true_type {};
 
 template <typename T, typename... Args>
 struct IsWeakMethod<true, ConstRefWrapper<WeakPtr<T>>, Args...>
-    : public true_type {};
+    : public std::true_type {};
 
 
 // Packs a list of types to hold them in a single type.
@@ -546,6 +572,16 @@ static inline internal::UnretainedWrapper<T> Unretained(T* o) {
 }
 
 template <typename T>
+static inline internal::RetainedRefWrapper<T> RetainedRef(T* o) {
+  return internal::RetainedRefWrapper<T>(o);
+}
+
+template <typename T>
+static inline internal::RetainedRefWrapper<T> RetainedRef(scoped_refptr<T> o) {
+  return internal::RetainedRefWrapper<T>(std::move(o));
+}
+
+template <typename T>
 static inline internal::ConstRefWrapper<T> ConstRef(const T& o) {
   return internal::ConstRefWrapper<T>(o);
 }
@@ -563,15 +599,12 @@ static inline internal::OwnedWrapper<T> Owned(T* o) {
 // Both versions of Passed() prevent T from being an lvalue reference. The first
 // via use of enable_if, and the second takes a T* which will not bind to T&.
 template <typename T,
-          typename std::enable_if<internal::IsMoveOnlyType<T>::value &&
-                                  !std::is_lvalue_reference<T>::value>::type* =
+          typename std::enable_if<!std::is_lvalue_reference<T>::value>::type* =
               nullptr>
 static inline internal::PassedWrapper<T> Passed(T&& scoper) {
   return internal::PassedWrapper<T>(std::move(scoper));
 }
-template <typename T,
-          typename std::enable_if<internal::IsMoveOnlyType<T>::value>::type* =
-              nullptr>
+template <typename T>
 static inline internal::PassedWrapper<T> Passed(T* scoper) {
   return internal::PassedWrapper<T>(std::move(*scoper));
 }

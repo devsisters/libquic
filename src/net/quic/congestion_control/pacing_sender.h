@@ -55,10 +55,8 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
                     HasRetransmittableData is_retransmittable) override;
   void OnRetransmissionTimeout(bool packets_retransmitted) override;
   void OnConnectionMigration() override;
-  QuicTime::Delta TimeUntilSend(
-      QuicTime now,
-      QuicByteCount bytes_in_flight,
-      HasRetransmittableData has_retransmittable_data) const override;
+  QuicTime::Delta TimeUntilSend(QuicTime now,
+                                QuicByteCount bytes_in_flight) const override;
   QuicBandwidth PacingRate() const override;
   QuicBandwidth BandwidthEstimate() const override;
   QuicTime::Delta RetransmissionDelay() const override;

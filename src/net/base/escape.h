@@ -101,14 +101,6 @@ class UnescapeRule {
     // as much unescaping as possible.
     URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS = 1 << 3,
 
-    // A combination of URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS and
-    // PATH_SEPARATORS. Warning about the use of PATH_SEPARATORS also apply
-    // here.
-    // TODO(mmenke):  Audit all uses of this and replace with the above values,
-    // as needed.
-    URL_SPECIAL_CHARS =
-        PATH_SEPARATORS | URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS,
-
     // Unescapes characters that can be used in spoofing attempts (such as LOCK)
     // and control characters (such as BiDi control characters and %01).  This
     // INCLUDES NULLs.  This is used for rare cases such as data: URL decoding

@@ -125,7 +125,7 @@ void TcpCubicSenderBase::OnCongestionEvent(
   }
   for (CongestionVector::const_iterator it = lost_packets.begin();
        it != lost_packets.end(); ++it) {
-    OnPacketLost(it->first, bytes_in_flight);
+    OnPacketLost(it->first, it->second, bytes_in_flight);
   }
   for (CongestionVector::const_iterator it = acked_packets.begin();
        it != acked_packets.end(); ++it) {
@@ -175,13 +175,7 @@ bool TcpCubicSenderBase::OnPacketSent(
 
 QuicTime::Delta TcpCubicSenderBase::TimeUntilSend(
     QuicTime /* now */,
-    QuicByteCount bytes_in_flight,
-    HasRetransmittableData has_retransmittable_data) const {
-  if (has_retransmittable_data == NO_RETRANSMITTABLE_DATA) {
-    DCHECK(!FLAGS_quic_respect_send_alarm2);
-    // For TCP we can always send an ACK immediately.
-    return QuicTime::Delta::Zero();
-  }
+    QuicByteCount bytes_in_flight) const {
   if (InRecovery()) {
     // PRR is used when in recovery.
     return prr_.TimeUntilSend(GetCongestionWindow(), bytes_in_flight,

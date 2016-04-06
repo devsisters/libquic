@@ -402,6 +402,13 @@ TEST(URLCanonTest, Host) {
       // (added in Unicode 4.1). UTS 46 table 4 row (k)
     {"bc\xc8\xba.com", L"bc\x23a.com", "xn--bc-is1a.com",
       Component(0, 15), CanonHostInfo::NEUTRAL, -1, ""},
+      // Maps U+FF43 (Full Width Small Letter C) to 'c'.
+    {"ab\xef\xbd\x83.xyz", L"ab\xff43.xyz", "abc.xyz",
+      Component(0, 7), CanonHostInfo::NEUTRAL, -1, ""},
+      // Maps U+1D68C (Math Monospace Small C) to 'c'.
+      // U+1D68C = \xD835\xDE8C in UTF-16
+    {"ab\xf0\x9d\x9a\x8c.xyz", L"ab\xd835\xde8c.xyz", "abc.xyz",
+      Component(0, 7), CanonHostInfo::NEUTRAL, -1, ""},
       // BiDi check test
       // "Divehi" in Divehi (Thaana script) ends with BidiClass=NSM.
       // Disallowed in IDNA 2003 but now allowed in UTS 46/IDNA 2008.

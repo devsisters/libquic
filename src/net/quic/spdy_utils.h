@@ -30,7 +30,7 @@ class NET_EXPORT_PRIVATE SpdyUtils {
   // Returns true on success, false if parsing fails, or invalid keys are found.
   static bool ParseHeaders(const char* data,
                            uint32_t data_len,
-                           int* content_length,
+                           int64_t* content_length,
                            SpdyHeaderBlock* headers);
 
   // Parses |data| as a std::string containing serialized HTTP/2 HEADERS frame,

@@ -99,7 +99,7 @@ const PlatformThreadId kInvalidThreadId(0);
 
 // Valid values for priority of Thread::Options and SimpleThread::Options, and
 // SetCurrentThreadPriority(), listed in increasing order of importance.
-enum class ThreadPriority {
+enum class ThreadPriority : int {
   // Suitable for threads that shouldn't disrupt high priority work.
   BACKGROUND,
   // Default priority level.

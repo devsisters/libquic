@@ -3,10 +3,9 @@
 // found in the LICENSE file.
 //
 // Accumulates frames for the next packet until more frames no longer fit or
-// it's time to create a packet from them.  Also provides packet creation of
-// FEC packets based on previously created packets. If multipath enabled, only
-// creates packets on one path at the same time. Currently, next packet number
-// is tracked per-path.
+// it's time to create a packet from them. If multipath enabled, only creates
+// packets on one path at the same time. Currently, next packet number is
+// tracked per-path.
 
 #ifndef NET_QUIC_QUIC_PACKET_CREATOR_H_
 #define NET_QUIC_QUIC_PACKET_CREATOR_H_
@@ -21,7 +20,6 @@
 #include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
-#include "net/quic/quic_fec_group.h"
 #include "net/quic/quic_framer.h"
 #include "net/quic/quic_protocol.h"
 
@@ -49,10 +47,8 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
     // Called when an unrecoverable error is encountered.
     virtual void OnUnrecoverableError(QuicErrorCode error,
+                                      const std::string& error_details,
                                       ConnectionCloseSource source) = 0;
-
-    // Called when current FEC group is reset (closed).
-    virtual void OnResetFecGroup() = 0;
   };
 
   // Interface which gets callbacks from the QuicPacketCreator at interesting
@@ -75,27 +71,6 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
   ~QuicPacketCreator();
 
-  // Checks if it's time to send an FEC packet.  |force_close| forces this to
-  // return true if an FEC group is open.
-  bool ShouldSendFec(bool force_close) const;
-
-  // If ShouldSendFec returns true, serializes currently constructed FEC packet
-  // and calls the delegate on the packet. Resets current FEC group if FEC
-  // protection policy is FEC_ALARM_TRIGGER but |is_fec_timeout| is false.
-  // Also tries to turn off FEC protection if should_fec_protect_next_packet is
-  // false.
-  void MaybeSendFecPacketAndCloseGroup(bool force_send_fec,
-                                       bool is_fec_timeout);
-
-  // Returns true if an FEC packet is under construction.
-  bool IsFecGroupOpen() const;
-
-  // Called after sending |packet_number| to determine whether an FEC alarm
-  // should be set for sending out an FEC packet. Returns a positive and finite
-  // timeout if an FEC alarm should be set, and infinite if no alarm should be
-  // set.
-  QuicTime::Delta GetFecTimeout(QuicPacketNumber packet_number);
-
   // Makes the framer not serialize the protocol version in sent packets.
   void StopSendingVersion();
 
@@ -112,23 +87,20 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
       bool include_version,
       bool include_path_id,
       QuicPacketNumberLength packet_number_length,
-      QuicStreamOffset offset,
-      InFecGroup is_in_fec_group);
+      QuicStreamOffset offset);
 
   // Returns false and flushes all pending frames if current open packet is
   // full.
   // If current packet is not full, converts a raw payload into a stream frame
   // that fits into the open packet and adds it to the packet.
   // The payload begins at |iov_offset| into the |iov|.
-  // Also tries to start FEC protection depends on |fec_protection|.
   bool ConsumeData(QuicStreamId id,
                    QuicIOVector iov,
                    size_t iov_offset,
                    QuicStreamOffset offset,
                    bool fin,
                    bool needs_padding,
-                   QuicFrame* frame,
-                   FecProtection fec_protection);
+                   QuicFrame* frame);
 
   // Returns true if current open packet can accommodate more stream frames of
   // stream |id| at |offset|, false otherwise.
@@ -136,8 +108,6 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
   // Re-serializes frames with the original packet's packet number length.
   // Used for retransmitting packets to ensure they aren't too long.
-  // Caller must ensure that any open FEC group is closed before calling this
-  // method.
   void ReserializeAllFrames(const PendingRetransmission& retransmission,
                             char* buffer,
                             size_t buffer_len);
@@ -161,8 +131,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   // Returns the number of bytes that the packet will expand by if a new frame
   // is added to the packet. If the last frame was a stream frame, it will
   // expand slightly when a new frame is added, and this method returns the
-  // amount of expected expansion. If the packet is in an FEC group, no
-  // expansion happens and this method always returns zero.
+  // amount of expected expansion.
   size_t ExpansionOnNewFrame() const;
 
   // Returns the number of bytes in the current packet, including the header,
@@ -193,12 +162,6 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns a dummy packet that is valid but contains no useful information.
   static SerializedPacket NoPacket();
-
-  // Called when the congestion window has changed.
-  void OnCongestionWindowChange(QuicPacketCount max_packets_in_flight);
-
-  // Called when the RTT may have changed.
-  void OnRttChange(QuicTime::Delta rtt);
 
   // Sets the encryption level that will be applied to new packets.
   void set_encryption_level(EncryptionLevel level) {
@@ -236,34 +199,11 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
   // Sets the path on which subsequent packets will be created. It is the
   // caller's responsibility to guarantee no packet is under construction before
-  // calling this function. If |path_id| is different from current_path_, the
-  // FEC packet (if exists) will be sent and next_packet_number_length_ is
-  // recalculated.
+  // calling this function. If |path_id| is different from current_path_,
+  // next_packet_number_length_ is recalculated.
   void SetCurrentPath(QuicPathId path_id,
                       QuicPacketNumber least_packet_awaited_by_peer,
                       QuicPacketCount max_packets_in_flight);
-
-  // Returns current max number of packets covered by an FEC group.
-  size_t max_packets_per_fec_group() const {
-    return max_packets_per_fec_group_;
-  }
-
-  // Sets creator's max number of packets covered by an FEC group.
-  // Note: While there are no constraints on |max_packets_per_fec_group|,
-  // this setter enforces a min value of kLowestMaxPacketsPerFecGroup.
-  // To turn off FEC protection, use StopFecProtectingPackets().
-  void set_max_packets_per_fec_group(size_t max_packets_per_fec_group);
-
-  FecSendPolicy fec_send_policy() { return fec_send_policy_; }
-
-  void set_fec_send_policy(FecSendPolicy fec_send_policy) {
-    fec_send_policy_ = fec_send_policy;
-  }
-
-  void set_rtt_multiplier_for_fec_timeout(
-      float rtt_multiplier_for_fec_timeout) {
-    rtt_multiplier_for_fec_timeout_ = rtt_multiplier_for_fec_timeout;
-  }
 
   void set_debug_delegate(DebugDelegate* debug_delegate) {
     debug_delegate_ = debug_delegate;
@@ -295,18 +235,10 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
                            size_t length,
                            char* buffer);
 
-  // Updates lengths and also starts an FEC group if FEC protection is on and
-  // there is not already an FEC group open.
-  InFecGroup MaybeUpdateLengthsAndStartFec();
+  // Updates packet number length on packet boundary.
+  void MaybeUpdatePacketNumberLength();
 
-  // Called when a data packet is constructed that is part of an FEC group.
-  // |payload| is the non-encrypted FEC protected payload of the packet.
-  void OnBuiltFecProtectedPayload(const QuicPacketHeader& header,
-                                  base::StringPiece payload);
-
-  void FillPacketHeader(QuicFecGroupNumber fec_group,
-                        bool fec_flag,
-                        QuicPacketHeader* header);
+  void FillPacketHeader(QuicPacketHeader* header);
 
   // Adds a |frame| if there is space and returns false and flushes all pending
   // frames if there isn't room. If |save_retransmittable_frames| is true,
@@ -326,35 +258,11 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   void SerializePacket(char* encrypted_buffer, size_t buffer_len);
 
   // Called after a new SerialiedPacket is created to call the delegate's
-  // OnSerializedPacket, reset state, and potentially flush FEC groups.
+  // OnSerializedPacket and reset state.
   void OnSerializedPacket();
 
   // Clears all fields of packet_ that should be cleared between serializations.
   void ClearPacket();
-
-  // Turn on FEC protection for subsequent packets. If no FEC group is currently
-  // open, this method flushes current open packet and then turns FEC on.
-  void MaybeStartFecProtection();
-
-  // Turn on FEC protection for subsequently created packets. FEC should be
-  // enabled first (max_packets_per_fec_group should be non-zero) for FEC
-  // protection to start.
-  void StartFecProtectingPackets();
-
-  // Turn off FEC protection for subsequently created packets. If the creator
-  // has any open FEC group, call will fail. It is the caller's responsibility
-  // to flush out FEC packets in generation, and to verify with ShouldSendFec()
-  // that there is no open FEC group.
-  void StopFecProtectingPackets();
-
-  // Resets (closes) the FEC group. This method should only be called on a
-  // packet boundary.
-  void ResetFecGroup();
-
-  // Packetize FEC data. Sets the entropy hash of the serialized packet to a
-  // random bool.
-  // Fails if |buffer_len| isn't long enough for the encrypted packet.
-  void SerializeFec(char* buffer, size_t buffer_len);
 
   // Does not own these delegates or the framer.
   DelegateInterface* delegate_;
@@ -370,8 +278,8 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   bool send_path_id_in_packet_;
   // Staging variable to hold next packet number length. When sequence
   // number length is to be changed, this variable holds the new length until
-  // a packet or FEC group boundary, when the creator's packet_number_length_
-  // can be changed to this new value.
+  // a packet boundary, when the creator's packet_number_length_ can be changed
+  // to this new value.
   QuicPacketNumberLength next_packet_number_length_;
   // Maximum length including headers and encryption (UDP payload length.)
   QuicByteCount max_packet_length_;
@@ -393,28 +301,6 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
   // Map mapping path_id to last sent packet number on the path.
   std::unordered_map<QuicPathId, QuicPacketNumber> multipath_packet_number_;
-
-  // FEC related fields.
-  // True when creator is requested to turn on FEC protection. False otherwise.
-  // There is a time difference between should_fec_protect_next_packet_ is
-  // true/false and FEC is actually turned on/off (e.g., The creator may have an
-  // open FEC group even if this variable is false).
-  bool should_fec_protect_next_packet_;
-  // If true, any created packets will be FEC protected.
-  // TODO(fayang): Combine should_fec_protect_next_packet and fec_protect_ to
-  // one variable.
-  bool fec_protect_;
-  scoped_ptr<QuicFecGroup> fec_group_;
-  // 0 indicates FEC is disabled.
-  size_t max_packets_per_fec_group_;
-  // FEC policy that specifies when to send FEC packet.
-  FecSendPolicy fec_send_policy_;
-  // Timeout used for FEC alarm. Can be set to zero initially or if the SRTT has
-  // not yet been set.
-  QuicTime::Delta fec_timeout_;
-  // The multiplication factor for FEC timeout based on RTT.
-  // TODO(rtenneti): Delete this code after the 0.25 RTT FEC experiment.
-  float rtt_multiplier_for_fec_timeout_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicPacketCreator);
 };

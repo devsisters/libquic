@@ -29,7 +29,7 @@ class NET_EXPORT_PRIVATE KeyExchange {
   // CalculateSharedKey computes the shared key between the local private key
   // (which is implicitly known by a KeyExchange object) and a public value
   // from the peer.
-  virtual bool CalculateSharedKey(const base::StringPiece& peer_public_value,
+  virtual bool CalculateSharedKey(base::StringPiece peer_public_value,
                                   std::string* shared_key) const = 0;
 
   // public_value returns the local public key which can be sent to a peer in

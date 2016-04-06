@@ -48,7 +48,7 @@ JSONStringValueDeserializer::JSONStringValueDeserializer(
 
 JSONStringValueDeserializer::~JSONStringValueDeserializer() {}
 
-scoped_ptr<Value> JSONStringValueDeserializer::Deserialize(
+std::unique_ptr<Value> JSONStringValueDeserializer::Deserialize(
     int* error_code,
     std::string* error_str) {
   return base::JSONReader::ReadAndReturnError(

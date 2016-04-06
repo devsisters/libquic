@@ -25,6 +25,7 @@
 #include "net/quic/crypto/crypto_protocol.h"
 #include "net/quic/crypto/crypto_secret_boxer.h"
 #include "net/quic/crypto/proof_source.h"
+#include "net/quic/crypto/quic_compressed_certs_cache.h"
 #include "net/quic/proto/cached_network_parameters.pb.h"
 #include "net/quic/proto/source_address_token.pb.h"
 #include "net/quic/quic_time.h"
@@ -124,6 +125,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // ConfigOptions contains options for generating server configs.
   struct NET_EXPORT_PRIVATE ConfigOptions {
     ConfigOptions();
+    ConfigOptions(const ConfigOptions& other);
 
     // expiry_time is the time, in UNIX seconds, when the server config will
     // expire. If unset, it defaults to the current time plus six months.
@@ -256,6 +258,8 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   //     supports.
   // clock: used to validate client nonces and ephemeral keys.
   // rand: an entropy source
+  // compressed_certs_cache: the cache that caches a set of most recently used
+  //     certs. Owned by QuicDispatcher.
   // params: the state of the handshake. This may be updated with a server
   //     nonce when we send a rejection. After a successful handshake, this will
   //     contain the state of the connection.
@@ -274,6 +278,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
       QuicConnectionId server_designated_connection_id,
       const QuicClock* clock,
       QuicRandom* rand,
+      QuicCompressedCertsCache* compressed_certs_cache,
       QuicCryptoNegotiatedParameters* params,
       QuicCryptoProof* crypto_proof,
       CryptoHandshakeMessage* out,
@@ -292,6 +297,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
       const IPAddress& client_ip,
       const QuicClock* clock,
       QuicRandom* rand,
+      QuicCompressedCertsCache* compressed_certs_cache,
       const QuicCryptoNegotiatedParameters& params,
       const CachedNetworkParameters* cached_network_params,
       CryptoHandshakeMessage* out) const;
@@ -473,9 +479,22 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
                       bool use_stateless_rejects,
                       QuicConnectionId server_designated_connection_id,
                       QuicRandom* rand,
+                      QuicCompressedCertsCache* compressed_certs_cache,
                       QuicCryptoNegotiatedParameters* params,
                       const QuicCryptoProof& crypto_proof,
                       CryptoHandshakeMessage* out) const;
+
+  // CompressChain compresses the certificates in |chain->certs| and returns a
+  // compressed representation. |common_sets| contains the common certificate
+  // sets known locally and |client_common_set_hashes| contains the hashes of
+  // the common sets known to the peer. |client_cached_cert_hashes| contains
+  // 64-bit, FNV-1a hashes of certificates that the peer already possesses.
+  const std::string CompressChain(
+      QuicCompressedCertsCache* compressed_certs_cache,
+      const scoped_refptr<ProofSource::Chain>& chain,
+      const std::string& client_common_set_hashes,
+      const std::string& client_cached_cert_hashes,
+      const CommonCertSets* common_sets) const;
 
   // ParseConfigProtobuf parses the given config protobuf and returns a
   // scoped_refptr<Config> if successful. The caller adopts the reference to the

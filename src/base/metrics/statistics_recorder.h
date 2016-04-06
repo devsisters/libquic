@@ -63,6 +63,8 @@ class BASE_EXPORT StatisticsRecorder {
     const bool include_persistent_;
   };
 
+  ~StatisticsRecorder();
+
   // Initializes the StatisticsRecorder system. Safe to call multiple times.
   static void Initialize();
 
@@ -130,6 +132,9 @@ class BASE_EXPORT StatisticsRecorder {
   // histogram. This method is thread safe.
   static OnSampleCallback FindCallback(const std::string& histogram_name);
 
+  // Returns the number of known histograms.
+  static size_t GetHistogramCount();
+
   // Clears all of the known histograms and resets static variables to a
   // state that allows a new initialization.
   static void ResetForTesting();
@@ -162,9 +167,8 @@ class BASE_EXPORT StatisticsRecorder {
 
   // The constructor just initializes static members. Usually client code should
   // use Initialize to do this. But in test code, you can friend this class and
-  // call destructor/constructor to get a clean StatisticsRecorder.
+  // call the constructor to get a clean StatisticsRecorder.
   StatisticsRecorder();
-  ~StatisticsRecorder();
 
   static void Reset();
   static void DumpHistogramsToVlog(void* instance);

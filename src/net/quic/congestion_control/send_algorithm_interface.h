@@ -80,8 +80,7 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
   // Calculate the time until we can send the next packet.
   virtual QuicTime::Delta TimeUntilSend(
       QuicTime now,
-      QuicByteCount bytes_in_flight,
-      HasRetransmittableData has_retransmittable_data) const = 0;
+      QuicByteCount bytes_in_flight) const = 0;
 
   // The pacing rate of the send algorithm.  May be zero if the rate is unknown.
   virtual QuicBandwidth PacingRate() const = 0;

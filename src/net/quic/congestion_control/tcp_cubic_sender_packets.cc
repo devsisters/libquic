@@ -80,16 +80,29 @@ void TcpCubicSenderPackets::ExitSlowstart() {
 }
 
 void TcpCubicSenderPackets::OnPacketLost(QuicPacketNumber packet_number,
+                                         QuicByteCount lost_bytes,
                                          QuicByteCount bytes_in_flight) {
   // TCP NewReno (RFC6582) says that once a loss occurs, any losses in packets
   // already sent should be treated as a single loss event, since it's expected.
   if (packet_number <= largest_sent_at_last_cutback_) {
     if (last_cutback_exited_slowstart_) {
       ++stats_->slowstart_packets_lost;
+      stats_->slowstart_bytes_lost += lost_bytes;
       if (slow_start_large_reduction_) {
-        // Reduce congestion window by 1 for every loss.
-        congestion_window_ =
-            max(congestion_window_ - 1, min_congestion_window_);
+        if (FLAGS_quic_sslr_byte_conservation) {
+          if (stats_->slowstart_packets_lost == 1 ||
+              (stats_->slowstart_bytes_lost / kDefaultTCPMSS) >
+                  (stats_->slowstart_bytes_lost - lost_bytes) /
+                      kDefaultTCPMSS) {
+            // Reduce congestion window by 1 for every mss of bytes lost.
+            congestion_window_ =
+                max(congestion_window_ - 1, min_congestion_window_);
+          }
+        } else {
+          // Reduce congestion window by 1 for every loss.
+          congestion_window_ =
+              max(congestion_window_ - 1, min_congestion_window_);
+        }
         slowstart_threshold_ = congestion_window_;
       }
     }

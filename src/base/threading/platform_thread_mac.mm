@@ -15,6 +15,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/mac/foundation_util.h"
 #include "base/mac/mach_logging.h"
 #include "base/threading/thread_id_name_manager.h"
 #if 0
@@ -23,6 +24,10 @@
 #include "build/build_config.h"
 
 namespace base {
+
+namespace {
+NSString* const kThreadPriorityKey = @"CrThreadPriorityKey";
+}  // namespace
 
 // If Cocoa is to be used on more than one thread, it must know that the
 // application is multithreaded.  Since it's possible to enter Cocoa code
@@ -168,21 +173,41 @@ void PlatformThread::SetCurrentThreadPriority(ThreadPriority priority) {
 
   switch (priority) {
     case ThreadPriority::NORMAL:
+    case ThreadPriority::BACKGROUND:
+    case ThreadPriority::DISPLAY:
+      // Add support for non-NORMAL thread priorities. https://crbug.com/554651
       SetPriorityNormal(mach_thread_id);
       break;
     case ThreadPriority::REALTIME_AUDIO:
       SetPriorityRealtimeAudio(mach_thread_id);
       break;
-    default:
-      NOTREACHED() << "Unknown priority.";
-      break;
   }
+
+  [[[NSThread currentThread] threadDictionary]
+      setObject:@(static_cast<int>(priority))
+         forKey:kThreadPriorityKey];
 }
 
 // static
 ThreadPriority PlatformThread::GetCurrentThreadPriority() {
-  NOTIMPLEMENTED();
-  return ThreadPriority::NORMAL;
+  NSNumber* priority = base::mac::ObjCCast<NSNumber>([[[NSThread currentThread]
+      threadDictionary] objectForKey:kThreadPriorityKey]);
+
+  if (!priority)
+    return ThreadPriority::NORMAL;
+
+  ThreadPriority thread_priority =
+      static_cast<ThreadPriority>(priority.intValue);
+  switch (thread_priority) {
+    case ThreadPriority::BACKGROUND:
+    case ThreadPriority::NORMAL:
+    case ThreadPriority::DISPLAY:
+    case ThreadPriority::REALTIME_AUDIO:
+      return thread_priority;
+    default:
+      NOTREACHED() << "Unknown priority.";
+      return ThreadPriority::NORMAL;
+  }
 }
 
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {

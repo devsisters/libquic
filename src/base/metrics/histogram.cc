@@ -18,9 +18,10 @@
 #include "base/compiler_specific.h"
 #include "base/debug/alias.h"
 #include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/metrics/histogram_persistence.h"
 #include "base/metrics/metrics_hashes.h"
+#include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/metrics/sample_vector.h"
 #include "base/metrics/statistics_recorder.h"
@@ -122,15 +123,14 @@ class Histogram::Factory {
 
   // Allocate the correct Histogram object off the heap (in case persistent
   // memory is not available).
-  virtual HistogramBase* HeapAlloc(const BucketRanges* ranges) {
-    return new Histogram(name_, minimum_, maximum_, ranges);
+  virtual std::unique_ptr<HistogramBase> HeapAlloc(const BucketRanges* ranges) {
+    return WrapUnique(new Histogram(name_, minimum_, maximum_, ranges));
   }
 
   // Perform any required datafill on the just-created histogram.  If
-  // overridden, be sure to call the "super" version.
-  virtual void FillHistogram(HistogramBase* histogram) {
-    histogram->SetFlags(flags_);
-  }
+  // overridden, be sure to call the "super" version -- this method may not
+  // always remain empty.
+  virtual void FillHistogram(HistogramBase* histogram) {}
 
   // These values are protected (instead of private) because they need to
   // be accessible to methods of sub-classes in order to avoid passing
@@ -151,26 +151,13 @@ HistogramBase* Histogram::Factory::Build() {
   // been added by other processes and they must be fetched and recognized
   // locally in order to be found by FindHistograms() below. If the persistent
   // memory segment is not shared between processes, this call does nothing.
-  ImportPersistentHistograms();
+  PersistentHistogramAllocator::ImportGlobalHistograms();
 
   HistogramBase* histogram = StatisticsRecorder::FindHistogram(name_);
-
-  // crbug.com/588946 debugging. See comment at end of function.
-  const BucketRanges* created_ranges =
-      reinterpret_cast<const BucketRanges*>(0xDEADBEEF);
-  const BucketRanges* registered_ranges =
-      reinterpret_cast<const BucketRanges*>(0xDEADBEEF);
-  HistogramBase* tentative_histogram =
-      reinterpret_cast<HistogramBase*>(0xDEADBEEF);
-  PersistentMemoryAllocator* allocator =
-      reinterpret_cast<PersistentMemoryAllocator*>(0xDEADBEEF);
-  PersistentMemoryAllocator::Reference histogram_ref = 0xDEADBEEF;
-  bool bad_args = false;
-
   if (!histogram) {
     // To avoid racy destruction at shutdown, the following will be leaked.
-    created_ranges = CreateRanges();
-    registered_ranges =
+    const BucketRanges* created_ranges = CreateRanges();
+    const BucketRanges* registered_ranges =
         StatisticsRecorder::RegisterOrDeleteDuplicateRanges(created_ranges);
 
     // In most cases, the bucket-count, minimum, and maximum values are known
@@ -185,18 +172,16 @@ HistogramBase* Histogram::Factory::Build() {
     }
 
     // Try to create the histogram using a "persistent" allocator. As of
-    // 2015-01-14, the availability of such is controlled by a base::Feature
+    // 2016-02-25, the availability of such is controlled by a base::Feature
     // that is off by default. If the allocator doesn't exist or if
     // allocating from it fails, code below will allocate the histogram from
     // the process heap.
-    histogram_ref = 0;
-    tentative_histogram = nullptr;
-    allocator =
-        GetPersistentHistogramMemoryAllocator();
+    PersistentHistogramAllocator::Reference histogram_ref = 0;
+    std::unique_ptr<HistogramBase> tentative_histogram;
+    PersistentHistogramAllocator* allocator =
+        PersistentHistogramAllocator::GetGlobalAllocator();
     if (allocator) {
-      flags_ |= HistogramBase::kIsPersistent;
-      tentative_histogram = AllocatePersistentHistogram(
-          allocator,
+      tentative_histogram = allocator->AllocateHistogram(
           histogram_type_,
           name_,
           minimum_,
@@ -213,20 +198,33 @@ HistogramBase* Histogram::Factory::Build() {
       DCHECK(!allocator);  // Shouldn't have failed.
       flags_ &= ~HistogramBase::kIsPersistent;
       tentative_histogram = HeapAlloc(registered_ranges);
+      tentative_histogram->SetFlags(flags_);
     }
 
-    FillHistogram(tentative_histogram);
-    histogram =
-        StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
+    FillHistogram(tentative_histogram.get());
+
+    // Register this histogram with the StatisticsRecorder. Keep a copy of
+    // the pointer value to tell later whether the locally created histogram
+    // was registered or deleted. The type is "void" because it could point
+    // to released memory after the following line.
+    const void* tentative_histogram_ptr = tentative_histogram.get();
+    histogram = StatisticsRecorder::RegisterOrDeleteDuplicate(
+        tentative_histogram.release());
 
     // Persistent histograms need some follow-up processing.
     if (histogram_ref) {
-      FinalizePersistentHistogram(histogram_ref,
-                                  histogram == tentative_histogram);
+      allocator->FinalizeHistogram(histogram_ref,
+                                   histogram == tentative_histogram_ptr);
     }
+
+    // Update report on created histograms.
+    ReportHistogramActivity(*histogram, HISTOGRAM_CREATED);
+  } else {
+    // Update report on lookup histograms.
+    ReportHistogramActivity(*histogram, HISTOGRAM_LOOKUP);
   }
 
-  DCHECK_EQ(histogram_type_, histogram->GetHistogramType());
+  DCHECK_EQ(histogram_type_, histogram->GetHistogramType()) << name_;
   if (bucket_count_ != 0 &&
       !histogram->HasConstructionArguments(minimum_, maximum_, bucket_count_)) {
     // The construction arguments do not match the existing histogram.  This can
@@ -236,38 +234,8 @@ HistogramBase* Histogram::Factory::Build() {
     // on dereference, but extension/Pepper APIs will guard against NULL and not
     // crash.
     DLOG(ERROR) << "Histogram " << name_ << " has bad construction arguments";
-    bad_args = true;
-    histogram = nullptr;
+    return nullptr;
   }
-
-#if !DCHECK_IS_ON()  // Don't affect tests, only release builds.
-  // For the moment, crash here so that collected crash reports have access
-  // to the construction values in order to figure out why this is failing.
-  // TODO(bcwhite): Remove this once crbug.com/588946 is resolved. Also remove
-  // from beta-branch because we don't want crashes due to misbehaving
-  // extensions (see comment above).
-  if (!histogram) {
-    HistogramType histogram_type = histogram_type_;
-    HistogramBase::Sample minimum = minimum_;
-    HistogramBase::Sample maximum = maximum_;
-    uint32_t bucket_count = bucket_count_;
-    int32_t flags = flags_;
-    CHECK(histogram) << name_ << ": bad-args=" << bad_args;
-    base::debug::Alias(&histogram_type);
-    base::debug::Alias(&minimum);
-    base::debug::Alias(&maximum);
-    base::debug::Alias(&bucket_count);
-    base::debug::Alias(&flags);
-    base::debug::Alias(&created_ranges);
-    base::debug::Alias(&registered_ranges);
-    base::debug::Alias(&histogram_ref);
-    base::debug::Alias(&tentative_histogram);
-    base::debug::Alias(&allocator);
-    base::debug::Alias(&tentative_histogram);
-  }
-#endif
-
-  base::debug::Alias(&bad_args);  // Down here so var is always "used".
   return histogram;
 }
 
@@ -310,7 +278,7 @@ HistogramBase* Histogram::FactoryTimeGet(const char* name,
                         flags);
 }
 
-HistogramBase* Histogram::PersistentGet(
+std::unique_ptr<HistogramBase> Histogram::PersistentCreate(
     const std::string& name,
     Sample minimum,
     Sample maximum,
@@ -320,8 +288,9 @@ HistogramBase* Histogram::PersistentGet(
     uint32_t counts_size,
     HistogramSamples::Metadata* meta,
     HistogramSamples::Metadata* logged_meta) {
-  return new Histogram(name, minimum, maximum, ranges, counts, logged_counts,
-                       counts_size, meta, logged_meta);
+  return WrapUnique(new Histogram(name, minimum, maximum, ranges, counts,
+                                        logged_counts, counts_size, meta,
+                                        logged_meta));
 }
 
 // Calculate what range of values are held in each bucket.
@@ -472,12 +441,12 @@ void Histogram::AddCount(int value, int count) {
   FindAndRunCallback(value);
 }
 
-scoped_ptr<HistogramSamples> Histogram::SnapshotSamples() const {
+std::unique_ptr<HistogramSamples> Histogram::SnapshotSamples() const {
   return SnapshotSampleVector();
 }
 
-scoped_ptr<HistogramSamples> Histogram::SnapshotDelta() {
-  scoped_ptr<HistogramSamples> snapshot = SnapshotSampleVector();
+std::unique_ptr<HistogramSamples> Histogram::SnapshotDelta() {
+  std::unique_ptr<HistogramSamples> snapshot = SnapshotSampleVector();
   if (!logged_samples_) {
     // If nothing has been previously logged, save this one as
     // |logged_samples_| and gather another snapshot to return.
@@ -607,8 +576,8 @@ HistogramBase* Histogram::DeserializeInfoImpl(PickleIterator* iter) {
   return histogram;
 }
 
-scoped_ptr<SampleVector> Histogram::SnapshotSampleVector() const {
-  scoped_ptr<SampleVector> samples(
+std::unique_ptr<SampleVector> Histogram::SnapshotSampleVector() const {
+  std::unique_ptr<SampleVector> samples(
       new SampleVector(samples_->id(), bucket_ranges()));
   samples->Add(*samples_);
   return samples;
@@ -619,7 +588,7 @@ void Histogram::WriteAsciiImpl(bool graph_it,
                                std::string* output) const {
   // Get local (stack) copies of all effectively volatile class data so that we
   // are consistent across our output activities.
-  scoped_ptr<SampleVector> snapshot = SnapshotSampleVector();
+  std::unique_ptr<SampleVector> snapshot = SnapshotSampleVector();
   Count sample_count = snapshot->TotalCount();
 
   WriteAsciiHeader(*snapshot, sample_count, output);
@@ -732,14 +701,14 @@ void Histogram::GetParameters(DictionaryValue* params) const {
 void Histogram::GetCountAndBucketData(Count* count,
                                       int64_t* sum,
                                       ListValue* buckets) const {
-  scoped_ptr<SampleVector> snapshot = SnapshotSampleVector();
+  std::unique_ptr<SampleVector> snapshot = SnapshotSampleVector();
   *count = snapshot->TotalCount();
   *sum = snapshot->sum();
   uint32_t index = 0;
   for (uint32_t i = 0; i < bucket_count(); ++i) {
     Sample count_at_index = snapshot->GetCountAtIndex(i);
     if (count_at_index > 0) {
-      scoped_ptr<DictionaryValue> bucket_value(new DictionaryValue());
+      std::unique_ptr<DictionaryValue> bucket_value(new DictionaryValue());
       bucket_value->SetInteger("low", ranges(i));
       if (i != bucket_count() - 1)
         bucket_value->SetInteger("high", ranges(i + 1));
@@ -775,8 +744,10 @@ class LinearHistogram::Factory : public Histogram::Factory {
     return ranges;
   }
 
-  HistogramBase* HeapAlloc(const BucketRanges* ranges) override {
-    return new LinearHistogram(name_, minimum_, maximum_, ranges);
+  std::unique_ptr<HistogramBase> HeapAlloc(
+      const BucketRanges* ranges) override {
+    return WrapUnique(
+        new LinearHistogram(name_, minimum_, maximum_, ranges));
   }
 
   void FillHistogram(HistogramBase* base_histogram) override {
@@ -835,7 +806,7 @@ HistogramBase* LinearHistogram::FactoryTimeGet(const char* name,
                         flags);
 }
 
-HistogramBase* LinearHistogram::PersistentGet(
+std::unique_ptr<HistogramBase> LinearHistogram::PersistentCreate(
     const std::string& name,
     Sample minimum,
     Sample maximum,
@@ -845,8 +816,9 @@ HistogramBase* LinearHistogram::PersistentGet(
     uint32_t counts_size,
     HistogramSamples::Metadata* meta,
     HistogramSamples::Metadata* logged_meta) {
-  return new LinearHistogram(name, minimum, maximum, ranges, counts,
-                             logged_counts, counts_size, meta, logged_meta);
+  return WrapUnique(new LinearHistogram(name, minimum, maximum, ranges,
+                                              counts, logged_counts,
+                                              counts_size, meta, logged_meta));
 }
 
 HistogramBase* LinearHistogram::FactoryGetWithRangeDescription(
@@ -964,8 +936,9 @@ class BooleanHistogram::Factory : public Histogram::Factory {
     return ranges;
   }
 
-  HistogramBase* HeapAlloc(const BucketRanges* ranges) override {
-    return new BooleanHistogram(name_, ranges);
+  std::unique_ptr<HistogramBase> HeapAlloc(
+      const BucketRanges* ranges) override {
+    return WrapUnique(new BooleanHistogram(name_, ranges));
   }
 
  private:
@@ -981,15 +954,15 @@ HistogramBase* BooleanHistogram::FactoryGet(const char* name, int32_t flags) {
   return FactoryGet(std::string(name), flags);
 }
 
-HistogramBase* BooleanHistogram::PersistentGet(
+std::unique_ptr<HistogramBase> BooleanHistogram::PersistentCreate(
     const std::string& name,
     const BucketRanges* ranges,
     HistogramBase::AtomicCount* counts,
     HistogramBase::AtomicCount* logged_counts,
     HistogramSamples::Metadata* meta,
     HistogramSamples::Metadata* logged_meta) {
-  return new BooleanHistogram(name, ranges, counts, logged_counts, meta,
-                              logged_meta);
+  return WrapUnique(new BooleanHistogram(
+      name, ranges, counts, logged_counts, meta, logged_meta));
 }
 
 HistogramType BooleanHistogram::GetHistogramType() const {
@@ -1061,8 +1034,9 @@ class CustomHistogram::Factory : public Histogram::Factory {
     return bucket_ranges;
   }
 
-  HistogramBase* HeapAlloc(const BucketRanges* ranges) override {
-    return new CustomHistogram(name_, ranges);
+  std::unique_ptr<HistogramBase> HeapAlloc(
+      const BucketRanges* ranges) override {
+    return WrapUnique(new CustomHistogram(name_, ranges));
   }
 
  private:
@@ -1087,7 +1061,7 @@ HistogramBase* CustomHistogram::FactoryGet(
   return FactoryGet(std::string(name), custom_ranges, flags);
 }
 
-HistogramBase* CustomHistogram::PersistentGet(
+std::unique_ptr<HistogramBase> CustomHistogram::PersistentCreate(
     const std::string& name,
     const BucketRanges* ranges,
     HistogramBase::AtomicCount* counts,
@@ -1095,8 +1069,8 @@ HistogramBase* CustomHistogram::PersistentGet(
     uint32_t counts_size,
     HistogramSamples::Metadata* meta,
     HistogramSamples::Metadata* logged_meta) {
-  return new CustomHistogram(name, ranges, counts, logged_counts, counts_size,
-                             meta, logged_meta);
+  return WrapUnique(new CustomHistogram(
+      name, ranges, counts, logged_counts, counts_size, meta, logged_meta));
 }
 
 HistogramType CustomHistogram::GetHistogramType() const {

@@ -40,8 +40,8 @@ class NET_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
   bool SetNoncePrefix(base::StringPiece nonce_prefix) override;
   bool DecryptPacket(QuicPathId path_id,
                      QuicPacketNumber packet_number,
-                     const base::StringPiece& associated_data,
-                     const base::StringPiece& ciphertext,
+                     base::StringPiece associated_data,
+                     base::StringPiece ciphertext,
                      char* output,
                      size_t* output_length,
                      size_t max_output_length) override;
@@ -65,7 +65,7 @@ class NET_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
   };
 
   virtual void FillAeadParams(base::StringPiece nonce,
-                              const base::StringPiece& associated_data,
+                              base::StringPiece associated_data,
                               size_t auth_tag_size,
                               AeadParams* aead_params) const = 0;
 #endif  // !defined(USE_OPENSSL)

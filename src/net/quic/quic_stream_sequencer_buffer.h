@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_QUIC_STREAM_SEQUENCER_BUFFER_H_
-#define NET_QUIC_STREAM_SEQUENCER_BUFFER_H_
+#ifndef NET_QUIC_QUIC_STREAM_SEQUENCER_BUFFER_H_
+#define NET_QUIC_QUIC_STREAM_SEQUENCER_BUFFER_H_
 
-// StreamSequencerBuffer implements QuicStreamSequencerBufferInterface.
+// QuicStreamSequencerBuffer implements QuicStreamSequencerBufferInterface.
 // It is a circular stream buffer with random write and
 // in-sequence read. It consists of a vector of pointers pointing
 // to memory blocks created as needed and a list of Gaps to indicate
@@ -20,14 +20,14 @@
 //
 // This class is thread-unsafe.
 //
-// StreamSequencerBuffer maintains a concept of the readable region, which
+// QuicStreamSequencerBuffer maintains a concept of the readable region, which
 // contains all written data that has not been read.
 // It promises stability of the underlying memory addresses in the readable
 // region, so pointers into it can be maintained, and the offset of a pointer
 // from the start of the read region can be calculated.
 //
 // Expected Use:
-//  StreamSequencerBuffer buffer(2.5 * 8 * 1024);
+//  QuicStreamSequencerBuffer buffer(2.5 * 8 * 1024);
 //  std::string source(1024, 'a');
 //  base::StringPiece std::string_piece(source.data(), source.size());
 //  size_t written = 0;
@@ -68,20 +68,20 @@
 
 #include "base/macros.h"
 #include "net/quic/quic_protocol.h"
-#include "net/quic/quic_stream_sequencer_buffer_interface.h"
+
+using base::StringPiece;
 
 namespace net {
 
 namespace test {
-class StreamSequencerBufferPeer;
+class QuicStreamSequencerBufferPeer;
 }  // namespace test
 
-class NET_EXPORT_PRIVATE StreamSequencerBuffer
-    : public QuicStreamSequencerBufferInterface {
+class NET_EXPORT_PRIVATE QuicStreamSequencerBuffer {
  public:
   // A Gap indicates a missing chunk of bytes between
   // [begin_offset, end_offset) in the stream
-  struct Gap {
+  struct NET_EXPORT_PRIVATE Gap {
     Gap(QuicStreamOffset begin_offset, QuicStreamOffset end_offset);
     QuicStreamOffset begin_offset;
     QuicStreamOffset end_offset;
@@ -106,28 +106,65 @@ class NET_EXPORT_PRIVATE StreamSequencerBuffer
     char buffer[kBlockSizeBytes];
   };
 
-  explicit StreamSequencerBuffer(size_t max_capacity_bytes);
+  explicit QuicStreamSequencerBuffer(size_t max_capacity_bytes);
+  ~QuicStreamSequencerBuffer();
 
-  ~StreamSequencerBuffer() override;
+  // Free the space used to buffer data.
+  void Clear();
 
-  // QuicStreamSequencerBufferInterface implementation.
-  void Clear() override;
-  bool Empty() const override;
+  // Returns true if there is nothing to read in this buffer.
+  bool Empty() const;
+
+  // Called to buffer new data received for this stream.  If the data was
+  // successfully buffered, returns QUIC_NO_ERROR and stores the number of
+  // bytes buffered in |bytes_buffered|. Returns an error otherwise.
+  // |timestamp| is the time the data arrived.
   QuicErrorCode OnStreamData(QuicStreamOffset offset,
                              base::StringPiece data,
                              QuicTime timestamp,
-                             size_t* bytes_buffered) override;
-  size_t Readv(const struct iovec* dest_iov, size_t dest_count) override;
-  int GetReadableRegions(struct iovec* iov, int iov_len) const override;
-  bool GetReadableRegion(iovec* iov, QuicTime* timestamp) const override;
-  bool MarkConsumed(size_t bytes_buffered) override;
-  size_t FlushBufferedFrames() override;
-  bool HasBytesToRead() const override;
-  QuicStreamOffset BytesConsumed() const override;
-  size_t BytesBuffered() const override;
+                             size_t* bytes_buffered,
+                             std::string* error_details);
+
+  // Reads from this buffer into given iovec array, up to number of iov_len
+  // iovec objects and returns the number of bytes read.
+  size_t Readv(const struct iovec* dest_iov, size_t dest_count);
+
+  // Returns the readable region of valid data in iovec format. The readable
+  // region is the buffer region where there is valid data not yet read by
+  // client.
+  // Returns the number of iovec entries in |iov| which were populated.
+  // If the region is empty, one iovec entry with 0 length
+  // is returned, and the function returns 0. If there are more readable
+  // regions than iov_size, the function only processes the first
+  // iov_size of them.
+  int GetReadableRegions(struct iovec* iov, int iov_len) const;
+
+  // Fills in one iovec with data which all arrived at the same time from the
+  // next readable region.
+  // Populates |timestamp| with the time that this data arrived.
+  // Returns false if there is no readable region available.
+  bool GetReadableRegion(iovec* iov, QuicTime* timestamp) const;
+
+  // Called after GetReadableRegions() to free up |bytes_used| space if these
+  // bytes are processed.
+  // Pre-requisite: bytes_used <= available bytes to read.
+  bool MarkConsumed(size_t bytes_buffered);
+
+  // Deletes and records as consumed any buffered data and clear the buffer.
+  // (To be called only after sequencer's StopReading has been called.)
+  size_t FlushBufferedFrames();
+
+  // Whether there are bytes can be read out.
+  bool HasBytesToRead() const;
+
+  // Count how many bytes have been consumed (read out of buffer).
+  QuicStreamOffset BytesConsumed() const;
+
+  // Count how many bytes are in buffer at this moment.
+  size_t BytesBuffered() const;
 
  private:
-  friend class test::StreamSequencerBufferPeer;
+  friend class test::QuicStreamSequencerBufferPeer;
 
   // Dispose the given buffer block.
   // After calling this method, blocks_[index] is set to nullptr
@@ -196,8 +233,8 @@ class NET_EXPORT_PRIVATE StreamSequencerBuffer
   // Stores all the buffered frames' start offset, length and arrival time.
   std::map<QuicStreamOffset, FrameInfo> frame_arrival_time_map_;
 
-  DISALLOW_COPY_AND_ASSIGN(StreamSequencerBuffer);
+  DISALLOW_COPY_AND_ASSIGN(QuicStreamSequencerBuffer);
 };
 }  // namespace net
 
-#endif  // NET_QUIC_STREAM_SEQUENCER_BUFFER_H_
+#endif  // NET_QUIC_QUIC_STREAM_SEQUENCER_BUFFER_H_

@@ -1,5 +1,5 @@
 diff --git a/src/base/rand_util_posix.cc b/src/base/rand_util_posix.cc
-index 6a6e05a..9b4513a 100644
+index 6a6e05a..129330a 100644
 --- a/src/base/rand_util_posix.cc
 +++ b/src/base/rand_util_posix.cc
 @@ -10,7 +10,11 @@
@@ -14,11 +14,15 @@ index 6a6e05a..9b4513a 100644
  #include "base/lazy_instance.h"
  #include "base/logging.h"
  
-@@ -47,6 +51,18 @@ uint64_t RandUint64() {
+@@ -47,6 +51,22 @@ uint64_t RandUint64() {
    return number;
  }
  
-+bool ReadFromFD(int fd, char* buffer, size_t bytes) {
++// ReadFromFD is originally defined in base/files/file_util.h
++// libquic removed base/files/file_util.h dependency and copied the function
++// here. Use static to avoid linker conflict in other projects using libquic
++// along with chromium sources.
++static bool ReadFromFD(int fd, char* buffer, size_t bytes) {
 +  size_t total_read = 0;
 +  while (total_read < bytes) {
 +    ssize_t bytes_read =

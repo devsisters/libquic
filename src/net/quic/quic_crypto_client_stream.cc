@@ -15,6 +15,7 @@
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_session.h"
+#include "net/quic/quic_utils.h"
 
 using std::string;
 using std::vector;
@@ -117,7 +118,8 @@ QuicCryptoClientStream::QuicCryptoClientStream(
       verify_context_(verify_context),
       proof_verify_callback_(nullptr),
       proof_handler_(proof_handler),
-      stateless_reject_received_(false) {
+      stateless_reject_received_(false),
+      num_scup_messages_received_(0) {
   DCHECK_EQ(Perspective::IS_CLIENT, session->connection()->perspective());
 }
 
@@ -144,6 +146,7 @@ void QuicCryptoClientStream::OnHandshakeMessage(
     // |message| is an update from the server, so we treat it differently from a
     // handshake message.
     HandleServerConfigUpdateMessage(message);
+    num_scup_messages_received_++;
     return;
   }
 
@@ -166,6 +169,10 @@ int QuicCryptoClientStream::num_sent_client_hellos() const {
   return num_client_hellos_;
 }
 
+int QuicCryptoClientStream::num_scup_messages_received() const {
+  return num_scup_messages_received_;
+}
+
 // Used in Chromium, but not in the server.
 bool QuicCryptoClientStream::WasChannelIDSent() const {
   return channel_id_sent_;
@@ -183,8 +190,8 @@ void QuicCryptoClientStream::HandleServerConfigUpdateMessage(
       crypto_config_->LookupOrCreate(server_id_);
   QuicErrorCode error = crypto_config_->ProcessServerConfigUpdate(
       server_config_update, session()->connection()->clock()->WallNow(),
-      session()->connection()->version(), cached, &crypto_negotiated_params_,
-      &error_details);
+      session()->connection()->version(), cached->chlo_hash(), cached,
+      &crypto_negotiated_params_, &error_details);
 
   if (error != QUIC_NO_ERROR) {
     CloseConnectionWithDetails(
@@ -260,6 +267,7 @@ void QuicCryptoClientStream::DoInitialize(
     DCHECK(crypto_config_->proof_verifier());
     // Track proof verification time when cached server config is used.
     proof_verify_start_time_ = base::TimeTicks::Now();
+    chlo_hash_ = cached->chlo_hash();
     // If the cached state needs to be verified, do it now.
     next_state_ = STATE_VERIFY_PROOF;
   } else {
@@ -277,8 +285,8 @@ void QuicCryptoClientStream::DoSendCHLO(
     next_state_ = STATE_NONE;
     if (session()->connection()->connected()) {
       session()->connection()->CloseConnection(
-          QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT,
-          ConnectionCloseSource::FROM_SELF);
+          QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT, "stateless reject received",
+          ConnectionCloseBehavior::SILENT_CLOSE);
     }
     return;
   }
@@ -328,6 +336,7 @@ void QuicCryptoClientStream::DoSendCHLO(
     out.set_minimum_size(
         static_cast<size_t>(max_packet_size - kFramingOverhead));
     next_state_ = STATE_RECV_REJ;
+    CryptoUtils::HashHandshakeMessage(out, &chlo_hash_);
     SendHandshakeMessage(out);
     return;
   }
@@ -355,6 +364,7 @@ void QuicCryptoClientStream::DoSendCHLO(
     CloseConnectionWithDetails(error, error_details);
     return;
   }
+  CryptoUtils::HashHandshakeMessage(out, &chlo_hash_);
   channel_id_sent_ = (channel_id_key_.get() != nullptr);
   if (cached->proof_verify_details()) {
     proof_handler_->OnProofVerifyDetailsAvailable(
@@ -373,12 +383,20 @@ void QuicCryptoClientStream::DoSendCHLO(
       ENCRYPTION_INITIAL,
       crypto_negotiated_params_.initial_crypters.encrypter.release());
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
-  if (!encryption_established_) {
+
+  if (FLAGS_quic_reply_to_rej) {
+    // TODO(ianswett): Merge ENCRYPTION_REESTABLISHED and
+    // ENCRYPTION_FIRST_ESTABLSIHED.
     encryption_established_ = true;
-    session()->OnCryptoHandshakeEvent(
-        QuicSession::ENCRYPTION_FIRST_ESTABLISHED);
-  } else {
     session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_REESTABLISHED);
+  } else {
+    if (!encryption_established_) {
+      encryption_established_ = true;
+      session()->OnCryptoHandshakeEvent(
+          QuicSession::ENCRYPTION_FIRST_ESTABLISHED);
+    } else {
+      session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_REESTABLISHED);
+    }
   }
 }
 
@@ -424,8 +442,8 @@ void QuicCryptoClientStream::DoReceiveREJ(
   string error_details;
   QuicErrorCode error = crypto_config_->ProcessRejection(
       *in, session()->connection()->clock()->WallNow(),
-      session()->connection()->version(), cached, &crypto_negotiated_params_,
-      &error_details);
+      session()->connection()->version(), chlo_hash_, cached,
+      &crypto_negotiated_params_, &error_details);
 
   if (error != QUIC_NO_ERROR) {
     next_state_ = STATE_NONE;
@@ -459,7 +477,8 @@ QuicAsyncStatus QuicCryptoClientStream::DoVerifyProof(
   verify_ok_ = false;
 
   QuicAsyncStatus status = verifier->VerifyProof(
-      server_id_.host(), cached->server_config(), cached->certs(),
+      server_id_.host(), server_id_.port(), cached->server_config(),
+      session()->connection()->version(), chlo_hash_, cached->certs(),
       cached->cert_sct(), cached->signature(), verify_context_.get(),
       &verify_error_details_, &verify_details_, proof_verify_callback);
 

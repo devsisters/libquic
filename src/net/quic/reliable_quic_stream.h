@@ -50,7 +50,7 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
 
   virtual ~ReliableQuicStream();
 
-  // Sets |fec_policy_| parameter from |session_|'s config.
+  // Not in use currently.
   void SetFromConfig();
 
   // Called by the session when a (potentially duplicate) stream frame has been
@@ -117,9 +117,6 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   void set_fin_sent(bool fin_sent) { fin_sent_ = fin_sent; }
   void set_fin_received(bool fin_received) { fin_received_ = fin_received; }
   void set_rst_sent(bool rst_sent) { rst_sent_ = rst_sent; }
-
-  void set_fec_policy(FecPolicy fec_policy) { fec_policy_ = fec_policy; }
-  FecPolicy fec_policy() const { return fec_policy_; }
 
   void set_rst_received(bool rst_received) { rst_received_ = rst_received; }
   void set_stream_error(QuicRstStreamErrorCode error) { stream_error_ = error; }
@@ -197,9 +194,6 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   // Can be called by the subclass or internally.
   // Does not send a FIN.  May cause the stream to be closed.
   virtual void CloseWriteSide();
-
-  // Helper method that returns FecProtection to use when writing.
-  FecProtection GetFecProtection();
 
   bool fin_buffered() const { return fin_buffered_; }
 
@@ -286,9 +280,6 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
 
   // True if this stream has received a RST_STREAM frame.
   bool rst_received_;
-
-  // FEC policy to be used for this stream.
-  FecPolicy fec_policy_;
 
   // Tracks if the session this stream is running under was created by a
   // server or a client.

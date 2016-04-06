@@ -175,8 +175,8 @@ class NET_EXPORT_PRIVATE QuicUnackedPacketMap {
   QuicPacketNumber largest_sent_packet_;
   QuicPacketNumber largest_observed_;
 
-  // Newly serialized retransmittable and fec packets are added to this map,
-  // which contains owning pointers to any contained frames.  If a packet is
+  // Newly serialized retransmittable packets are added to this map, which
+  // contains owning pointers to any contained frames.  If a packet is
   // retransmitted, this map will contain entries for both the old and the new
   // packet. The old packet's retransmittable frames entry will be nullptr,
   // while the new packet's entry will contain the frames to retransmit.

@@ -673,12 +673,16 @@ LocalPersistentMemoryAllocator::~LocalPersistentMemoryAllocator() {
 #if 0
 
 SharedPersistentMemoryAllocator::SharedPersistentMemoryAllocator(
-    scoped_ptr<SharedMemory> memory,
+    std::unique_ptr<SharedMemory> memory,
     uint64_t id,
     base::StringPiece name,
     bool read_only)
     : PersistentMemoryAllocator(static_cast<uint8_t*>(memory->memory()),
-                                memory->mapped_size(), 0, id, name, read_only),
+                                memory->mapped_size(),
+                                0,
+                                id,
+                                name,
+                                read_only),
       shared_memory_(std::move(memory)) {}
 
 SharedPersistentMemoryAllocator::~SharedPersistentMemoryAllocator() {}
@@ -693,11 +697,15 @@ bool SharedPersistentMemoryAllocator::IsSharedMemoryAcceptable(
 //----- FilePersistentMemoryAllocator ------------------------------------------
 
 FilePersistentMemoryAllocator::FilePersistentMemoryAllocator(
-    scoped_ptr<MemoryMappedFile> file,
+    std::unique_ptr<MemoryMappedFile> file,
     uint64_t id,
     base::StringPiece name)
     : PersistentMemoryAllocator(const_cast<uint8_t*>(file->data()),
-                                file->length(), 0, id, name, true),
+                                file->length(),
+                                0,
+                                id,
+                                name,
+                                true),
       mapped_file_(std::move(file)) {}
 
 FilePersistentMemoryAllocator::~FilePersistentMemoryAllocator() {}

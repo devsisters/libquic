@@ -6,18 +6,19 @@
 // don't have their own base_paths_OS.cc implementation (i.e. all but Mac and
 // Android).
 
+#include "base/base_paths.h"
+
 #include <limits.h>
 #include <stddef.h>
 
+#include <memory>
 #include <ostream>
 #include <string>
 
-#include "base/base_paths.h"
 #include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/nix/xdg_util.h"
 #include "base/path_service.h"
 #include "base/process/process_metrics.h"
@@ -79,7 +80,7 @@ bool PathProviderPosix(int key, FilePath* result) {
     case base::DIR_SOURCE_ROOT: {
       // Allow passing this in the environment, for more flexibility in build
       // tree configurations (sub-project builds, gyp --output_dir, etc.)
-      scoped_ptr<base::Environment> env(base::Environment::Create());
+      std::unique_ptr<base::Environment> env(base::Environment::Create());
       std::string cr_source_root;
       if (env->GetVar("CR_SOURCE_ROOT", &cr_source_root)) {
         path = FilePath(cr_source_root);
@@ -106,7 +107,7 @@ bool PathProviderPosix(int key, FilePath* result) {
       *result = base::nix::GetXDGUserDirectory("DESKTOP", "Desktop");
       return true;
     case base::DIR_CACHE: {
-      scoped_ptr<base::Environment> env(base::Environment::Create());
+      std::unique_ptr<base::Environment> env(base::Environment::Create());
       FilePath cache_dir(base::nix::GetXDGDirectory(env.get(), "XDG_CACHE_HOME",
                                                     ".cache"));
       *result = cache_dir;

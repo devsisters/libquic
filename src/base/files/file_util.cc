@@ -137,7 +137,7 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
   }
 
   const size_t kBufferSize = 1 << 16;
-  scoped_ptr<char[]> buf(new char[kBufferSize]);
+  std::unique_ptr<char[]> buf(new char[kBufferSize]);
   size_t len;
   size_t size = 0;
   bool read_status = true;

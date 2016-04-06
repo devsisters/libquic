@@ -18,7 +18,8 @@ class SpdyHeadersHandlerInterface {
   virtual ~SpdyHeadersHandlerInterface() {}
 
   // A callback method which notifies when the parser starts handling a new
-  // header block fragment.
+  // header block. Will only be called once per block, even if it extends into
+  // CONTINUATION frames.
   virtual void OnHeaderBlockStart() = 0;
 
   // A callback method which notifies on a header key value pair. Multiple
@@ -26,8 +27,8 @@ class SpdyHeadersHandlerInterface {
   virtual void OnHeader(base::StringPiece key, base::StringPiece value) = 0;
 
   // A callback method which notifies when the parser finishes handling a
-  // header block fragment. Also indicates the total number of bytes in this
-  // block.
+  // header block (i.e. the containing frame has the END_STREAM flag set).
+  // Also indicates the total number of bytes in this block.
   virtual void OnHeaderBlockEnd(size_t uncompressed_header_bytes) = 0;
 };
 

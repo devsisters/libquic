@@ -471,6 +471,11 @@ SHA256_End(SHA256Context *ctx, unsigned char *digest,
 	*digestLen = padLen;
 }
 
+void SHA256_Clone(SHA256Context* dest, SHA256Context* src)
+{
+  memcpy(dest, src, sizeof *dest);
+}
+
 /* Comment out unused code, mostly the SHA384 and SHA512 implementations. */
 #if 0
 SECStatus
@@ -518,12 +523,6 @@ SHA256_Resurrect(unsigned char *space, void *arg)
 	PORT_Memcpy(ctx, space, sizeof *ctx);
     return ctx;
 }
-
-void SHA256_Clone(SHA256Context *dest, SHA256Context *src)
-{
-    memcpy(dest, src, sizeof *dest);
-}
-
 
 /* ======= SHA512 and SHA384 common constants and defines ================= */
 

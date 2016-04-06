@@ -48,15 +48,18 @@ void ServerHelloNotifier::OnPacketRetransmitted(int /*retransmitted_bytes*/) {}
 
 QuicCryptoServerStream::QuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
+    QuicCompressedCertsCache* compressed_certs_cache,
+    bool use_stateless_rejects_if_peer_supported,
     QuicSession* session)
     : QuicCryptoServerStreamBase(session),
       crypto_config_(crypto_config),
+      compressed_certs_cache_(compressed_certs_cache),
       validate_client_hello_cb_(nullptr),
       num_handshake_messages_(0),
       num_handshake_messages_with_server_nonces_(0),
       num_server_config_update_messages_sent_(0),
       use_stateless_rejects_if_peer_supported_(
-          FLAGS_enable_quic_stateless_reject_support),
+          use_stateless_rejects_if_peer_supported),
       peer_supports_stateless_rejects_(false) {
   DCHECK_EQ(Perspective::IS_SERVER, session->connection()->perspective());
 }
@@ -156,8 +159,8 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
                << session()->connection()->connection_id()
                << " because of a stateless reject.";
       session()->connection()->CloseConnection(
-          QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT,
-          ConnectionCloseSource::FROM_SELF);
+          QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT, "stateless reject",
+          ConnectionCloseBehavior::SILENT_CLOSE);
     }
     return;
   }
@@ -223,7 +226,7 @@ void QuicCryptoServerStream::SendServerConfigUpdate(
           session()->connection()->self_address().address(),
           session()->connection()->peer_address().address(),
           session()->connection()->clock(),
-          session()->connection()->random_generator(),
+          session()->connection()->random_generator(), compressed_certs_cache_,
           crypto_negotiated_params_, cached_network_params,
           &server_config_update_message)) {
     DVLOG(1) << "Server: Failed to build server config update (SCUP)!";
@@ -336,7 +339,8 @@ QuicErrorCode QuicCryptoServerStream::ProcessClientHello(
       connection->peer_address(), version(), connection->supported_versions(),
       use_stateless_rejects_in_crypto_config, server_designated_connection_id,
       connection->clock(), connection->random_generator(),
-      &crypto_negotiated_params_, &crypto_proof_, reply, error_details);
+      compressed_certs_cache_, &crypto_negotiated_params_, &crypto_proof_,
+      reply, error_details);
 }
 
 void QuicCryptoServerStream::OverrideQuicConfigDefaults(QuicConfig* config) {}

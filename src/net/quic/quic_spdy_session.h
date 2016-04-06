@@ -89,6 +89,12 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
 
   QuicSpdyStream* GetSpdyDataStream(const QuicStreamId stream_id);
 
+  // If an incoming stream can be created, return true.
+  virtual bool ShouldCreateIncomingDynamicStream(QuicStreamId id) = 0;
+
+  // If an outgoing stream can be created, return true.
+  virtual bool ShouldCreateOutgoingDynamicStream() = 0;
+
  private:
   friend class test::QuicSpdySessionPeer;
 

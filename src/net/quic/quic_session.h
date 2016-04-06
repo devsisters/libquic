@@ -71,12 +71,13 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   void OnBlockedFrame(const QuicBlockedFrame& frame) override;
   void OnConnectionClosed(QuicErrorCode error,
+                          const std::string& error_details,
                           ConnectionCloseSource source) override;
   void OnWriteBlocked() override {}
   void OnSuccessfulVersionNegotiation(const QuicVersion& version) override;
   void OnCanWrite() override;
   void OnCongestionWindowChange(QuicTime /*now*/) override {}
-  void OnConnectionMigration() override {}
+  void OnConnectionMigration(PeerAddressChangeType type) override {}
   // Deletes streams that are safe to be deleted now that it's safe to do so (no
   // other operations are being done on the streams at this time).
   void PostProcessAfterData() override;
@@ -88,16 +89,13 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // Called on every incoming packet. Passes |packet| through to |connection_|.
   virtual void ProcessUdpPacket(const IPEndPoint& self_address,
                                 const IPEndPoint& peer_address,
-                                const QuicEncryptedPacket& packet);
+                                const QuicReceivedPacket& packet);
 
   // Called by streams when they want to write data to the peer.
   // Returns a pair with the number of bytes consumed from data, and a boolean
   // indicating if the fin bit was consumed.  This does not indicate the data
   // has been sent on the wire: it may have been turned into a packet and queued
-  // if the socket was unexpectedly blocked.  |fec_protection| indicates if
-  // data is to be FEC protected. Note that data that is sent immediately
-  // following MUST_FEC_PROTECT data may get protected by falling within the
-  // same FEC group.
+  // if the socket was unexpectedly blocked.
   // If provided, |ack_notifier_delegate| will be registered to be notified when
   // we have seen ACKs for all packets resulting from this call.
   virtual QuicConsumedData WritevData(
@@ -105,7 +103,6 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
       QuicIOVector iov,
       QuicStreamOffset offset,
       bool fin,
-      FecProtection fec_protection,
       QuicAckListenerInterface* ack_notifier_delegate);
 
   // Called by streams when they want to close the stream in both directions.
@@ -228,13 +225,14 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
  protected:
   typedef std::unordered_map<QuicStreamId, ReliableQuicStream*> StreamMap;
 
-  // Creates a new stream, owned by the caller, to handle a peer-initiated
-  // stream.  Returns nullptr and does error handling if the stream can not be
-  // created.
+  // Creates a new stream to handle a peer-initiated stream.
+  // Caller does not own the returned stream.
+  // Returns nullptr and does error handling if the stream can not be created.
   virtual ReliableQuicStream* CreateIncomingDynamicStream(QuicStreamId id) = 0;
 
-  // Create a new stream, owned by the caller, to handle a locally-initiated
-  // stream.  Returns nullptr if max streams have already been opened.
+  // Create a new stream to handle a locally-initiated stream.
+  // Caller does not own the returned stream.
+  // Returns nullptr if max streams have already been opened.
   virtual ReliableQuicStream* CreateOutgoingDynamicStream(
       SpdyPriority priority) = 0;
 
@@ -253,6 +251,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // and |stream_id| is a peer-created id, then a new stream is created and
   // returned. However if |stream_id| is a locally-created id and no such stream
   // exists, the connection is closed.
+  // Caller does not own the returned stream.
   ReliableQuicStream* GetOrCreateDynamicStream(QuicStreamId stream_id);
 
   // Performs the work required to close |stream_id|.  If |locally_reset|

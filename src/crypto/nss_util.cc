@@ -803,7 +803,6 @@ class NSSInitSingleton {
     }
   }
 
-#if defined(USE_NSS_CERTS) || defined(OS_IOS)
   // Load nss's built-in root certs.
   SECMODModule* InitDefaultRootCerts() {
     SECMODModule* root = LoadModule("Root Certs", "libnssckbi.so", NULL);
@@ -843,7 +842,6 @@ class NSSInitSingleton {
     }
     return module;
   }
-#endif
 
   bool tpm_token_enabled_for_nss_;
   bool initializing_tpm_token_;

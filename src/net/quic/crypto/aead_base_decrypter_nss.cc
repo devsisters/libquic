@@ -49,8 +49,8 @@ bool AeadBaseDecrypter::SetNoncePrefix(StringPiece nonce_prefix) {
 
 bool AeadBaseDecrypter::DecryptPacket(QuicPathId path_id,
                                       QuicPacketNumber packet_number,
-                                      const StringPiece& associated_data,
-                                      const StringPiece& ciphertext,
+                                      StringPiece associated_data,
+                                      StringPiece ciphertext,
                                       char* output,
                                       size_t* output_length,
                                       size_t max_output_length) {
@@ -62,14 +62,10 @@ bool AeadBaseDecrypter::DecryptPacket(QuicPathId path_id,
   const size_t nonce_size = nonce_prefix_size_ + sizeof(packet_number);
   DCHECK_LE(nonce_size, sizeof(nonce));
   memcpy(nonce, nonce_prefix_, nonce_prefix_size_);
-  if (FLAGS_quic_include_path_id_in_iv) {
-    uint64_t path_id_packet_number =
-        QuicUtils::PackPathIdAndPacketNumber(path_id, packet_number);
-    memcpy(nonce + nonce_prefix_size_, &path_id_packet_number,
-           sizeof(path_id_packet_number));
-  } else {
-    memcpy(nonce + nonce_prefix_size_, &packet_number, sizeof(packet_number));
-  }
+  uint64_t path_id_packet_number =
+      QuicUtils::PackPathIdAndPacketNumber(path_id, packet_number);
+  memcpy(nonce + nonce_prefix_size_, &path_id_packet_number,
+         sizeof(path_id_packet_number));
 
   // NSS 3.14.x incorrectly requires an output buffer at least as long as
   // the ciphertext (NSS bug

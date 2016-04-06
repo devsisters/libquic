@@ -89,11 +89,11 @@ bool QuicBandwidth::IsZero() const {
   return (bits_per_second_ == 0);
 }
 
-QuicBandwidth QuicBandwidth::Add(const QuicBandwidth& delta) const {
+QuicBandwidth QuicBandwidth::Add(QuicBandwidth delta) const {
   return QuicBandwidth(bits_per_second_ + delta.bits_per_second_);
 }
 
-QuicBandwidth QuicBandwidth::Subtract(const QuicBandwidth& delta) const {
+QuicBandwidth QuicBandwidth::Subtract(QuicBandwidth delta) const {
   return QuicBandwidth(bits_per_second_ - delta.bits_per_second_);
 }
 

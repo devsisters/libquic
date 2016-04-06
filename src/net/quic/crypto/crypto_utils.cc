@@ -5,6 +5,7 @@
 #include "net/quic/crypto/crypto_utils.h"
 
 #include "crypto/hkdf.h"
+#include "crypto/secure_hash.h"
 #include "net/base/url_util.h"
 #include "net/quic/crypto/crypto_handshake.h"
 #include "net/quic/crypto/crypto_protocol.h"
@@ -272,6 +273,18 @@ const char* CryptoUtils::HandshakeFailureReasonToString(
   // any HandshakeFailureReason.. This can happen when the message by the peer
   // (attacker) has invalid reason.
   return "INVALID_HANDSHAKE_FAILURE_REASON";
+}
+
+// static
+void CryptoUtils::HashHandshakeMessage(const CryptoHandshakeMessage& message,
+                                       string* output) {
+  const QuicData& serialized = message.GetSerialized();
+  scoped_ptr<crypto::SecureHash> hash(
+      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
+  hash->Update(serialized.data(), serialized.length());
+  uint8_t digest[32];
+  hash->Finish(digest, sizeof(digest));
+  output->assign(reinterpret_cast<const char*>(&digest), sizeof(digest));
 }
 
 }  // namespace net

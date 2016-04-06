@@ -6,13 +6,14 @@
 #define BASE_METRICS_PERSISTENT_MEMORY_ALLOCATOR_H_
 
 #include <stdint.h>
+
 #include <atomic>
+#include <memory>
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 
 namespace base {
@@ -321,8 +322,10 @@ class BASE_EXPORT LocalPersistentMemoryAllocator
 class BASE_EXPORT SharedPersistentMemoryAllocator
     : public PersistentMemoryAllocator {
  public:
-  SharedPersistentMemoryAllocator(scoped_ptr<SharedMemory> memory, uint64_t id,
-                                  base::StringPiece name, bool read_only);
+  SharedPersistentMemoryAllocator(std::unique_ptr<SharedMemory> memory,
+                                  uint64_t id,
+                                  base::StringPiece name,
+                                  bool read_only);
   ~SharedPersistentMemoryAllocator() override;
 
   SharedMemory* shared_memory() { return shared_memory_.get(); }
@@ -334,7 +337,7 @@ class BASE_EXPORT SharedPersistentMemoryAllocator
   static bool IsSharedMemoryAcceptable(const SharedMemory& memory);
 
  private:
-  scoped_ptr<SharedMemory> shared_memory_;
+  std::unique_ptr<SharedMemory> shared_memory_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedPersistentMemoryAllocator);
 };
@@ -346,7 +349,8 @@ class BASE_EXPORT SharedPersistentMemoryAllocator
 class BASE_EXPORT FilePersistentMemoryAllocator
     : public PersistentMemoryAllocator {
  public:
-  FilePersistentMemoryAllocator(scoped_ptr<MemoryMappedFile> file, uint64_t id,
+  FilePersistentMemoryAllocator(std::unique_ptr<MemoryMappedFile> file,
+                                uint64_t id,
                                 base::StringPiece name);
   ~FilePersistentMemoryAllocator() override;
 
@@ -357,7 +361,7 @@ class BASE_EXPORT FilePersistentMemoryAllocator
   static bool IsFileAcceptable(const MemoryMappedFile& file);
 
  private:
-  scoped_ptr<MemoryMappedFile> mapped_file_;
+  std::unique_ptr<MemoryMappedFile> mapped_file_;
 
   DISALLOW_COPY_AND_ASSIGN(FilePersistentMemoryAllocator);
 };

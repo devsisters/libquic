@@ -37,6 +37,11 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
   // have been sent. If the handshake has completed then this is one greater
   // than the number of round-trips needed for the handshake.
   virtual int num_sent_client_hellos() const = 0;
+
+  // The number of server config update messages received by the
+  // client.  Does not count update messages that were received prior
+  // to handshake confirmation.
+  virtual int num_scup_messages_received() const = 0;
 };
 
 class NET_EXPORT_PRIVATE QuicCryptoClientStream
@@ -80,6 +85,8 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStream
   // From QuicCryptoClientStreamBase
   void CryptoConnect() override;
   int num_sent_client_hellos() const override;
+
+  int num_scup_messages_received() const override;
 
   // CryptoFramerVisitorInterface implementation
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;
@@ -209,8 +216,9 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStream
 
   QuicCryptoClientConfig* const crypto_config_;
 
-  // Client's connection nonce (4-byte timestamp + 28 random bytes)
-  std::string nonce_;
+  // SHA-256 hash of the most recently sent CHLO.
+  std::string chlo_hash_;
+
   // Server's (hostname, port, is_https, privacy_mode) tuple.
   const QuicServerId server_id_;
 
@@ -257,6 +265,8 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStream
   bool stateless_reject_received_;
 
   base::TimeTicks proof_verify_start_time_;
+
+  int num_scup_messages_received_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicCryptoClientStream);
 };

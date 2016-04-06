@@ -56,6 +56,7 @@ class NET_EXPORT_PRIVATE TcpCubicSenderBytes : public TcpCubicSenderBase {
       QuicPacketCount congestion_window) override;
   void ExitSlowstart() override;
   void OnPacketLost(QuicPacketNumber largest_loss,
+                    QuicByteCount lost_bytes,
                     QuicByteCount bytes_in_flight) override;
   void MaybeIncreaseCwnd(QuicPacketNumber acked_packet_number,
                          QuicByteCount acked_bytes,

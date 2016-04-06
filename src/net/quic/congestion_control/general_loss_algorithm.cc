@@ -36,7 +36,7 @@ LossDetectionType GeneralLossAlgorithm::GetLossDetectionType() const {
 // Uses nack counts to decide when packets are lost.
 void GeneralLossAlgorithm::DetectLosses(
     const QuicUnackedPacketMap& unacked_packets,
-    const QuicTime& time,
+    QuicTime time,
     const RttStats& rtt_stats,
     SendAlgorithmInterface::CongestionVector* packets_lost) {
   const QuicPacketNumber largest_observed = unacked_packets.largest_observed();

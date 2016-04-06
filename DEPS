@@ -3,7 +3,7 @@
 
 # START #
 {
-    "chromium_revision": "6e3a05d6080ba6ae25af2835573ff9e2406b90c0",
+    "chromium_revision": "f03d2c6277dce11f375c14dc7c73a6d0c7ed8133",
     "automatic_dependency": [
         {
             "from": "net/quic/quic_connection.cc",
@@ -133,6 +133,15 @@
                 "base/files/file.h",
                 "base/tracked_objects.h"
             ]
+        },
+        {
+            "from": "net/base/io_buffer.h",
+            "exclude": [
+                "base/debug/debugger.h",
+                "base/sequence_checker.h",
+                "base/files/file.h",
+                "base/tracked_objects.h"
+            ]
         }
     ],
     "manual_dependency": [
@@ -171,19 +180,13 @@
                 "base/files/file_path_constants.cc",
                 "base/files/file_util_posix.cc",
                 "base/process/process_handle_posix.cc",
-                "net/base/io_buffer.h",
-                "net/base/io_buffer.cc",
                 "net/base/completion_callback.h",
                 "net/base/host_port_pair.h",
                 "net/base/host_port_pair.cc",
                 "net/quic/quic_simple_buffer_allocator.h",
                 "net/quic/quic_simple_buffer_allocator.cc",
                 "net/quic/crypto/chacha20_poly1305_decrypter.h",
-                "net/quic/crypto/chacha20_poly1305_decrypter_openssl.cc",
-                "net/quic/crypto/chacha20_poly1305_decrypter_nss.cc",
                 "net/quic/crypto/chacha20_poly1305_encrypter.h",
-                "net/quic/crypto/chacha20_poly1305_encrypter_openssl.cc",
-                "net/quic/crypto/chacha20_poly1305_encrypter_nss.cc",
                 "net/quic/crypto/chacha20_poly1305_rfc7539_decrypter.h",
                 "net/quic/crypto/chacha20_poly1305_rfc7539_decrypter_openssl.cc",
                 "net/quic/crypto/chacha20_poly1305_rfc7539_decrypter_nss.cc",
@@ -262,6 +265,7 @@
         "patch/platform_thread_remove_tracked_objects.patch",
         "patch/rand_util_posix.patch",
         "patch/persistent_memory_allocator_disable_sharing.patch",
+        "patch/persistent_histogram_allocator_disable_shared_memory.patch",
         "patch/spdy_header_block_remove_unused_callback.patch",
         "patch/url_canon_host_disable_idn_host.patch",
         "patch/url_util_remove_unused_function.patch",

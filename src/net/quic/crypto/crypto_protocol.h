@@ -47,7 +47,6 @@ const QuicTag kC255 = TAG('C', '2', '5', '5');   // ECDH, Curve25519
 // AEAD algorithms
 const QuicTag kNULL = TAG('N', 'U', 'L', 'N');   // null algorithm
 const QuicTag kAESG = TAG('A', 'E', 'S', 'G');   // AES128 + GCM-12
-const QuicTag kCC12 = TAG('C', 'C', '1', '2');   // ChaCha20 + Poly1305
 const QuicTag kCC20 = TAG('C', 'C', '2', '0');   // ChaCha20 + Poly1305 RFC7539
 
 // Socket receive buffer
@@ -89,7 +88,10 @@ const QuicTag kMIN4 = TAG('M', 'I', 'N', '4');   // Min CWND of 4 packets,
 const QuicTag kTLPR = TAG('T', 'L', 'P', 'R');   // Tail loss probe delay of
                                                  // 0.5RTT.
 const QuicTag kACKD = TAG('A', 'C', 'K', 'D');   // Ack decimation style acking.
+const QuicTag kAKD2 = TAG('A', 'K', 'D', '2');   // Ack decimation tolerating
+                                                 // out of order packets.
 const QuicTag kSSLR = TAG('S', 'S', 'L', 'R');   // Slow Start Large Reduction.
+const QuicTag k5RTO = TAG('5', 'R', 'T', 'O');   // Close connection on 5 RTOs
 
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the
@@ -99,14 +101,8 @@ const QuicTag kTCID = TAG('T', 'C', 'I', 'D');   // Connection ID truncation.
 // Multipath option.
 const QuicTag kMPTH = TAG('M', 'P', 'T', 'H');   // Enable multipath.
 
-// FEC options
-const QuicTag kFHDR = TAG('F', 'H', 'D', 'R');   // FEC protect headers
-const QuicTag kFSTR = TAG('F', 'S', 'T', 'R');   // FEC protect all streams
-// Set FecSendPolicy for sending FEC packet only when FEC alarm goes off.
-const QuicTag kFSPA = TAG('F', 'S', 'P', 'A');
-// Run an experiment that sets FecTimeOut alarm to 0.25RTT.
-// TODO(rtenneti): Delete it after the experiment.
-const QuicTag kFRTT = TAG('F', 'R', 'T', 'T');
+const QuicTag kNCMR = TAG('N', 'C', 'M', 'R');   // Do not attempt connection
+                                                 // migration.
 
 // Enable bandwidth resumption experiment.
 const QuicTag kBWRE = TAG('B', 'W', 'R', 'E');  // Bandwidth resumption.
@@ -213,7 +209,12 @@ const size_t kOrbitSize = 8;  // Number of bytes in an orbit value.
 
 // kProofSignatureLabel is prepended to server configs before signing to avoid
 // any cross-protocol attacks on the signature.
-const char kProofSignatureLabel[] = "QUIC server config signature";
+// TODO(rch): Remove this when QUIC_VERSION_30 is removed.
+const char kProofSignatureLabelOld[] = "QUIC server config signature";
+
+// kProofSignatureLabel is prepended to the CHLO hash and server configs before
+// signing to avoid any cross-protocol attacks on the signature.
+const char kProofSignatureLabel[] = "QUIC CHLO and server config signature";
 
 // kClientHelloMinimumSize is the minimum size of a client hello. Client hellos
 // will have PAD tags added in order to ensure this minimum is met and client

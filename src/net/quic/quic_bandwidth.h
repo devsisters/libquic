@@ -52,9 +52,9 @@ class NET_EXPORT_PRIVATE QuicBandwidth {
 
   bool IsZero() const;
 
-  QuicBandwidth Add(const QuicBandwidth& delta) const WARN_UNUSED_RESULT;
+  QuicBandwidth Add(QuicBandwidth delta) const WARN_UNUSED_RESULT;
 
-  QuicBandwidth Subtract(const QuicBandwidth& delta) const WARN_UNUSED_RESULT;
+  QuicBandwidth Subtract(QuicBandwidth delta) const WARN_UNUSED_RESULT;
 
   QuicBandwidth Scale(float scale_factor) const WARN_UNUSED_RESULT;
 

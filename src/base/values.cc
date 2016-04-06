@@ -13,6 +13,7 @@
 
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/move.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -21,15 +22,15 @@ namespace base {
 
 namespace {
 
-scoped_ptr<Value> CopyWithoutEmptyChildren(const Value& node);
+std::unique_ptr<Value> CopyWithoutEmptyChildren(const Value& node);
 
 // Make a deep copy of |node|, but don't include empty lists or dictionaries
 // in the copy. It's possible for this function to return NULL and it
 // expects |node| to always be non-NULL.
-scoped_ptr<ListValue> CopyListWithoutEmptyChildren(const ListValue& list) {
-  scoped_ptr<ListValue> copy;
+std::unique_ptr<ListValue> CopyListWithoutEmptyChildren(const ListValue& list) {
+  std::unique_ptr<ListValue> copy;
   for (ListValue::const_iterator it = list.begin(); it != list.end(); ++it) {
-    scoped_ptr<Value> child_copy = CopyWithoutEmptyChildren(**it);
+    std::unique_ptr<Value> child_copy = CopyWithoutEmptyChildren(**it);
     if (child_copy) {
       if (!copy)
         copy.reset(new ListValue);
@@ -39,11 +40,11 @@ scoped_ptr<ListValue> CopyListWithoutEmptyChildren(const ListValue& list) {
   return copy;
 }
 
-scoped_ptr<DictionaryValue> CopyDictionaryWithoutEmptyChildren(
+std::unique_ptr<DictionaryValue> CopyDictionaryWithoutEmptyChildren(
     const DictionaryValue& dict) {
-  scoped_ptr<DictionaryValue> copy;
+  std::unique_ptr<DictionaryValue> copy;
   for (DictionaryValue::Iterator it(dict); !it.IsAtEnd(); it.Advance()) {
-    scoped_ptr<Value> child_copy = CopyWithoutEmptyChildren(it.value());
+    std::unique_ptr<Value> child_copy = CopyWithoutEmptyChildren(it.value());
     if (child_copy) {
       if (!copy)
         copy.reset(new DictionaryValue);
@@ -53,7 +54,7 @@ scoped_ptr<DictionaryValue> CopyDictionaryWithoutEmptyChildren(
   return copy;
 }
 
-scoped_ptr<Value> CopyWithoutEmptyChildren(const Value& node) {
+std::unique_ptr<Value> CopyWithoutEmptyChildren(const Value& node) {
   switch (node.GetType()) {
     case Value::TYPE_LIST:
       return CopyListWithoutEmptyChildren(static_cast<const ListValue&>(node));
@@ -89,8 +90,8 @@ Value::~Value() {
 }
 
 // static
-scoped_ptr<Value> Value::CreateNullValue() {
-  return make_scoped_ptr(new Value(TYPE_NULL));
+std::unique_ptr<Value> Value::CreateNullValue() {
+  return WrapUnique(new Value(TYPE_NULL));
 }
 
 bool Value::GetAsBinary(const BinaryValue** out_value) const {
@@ -144,8 +145,8 @@ Value* Value::DeepCopy() const {
   return CreateNullValue().release();
 }
 
-scoped_ptr<Value> Value::CreateDeepCopy() const {
-  return make_scoped_ptr(DeepCopy());
+std::unique_ptr<Value> Value::CreateDeepCopy() const {
+  return WrapUnique(DeepCopy());
 }
 
 bool Value::Equals(const Value* other) const {
@@ -313,7 +314,7 @@ BinaryValue::BinaryValue()
       size_(0) {
 }
 
-BinaryValue::BinaryValue(scoped_ptr<char[]> buffer, size_t size)
+BinaryValue::BinaryValue(std::unique_ptr<char[]> buffer, size_t size)
     : Value(TYPE_BINARY), buffer_(std::move(buffer)), size_(size) {}
 
 BinaryValue::~BinaryValue() {
@@ -324,7 +325,7 @@ BinaryValue* BinaryValue::CreateWithCopiedBuffer(const char* buffer,
                                                  size_t size) {
   char* buffer_copy = new char[size];
   memcpy(buffer_copy, buffer, size);
-  scoped_ptr<char[]> scoped_buffer_copy(buffer_copy);
+  std::unique_ptr<char[]> scoped_buffer_copy(buffer_copy);
   return new BinaryValue(std::move(scoped_buffer_copy), size);
 }
 
@@ -350,11 +351,12 @@ bool BinaryValue::Equals(const Value* other) const {
 ///////////////////// DictionaryValue ////////////////////
 
 // static
-scoped_ptr<DictionaryValue> DictionaryValue::From(scoped_ptr<Value> value) {
+std::unique_ptr<DictionaryValue> DictionaryValue::From(
+    std::unique_ptr<Value> value) {
   DictionaryValue* out;
   if (value && value->GetAsDictionary(&out)) {
     ignore_result(value.release());
-    return make_scoped_ptr(out);
+    return WrapUnique(out);
   }
   return nullptr;
 }
@@ -396,7 +398,8 @@ void DictionaryValue::Clear() {
   dictionary_.clear();
 }
 
-void DictionaryValue::Set(const std::string& path, scoped_ptr<Value> in_value) {
+void DictionaryValue::Set(const std::string& path,
+                          std::unique_ptr<Value> in_value) {
   DCHECK(IsStringUTF8(path));
   DCHECK(in_value);
 
@@ -422,7 +425,7 @@ void DictionaryValue::Set(const std::string& path, scoped_ptr<Value> in_value) {
 }
 
 void DictionaryValue::Set(const std::string& path, Value* in_value) {
-  Set(path, make_scoped_ptr(in_value));
+  Set(path, WrapUnique(in_value));
 }
 
 void DictionaryValue::SetBoolean(const std::string& path, bool in_value) {
@@ -448,7 +451,7 @@ void DictionaryValue::SetString(const std::string& path,
 }
 
 void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
-                                              scoped_ptr<Value> in_value) {
+                                              std::unique_ptr<Value> in_value) {
   Value* bare_ptr = in_value.release();
   // If there's an existing value here, we need to delete it, because
   // we own all our children.
@@ -463,7 +466,7 @@ void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
 
 void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
                                               Value* in_value) {
-  SetWithoutPathExpansion(key, make_scoped_ptr(in_value));
+  SetWithoutPathExpansion(key, WrapUnique(in_value));
 }
 
 void DictionaryValue::SetBooleanWithoutPathExpansion(
@@ -752,7 +755,7 @@ bool DictionaryValue::GetListWithoutPathExpansion(const std::string& key,
 }
 
 bool DictionaryValue::Remove(const std::string& path,
-                             scoped_ptr<Value>* out_value) {
+                             std::unique_ptr<Value>* out_value) {
   DCHECK(IsStringUTF8(path));
   std::string current_path(path);
   DictionaryValue* current_dictionary = this;
@@ -768,8 +771,9 @@ bool DictionaryValue::Remove(const std::string& path,
                                                         out_value);
 }
 
-bool DictionaryValue::RemoveWithoutPathExpansion(const std::string& key,
-                                                 scoped_ptr<Value>* out_value) {
+bool DictionaryValue::RemoveWithoutPathExpansion(
+    const std::string& key,
+    std::unique_ptr<Value>* out_value) {
   DCHECK(IsStringUTF8(key));
   ValueMap::iterator entry_iterator = dictionary_.find(key);
   if (entry_iterator == dictionary_.end())
@@ -785,7 +789,7 @@ bool DictionaryValue::RemoveWithoutPathExpansion(const std::string& key,
 }
 
 bool DictionaryValue::RemovePath(const std::string& path,
-                                 scoped_ptr<Value>* out_value) {
+                                 std::unique_ptr<Value>* out_value) {
   bool result = false;
   size_t delimiter_position = path.find('.');
 
@@ -804,9 +808,10 @@ bool DictionaryValue::RemovePath(const std::string& path,
   return result;
 }
 
-scoped_ptr<DictionaryValue> DictionaryValue::DeepCopyWithoutEmptyChildren()
+std::unique_ptr<DictionaryValue> DictionaryValue::DeepCopyWithoutEmptyChildren()
     const {
-  scoped_ptr<DictionaryValue> copy = CopyDictionaryWithoutEmptyChildren(*this);
+  std::unique_ptr<DictionaryValue> copy =
+      CopyDictionaryWithoutEmptyChildren(*this);
   if (!copy)
     copy.reset(new DictionaryValue);
   return copy;
@@ -853,8 +858,8 @@ DictionaryValue* DictionaryValue::DeepCopy() const {
   return result;
 }
 
-scoped_ptr<DictionaryValue> DictionaryValue::CreateDeepCopy() const {
-  return make_scoped_ptr(DeepCopy());
+std::unique_ptr<DictionaryValue> DictionaryValue::CreateDeepCopy() const {
+  return WrapUnique(DeepCopy());
 }
 
 bool DictionaryValue::Equals(const Value* other) const {
@@ -882,11 +887,11 @@ bool DictionaryValue::Equals(const Value* other) const {
 ///////////////////// ListValue ////////////////////
 
 // static
-scoped_ptr<ListValue> ListValue::From(scoped_ptr<Value> value) {
+std::unique_ptr<ListValue> ListValue::From(std::unique_ptr<Value> value) {
   ListValue* out;
   if (value && value->GetAsList(&out)) {
     ignore_result(value.release());
-    return make_scoped_ptr(out);
+    return WrapUnique(out);
   }
   return nullptr;
 }
@@ -921,7 +926,7 @@ bool ListValue::Set(size_t index, Value* in_value) {
   return true;
 }
 
-bool ListValue::Set(size_t index, scoped_ptr<Value> in_value) {
+bool ListValue::Set(size_t index, std::unique_ptr<Value> in_value) {
   return Set(index, in_value.release());
 }
 
@@ -1036,7 +1041,7 @@ bool ListValue::GetList(size_t index, ListValue** out_value) {
       const_cast<const ListValue**>(out_value));
 }
 
-bool ListValue::Remove(size_t index, scoped_ptr<Value>* out_value) {
+bool ListValue::Remove(size_t index, std::unique_ptr<Value>* out_value) {
   if (index >= list_.size())
     return false;
 
@@ -1065,7 +1070,7 @@ bool ListValue::Remove(const Value& value, size_t* index) {
 }
 
 ListValue::iterator ListValue::Erase(iterator iter,
-                                     scoped_ptr<Value>* out_value) {
+                                     std::unique_ptr<Value>* out_value) {
   if (out_value)
     out_value->reset(*iter);
   else
@@ -1074,7 +1079,7 @@ ListValue::iterator ListValue::Erase(iterator iter,
   return list_.erase(iter);
 }
 
-void ListValue::Append(scoped_ptr<Value> in_value) {
+void ListValue::Append(std::unique_ptr<Value> in_value) {
   Append(in_value.release());
 }
 
@@ -1167,8 +1172,8 @@ ListValue* ListValue::DeepCopy() const {
   return result;
 }
 
-scoped_ptr<ListValue> ListValue::CreateDeepCopy() const {
-  return make_scoped_ptr(DeepCopy());
+std::unique_ptr<ListValue> ListValue::CreateDeepCopy() const {
+  return WrapUnique(DeepCopy());
 }
 
 bool ListValue::Equals(const Value* other) const {
