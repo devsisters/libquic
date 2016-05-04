@@ -80,7 +80,7 @@
         {
             "action": "makedir",
             "target": [
-                "base/third_party/superfasthash/",
+                "base/third_party/superfasthash/"
             ]
         },
         {
