@@ -98,7 +98,7 @@ func (c *Conn) clientHandshake() error {
 		}
 	}
 
-	if c.config.Bugs.NoRenegotiationInfo {
+	if c.noRenegotiationInfo() {
 		hello.secureRenegotiation = nil
 	}
 
@@ -282,7 +282,7 @@ NextCipherSuite:
 		return errors.New("tls: renegotiation extension missing")
 	}
 
-	if len(c.clientVerify) > 0 && !c.config.Bugs.NoRenegotiationInfo {
+	if len(c.clientVerify) > 0 && !c.noRenegotiationInfo() {
 		var expectedRenegInfo []byte
 		expectedRenegInfo = append(expectedRenegInfo, c.clientVerify...)
 		expectedRenegInfo = append(expectedRenegInfo, c.serverVerify...)
@@ -363,6 +363,9 @@ NextCipherSuite:
 	}
 
 	if sessionCache != nil && hs.session != nil && session != hs.session {
+		if c.config.Bugs.RequireSessionTickets && len(hs.session.sessionTicket) == 0 {
+			return errors.New("tls: new session used session IDs instead of tickets")
+		}
 		sessionCache.Put(cacheKey, hs.session)
 	}
 
@@ -561,15 +564,20 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	hs.writeServerHash(shd.marshal())
 
 	// If the server requested a certificate then we have to send a
-	// Certificate message, even if it's empty because we don't have a
-	// certificate to send.
+	// Certificate message in TLS, even if it's empty because we don't have
+	// a certificate to send. In SSL 3.0, skip the message and send a
+	// no_certificate warning alert.
 	if certRequested {
-		certMsg := new(certificateMsg)
-		if chainToSend != nil {
-			certMsg.certificates = chainToSend.Certificate
+		if c.vers == VersionSSL30 && chainToSend == nil {
+			c.sendAlert(alertNoCertficate)
+		} else if !c.config.Bugs.SkipClientCertificate {
+			certMsg := new(certificateMsg)
+			if chainToSend != nil {
+				certMsg.certificates = chainToSend.Certificate
+			}
+			hs.writeClientHash(certMsg.marshal())
+			c.writeRecord(recordTypeHandshake, certMsg.marshal())
 		}
-		hs.writeClientHash(certMsg.marshal())
-		c.writeRecord(recordTypeHandshake, certMsg.marshal())
 	}
 
 	preMasterSecret, ckx, err := keyAgreement.generateClientKeyExchange(c.config, hs.hello, leaf)
@@ -924,7 +932,11 @@ func (hs *clientHandshakeState) sendFinished(out []byte, isResume bool) error {
 
 	if !c.config.Bugs.SkipChangeCipherSpec &&
 		c.config.Bugs.EarlyChangeCipherSpec == 0 {
-		c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
+		ccs := []byte{1}
+		if c.config.Bugs.BadChangeCipherSpec != nil {
+			ccs = c.config.Bugs.BadChangeCipherSpec
+		}
+		c.writeRecord(recordTypeChangeCipherSpec, ccs)
 	}
 
 	if c.config.Bugs.AppDataAfterChangeCipherSpec != nil {

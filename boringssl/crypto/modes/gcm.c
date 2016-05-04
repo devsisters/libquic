@@ -55,6 +55,7 @@
 #include <openssl/cpu.h>
 
 #include "internal.h"
+#include "../internal.h"
 
 
 #if !defined(OPENSSL_NO_ASM) &&                         \
@@ -337,7 +338,18 @@ void gcm_ghash_clmul(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
 #else
 void gcm_init_avx(u128 Htable[16], const uint64_t Xi[2]);
 void gcm_gmult_avx(uint64_t Xi[2], const u128 Htable[16]);
-void gcm_ghash_avx(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp, size_t len);
+void gcm_ghash_avx(uint64_t Xi[2], const u128 Htable[16], const uint8_t *in,
+                   size_t len);
+#define AESNI_GCM
+static int aesni_gcm_enabled(GCM128_CONTEXT *ctx, ctr128_f stream) {
+  return stream == aesni_ctr32_encrypt_blocks &&
+         ctx->ghash == gcm_ghash_avx;
+}
+
+size_t aesni_gcm_encrypt(const uint8_t *in, uint8_t *out, size_t len,
+                         const void *key, uint8_t ivec[16], uint64_t *Xi);
+size_t aesni_gcm_decrypt(const uint8_t *in, uint8_t *out, size_t len,
+                         const void *key, uint8_t ivec[16], uint64_t *Xi);
 #endif
 
 #if defined(OPENSSL_X86)
@@ -380,14 +392,14 @@ void gcm_ghash_neon(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
 static int neon_capable(void) {
   return 0;
 }
-void gcm_init_neon(u128 Htable[16], const uint64_t Xi[2]) {
+static void gcm_init_neon(u128 Htable[16], const uint64_t Xi[2]) {
   abort();
 }
-void gcm_gmult_neon(uint64_t Xi[2], const u128 Htable[16]) {
+static void gcm_gmult_neon(uint64_t Xi[2], const u128 Htable[16]) {
   abort();
 }
-void gcm_ghash_neon(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
-                    size_t len) {
+static void gcm_ghash_neon(uint64_t Xi[2], const u128 Htable[16],
+                           const uint8_t *inp, size_t len) {
   abort();
 }
 #endif
@@ -404,17 +416,6 @@ void gcm_ghash_neon(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
 #define GHASH(ctx, in, len) (*gcm_ghash_p)(ctx->Xi.u, ctx->Htable, in, len)
 #endif
 #endif
-
-GCM128_CONTEXT *CRYPTO_gcm128_new(const void *key, block128_f block) {
-  GCM128_CONTEXT *ret;
-
-  ret = (GCM128_CONTEXT *)OPENSSL_malloc(sizeof(GCM128_CONTEXT));
-  if (ret != NULL) {
-    CRYPTO_gcm128_init(ret, key, block);
-  }
-
-  return ret;
-}
 
 void CRYPTO_gcm128_init(GCM128_CONTEXT *ctx, const void *key,
                         block128_f block) {
@@ -606,7 +607,8 @@ int CRYPTO_gcm128_aad(GCM128_CONTEXT *ctx, const uint8_t *aad, size_t len) {
   }
 
 #ifdef GHASH
-  if ((i = (len & (size_t) - 16))) {
+  i = len & kSizeTWithoutLower4Bits;
+  if (i != 0) {
     GHASH(ctx, aad, i);
     aad += i;
     len -= i;
@@ -895,7 +897,8 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx, const void *key,
     }
     len -= GHASH_CHUNK;
   }
-  if ((i = (len & (size_t) - 16))) {
+  i = len & kSizeTWithoutLower4Bits;
+  if (i != 0) {
     GHASH(ctx, in, i);
     while (len >= 16) {
       size_t *out_t = (size_t *)out;
@@ -989,12 +992,6 @@ int CRYPTO_gcm128_encrypt_ctr32(GCM128_CONTEXT *ctx, const void *key,
     ctx->ares = 0;
   }
 
-  if (is_endian.little) {
-    ctr = GETU32(ctx->Yi.c + 12);
-  } else {
-    ctr = ctx->Yi.d[3];
-  }
-
   n = ctx->mres;
   if (n) {
     while (n && len) {
@@ -1009,6 +1006,24 @@ int CRYPTO_gcm128_encrypt_ctr32(GCM128_CONTEXT *ctx, const void *key,
       return 1;
     }
   }
+
+#if defined(AESNI_GCM)
+  if (aesni_gcm_enabled(ctx, stream)) {
+    /* |aesni_gcm_encrypt| may not process all the input given to it. It may
+     * not process *any* of its input if it is deemed too small. */
+    size_t bulk = aesni_gcm_encrypt(in, out, len, key, ctx->Yi.c, ctx->Xi.u);
+    in += bulk;
+    out += bulk;
+    len -= bulk;
+  }
+#endif
+
+  if (is_endian.little) {
+    ctr = GETU32(ctx->Yi.c + 12);
+  } else {
+    ctr = ctx->Yi.d[3];
+  }
+
 #if defined(GHASH)
   while (len >= GHASH_CHUNK) {
     (*stream)(in, out, GHASH_CHUNK / 16, key, ctx->Yi.c);
@@ -1098,12 +1113,6 @@ int CRYPTO_gcm128_decrypt_ctr32(GCM128_CONTEXT *ctx, const void *key,
     ctx->ares = 0;
   }
 
-  if (is_endian.little) {
-    ctr = GETU32(ctx->Yi.c + 12);
-  } else {
-    ctr = ctx->Yi.d[3];
-  }
-
   n = ctx->mres;
   if (n) {
     while (n && len) {
@@ -1120,6 +1129,24 @@ int CRYPTO_gcm128_decrypt_ctr32(GCM128_CONTEXT *ctx, const void *key,
       return 1;
     }
   }
+
+#if defined(AESNI_GCM)
+  if (aesni_gcm_enabled(ctx, stream)) {
+    /* |aesni_gcm_decrypt| may not process all the input given to it. It may
+     * not process *any* of its input if it is deemed too small. */
+    size_t bulk = aesni_gcm_decrypt(in, out, len, key, ctx->Yi.c, ctx->Xi.u);
+    in += bulk;
+    out += bulk;
+    len -= bulk;
+  }
+#endif
+
+  if (is_endian.little) {
+    ctr = GETU32(ctx->Yi.c + 12);
+  } else {
+    ctr = ctx->Yi.d[3];
+  }
+
 #if defined(GHASH)
   while (len >= GHASH_CHUNK) {
     GHASH(ctx, in, GHASH_CHUNK);
@@ -1231,13 +1258,6 @@ int CRYPTO_gcm128_finish(GCM128_CONTEXT *ctx, const uint8_t *tag, size_t len) {
 void CRYPTO_gcm128_tag(GCM128_CONTEXT *ctx, unsigned char *tag, size_t len) {
   CRYPTO_gcm128_finish(ctx, NULL, 0);
   memcpy(tag, ctx->Xi.c, len <= sizeof(ctx->Xi.c) ? len : sizeof(ctx->Xi.c));
-}
-
-void CRYPTO_gcm128_release(GCM128_CONTEXT *ctx) {
-  if (ctx) {
-    OPENSSL_cleanse(ctx, sizeof(*ctx));
-    OPENSSL_free(ctx);
-  }
 }
 
 #if defined(OPENSSL_X86) || defined(OPENSSL_X86_64)

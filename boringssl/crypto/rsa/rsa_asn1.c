@@ -59,14 +59,13 @@
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/asn1.h>
-#include <openssl/asn1t.h>
 #include <openssl/bn.h>
 #include <openssl/bytestring.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 
 #include "internal.h"
+#include "../bytestring/internal.h"
 
 
 static int parse_integer_buggy(CBS *cbs, BIGNUM **out, int buggy) {
@@ -76,9 +75,9 @@ static int parse_integer_buggy(CBS *cbs, BIGNUM **out, int buggy) {
     return 0;
   }
   if (buggy) {
-    return BN_cbs2unsigned_buggy(cbs, *out);
+    return BN_parse_asn1_unsigned_buggy(cbs, *out);
   }
-  return BN_cbs2unsigned(cbs, *out);
+  return BN_parse_asn1_unsigned(cbs, *out);
 }
 
 static int parse_integer(CBS *cbs, BIGNUM **out) {
@@ -91,7 +90,7 @@ static int marshal_integer(CBB *cbb, BIGNUM *bn) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_VALUE_MISSING);
     return 0;
   }
-  return BN_bn2cbb(cbb, bn);
+  return BN_marshal_asn1(cbb, bn);
 }
 
 static RSA *parse_public_key(CBS *cbs, int buggy) {
@@ -108,6 +107,14 @@ static RSA *parse_public_key(CBS *cbs, int buggy) {
     RSA_free(ret);
     return NULL;
   }
+
+  if (!BN_is_odd(ret->e) ||
+      BN_num_bits(ret->e) < 2) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_RSA_PARAMETERS);
+    RSA_free(ret);
+    return NULL;
+  }
+
   return ret;
 }
 
@@ -224,9 +231,11 @@ RSA *RSA_parse_private_key(CBS *cbs) {
     goto err;
   }
 
-  /* Multi-prime RSA requires a newer version. */
-  if (version == kVersionMulti &&
-      CBS_peek_asn1_tag(&child, CBS_ASN1_SEQUENCE)) {
+  if (version == kVersionMulti) {
+    /* Although otherPrimeInfos is written as OPTIONAL in RFC 3447, it later
+     * says "[otherPrimeInfos] shall be omitted if version is 0 and shall
+     * contain at least one instance of OtherPrimeInfo if version is 1." The
+     * OPTIONAL is just so both versions share a single definition. */
     CBS other_prime_infos;
     if (!CBS_get_asn1(&child, &other_prime_infos, CBS_ASN1_SEQUENCE) ||
         CBS_len(&other_prime_infos) == 0) {
@@ -371,32 +380,18 @@ RSA *d2i_RSAPublicKey(RSA **out, const uint8_t **inp, long len) {
     RSA_free(*out);
     *out = ret;
   }
-  *inp += (size_t)len - CBS_len(&cbs);
+  *inp = CBS_data(&cbs);
   return ret;
 }
 
 int i2d_RSAPublicKey(const RSA *in, uint8_t **outp) {
-  uint8_t *der;
-  size_t der_len;
-  if (!RSA_public_key_to_bytes(&der, &der_len, in)) {
+  CBB cbb;
+  if (!CBB_init(&cbb, 0) ||
+      !RSA_marshal_public_key(&cbb, in)) {
+    CBB_cleanup(&cbb);
     return -1;
   }
-  if (der_len > INT_MAX) {
-    OPENSSL_PUT_ERROR(RSA, ERR_R_OVERFLOW);
-    OPENSSL_free(der);
-    return -1;
-  }
-  if (outp != NULL) {
-    if (*outp == NULL) {
-      *outp = der;
-      der = NULL;
-    } else {
-      memcpy(*outp, der, der_len);
-      *outp += der_len;
-    }
-  }
-  OPENSSL_free(der);
-  return (int)der_len;
+  return CBB_finish_i2d(&cbb, outp);
 }
 
 RSA *d2i_RSAPrivateKey(RSA **out, const uint8_t **inp, long len) {
@@ -413,42 +408,19 @@ RSA *d2i_RSAPrivateKey(RSA **out, const uint8_t **inp, long len) {
     RSA_free(*out);
     *out = ret;
   }
-  *inp += (size_t)len - CBS_len(&cbs);
+  *inp = CBS_data(&cbs);
   return ret;
 }
 
 int i2d_RSAPrivateKey(const RSA *in, uint8_t **outp) {
-  uint8_t *der;
-  size_t der_len;
-  if (!RSA_private_key_to_bytes(&der, &der_len, in)) {
+  CBB cbb;
+  if (!CBB_init(&cbb, 0) ||
+      !RSA_marshal_private_key(&cbb, in)) {
+    CBB_cleanup(&cbb);
     return -1;
   }
-  if (der_len > INT_MAX) {
-    OPENSSL_PUT_ERROR(RSA, ERR_R_OVERFLOW);
-    OPENSSL_free(der);
-    return -1;
-  }
-  if (outp != NULL) {
-    if (*outp == NULL) {
-      *outp = der;
-      der = NULL;
-    } else {
-      memcpy(*outp, der, der_len);
-      *outp += der_len;
-    }
-  }
-  OPENSSL_free(der);
-  return (int)der_len;
+  return CBB_finish_i2d(&cbb, outp);
 }
-
-ASN1_SEQUENCE(RSA_PSS_PARAMS) = {
-  ASN1_EXP_OPT(RSA_PSS_PARAMS, hashAlgorithm, X509_ALGOR,0),
-  ASN1_EXP_OPT(RSA_PSS_PARAMS, maskGenAlgorithm, X509_ALGOR,1),
-  ASN1_EXP_OPT(RSA_PSS_PARAMS, saltLength, ASN1_INTEGER,2),
-  ASN1_EXP_OPT(RSA_PSS_PARAMS, trailerField, ASN1_INTEGER,3),
-} ASN1_SEQUENCE_END(RSA_PSS_PARAMS);
-
-IMPLEMENT_ASN1_FUNCTIONS(RSA_PSS_PARAMS);
 
 RSA *RSAPublicKey_dup(const RSA *rsa) {
   uint8_t *der;

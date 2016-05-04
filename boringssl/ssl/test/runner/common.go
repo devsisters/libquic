@@ -98,10 +98,11 @@ const (
 type CurveID uint16
 
 const (
-	CurveP224 CurveID = 21
-	CurveP256 CurveID = 23
-	CurveP384 CurveID = 24
-	CurveP521 CurveID = 25
+	CurveP224   CurveID = 21
+	CurveP256   CurveID = 23
+	CurveP384   CurveID = 24
+	CurveP521   CurveID = 25
+	CurveX25519 CurveID = 29
 )
 
 // TLS Elliptic Curve Point Formats
@@ -399,6 +400,17 @@ const (
 	NumBadValues
 )
 
+type RSABadValue int
+
+const (
+	RSABadValueNone RSABadValue = iota
+	RSABadValueCorrupt
+	RSABadValueTooLong
+	RSABadValueTooShort
+	RSABadValueWrongVersion
+	NumRSABadValues
+)
+
 type ProtocolBugs struct {
 	// InvalidSKXSignature specifies that the signature in a
 	// ServerKeyExchange message should be invalid.
@@ -411,6 +423,10 @@ type ProtocolBugs struct {
 	// InvalidSKXCurve causes the curve ID in the ServerKeyExchange message
 	// to be wrong.
 	InvalidSKXCurve bool
+
+	// InvalidECDHPoint, if true, causes the ECC points in
+	// ServerKeyExchange or ClientKeyExchange messages to be invalid.
+	InvalidECDHPoint bool
 
 	// BadECDSAR controls ways in which the 'r' value of an ECDSA signature
 	// can be invalid.
@@ -456,6 +472,10 @@ type ProtocolBugs struct {
 	// SkipNewSessionTicket causes the server to skip sending the
 	// NewSessionTicket message despite promising to in ServerHello.
 	SkipNewSessionTicket bool
+
+	// SkipClientCertificate causes the client to skip the Certificate
+	// message.
+	SkipClientCertificate bool
 
 	// SkipChangeCipherSpec causes the implementation to skip
 	// sending the ChangeCipherSpec message (and adjusting cipher
@@ -505,14 +525,17 @@ type ProtocolBugs struct {
 	// two records.
 	FragmentAlert bool
 
+	// DoubleAlert will cause all alerts to be sent as two copies packed
+	// within one record.
+	DoubleAlert bool
+
 	// SendSpuriousAlert, if non-zero, will cause an spurious, unwanted
 	// alert to be sent.
 	SendSpuriousAlert alert
 
-	// RsaClientKeyExchangeVersion, if non-zero, causes the client to send a
-	// ClientKeyExchange with the specified version rather than the
-	// client_version when performing the RSA key exchange.
-	RsaClientKeyExchangeVersion uint16
+	// BadRSAClientKeyExchange causes the client to send a corrupted RSA
+	// ClientKeyExchange which would not pass padding checks.
+	BadRSAClientKeyExchange RSABadValue
 
 	// RenewTicketOnResume causes the server to renew the session ticket and
 	// send a NewSessionTicket message during an abbreviated handshake.
@@ -534,11 +557,6 @@ type ProtocolBugs struct {
 	// Start test to determine whether the peer processed the alert (and
 	// closed the connection) before or after sending app data.
 	AlertBeforeFalseStartTest alert
-
-	// SSL3RSAKeyExchange causes the client to always send an RSA
-	// ClientKeyExchange message without the two-byte length
-	// prefix, as if it were SSL3.
-	SSL3RSAKeyExchange bool
 
 	// SkipCipherVersionCheck causes the server to negotiate
 	// TLS 1.2 ciphers in earlier versions of TLS.
@@ -584,9 +602,17 @@ type ProtocolBugs struct {
 	// renegotiation handshake to be incorrect.
 	BadRenegotiationInfo bool
 
-	// NoRenegotiationInfo causes the client to behave as if it
-	// didn't support the renegotiation info extension.
+	// NoRenegotiationInfo disables renegotiation info support in all
+	// handshakes.
 	NoRenegotiationInfo bool
+
+	// NoRenegotiationInfoInInitial disables renegotiation info support in
+	// the initial handshake.
+	NoRenegotiationInfoInInitial bool
+
+	// NoRenegotiationInfoAfterInitial disables renegotiation info support
+	// in renegotiation handshakes.
+	NoRenegotiationInfoAfterInitial bool
 
 	// RequireRenegotiationInfo, if true, causes the client to return an
 	// error if the server doesn't reply with the renegotiation extension.
@@ -787,6 +813,27 @@ type ProtocolBugs struct {
 	// HelloRequest handshake message to be sent before each application
 	// data record. This only makes sense for a server.
 	SendHelloRequestBeforeEveryAppDataRecord bool
+
+	// RequireDHPublicValueLen causes a fatal error if the length (in
+	// bytes) of the server's Diffie-Hellman public value is not equal to
+	// this.
+	RequireDHPublicValueLen int
+
+	// BadChangeCipherSpec, if not nil, is the body to be sent in
+	// ChangeCipherSpec records instead of {1}.
+	BadChangeCipherSpec []byte
+
+	// BadHelloRequest, if not nil, is what to send instead of a
+	// HelloRequest.
+	BadHelloRequest []byte
+
+	// RequireSessionTickets, if true, causes the client to require new
+	// sessions use session tickets instead of session IDs.
+	RequireSessionTickets bool
+
+	// NullAllCiphers, if true, causes every cipher to behave like the null
+	// cipher.
+	NullAllCiphers bool
 }
 
 func (c *Config) serverInit() {
@@ -844,7 +891,7 @@ func (c *Config) maxVersion() uint16 {
 	return c.MaxVersion
 }
 
-var defaultCurvePreferences = []CurveID{CurveP256, CurveP384, CurveP521}
+var defaultCurvePreferences = []CurveID{CurveX25519, CurveP256, CurveP384, CurveP521}
 
 func (c *Config) curvePreferences() []CurveID {
 	if c == nil || len(c.CurvePreferences) == 0 {

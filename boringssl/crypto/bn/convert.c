@@ -63,6 +63,7 @@
 #include <string.h>
 
 #include <openssl/bio.h>
+#include <openssl/bytestring.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 
@@ -195,6 +196,11 @@ int BN_bn2bin_padded(uint8_t *out, size_t len, const BIGNUM *in) {
   return 1;
 }
 
+int BN_bn2cbb_padded(CBB *out, size_t len, const BIGNUM *in) {
+  uint8_t *ptr;
+  return CBB_add_space(out, &ptr, len) && BN_bn2bin_padded(ptr, len, in);
+}
+
 static const char hextable[] = "0123456789abcdef";
 
 char *BN_bn2hex(const BIGNUM *bn) {
@@ -202,7 +208,7 @@ char *BN_bn2hex(const BIGNUM *bn) {
   char *buf;
   char *p;
 
-  buf = (char *)OPENSSL_malloc(bn->top * BN_BYTES * 2 + 2);
+  buf = OPENSSL_malloc(bn->top * BN_BYTES * 2 + 2);
   if (buf == NULL) {
     OPENSSL_PUT_ERROR(BN, ERR_R_MALLOC_FAILURE);
     return NULL;
@@ -379,9 +385,8 @@ char *BN_bn2dec(const BIGNUM *a) {
    */
   i = BN_num_bits(a) * 3;
   num = i / 10 + i / 1000 + 1 + 1;
-  bn_data =
-      (BN_ULONG *)OPENSSL_malloc((num / BN_DEC_NUM + 1) * sizeof(BN_ULONG));
-  buf = (char *)OPENSSL_malloc(num + 3);
+  bn_data = OPENSSL_malloc((num / BN_DEC_NUM + 1) * sizeof(BN_ULONG));
+  buf = OPENSSL_malloc(num + 3);
   if ((buf == NULL) || (bn_data == NULL)) {
     OPENSSL_PUT_ERROR(BN, ERR_R_MALLOC_FAILURE);
     goto err;

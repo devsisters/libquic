@@ -73,7 +73,7 @@
 #include <openssl/bn.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
-#include <openssl/obj.h>
+#include <openssl/nid.h>
 
 #include "internal.h"
 #include "../internal.h"
@@ -228,10 +228,25 @@ static const struct curve_data P521 = {
 #endif
 
 const struct built_in_curve OPENSSL_built_in_curves[] = {
-    {NID_secp521r1, &P521, 0},
-    {NID_secp384r1, &P384, 0},
     {
-        NID_X9_62_prime256v1, &P256,
+        NID_secp521r1,
+        /* 1.3.132.0.35 */
+        {0x2b, 0x81, 0x04, 0x00, 0x23}, 5,
+        &P521,
+        NULL,
+      },
+    {
+        NID_secp384r1,
+        /* 1.3.132.0.34 */
+        {0x2b, 0x81, 0x04, 0x00, 0x22}, 5,
+        &P384,
+        NULL,
+    },
+    {
+        NID_X9_62_prime256v1,
+        /* 1.2.840.10045.3.1.7 */
+        {0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07}, 8,
+        &P256,
 #if defined(BORINGSSL_USE_INT128_CODE)
 #if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && \
     !defined(OPENSSL_SMALL)
@@ -240,18 +255,21 @@ const struct built_in_curve OPENSSL_built_in_curves[] = {
         EC_GFp_nistp256_method,
 #endif
 #else
-        0,
+        NULL,
 #endif
     },
     {
-        NID_secp224r1, &P224,
+        NID_secp224r1,
+        /* 1.3.132.0.33 */
+        {0x2b, 0x81, 0x04, 0x00, 0x21}, 5,
+        &P224,
 #if defined(BORINGSSL_USE_INT128_CODE) && !defined(OPENSSL_SMALL)
         EC_GFp_nistp224_method,
 #else
-        0,
+        NULL,
 #endif
     },
-    {NID_undef, 0, 0},
+    {NID_undef, {0}, 0, NULL, NULL},
 };
 
 /* built_in_curve_scalar_field_monts contains Montgomery contexts for
@@ -373,40 +391,50 @@ EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a,
 
 int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
                            const BIGNUM *order, const BIGNUM *cofactor) {
-  if (group->curve_name != NID_undef) {
-    /* |EC_GROUP_set_generator| should only be used with |EC_GROUP|s returned
-     * by |EC_GROUP_new_curve_GFp|. */
+  if (group->curve_name != NID_undef || group->generator != NULL) {
+    /* |EC_GROUP_set_generator| may only be used with |EC_GROUP|s returned by
+     * |EC_GROUP_new_curve_GFp| and may only used once on each group. */
     return 0;
   }
 
-  if (group->generator == NULL) {
-    group->generator = EC_POINT_new(group);
-    if (group->generator == NULL) {
-      return 0;
-    }
+  group->generator = EC_POINT_new(group);
+  return group->generator != NULL &&
+         EC_POINT_copy(group->generator, generator) &&
+         BN_copy(&group->order, order) &&
+         BN_copy(&group->cofactor, cofactor);
+}
+
+EC_GROUP *EC_GROUP_new_arbitrary(const BIGNUM *p, const BIGNUM *a,
+                                 const BIGNUM *b, const BIGNUM *gx,
+                                 const BIGNUM *gy, const BIGNUM *order,
+                                 const BIGNUM *cofactor) {
+  BN_CTX *ctx = BN_CTX_new();
+  if (ctx == NULL) {
+    return NULL;
   }
 
-  if (!EC_POINT_copy(group->generator, generator)) {
-    return 0;
+  EC_POINT *generator = NULL;
+  EC_GROUP *ret = EC_GROUP_new_curve_GFp(p, a, b, ctx);
+  if (ret == NULL) {
+    goto err;
   }
 
-  if (order != NULL) {
-    if (!BN_copy(&group->order, order)) {
-      return 0;
-    }
-  } else {
-    BN_zero(&group->order);
+  generator = EC_POINT_new(ret);
+  if (generator == NULL ||
+      !EC_POINT_set_affine_coordinates_GFp(ret, generator, gx, gy, ctx) ||
+      !EC_GROUP_set_generator(ret, generator, order, cofactor)) {
+    goto err;
   }
 
-  if (cofactor != NULL) {
-    if (!BN_copy(&group->cofactor, cofactor)) {
-      return 0;
-    }
-  } else {
-    BN_zero(&group->cofactor);
-  }
+  EC_POINT_free(generator);
+  BN_CTX_free(ctx);
+  return ret;
 
-  return 1;
+err:
+  EC_POINT_free(generator);
+  EC_GROUP_free(ret);
+  BN_CTX_free(ctx);
+  return NULL;
 }
 
 static EC_GROUP *ec_group_new_from_data(unsigned built_in_index) {
@@ -525,8 +553,6 @@ void EC_GROUP_free(EC_GROUP *group) {
     group->meth->group_finish(group);
   }
 
-  ec_pre_comp_free(group->pre_comp);
-
   EC_POINT_free(group->generator);
   BN_free(&group->order);
   BN_free(&group->cofactor);
@@ -547,8 +573,6 @@ int ec_group_copy(EC_GROUP *dest, const EC_GROUP *src) {
     return 1;
   }
 
-  ec_pre_comp_free(dest->pre_comp);
-  dest->pre_comp = ec_pre_comp_dup(src->pre_comp);
   dest->mont_data = src->mont_data;
 
   if (src->generator != NULL) {
@@ -617,12 +641,16 @@ const EC_POINT *EC_GROUP_get0_generator(const EC_GROUP *group) {
   return group->generator;
 }
 
+const BIGNUM *EC_GROUP_get0_order(const EC_GROUP *group) {
+  assert(!BN_is_zero(&group->order));
+  return &group->order;
+}
+
 int EC_GROUP_get_order(const EC_GROUP *group, BIGNUM *order, BN_CTX *ctx) {
-  if (!BN_copy(order, &group->order)) {
+  if (BN_copy(order, EC_GROUP_get0_order(group)) == NULL) {
     return 0;
   }
-
-  return !BN_is_zero(order);
+  return 1;
 }
 
 int EC_GROUP_get_cofactor(const EC_GROUP *group, BIGNUM *cofactor,
@@ -643,21 +671,6 @@ int EC_GROUP_get_curve_name(const EC_GROUP *group) { return group->curve_name; }
 
 unsigned EC_GROUP_get_degree(const EC_GROUP *group) {
   return ec_GFp_simple_group_get_degree(group);
-}
-
-int EC_GROUP_precompute_mult(EC_GROUP *group, BN_CTX *ctx) {
-  if (group->meth->precompute_mult != NULL) {
-    return group->meth->precompute_mult(group, ctx);
-  }
-
-  return 1; /* nothing to do, so report success */
-}
-
-int EC_GROUP_have_precompute_mult(const EC_GROUP *group) {
-  if (group->pre_comp != NULL) {
-    return 1;
-  }
-  return 0;
 }
 
 EC_POINT *EC_POINT_new(const EC_GROUP *group) {
@@ -856,39 +869,23 @@ int EC_POINT_invert(const EC_GROUP *group, EC_POINT *a, BN_CTX *ctx) {
 }
 
 int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *g_scalar,
-                 const EC_POINT *point, const BIGNUM *p_scalar, BN_CTX *ctx) {
-  /* just a convenient interface to EC_POINTs_mul() */
+                 const EC_POINT *p, const BIGNUM *p_scalar, BN_CTX *ctx) {
+  /* Previously, this function set |r| to the point at infinity if there was
+   * nothing to multiply. But, nobody should be calling this function with
+   * nothing to multiply in the first place. */
+  if ((g_scalar == NULL && p_scalar == NULL) ||
+      ((p == NULL) != (p_scalar == NULL)))  {
+    OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
+    return 0;
+  }
 
-  const EC_POINT *points[1];
-  const BIGNUM *scalars[1];
-
-  points[0] = point;
-  scalars[0] = p_scalar;
-
-  return EC_POINTs_mul(group, r, g_scalar, (point != NULL && p_scalar != NULL),
-                       points, scalars, ctx);
-}
-
-int EC_POINTs_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
-                  size_t num, const EC_POINT *points[], const BIGNUM *scalars[],
-                  BN_CTX *ctx) {
-  if (group->meth != r->meth) {
+  if (group->meth != r->meth ||
+      (p != NULL && group->meth != p->meth)) {
     OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
     return 0;
   }
 
-  size_t i;
-  for (i = 0; i < num; i++) {
-    if (points[i]->meth != r->meth) {
-      break;
-    }
-  }
-  if (i != num) {
-    OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
-    return 0;
-  }
-
-  return group->meth->mul(group, r, scalar, num, points, scalars, ctx);
+  return group->meth->mul(group, r, g_scalar, p, p_scalar, ctx);
 }
 
 int ec_point_set_Jprojective_coordinates_GFp(const EC_GROUP *group, EC_POINT *point,
@@ -917,4 +914,22 @@ void EC_GROUP_set_point_conversion_form(EC_GROUP *group,
   if (form != POINT_CONVERSION_UNCOMPRESSED) {
     abort();
   }
+}
+
+size_t EC_get_builtin_curves(EC_builtin_curve *out_curves,
+                             size_t max_num_curves) {
+  unsigned num_built_in_curves;
+  for (num_built_in_curves = 0;; num_built_in_curves++) {
+    if (OPENSSL_built_in_curves[num_built_in_curves].nid == NID_undef) {
+      break;
+    }
+  }
+
+  unsigned i;
+  for (i = 0; i < max_num_curves && i < num_built_in_curves; i++) {
+    out_curves[i].comment = OPENSSL_built_in_curves[i].data->comment;
+    out_curves[i].nid = OPENSSL_built_in_curves[i].nid;
+  }
+
+  return num_built_in_curves;
 }

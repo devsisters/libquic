@@ -76,6 +76,7 @@
 #include <openssl/ecdsa.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
+#include <openssl/obj.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
 #include <openssl/stack.h>
@@ -618,12 +619,10 @@ OPENSSL_EXPORT int X509_signature_print(BIO *bp,X509_ALGOR *alg, ASN1_STRING *si
 
 OPENSSL_EXPORT int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md);
 OPENSSL_EXPORT int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx);
-/* int X509_http_nbio(OCSP_REQ_CTX *rctx, X509 **pcert); */
 OPENSSL_EXPORT int X509_REQ_sign(X509_REQ *x, EVP_PKEY *pkey, const EVP_MD *md);
 OPENSSL_EXPORT int X509_REQ_sign_ctx(X509_REQ *x, EVP_MD_CTX *ctx);
 OPENSSL_EXPORT int X509_CRL_sign(X509_CRL *x, EVP_PKEY *pkey, const EVP_MD *md);
 OPENSSL_EXPORT int X509_CRL_sign_ctx(X509_CRL *x, EVP_MD_CTX *ctx);
-/* int X509_CRL_http_nbio(OCSP_REQ_CTX *rctx, X509_CRL **pcrl); */
 OPENSSL_EXPORT int NETSCAPE_SPKI_sign(NETSCAPE_SPKI *x, EVP_PKEY *pkey, const EVP_MD *md);
 
 OPENSSL_EXPORT int X509_pubkey_digest(const X509 *data,const EVP_MD *type,
@@ -787,7 +786,7 @@ DECLARE_ASN1_FUNCTIONS(X509_CERT_PAIR)
  * |x|. */
 OPENSSL_EXPORT X509 *X509_up_ref(X509 *x);
 
-OPENSSL_EXPORT int X509_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+OPENSSL_EXPORT int X509_get_ex_new_index(long argl, void *argp, CRYPTO_EX_unused *unused,
 	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
 OPENSSL_EXPORT int X509_set_ex_data(X509 *r, int idx, void *arg);
 OPENSSL_EXPORT void *X509_get_ex_data(X509 *r, int idx);
@@ -1155,6 +1154,17 @@ OPENSSL_EXPORT int X509_TRUST_get_flags(X509_TRUST *xp);
 OPENSSL_EXPORT char *X509_TRUST_get0_name(X509_TRUST *xp);
 OPENSSL_EXPORT int X509_TRUST_get_trust(X509_TRUST *xp);
 
+
+typedef struct rsa_pss_params_st {
+  X509_ALGOR *hashAlgorithm;
+  X509_ALGOR *maskGenAlgorithm;
+  ASN1_INTEGER *saltLength;
+  ASN1_INTEGER *trailerField;
+} RSA_PSS_PARAMS;
+
+DECLARE_ASN1_FUNCTIONS(RSA_PSS_PARAMS)
+
+
 /* PKCS7_get_certificates parses a PKCS#7, SignedData structure from |cbs| and
  * appends the included certificates to |out_certs|. It returns one on success
  * and zero on error. */
@@ -1229,30 +1239,28 @@ OPENSSL_EXPORT int PKCS7_get_PEM_CRLs(STACK_OF(X509_CRL) *out_crls,
 #define X509_R_INVALID_BIT_STRING_BITS_LEFT 109
 #define X509_R_INVALID_DIRECTORY 110
 #define X509_R_INVALID_FIELD_NAME 111
-#define X509_R_INVALID_TRUST 112
-#define X509_R_ISSUER_MISMATCH 113
-#define X509_R_KEY_TYPE_MISMATCH 114
-#define X509_R_KEY_VALUES_MISMATCH 115
-#define X509_R_LOADING_CERT_DIR 116
-#define X509_R_LOADING_DEFAULTS 117
-#define X509_R_METHOD_NOT_SUPPORTED 118
+#define X509_R_INVALID_PSS_PARAMETERS 112
+#define X509_R_INVALID_TRUST 113
+#define X509_R_ISSUER_MISMATCH 114
+#define X509_R_KEY_TYPE_MISMATCH 115
+#define X509_R_KEY_VALUES_MISMATCH 116
+#define X509_R_LOADING_CERT_DIR 117
+#define X509_R_LOADING_DEFAULTS 118
 #define X509_R_NEWER_CRL_NOT_NEWER 119
 #define X509_R_NOT_PKCS7_SIGNED_DATA 120
 #define X509_R_NO_CERTIFICATES_INCLUDED 121
 #define X509_R_NO_CERT_SET_FOR_US_TO_VERIFY 122
-#define X509_R_NO_CRL_NUMBER 123
-#define X509_R_PUBLIC_KEY_DECODE_ERROR 124
-#define X509_R_PUBLIC_KEY_ENCODE_ERROR 125
-#define X509_R_SHOULD_RETRY 126
-#define X509_R_UNABLE_TO_FIND_PARAMETERS_IN_CHAIN 127
-#define X509_R_UNABLE_TO_GET_CERTS_PUBLIC_KEY 128
-#define X509_R_UNKNOWN_KEY_TYPE 129
-#define X509_R_UNKNOWN_NID 130
-#define X509_R_UNKNOWN_PURPOSE_ID 131
-#define X509_R_UNKNOWN_TRUST_ID 132
-#define X509_R_UNSUPPORTED_ALGORITHM 133
-#define X509_R_WRONG_LOOKUP_TYPE 134
-#define X509_R_WRONG_TYPE 135
-#define X509_R_NO_CRLS_INCLUDED 136
+#define X509_R_NO_CRLS_INCLUDED 123
+#define X509_R_NO_CRL_NUMBER 124
+#define X509_R_PUBLIC_KEY_DECODE_ERROR 125
+#define X509_R_PUBLIC_KEY_ENCODE_ERROR 126
+#define X509_R_SHOULD_RETRY 127
+#define X509_R_UNKNOWN_KEY_TYPE 128
+#define X509_R_UNKNOWN_NID 129
+#define X509_R_UNKNOWN_PURPOSE_ID 130
+#define X509_R_UNKNOWN_TRUST_ID 131
+#define X509_R_UNSUPPORTED_ALGORITHM 132
+#define X509_R_WRONG_LOOKUP_TYPE 133
+#define X509_R_WRONG_TYPE 134
 
 #endif

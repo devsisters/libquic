@@ -63,7 +63,7 @@
 #include <openssl/bytestring.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
-#include <openssl/obj.h>
+#include <openssl/nid.h>
 
 #include "../test/scoped_types.h"
 
@@ -495,6 +495,34 @@ static const uint8_t kEstonianRSAKey[] = {
     0x02, 0x03, 0x01, 0x00, 0x01,
 };
 
+// kExponent1RSAKey is an RSAPublicKey encoded with an exponent of 1. See
+// https://crbug.com/541257
+static const uint8_t kExponent1RSAKey[] = {
+    0x30, 0x82, 0x01, 0x08, 0x02, 0x82, 0x01, 0x01, 0x00, 0xcf, 0x86, 0x9a,
+    0x7d, 0x5c, 0x9f, 0xbd, 0x33, 0xbb, 0xc2, 0xb1, 0x06, 0xa8, 0x3e, 0xc5,
+    0x18, 0xf3, 0x01, 0x04, 0xdd, 0x7a, 0x38, 0x0e, 0x8e, 0x8d, 0x10, 0xaa,
+    0xf8, 0x64, 0x49, 0x82, 0xa6, 0x16, 0x9d, 0xd9, 0xae, 0x5e, 0x7f, 0x9b,
+    0x53, 0xcb, 0xbb, 0x29, 0xda, 0x98, 0x47, 0x26, 0x88, 0x2e, 0x1d, 0x64,
+    0xb3, 0xbc, 0x7e, 0x96, 0x3a, 0xa7, 0xd6, 0x87, 0xf6, 0xf5, 0x3f, 0xa7,
+    0x3b, 0xd3, 0xc5, 0xd5, 0x61, 0x3c, 0x63, 0x05, 0xf9, 0xbc, 0x64, 0x1d,
+    0x71, 0x65, 0xf5, 0xc8, 0xe8, 0x64, 0x41, 0x35, 0x88, 0x81, 0x6b, 0x2a,
+    0x24, 0xbb, 0xdd, 0x9f, 0x75, 0x4f, 0xea, 0x35, 0xe5, 0x32, 0x76, 0x5a,
+    0x8b, 0x7a, 0xb5, 0x92, 0x65, 0x34, 0xb7, 0x88, 0x42, 0x5d, 0x41, 0x0b,
+    0xd1, 0x00, 0x2d, 0x43, 0x47, 0x55, 0x60, 0x3c, 0x0e, 0x60, 0x04, 0x5c,
+    0x88, 0x13, 0xc7, 0x42, 0x55, 0x16, 0x31, 0x32, 0x81, 0xba, 0xde, 0xa9,
+    0x56, 0xeb, 0xdb, 0x66, 0x7f, 0x31, 0xba, 0xe8, 0x87, 0x1a, 0xcc, 0xad,
+    0x90, 0x86, 0x4b, 0xa7, 0x6d, 0xd5, 0xc1, 0xb7, 0xe7, 0x67, 0x56, 0x41,
+    0xf7, 0x03, 0xb3, 0x09, 0x61, 0x63, 0xb5, 0xb0, 0x19, 0x7b, 0xc5, 0x91,
+    0xc8, 0x96, 0x5b, 0x6a, 0x80, 0xa1, 0x53, 0x0f, 0x9a, 0x47, 0xb5, 0x9a,
+    0x44, 0x53, 0xbd, 0x93, 0xe3, 0xe4, 0xce, 0x0c, 0x17, 0x11, 0x51, 0x1d,
+    0xfd, 0x6c, 0x74, 0xe4, 0xec, 0x2a, 0xce, 0x57, 0x27, 0xcc, 0x83, 0x98,
+    0x08, 0x32, 0x2c, 0xd5, 0x75, 0xa9, 0x27, 0xfe, 0xaa, 0x5e, 0x48, 0xc9,
+    0x46, 0x9a, 0x29, 0x3f, 0xe6, 0x01, 0x4d, 0x97, 0x4a, 0x70, 0xd1, 0x5d,
+    0xf8, 0xc0, 0x0b, 0x23, 0xcb, 0xbe, 0xf5, 0x70, 0x0b, 0xc2, 0xf2, 0xc0,
+    0x33, 0x9c, 0xc4, 0x8b, 0x39, 0x7e, 0x3d, 0xc6, 0x23, 0x39, 0x9a, 0x98,
+    0xdd, 0x02, 0x01, 0x01,
+};
+
 static bool TestRSA(const uint8_t *der, size_t der_len,
                     const uint8_t *oaep_ciphertext,
                     size_t oaep_ciphertext_len) {
@@ -565,6 +593,7 @@ static bool TestRSA(const uint8_t *der, size_t der_len,
       fprintf(stderr, "Corrupt data decrypted!\n");
       return false;
     }
+    ERR_clear_error();
     ciphertext[i] ^= 1;
   }
 
@@ -575,6 +604,7 @@ static bool TestRSA(const uint8_t *der, size_t der_len,
       fprintf(stderr, "Corrupt data decrypted!\n");
       return false;
     }
+    ERR_clear_error();
   }
 
   return true;
@@ -665,25 +695,27 @@ static bool TestBadKey() {
 }
 
 static bool TestOnlyDGiven() {
+  static const char kN[] =
+      "00e77bbf3889d4ef36a9a25d4d69f3f632eb4362214c74517da6d6aeaa9bd09ac42b2662"
+      "1cd88f3a6eb013772fc3bf9f83914b6467231c630202c35b3e5808c659";
+  static const char kE[] = "010001";
+  static const char kD[] =
+      "0365db9eb6d73b53b015c40cd8db4de7dd7035c68b5ac1bf786d7a4ee2cea316eaeca21a"
+      "73ac365e58713195f2ae9849348525ca855386b6d028e437a9495a01";
+
   uint8_t buf[64];
   unsigned buf_len = sizeof(buf);
   ScopedRSA key(RSA_new());
   if (!key ||
-      !BN_hex2bn(&key->n,
-                 "00e77bbf3889d4ef36a9a25d4d69f3f632eb4362214c74517da6d6aeaa9bd"
-                 "09ac42b26621cd88f3a6eb013772fc3bf9f83914b6467231c630202c35b3e"
-                 "5808c659") ||
-      !BN_hex2bn(&key->e, "010001") ||
-      !BN_hex2bn(&key->d,
-                 "0365db9eb6d73b53b015c40cd8db4de7dd7035c68b5ac1bf786d7a4ee2cea"
-                 "316eaeca21a73ac365e58713195f2ae9849348525ca855386b6d028e437a9"
-                 "495a01") ||
+      !BN_hex2bn(&key->n, kN) ||
+      !BN_hex2bn(&key->e, kE) ||
+      !BN_hex2bn(&key->d, kD) ||
       RSA_size(key.get()) > sizeof(buf)) {
     return false;
   }
 
   if (!RSA_check_key(key.get())) {
-    fprintf(stderr, "RSA_check_key failed with only d given.\n");
+    fprintf(stderr, "RSA_check_key failed with only n, d, and e given.\n");
     ERR_print_errors_fp(stderr);
     return false;
   }
@@ -692,14 +724,46 @@ static bool TestOnlyDGiven() {
 
   if (!RSA_sign(NID_sha256, kDummyHash, sizeof(kDummyHash), buf, &buf_len,
                 key.get())) {
-    fprintf(stderr, "RSA_sign failed with only d given.\n");
+    fprintf(stderr, "RSA_sign failed with only n, d, and e given.\n");
     ERR_print_errors_fp(stderr);
     return false;
   }
 
   if (!RSA_verify(NID_sha256, kDummyHash, sizeof(kDummyHash), buf, buf_len,
                   key.get())) {
-    fprintf(stderr, "RSA_verify failed with only d given.\n");
+    fprintf(stderr, "RSA_verify failed with only n, d, and e given.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
+
+  // Keys without the public exponent must continue to work when blinding is
+  // disabled to support Java's RSAPrivateKeySpec API. See
+  // https://bugs.chromium.org/p/boringssl/issues/detail?id=12.
+  ScopedRSA key2(RSA_new());
+  if (!key2 ||
+      !BN_hex2bn(&key2->n, kN) ||
+      !BN_hex2bn(&key2->d, kD)) {
+    return false;
+  }
+  key2->flags |= RSA_FLAG_NO_BLINDING;
+
+  if (RSA_size(key2.get()) > sizeof(buf)) {
+    return false;
+  }
+
+  if (!RSA_sign(NID_sha256, kDummyHash, sizeof(kDummyHash), buf, &buf_len,
+                key2.get())) {
+    fprintf(stderr, "RSA_sign failed with only n and d given.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
+
+  // Verify the signature with |key|. |key2| has no public exponent.
+  if (!RSA_verify(NID_sha256, kDummyHash, sizeof(kDummyHash), buf, buf_len,
+                  key.get())) {
+    fprintf(stderr,
+            "Could not verify signature produced from key with only n and d "
+            "given.\n");
     ERR_print_errors_fp(stderr);
     return false;
   }
@@ -845,6 +909,19 @@ static bool TestASN1() {
   return true;
 }
 
+static bool TestBadExponent() {
+  ScopedRSA rsa(RSA_public_key_from_bytes(kExponent1RSAKey,
+                                          sizeof(kExponent1RSAKey)));
+
+  if (rsa) {
+    fprintf(stderr, "kExponent1RSAKey parsed but should have failed.\n");
+    return false;
+  }
+
+  ERR_clear_error();
+  return true;
+}
+
 int main(int argc, char *argv[]) {
   CRYPTO_library_init();
 
@@ -867,7 +944,8 @@ int main(int argc, char *argv[]) {
                             kSixPrimeEncryptedMessage,
                             sizeof(kSixPrimeEncryptedMessage)) ||
       !TestMultiPrimeKeygen() ||
-      !TestASN1()) {
+      !TestASN1() ||
+      !TestBadExponent()) {
     return 1;
   }
 

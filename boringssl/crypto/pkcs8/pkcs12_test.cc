@@ -708,7 +708,7 @@ static bool Test(const char *name, const uint8_t *der, size_t der_len) {
 }
 
 static bool TestCompat(const uint8_t *der, size_t der_len) {
-  ScopedBIO bio(BIO_new_mem_buf((void*) der, der_len));
+  ScopedBIO bio(BIO_new_mem_buf(der, der_len));
   if (!bio) {
     return false;
   }
@@ -757,7 +757,6 @@ static bool TestCompat(const uint8_t *der, size_t der_len) {
 
 int main(int argc, char **argv) {
   CRYPTO_library_init();
-  ERR_load_crypto_strings();
 
   if (!Test("OpenSSL", kOpenSSL, sizeof(kOpenSSL)) ||
       !Test("NSS", kNSS, sizeof(kNSS)) ||

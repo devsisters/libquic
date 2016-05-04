@@ -5,7 +5,6 @@ add_library(
 
   OBJECT
 
-  algorithm.c
   digestsign.c
   evp.c
   evp_asn1.c
@@ -16,6 +15,7 @@ add_library(
   p_rsa.c
   p_rsa_asn1.c
   pbkdf.c
+  print.c
   sign.c
 )
 

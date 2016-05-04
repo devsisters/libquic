@@ -14,6 +14,8 @@
 
 #include <openssl/base.h>
 
+#include <stdio.h>
+
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
@@ -80,6 +82,10 @@ static const struct argument kArguments[] = {
       "A file to write the negotiated session to.",
     },
     {
+      "-key", kOptionalArgument,
+      "Private-key file to use (default is no client certificate)",
+    },
+    {
      "", kOptionalArgument, "",
     },
 };
@@ -119,6 +125,13 @@ static int NextProtoSelectCallback(SSL* ssl, uint8_t** out, uint8_t* outlen,
   return SSL_TLSEXT_ERR_OK;
 }
 
+static FILE *g_keylog_file = nullptr;
+
+static void KeyLogCallback(const SSL *ssl, const char *line) {
+  fprintf(g_keylog_file, "%s\n", line);
+  fflush(g_keylog_file);
+}
+
 bool Client(const std::vector<std::string> &args) {
   if (!InitSocketLibrary()) {
     return false;
@@ -135,12 +148,12 @@ bool Client(const std::vector<std::string> &args) {
 
   const char *keylog_file = getenv("SSLKEYLOGFILE");
   if (keylog_file) {
-    BIO *keylog_bio = BIO_new_file(keylog_file, "a");
-    if (!keylog_bio) {
-      ERR_print_errors_cb(PrintErrorCallback, stderr);
+    g_keylog_file = fopen(keylog_file, "a");
+    if (g_keylog_file == nullptr) {
+      perror("fopen");
       return false;
     }
-    SSL_CTX_set_keylog_bio(ctx.get(), keylog_bio);
+    SSL_CTX_set_keylog_callback(ctx.get(), KeyLogCallback);
   }
 
   if (args_map.count("-cipher") != 0 &&
@@ -225,6 +238,18 @@ bool Client(const std::vector<std::string> &args) {
 
   if (args_map.count("-false-start") != 0) {
     SSL_CTX_set_mode(ctx.get(), SSL_MODE_ENABLE_FALSE_START);
+  }
+
+  if (args_map.count("-key") != 0) {
+    const std::string &key = args_map["-key"];
+    if (!SSL_CTX_use_PrivateKey_file(ctx.get(), key.c_str(), SSL_FILETYPE_PEM)) {
+      fprintf(stderr, "Failed to load private key: %s\n", key.c_str());
+      return false;
+    }
+    if (!SSL_CTX_use_certificate_chain_file(ctx.get(), key.c_str())) {
+      fprintf(stderr, "Failed to load cert chain: %s\n", key.c_str());
+      return false;
+    }
   }
 
   int sock = -1;

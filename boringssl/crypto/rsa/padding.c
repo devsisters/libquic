@@ -56,8 +56,10 @@
 #include <openssl/rsa.h>
 
 #include <assert.h>
+#include <limits.h>
 #include <string.h>
 
+#include <openssl/bn.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
@@ -65,44 +67,44 @@
 #include <openssl/sha.h>
 
 #include "internal.h"
+#include "../internal.h"
 
 /* TODO(fork): don't the check functions have to be constant time? */
 
-int RSA_padding_add_PKCS1_type_1(uint8_t *to, unsigned tlen,
-                                 const uint8_t *from, unsigned flen) {
+int RSA_padding_add_PKCS1_type_1(uint8_t *to, unsigned to_len,
+                                 const uint8_t *from, unsigned from_len) {
   unsigned j;
-  uint8_t *p;
 
-  if (tlen < RSA_PKCS1_PADDING_SIZE) {
+  if (to_len < RSA_PKCS1_PADDING_SIZE) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_KEY_SIZE_TOO_SMALL);
     return 0;
   }
 
-  if (flen > tlen - RSA_PKCS1_PADDING_SIZE) {
+  if (from_len > to_len - RSA_PKCS1_PADDING_SIZE) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
     return 0;
   }
 
-  p = (uint8_t *)to;
+  uint8_t *p = to;
 
   *(p++) = 0;
   *(p++) = 1; /* Private Key BT (Block Type) */
 
   /* pad out with 0xff data */
-  j = tlen - 3 - flen;
+  j = to_len - 3 - from_len;
   memset(p, 0xff, j);
   p += j;
   *(p++) = 0;
-  memcpy(p, from, (unsigned int)flen);
+  memcpy(p, from, from_len);
   return 1;
 }
 
-int RSA_padding_check_PKCS1_type_1(uint8_t *to, unsigned tlen,
-                                   const uint8_t *from, unsigned flen) {
+int RSA_padding_check_PKCS1_type_1(uint8_t *to, unsigned to_len,
+                                   const uint8_t *from, unsigned from_len) {
   unsigned i, j;
   const uint8_t *p;
 
-  if (flen < 2) {
+  if (from_len < 2) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_SMALL);
     return -1;
   }
@@ -114,7 +116,7 @@ int RSA_padding_check_PKCS1_type_1(uint8_t *to, unsigned tlen,
   }
 
   /* scan over padding data */
-  j = flen - 2; /* one for leading 00, one for type. */
+  j = from_len - 2; /* one for leading 00, one for type. */
   for (i = 0; i < j; i++) {
     /* should decrypt to 0xff */
     if (*p != 0xff) {
@@ -140,7 +142,7 @@ int RSA_padding_check_PKCS1_type_1(uint8_t *to, unsigned tlen,
   }
   i++; /* Skip over the '\0' */
   j -= i;
-  if (j > tlen) {
+  if (j > to_len) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE);
     return -1;
   }
@@ -149,28 +151,27 @@ int RSA_padding_check_PKCS1_type_1(uint8_t *to, unsigned tlen,
   return j;
 }
 
-int RSA_padding_add_PKCS1_type_2(uint8_t *to, unsigned tlen,
-                                 const uint8_t *from, unsigned flen) {
+int RSA_padding_add_PKCS1_type_2(uint8_t *to, unsigned to_len,
+                                 const uint8_t *from, unsigned from_len) {
   unsigned i, j;
-  uint8_t *p;
 
-  if (tlen < RSA_PKCS1_PADDING_SIZE) {
+  if (to_len < RSA_PKCS1_PADDING_SIZE) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_KEY_SIZE_TOO_SMALL);
     return 0;
   }
 
-  if (flen > tlen - RSA_PKCS1_PADDING_SIZE) {
+  if (from_len > to_len - RSA_PKCS1_PADDING_SIZE) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
     return 0;
   }
 
-  p = (unsigned char *)to;
+  uint8_t *p = to;
 
   *(p++) = 0;
   *(p++) = 2; /* Public Key BT (Block Type) */
 
   /* pad out with non-zero random data */
-  j = tlen - 3 - flen;
+  j = to_len - 3 - from_len;
 
   if (!RAND_bytes(p, j)) {
     return 0;
@@ -187,121 +188,94 @@ int RSA_padding_add_PKCS1_type_2(uint8_t *to, unsigned tlen,
 
   *(p++) = 0;
 
-  memcpy(p, from, (unsigned int)flen);
+  memcpy(p, from, from_len);
   return 1;
 }
 
-/* constant_time_byte_eq returns 1 if |x| == |y| and 0 otherwise. */
-static int constant_time_byte_eq(unsigned char a, unsigned char b) {
-  unsigned char z = ~(a ^ b);
-  z &= z >> 4;
-  z &= z >> 2;
-  z &= z >> 1;
-
-  return z;
-}
-
-/* constant_time_select returns |x| if |v| is 1 and |y| if |v| is 0.
- * Its behavior is undefined if |v| takes any other value. */
-static int constant_time_select(int v, int x, int y) {
-  return ((~(v - 1)) & x) | ((v - 1) & y);
-}
-
-/* constant_time_le returns 1 if |x| <= |y| and 0 otherwise.
- * |x| and |y| must be positive. */
-static int constant_time_le(int x, int y) {
-  return ((x - y - 1) >> (sizeof(int) * 8 - 1)) & 1;
-}
-
-int RSA_message_index_PKCS1_type_2(const uint8_t *from, size_t from_len,
-                                   size_t *out_index) {
-  size_t i;
-  int first_byte_is_zero, second_byte_is_two, looking_for_index;
-  int valid_index, zero_index = 0;
+int RSA_padding_check_PKCS1_type_2(uint8_t *to, unsigned to_len,
+                                   const uint8_t *from, unsigned from_len) {
+  if (from_len == 0) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_EMPTY_PUBLIC_KEY);
+    return -1;
+  }
 
   /* PKCS#1 v1.5 decryption. See "PKCS #1 v2.2: RSA Cryptography
    * Standard", section 7.2.2. */
   if (from_len < RSA_PKCS1_PADDING_SIZE) {
     /* |from| is zero-padded to the size of the RSA modulus, a public value, so
      * this can be rejected in non-constant time. */
-    *out_index = 0;
-    return 0;
+    OPENSSL_PUT_ERROR(RSA, RSA_R_KEY_SIZE_TOO_SMALL);
+    return -1;
   }
 
-  first_byte_is_zero = constant_time_byte_eq(from[0], 0);
-  second_byte_is_two = constant_time_byte_eq(from[1], 2);
+  unsigned first_byte_is_zero = constant_time_eq(from[0], 0);
+  unsigned second_byte_is_two = constant_time_eq(from[1], 2);
 
-  looking_for_index = 1;
+  unsigned i, zero_index = 0, looking_for_index = ~0u;
   for (i = 2; i < from_len; i++) {
-    int equals0 = constant_time_byte_eq(from[i], 0);
-    zero_index =
-        constant_time_select(looking_for_index & equals0, i, zero_index);
+    unsigned equals0 = constant_time_is_zero(from[i]);
+    zero_index = constant_time_select(looking_for_index & equals0, (unsigned)i,
+                                      zero_index);
     looking_for_index = constant_time_select(equals0, 0, looking_for_index);
   }
 
   /* The input must begin with 00 02. */
-  valid_index = first_byte_is_zero;
+  unsigned valid_index = first_byte_is_zero;
   valid_index &= second_byte_is_two;
 
   /* We must have found the end of PS. */
   valid_index &= ~looking_for_index;
 
   /* PS must be at least 8 bytes long, and it starts two bytes into |from|. */
-  valid_index &= constant_time_le(2 + 8, zero_index);
+  valid_index &= constant_time_ge(zero_index, 2 + 8);
 
   /* Skip the zero byte. */
   zero_index++;
 
-  *out_index = constant_time_select(valid_index, zero_index, 0);
-  return valid_index;
-}
-
-int RSA_padding_check_PKCS1_type_2(uint8_t *to, unsigned tlen,
-                                   const uint8_t *from, unsigned flen) {
-  size_t msg_index, msg_len;
-
-  if (flen == 0) {
-    OPENSSL_PUT_ERROR(RSA, RSA_R_EMPTY_PUBLIC_KEY);
-    return -1;
-  }
-
-  /* NOTE: Although |RSA_message_index_PKCS1_type_2| itself is constant time,
-   * the API contracts of this function and |RSA_decrypt| with
-   * |RSA_PKCS1_PADDING| make it impossible to completely avoid Bleichenbacher's
-   * attack. */
-  if (!RSA_message_index_PKCS1_type_2(from, flen, &msg_index)) {
+  /* NOTE: Although this logic attempts to be constant time, the API contracts
+   * of this function and |RSA_decrypt| with |RSA_PKCS1_PADDING| make it
+   * impossible to completely avoid Bleichenbacher's attack. Consumers should
+   * use |RSA_unpad_key_pkcs1|. */
+  if (!valid_index) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_PKCS_DECODING_ERROR);
     return -1;
   }
 
-  msg_len = flen - msg_index;
-  if (msg_len > tlen) {
-    /* This shouldn't happen because this function is always called with |tlen|
-     * the key size and |flen| is bounded by the key size. */
+  const unsigned msg_len = from_len - zero_index;
+  if (msg_len > to_len) {
+    /* This shouldn't happen because this function is always called with
+     * |to_len| as the key size and |from_len| is bounded by the key size. */
     OPENSSL_PUT_ERROR(RSA, RSA_R_PKCS_DECODING_ERROR);
     return -1;
   }
-  memcpy(to, &from[msg_index], msg_len);
-  return msg_len;
+
+  if (msg_len > INT_MAX) {
+    OPENSSL_PUT_ERROR(RSA, ERR_R_OVERFLOW);
+    return -1;
+  }
+
+  memcpy(to, &from[zero_index], msg_len);
+  return (int)msg_len;
 }
 
-int RSA_padding_add_none(uint8_t *to, unsigned tlen, const uint8_t *from, unsigned flen) {
-  if (flen > tlen) {
+int RSA_padding_add_none(uint8_t *to, unsigned to_len, const uint8_t *from,
+                         unsigned from_len) {
+  if (from_len > to_len) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
     return 0;
   }
 
-  if (flen < tlen) {
+  if (from_len < to_len) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_SMALL_FOR_KEY_SIZE);
     return 0;
   }
 
-  memcpy(to, from, (unsigned int)flen);
+  memcpy(to, from, from_len);
   return 1;
 }
 
-int PKCS1_MGF1(uint8_t *mask, unsigned len, const uint8_t *seed,
-               unsigned seedlen, const EVP_MD *dgst) {
+static int PKCS1_MGF1(uint8_t *mask, unsigned len, const uint8_t *seed,
+                      unsigned seedlen, const EVP_MD *dgst) {
   unsigned outlen = 0;
   uint32_t i;
   uint8_t cnt[4];
@@ -319,7 +293,8 @@ int PKCS1_MGF1(uint8_t *mask, unsigned len, const uint8_t *seed,
     cnt[2] = (uint8_t)((i >> 8)) & 255;
     cnt[3] = (uint8_t)(i & 255);
     if (!EVP_DigestInit_ex(&c, dgst, NULL) ||
-        !EVP_DigestUpdate(&c, seed, seedlen) || !EVP_DigestUpdate(&c, cnt, 4)) {
+        !EVP_DigestUpdate(&c, seed, seedlen) ||
+        !EVP_DigestUpdate(&c, cnt, 4)) {
       goto err;
     }
 
@@ -343,9 +318,9 @@ err:
   return ret;
 }
 
-int RSA_padding_add_PKCS1_OAEP_mgf1(uint8_t *to, unsigned tlen,
-                                    const uint8_t *from, unsigned flen,
-                                    const uint8_t *param, unsigned plen,
+int RSA_padding_add_PKCS1_OAEP_mgf1(uint8_t *to, unsigned to_len,
+                                    const uint8_t *from, unsigned from_len,
+                                    const uint8_t *param, unsigned param_len,
                                     const EVP_MD *md, const EVP_MD *mgf1md) {
   unsigned i, emlen, mdlen;
   uint8_t *db, *seed;
@@ -361,13 +336,13 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(uint8_t *to, unsigned tlen,
 
   mdlen = EVP_MD_size(md);
 
-  if (tlen < 2 * mdlen + 2) {
+  if (to_len < 2 * mdlen + 2) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_KEY_SIZE_TOO_SMALL);
     return 0;
   }
 
-  emlen = tlen - 1;
-  if (flen > emlen - 2 * mdlen - 1) {
+  emlen = to_len - 1;
+  if (from_len > emlen - 2 * mdlen - 1) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
     return 0;
   }
@@ -381,12 +356,12 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(uint8_t *to, unsigned tlen,
   seed = to + 1;
   db = to + mdlen + 1;
 
-  if (!EVP_Digest((void *)param, plen, db, NULL, md, NULL)) {
+  if (!EVP_Digest(param, param_len, db, NULL, md, NULL)) {
     return 0;
   }
-  memset(db + mdlen, 0, emlen - flen - 2 * mdlen - 1);
-  db[emlen - flen - mdlen - 1] = 0x01;
-  memcpy(db + emlen - flen - mdlen, from, flen);
+  memset(db + mdlen, 0, emlen - from_len - 2 * mdlen - 1);
+  db[emlen - from_len - mdlen - 1] = 0x01;
+  memcpy(db + emlen - from_len - mdlen, from, from_len);
   if (!RAND_bytes(seed, mdlen)) {
     return 0;
   }
@@ -417,14 +392,13 @@ out:
   return ret;
 }
 
-int RSA_padding_check_PKCS1_OAEP_mgf1(uint8_t *to, unsigned tlen,
-                                      const uint8_t *from, unsigned flen,
-                                      const uint8_t *param, unsigned plen,
+int RSA_padding_check_PKCS1_OAEP_mgf1(uint8_t *to, unsigned to_len,
+                                      const uint8_t *from, unsigned from_len,
+                                      const uint8_t *param, unsigned param_len,
                                       const EVP_MD *md, const EVP_MD *mgf1md) {
-  unsigned i, dblen, mlen = -1, mdlen;
+  unsigned i, dblen, mlen = -1, mdlen, bad, looking_for_one_byte, one_index = 0;
   const uint8_t *maskeddb, *maskedseed;
   uint8_t *db = NULL, seed[EVP_MAX_MD_SIZE], phash[EVP_MAX_MD_SIZE];
-  int bad, looking_for_one_byte, one_index = 0;
 
   if (md == NULL) {
     md = EVP_sha1();
@@ -438,13 +412,13 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(uint8_t *to, unsigned tlen,
   /* The encoded message is one byte smaller than the modulus to ensure that it
    * doesn't end up greater than the modulus. Thus there's an extra "+1" here
    * compared to https://tools.ietf.org/html/rfc2437#section-9.1.1.2. */
-  if (flen < 1 + 2*mdlen + 1) {
-    /* 'flen' is the length of the modulus, i.e. does not depend on the
+  if (from_len < 1 + 2*mdlen + 1) {
+    /* 'from_len' is the length of the modulus, i.e. does not depend on the
      * particular ciphertext. */
     goto decoding_err;
   }
 
-  dblen = flen - mdlen - 1;
+  dblen = from_len - mdlen - 1;
   db = OPENSSL_malloc(dblen);
   if (db == NULL) {
     OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
@@ -468,19 +442,19 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(uint8_t *to, unsigned tlen,
     db[i] ^= maskeddb[i];
   }
 
-  if (!EVP_Digest((void *)param, plen, phash, NULL, md, NULL)) {
+  if (!EVP_Digest(param, param_len, phash, NULL, md, NULL)) {
     goto err;
   }
 
-  bad = CRYPTO_memcmp(db, phash, mdlen);
-  bad |= from[0];
+  bad = ~constant_time_is_zero(CRYPTO_memcmp(db, phash, mdlen));
+  bad |= ~constant_time_is_zero(from[0]);
 
-  looking_for_one_byte = 1;
+  looking_for_one_byte = ~0u;
   for (i = mdlen; i < dblen; i++) {
-    int equals1 = constant_time_byte_eq(db[i], 1);
-    int equals0 = constant_time_byte_eq(db[i], 0);
-    one_index =
-        constant_time_select(looking_for_one_byte & equals1, i, one_index);
+    unsigned equals1 = constant_time_eq(db[i], 1);
+    unsigned equals0 = constant_time_eq(db[i], 0);
+    one_index = constant_time_select(looking_for_one_byte & equals1, i,
+                                     one_index);
     looking_for_one_byte =
         constant_time_select(equals1, 0, looking_for_one_byte);
     bad |= looking_for_one_byte & ~equals0;
@@ -494,7 +468,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(uint8_t *to, unsigned tlen,
 
   one_index++;
   mlen = dblen - one_index;
-  if (tlen < mlen) {
+  if (to_len < mlen) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE);
     mlen = -1;
   } else {

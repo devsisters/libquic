@@ -22,6 +22,8 @@
 #include <openssl/stack.h>
 #include <openssl/x509.h>
 
+#include "../test/test_util.h"
+
 
 /* kPKCS7NSS contains the certificate chain of mail.google.com, as saved by NSS
  * using the Chrome UI. */
@@ -504,7 +506,7 @@ static int test_cert_reparse(const uint8_t *der_bytes, size_t der_len) {
     X509 *b = sk_X509_value(certs2, i);
 
     if (X509_cmp(a, b) != 0) {
-      fprintf(stderr, "Certificate %u differs.\n", (unsigned) i);
+      fprintf(stderr, "Certificate %" OPENSSL_PR_SIZE_T " differs.\n", i);
       return 0;
     }
   }
@@ -568,7 +570,7 @@ static int test_crl_reparse(const uint8_t *der_bytes, size_t der_len) {
     X509_CRL *b = sk_X509_CRL_value(crls2, i);
 
     if (X509_CRL_cmp(a, b) != 0) {
-      fprintf(stderr, "CRL %u differs.\n", (unsigned) i);
+      fprintf(stderr, "CRL %" OPENSSL_PR_SIZE_T " differs.\n", i);
       return 0;
     }
   }
@@ -596,7 +598,7 @@ static int test_crl_reparse(const uint8_t *der_bytes, size_t der_len) {
 }
 
 static int test_pem_certs(const char *pem) {
-  BIO *bio = BIO_new_mem_buf((char *) pem, strlen(pem));
+  BIO *bio = BIO_new_mem_buf(pem, strlen(pem));
   STACK_OF(X509) *certs = sk_X509_new_null();
 
   if (!PKCS7_get_PEM_certificates(certs, bio)) {
@@ -606,8 +608,9 @@ static int test_pem_certs(const char *pem) {
 
   if (sk_X509_num(certs) != 1) {
     fprintf(stderr,
-            "Bad number of certificates from PKCS7_get_PEM_certificates: %u\n",
-            (unsigned)sk_X509_num(certs));
+            "Bad number of certificates from PKCS7_get_PEM_certificates: "
+            "%" OPENSSL_PR_SIZE_T "\n",
+            sk_X509_num(certs));
     return 0;
   }
 
@@ -618,7 +621,7 @@ static int test_pem_certs(const char *pem) {
 }
 
 static int test_pem_crls(const char *pem) {
-  BIO *bio = BIO_new_mem_buf((char *) pem, strlen(pem));
+  BIO *bio = BIO_new_mem_buf(pem, strlen(pem));
   STACK_OF(X509_CRL) *crls = sk_X509_CRL_new_null();
 
   if (!PKCS7_get_PEM_CRLs(crls, bio)) {
@@ -628,8 +631,9 @@ static int test_pem_crls(const char *pem) {
 
   if (sk_X509_CRL_num(crls) != 1) {
     fprintf(stderr,
-            "Bad number of CRLs from PKCS7_get_PEM_CRLs: %u\n",
-            (unsigned)sk_X509_CRL_num(crls));
+            "Bad number of CRLs from PKCS7_get_PEM_CRLs: %" OPENSSL_PR_SIZE_T
+            "\n",
+            sk_X509_CRL_num(crls));
     return 0;
   }
 
@@ -653,4 +657,3 @@ int main(void) {
   printf("PASS\n");
   return 0;
 }
-

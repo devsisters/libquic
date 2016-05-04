@@ -106,13 +106,13 @@ void md5_block_data_order(uint32_t *state, const uint8_t *data, size_t num);
   do {                         \
     uint32_t ll;               \
     ll = (c)->h[0];            \
-    (void) HOST_l2c(ll, (s));  \
+    HOST_l2c(ll, (s));         \
     ll = (c)->h[1];            \
-    (void) HOST_l2c(ll, (s));  \
+    HOST_l2c(ll, (s));         \
     ll = (c)->h[2];            \
-    (void) HOST_l2c(ll, (s));  \
+    HOST_l2c(ll, (s));         \
     ll = (c)->h[3];            \
-    (void) HOST_l2c(ll, (s));  \
+    HOST_l2c(ll, (s));         \
   } while (0)
 #define HASH_BLOCK_DATA_ORDER md5_block_data_order
 
@@ -126,6 +126,8 @@ void md5_block_data_order(uint32_t *state, const uint8_t *data, size_t num);
 #define	G(b,c,d)	((((b) ^ (c)) & (d)) ^ (c))
 #define	H(b,c,d)	((b) ^ (c) ^ (d))
 #define	I(b,c,d)	(((~(d)) | (b)) ^ (c))
+
+#define ROTATE(a, n) (((a) << (n)) | ((a) >> (32 - (n))))
 
 #define R0(a,b,c,d,k,s,t) { \
 	a+=((k)+(t)+F((b),(c),(d))); \

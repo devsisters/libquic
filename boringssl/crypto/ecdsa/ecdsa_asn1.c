@@ -61,6 +61,7 @@
 #include <openssl/ec_key.h>
 #include <openssl/mem.h>
 
+#include "../bytestring/internal.h"
 #include "../ec/internal.h"
 
 
@@ -78,17 +79,7 @@ size_t ECDSA_size(const EC_KEY *key) {
       return 0;
     }
 
-    BIGNUM *order = BN_new();
-    if (order == NULL) {
-      return 0;
-    }
-    if (!EC_GROUP_get_order(group, order, NULL)) {
-      BN_clear_free(order);
-      return 0;
-    }
-
-    group_order_size = BN_num_bytes(order);
-    BN_clear_free(order);
+    group_order_size = BN_num_bytes(EC_GROUP_get0_order(group));
   }
 
   return ECDSA_SIG_max_len(group_order_size);
@@ -125,8 +116,8 @@ ECDSA_SIG *ECDSA_SIG_parse(CBS *cbs) {
   }
   CBS child;
   if (!CBS_get_asn1(cbs, &child, CBS_ASN1_SEQUENCE) ||
-      !BN_cbs2unsigned(&child, ret->r) ||
-      !BN_cbs2unsigned(&child, ret->s) ||
+      !BN_parse_asn1_unsigned(&child, ret->r) ||
+      !BN_parse_asn1_unsigned(&child, ret->s) ||
       CBS_len(&child) != 0) {
     OPENSSL_PUT_ERROR(ECDSA, ECDSA_R_BAD_SIGNATURE);
     ECDSA_SIG_free(ret);
@@ -150,8 +141,8 @@ ECDSA_SIG *ECDSA_SIG_from_bytes(const uint8_t *in, size_t in_len) {
 int ECDSA_SIG_marshal(CBB *cbb, const ECDSA_SIG *sig) {
   CBB child;
   if (!CBB_add_asn1(cbb, &child, CBS_ASN1_SEQUENCE) ||
-      !BN_bn2cbb(&child, sig->r) ||
-      !BN_bn2cbb(&child, sig->s) ||
+      !BN_marshal_asn1(&child, sig->r) ||
+      !BN_marshal_asn1(&child, sig->s) ||
       !CBB_flush(cbb)) {
     OPENSSL_PUT_ERROR(ECDSA, ECDSA_R_ENCODE_ERROR);
     return 0;
@@ -221,30 +212,16 @@ ECDSA_SIG *d2i_ECDSA_SIG(ECDSA_SIG **out, const uint8_t **inp, long len) {
     ECDSA_SIG_free(*out);
     *out = ret;
   }
-  *inp += (size_t)len - CBS_len(&cbs);
+  *inp = CBS_data(&cbs);
   return ret;
 }
 
 int i2d_ECDSA_SIG(const ECDSA_SIG *sig, uint8_t **outp) {
-  uint8_t *der;
-  size_t der_len;
-  if (!ECDSA_SIG_to_bytes(&der, &der_len, sig)) {
+  CBB cbb;
+  if (!CBB_init(&cbb, 0) ||
+      !ECDSA_SIG_marshal(&cbb, sig)) {
+    CBB_cleanup(&cbb);
     return -1;
   }
-  if (der_len > INT_MAX) {
-    OPENSSL_PUT_ERROR(ECDSA, ERR_R_OVERFLOW);
-    OPENSSL_free(der);
-    return -1;
-  }
-  if (outp != NULL) {
-    if (*outp == NULL) {
-      *outp = der;
-      der = NULL;
-    } else {
-      memcpy(*outp, der, der_len);
-      *outp += der_len;
-    }
-  }
-  OPENSSL_free(der);
-  return (int)der_len;
+  return CBB_finish_i2d(&cbb, outp);
 }

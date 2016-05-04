@@ -91,7 +91,6 @@ $code=<<___;
 #endif
 
 .global	bn_mul_mont
-.hidden	bn_mul_mont
 .type	bn_mul_mont,%function
 
 .align	5
@@ -108,7 +107,7 @@ bn_mul_mont:
 #ifdef	__APPLE__
 	ldr	r0,[r0]
 #endif
-	tst	r0,#1			@ NEON available?
+	tst	r0,#ARMV7_NEON		@ NEON available?
 	ldmia	sp, {r0,r2}
 	beq	.Lialu
 	add	sp,sp,#8

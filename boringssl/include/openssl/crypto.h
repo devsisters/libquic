@@ -36,13 +36,19 @@ extern "C" {
 
 /* CRYPTO_library_init initializes the crypto library. It must be called if the
  * library is built with BORINGSSL_NO_STATIC_INITIALIZER. Otherwise, it does
- * nothing and a static initializer is used instead. */
+ * nothing and a static initializer is used instead. It is safe to call this
+ * function multiple times and concurrently from multiple threads.
+ *
+ * On some ARM configurations, this function may require filesystem access and
+ * should be called before entering a sandbox. */
 OPENSSL_EXPORT void CRYPTO_library_init(void);
 
 
 /* Deprecated functions. */
 
-#define OPENSSL_VERSION_TEXT "BoringSSL"
+/* OPENSSL_VERSION_TEXT contains a string the identifies the version of
+ * “OpenSSL”. node.js requires a version number in this text. */
+#define OPENSSL_VERSION_TEXT "OpenSSL 1.0.2 (compatible; BoringSSL)"
 
 #define SSLEAY_VERSION 0
 
@@ -59,6 +65,12 @@ OPENSSL_EXPORT int CRYPTO_malloc_init(void);
 
 /* ENGINE_load_builtin_engines does nothing. */
 OPENSSL_EXPORT void ENGINE_load_builtin_engines(void);
+
+/* OPENSSL_load_builtin_modules does nothing. */
+OPENSSL_EXPORT void OPENSSL_load_builtin_modules(void);
+
+/* FIPS_mode returns zero. */
+OPENSSL_EXPORT int FIPS_mode(void);
 
 
 #if defined(__cplusplus)

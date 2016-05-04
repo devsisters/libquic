@@ -282,8 +282,10 @@ static int decode_hex(uint8_t **out, size_t *out_len, const char *in,
     uint8_t v, v2;
     if (!from_hex(&v, in[i]) ||
         !from_hex(&v2, in[i+1])) {
-      fprintf(stderr, "%u: invalid hex digit in %s around offset %u.\n",
-              test_num, description, (unsigned)i);
+      fprintf(stderr,
+              "%u: invalid hex digit in %s around offset %" OPENSSL_PR_SIZE_T
+              ".\n",
+              test_num, description, i);
       goto err;
     }
     buf[i/2] = (v << 4) | v2;
@@ -336,7 +338,7 @@ static int run_test_case(unsigned test_num, const struct test_case *test) {
   }
 
   out = OPENSSL_malloc(plaintext_len);
-  if (out == NULL) {
+  if (plaintext_len != 0 && out == NULL) {
     goto out;
   }
   if (AES_set_encrypt_key(key, key_len*8, &aes_key)) {

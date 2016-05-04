@@ -62,7 +62,12 @@
 #include "internal.h"
 
 
-void bn_mul_normal(BN_ULONG *r, BN_ULONG *a, int na, BN_ULONG *b, int nb) {
+#define BN_MUL_RECURSIVE_SIZE_NORMAL 16
+#define BN_SQR_RECURSIVE_SIZE_NORMAL BN_MUL_RECURSIVE_SIZE_NORMAL
+
+
+static void bn_mul_normal(BN_ULONG *r, BN_ULONG *a, int na, BN_ULONG *b,
+                          int nb) {
   BN_ULONG *rr;
 
   if (na < nb) {
@@ -102,31 +107,6 @@ void bn_mul_normal(BN_ULONG *r, BN_ULONG *a, int na, BN_ULONG *b, int nb) {
     }
     rr[4] = bn_mul_add_words(&(r[4]), a, na, b[4]);
     rr += 4;
-    r += 4;
-    b += 4;
-  }
-}
-
-void bn_mul_low_normal(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n) {
-  bn_mul_words(r, a, n, b[0]);
-
-  for (;;) {
-    if (--n <= 0) {
-      return;
-    }
-    bn_mul_add_words(&(r[1]), a, n, b[1]);
-    if (--n <= 0) {
-      return;
-    }
-    bn_mul_add_words(&(r[2]), a, n, b[2]);
-    if (--n <= 0) {
-      return;
-    }
-    bn_mul_add_words(&(r[3]), a, n, b[3]);
-    if (--n <= 0) {
-      return;
-    }
-    bn_mul_add_words(&(r[4]), a, n, b[4]);
     r += 4;
     b += 4;
   }
@@ -618,7 +598,8 @@ int BN_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx) {
     }
   }
 
-  if ((al >= BN_MULL_SIZE_NORMAL) && (bl >= BN_MULL_SIZE_NORMAL)) {
+  static const int kMulNormalSize = 16;
+  if (al >= kMulNormalSize && bl >= kMulNormalSize) {
     if (i >= -1 && i <= 1) {
       /* Find out the power of two lower or equal
          to the longest of the two numbers */

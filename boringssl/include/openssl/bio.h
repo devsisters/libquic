@@ -61,6 +61,7 @@
 
 #include <stdio.h>  /* For FILE */
 
+#include <openssl/buffer.h>
 #include <openssl/err.h> /* for ERR_print_errors_fp */
 #include <openssl/ex_data.h>
 #include <openssl/stack.h>
@@ -308,18 +309,12 @@ OPENSSL_EXPORT BIO *BIO_find_type(BIO *bio, int type);
 OPENSSL_EXPORT void BIO_copy_next_retry(BIO *bio);
 
 
-/* Printf functions.
- *
- * These functions are versions of printf functions that output to a BIO rather
- * than a FILE. */
-#ifdef __GNUC__
-#define __bio_h__attr__ __attribute__
-#else
-#define __bio_h__attr__(x)
-#endif
+/* Printf functions. */
+
+/* BIO_printf behaves like |printf| but outputs to |bio| rather than a |FILE|.
+ * It returns the number of bytes written or a negative number on error. */
 OPENSSL_EXPORT int BIO_printf(BIO *bio, const char *format, ...)
-    __bio_h__attr__((__format__(__printf__, 2, 3)));
-#undef __bio_h__attr__
+    OPENSSL_PRINTF_FORMAT_FUNC(2, 3);
 
 
 /* Utility functions. */
@@ -374,12 +369,12 @@ OPENSSL_EXPORT int BIO_read_asn1(BIO *bio, uint8_t **out, size_t *out_len,
 /* BIO_s_mem returns a |BIO_METHOD| that uses a in-memory buffer. */
 OPENSSL_EXPORT const BIO_METHOD *BIO_s_mem(void);
 
-/* BIO_new_mem_buf creates BIO that reads and writes from |len| bytes at |buf|.
+/* BIO_new_mem_buf creates read-only BIO that reads from |len| bytes at |buf|.
  * It does not take ownership of |buf|. It returns the BIO or NULL on error.
  *
  * If |len| is negative, then |buf| is treated as a NUL-terminated string, but
  * don't depend on this in new code. */
-OPENSSL_EXPORT BIO *BIO_new_mem_buf(void *buf, int len);
+OPENSSL_EXPORT BIO *BIO_new_mem_buf(const void *buf, int len);
 
 /* BIO_mem_contents sets |*out_contents| to point to the current contents of
  * |bio| and |*out_len| to contain the length of that data. It returns one on
@@ -441,12 +436,18 @@ OPENSSL_EXPORT BIO *BIO_new_fd(int fd, int close_flag);
 
 /* BIO_set_fd sets the file descriptor of |bio| to |fd|. If |close_flag| is
  * non-zero then |fd| will be closed when |bio| is. It returns one on success
- * or zero on error. */
+ * or zero on error.
+ *
+ * This function may also be used with socket BIOs (see |BIO_s_socket| and
+ * |BIO_new_socket|). */
 OPENSSL_EXPORT int BIO_set_fd(BIO *bio, int fd, int close_flag);
 
 /* BIO_get_fd returns the file descriptor currently in use by |bio| or -1 if
  * |bio| does not wrap a file descriptor. If there is a file descriptor and
- * |out_fd| is not NULL, it also sets |*out_fd| to the file descriptor. */
+ * |out_fd| is not NULL, it also sets |*out_fd| to the file descriptor.
+ *
+ * This function may also be used with socket BIOs (see |BIO_s_socket| and
+ * |BIO_new_socket|). */
 OPENSSL_EXPORT int BIO_get_fd(BIO *bio, int *out_fd);
 
 
@@ -526,7 +527,17 @@ OPENSSL_EXPORT int BIO_set_read_buffer_size(BIO *bio, int buffer_size);
 OPENSSL_EXPORT int BIO_set_write_buffer_size(BIO *bio, int buffer_size);
 
 
-/* Socket BIOs. */
+/* Socket BIOs.
+ *
+ * Socket BIOs behave like file descriptor BIOs but, on Windows systems, wrap
+ * the system's |recv| and |send| functions instead of |read| and |write|. On
+ * Windows, file descriptors are provided by C runtime and are not
+ * interchangeable with sockets.
+ *
+ * Socket BIOs may be used with |BIO_set_fd| and |BIO_get_fd|.
+ *
+ * TODO(davidben): Add separate APIs and fix the internals to use |SOCKET|s
+ * around rather than rely on int casts. */
 
 OPENSSL_EXPORT const BIO_METHOD *BIO_s_socket(void);
 
@@ -566,6 +577,10 @@ OPENSSL_EXPORT int BIO_set_conn_port(BIO *bio, const char *port_str);
 /* BIO_set_nbio sets whether |bio| will use non-blocking I/O operations. It
  * returns one on success and zero otherwise. */
 OPENSSL_EXPORT int BIO_set_nbio(BIO *bio, int on);
+
+/* BIO_do_connect connects |bio| if it has not been connected yet. It returns
+ * one on success and <= 0 otherwise. */
+OPENSSL_EXPORT int BIO_do_connect(BIO *bio);
 
 
 /* Datagram BIOs.
@@ -716,6 +731,11 @@ OPENSSL_EXPORT int BIO_zero_copy_get_write_buf_done(BIO* bio,
 #define BIO_CTRL_SET_CALLBACK	14  /* opt - set callback function */
 #define BIO_CTRL_GET_CALLBACK	15  /* opt - set callback function */
 #define BIO_CTRL_SET_FILENAME	30	/* BIO_s_file special */
+
+/* These are never used, but exist to allow code to compile more easily. */
+#define BIO_CTRL_DUP	100
+#define BIO_CTRL_PUSH	101
+#define BIO_CTRL_POP	102
 
 
 /* Android compatibility section.

@@ -80,30 +80,30 @@ extern "C" {
 
 
 struct ec_method_st {
-  /* used by EC_GROUP_new, EC_GROUP_free, EC_GROUP_clear_free, EC_GROUP_copy: */
   int (*group_init)(EC_GROUP *);
   void (*group_finish)(EC_GROUP *);
-  void (*group_clear_finish)(EC_GROUP *);
   int (*group_copy)(EC_GROUP *, const EC_GROUP *);
-
-  /* used by EC_GROUP_set_curve_GFp, EC_GROUP_get_curve_GFp, */
-  /* EC_GROUP_set_curve_GF2m, and EC_GROUP_get_curve_GF2m: */
   int (*group_set_curve)(EC_GROUP *, const BIGNUM *p, const BIGNUM *a,
                          const BIGNUM *b, BN_CTX *);
-
-  /* used by EC_POINT_get_affine_coordinates_GFp: */
   int (*point_get_affine_coordinates)(const EC_GROUP *, const EC_POINT *,
                                       BIGNUM *x, BIGNUM *y, BN_CTX *);
 
-  /* used by EC_POINTs_mul, EC_POINT_mul, EC_POINT_precompute_mult,
-   * EC_POINT_have_precompute_mult
-   * (default implementations are used if the 'mul' pointer is 0): */
-  int (*mul)(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
-             size_t num, const EC_POINT *points[], const BIGNUM *scalars[],
-             BN_CTX *);
-  int (*precompute_mult)(EC_GROUP *group, BN_CTX *);
+  /* Computes |r = g_scalar*generator + p_scalar*p| if |g_scalar| and |p_scalar|
+   * are both non-null. Computes |r = g_scalar*generator| if |p_scalar| is null.
+   * Computes |r = p_scalar*p| if g_scalar is null. At least one of |g_scalar|
+   * and |p_scalar| must be non-null, and |p| must be non-null if |p_scalar| is
+   * non-null. */
+  int (*mul)(const EC_GROUP *group, EC_POINT *r, const BIGNUM *g_scalar,
+             const EC_POINT *p, const BIGNUM *p_scalar, BN_CTX *ctx);
 
-  /* internal functions */
+  /* |check_pub_key_order| checks that the public key is in the proper subgroup
+   * by checking that |pub_key*group->order| is the point at infinity. This may
+   * be NULL for |EC_METHOD|s specialized for prime-order curves (i.e. with
+   * cofactor one), as this check is not necessary for such curves (See section
+   * A.3 of the NSA's "Suite B Implementer's Guide to FIPS 186-3
+   * (ECDSA)"). */
+  int (*check_pub_key_order)(const EC_GROUP *group, const EC_POINT *pub_key,
+                             BN_CTX *ctx);
 
   /* 'field_mul' and 'field_sqr' can be used by 'add' and 'dbl' so that the
    * same implementations of point operations can be used with different
@@ -116,24 +116,18 @@ struct ec_method_st {
                       BN_CTX *); /* e.g. to Montgomery */
   int (*field_decode)(const EC_GROUP *, BIGNUM *r, const BIGNUM *a,
                       BN_CTX *); /* e.g. from Montgomery */
-  int (*field_set_to_one)(const EC_GROUP *, BIGNUM *r, BN_CTX *);
 } /* EC_METHOD */;
 
 const EC_METHOD* EC_GFp_mont_method(void);
 
-struct ec_pre_comp_st;
-void ec_pre_comp_free(struct ec_pre_comp_st *pre_comp);
-void *ec_pre_comp_dup(struct ec_pre_comp_st *pre_comp);
-
 struct ec_group_st {
   const EC_METHOD *meth;
 
-  EC_POINT *generator; /* optional */
+  EC_POINT *generator;
   BIGNUM order, cofactor;
 
   int curve_name; /* optional NID for named curve */
 
-  struct ec_pre_comp_st *pre_comp;
   const BN_MONT_CTX *mont_data; /* data for ECDSA inverse */
 
   /* The following members are handled by the method functions,
@@ -146,20 +140,17 @@ struct ec_group_st {
   int a_is_minus3; /* enable optimized point arithmetics for special case */
 
   BN_MONT_CTX *mont; /* Montgomery structure. */
-  BIGNUM *one; /* The value one */
+
+  BIGNUM one; /* The value one. */
 } /* EC_GROUP */;
 
 struct ec_point_st {
   const EC_METHOD *meth;
 
-  /* All members except 'meth' are handled by the method functions,
-   * even if they appear generic */
-
   BIGNUM X;
   BIGNUM Y;
   BIGNUM Z; /* Jacobian projective coordinates:
              * (X, Y, Z)  represents  (X/Z^2, Y/Z^3)  if  Z != 0 */
-  int Z_is_one; /* enable optimized point arithmetics for special case */
 } /* EC_POINT */;
 
 EC_GROUP *ec_group_new(const EC_METHOD *meth);
@@ -170,22 +161,18 @@ int ec_group_copy(EC_GROUP *dest, const EC_GROUP *src);
  * a built-in group. */
 const BN_MONT_CTX *ec_group_get_mont_data(const EC_GROUP *group);
 
-int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
-                size_t num, const EC_POINT *points[], const BIGNUM *scalars[],
-                BN_CTX *);
-int ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *);
+int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *g_scalar,
+                const EC_POINT *p, const BIGNUM *p_scalar, BN_CTX *ctx);
 
 /* method functions in simple.c */
 int ec_GFp_simple_group_init(EC_GROUP *);
 void ec_GFp_simple_group_finish(EC_GROUP *);
-void ec_GFp_simple_group_clear_finish(EC_GROUP *);
 int ec_GFp_simple_group_copy(EC_GROUP *, const EC_GROUP *);
 int ec_GFp_simple_group_set_curve(EC_GROUP *, const BIGNUM *p, const BIGNUM *a,
                                   const BIGNUM *b, BN_CTX *);
 int ec_GFp_simple_group_get_curve(const EC_GROUP *, BIGNUM *p, BIGNUM *a,
                                   BIGNUM *b, BN_CTX *);
 unsigned ec_GFp_simple_group_get_degree(const EC_GROUP *);
-int ec_GFp_simple_group_check_discriminant(const EC_GROUP *, BN_CTX *);
 int ec_GFp_simple_point_init(EC_POINT *);
 void ec_GFp_simple_point_finish(EC_POINT *);
 void ec_GFp_simple_point_clear_finish(EC_POINT *);
@@ -202,9 +189,6 @@ int ec_GFp_simple_get_Jprojective_coordinates_GFp(const EC_GROUP *,
 int ec_GFp_simple_point_set_affine_coordinates(const EC_GROUP *, EC_POINT *,
                                                const BIGNUM *x, const BIGNUM *y,
                                                BN_CTX *);
-int ec_GFp_simple_point_get_affine_coordinates(const EC_GROUP *,
-                                               const EC_POINT *, BIGNUM *x,
-                                               BIGNUM *y, BN_CTX *);
 int ec_GFp_simple_set_compressed_coordinates(const EC_GROUP *, EC_POINT *,
                                              const BIGNUM *x, int y_bit,
                                              BN_CTX *);
@@ -230,7 +214,6 @@ int ec_GFp_mont_group_init(EC_GROUP *);
 int ec_GFp_mont_group_set_curve(EC_GROUP *, const BIGNUM *p, const BIGNUM *a,
                                 const BIGNUM *b, BN_CTX *);
 void ec_GFp_mont_group_finish(EC_GROUP *);
-void ec_GFp_mont_group_clear_finish(EC_GROUP *);
 int ec_GFp_mont_group_copy(EC_GROUP *, const EC_GROUP *);
 int ec_GFp_mont_field_mul(const EC_GROUP *, BIGNUM *r, const BIGNUM *a,
                           const BIGNUM *b, BN_CTX *);
@@ -240,21 +223,11 @@ int ec_GFp_mont_field_encode(const EC_GROUP *, BIGNUM *r, const BIGNUM *a,
                              BN_CTX *);
 int ec_GFp_mont_field_decode(const EC_GROUP *, BIGNUM *r, const BIGNUM *a,
                              BN_CTX *);
-int ec_GFp_mont_field_set_to_one(const EC_GROUP *, BIGNUM *r, BN_CTX *);
 
 int ec_point_set_Jprojective_coordinates_GFp(const EC_GROUP *group,
                                              EC_POINT *point, const BIGNUM *x,
                                              const BIGNUM *y, const BIGNUM *z,
                                              BN_CTX *ctx);
-
-void ec_GFp_nistp_points_make_affine_internal(
-    size_t num, void *point_array, size_t felem_size, void *tmp_felems,
-    void (*felem_one)(void *out), int (*felem_is_zero)(const void *in),
-    void (*felem_assign)(void *out, const void *in),
-    void (*felem_square)(void *out, const void *in),
-    void (*felem_mul)(void *out, const void *in1, const void *in2),
-    void (*felem_inv)(void *out, const void *in),
-    void (*felem_contract)(void *out, const void *in));
 
 void ec_GFp_nistp_recode_scalar_bits(uint8_t *sign, uint8_t *digit, uint8_t in);
 
@@ -266,8 +239,6 @@ const EC_METHOD *EC_GFp_nistp256_method(void);
 const EC_METHOD *EC_GFp_nistz256_method(void);
 
 struct ec_key_st {
-  int version;
-
   EC_GROUP *group;
 
   EC_POINT *pub_key;
@@ -277,7 +248,6 @@ struct ec_key_st {
   point_conversion_form_t conv_form;
 
   CRYPTO_refcount_t references;
-  int flags;
 
   ECDSA_METHOD *ecdsa_meth;
 
@@ -301,6 +271,8 @@ struct curve_data {
 
 struct built_in_curve {
   int nid;
+  uint8_t oid[8];
+  uint8_t oid_len;
   const struct curve_data *data;
   const EC_METHOD *(*method)(void);
 };

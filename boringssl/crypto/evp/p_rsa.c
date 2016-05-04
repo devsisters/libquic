@@ -64,7 +64,7 @@
 #include <openssl/digest.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
-#include <openssl/obj.h>
+#include <openssl/nid.h>
 #include <openssl/rsa.h>
 
 #include "../rsa/internal.h"
@@ -252,6 +252,81 @@ static int pkey_rsa_verify(EVP_PKEY_CTX *ctx, const uint8_t *sig,
       CRYPTO_memcmp(tbs, rctx->tbuf, rslen) != 0) {
     return 0;
   }
+
+  return 1;
+}
+
+static int pkey_rsa_verify_recover(EVP_PKEY_CTX *ctx, uint8_t *out,
+                                   size_t *out_len, const uint8_t *sig,
+                                   size_t sig_len) {
+  RSA_PKEY_CTX *rctx = ctx->data;
+  RSA *rsa = ctx->pkey->pkey.rsa;
+  const size_t key_len = EVP_PKEY_size(ctx->pkey);
+
+  if (out == NULL) {
+    *out_len = key_len;
+    return 1;
+  }
+
+  if (*out_len < key_len) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_BUFFER_TOO_SMALL);
+    return 0;
+  }
+
+  if (!setup_tbuf(rctx, ctx)) {
+    return 0;
+  }
+
+  if (rctx->md == NULL) {
+    const int ret = RSA_public_decrypt(sig_len, sig, rctx->tbuf,
+                                       ctx->pkey->pkey.rsa, rctx->pad_mode);
+    if (ret < 0) {
+      return 0;
+    }
+    *out_len = ret;
+    memcpy(out, rctx->tbuf, *out_len);
+    return 1;
+  }
+
+  if (rctx->pad_mode != RSA_PKCS1_PADDING) {
+    return 0;
+  }
+
+  uint8_t *asn1_prefix;
+  size_t asn1_prefix_len;
+  int asn1_prefix_allocated;
+  if (!RSA_add_pkcs1_prefix(&asn1_prefix, &asn1_prefix_len,
+                            &asn1_prefix_allocated, EVP_MD_type(rctx->md), NULL,
+                            0)) {
+    return 0;
+  }
+
+  size_t rslen;
+  int ok = 1;
+  if (!RSA_verify_raw(rsa, &rslen, rctx->tbuf, key_len, sig, sig_len,
+                      RSA_PKCS1_PADDING) ||
+      rslen < asn1_prefix_len ||
+      CRYPTO_memcmp(rctx->tbuf, asn1_prefix, asn1_prefix_len) != 0) {
+    ok = 0;
+  }
+
+  if (asn1_prefix_allocated) {
+    OPENSSL_free(asn1_prefix);
+  }
+
+  if (!ok) {
+    return 0;
+  }
+
+  const size_t result_len = rslen - asn1_prefix_len;
+  if (result_len != EVP_MD_size(rctx->md)) {
+    return 0;
+  }
+
+  if (out != NULL) {
+    memcpy(out, rctx->tbuf + asn1_prefix_len, result_len);
+  }
+  *out_len = result_len;
 
   return 1;
 }
@@ -456,8 +531,6 @@ static int pkey_rsa_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
       }
       OPENSSL_free(rctx->oaep_label);
       if (p2 && p1 > 0) {
-        /* TODO(fork): this seems wrong. Shouldn't it take a copy of the
-         * buffer? */
         rctx->oaep_label = p2;
         rctx->oaep_labellen = p1;
       } else {
@@ -505,13 +578,18 @@ static int pkey_rsa_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
 }
 
 const EVP_PKEY_METHOD rsa_pkey_meth = {
-    EVP_PKEY_RSA,         0 /* flags */,        pkey_rsa_init,
-    pkey_rsa_copy,        pkey_rsa_cleanup,     0 /* paramgen_init */,
-    0 /* paramgen */,     0 /* keygen_init */,  pkey_rsa_keygen,
-    0 /* sign_init */,    pkey_rsa_sign,        0 /* verify_init */,
-    pkey_rsa_verify,      0 /* encrypt_init */, pkey_rsa_encrypt,
-    0 /* decrypt_init */, pkey_rsa_decrypt,     0 /* derive_init */,
-    0 /* derive */,       pkey_rsa_ctrl,
+    EVP_PKEY_RSA,
+    pkey_rsa_init,
+    pkey_rsa_copy,
+    pkey_rsa_cleanup,
+    pkey_rsa_keygen,
+    pkey_rsa_sign,
+    pkey_rsa_verify,
+    pkey_rsa_verify_recover,
+    pkey_rsa_encrypt,
+    pkey_rsa_decrypt,
+    0 /* derive */,
+    pkey_rsa_ctrl,
 };
 
 int EVP_PKEY_CTX_set_rsa_padding(EVP_PKEY_CTX *ctx, int padding) {
@@ -568,15 +646,14 @@ int EVP_PKEY_CTX_get_rsa_mgf1_md(EVP_PKEY_CTX *ctx, const EVP_MD **out_md) {
                            EVP_PKEY_CTRL_GET_RSA_MGF1_MD, 0, (void*) out_md);
 }
 
-int EVP_PKEY_CTX_set0_rsa_oaep_label(EVP_PKEY_CTX *ctx, const uint8_t *label,
+int EVP_PKEY_CTX_set0_rsa_oaep_label(EVP_PKEY_CTX *ctx, uint8_t *label,
                                      size_t label_len) {
-  int label_len_int = label_len;
-  if (((size_t) label_len_int) != label_len) {
+  if (label_len > INT_MAX) {
     return 0;
   }
 
   return EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, EVP_PKEY_OP_TYPE_CRYPT,
-                           EVP_PKEY_CTRL_RSA_OAEP_LABEL, label_len,
+                           EVP_PKEY_CTRL_RSA_OAEP_LABEL, (int)label_len,
                            (void *)label);
 }
 

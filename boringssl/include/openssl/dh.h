@@ -156,8 +156,9 @@ OPENSSL_EXPORT unsigned DH_num_bits(const DH *dh);
  * Note: these checks may be quite computationally expensive. */
 OPENSSL_EXPORT int DH_check(const DH *dh, int *out_flags);
 
-#define DH_CHECK_PUBKEY_TOO_SMALL 1
-#define DH_CHECK_PUBKEY_TOO_LARGE 2
+#define DH_CHECK_PUBKEY_TOO_SMALL 0x1
+#define DH_CHECK_PUBKEY_TOO_LARGE 0x2
+#define DH_CHECK_PUBKEY_INVALID 0x4
 
 /* DH_check_pub_key checks the suitability of |pub_key| as a public key for the
  * DH group in |dh| and sets |DH_CHECK_PUBKEY_*| flags in |*out_flags| if it
@@ -177,7 +178,10 @@ OPENSSL_EXPORT DH *DHparams_dup(const DH *dh);
  * structure from |len| bytes at |*inp|. If |ret| is not NULL then, on exit, a
  * pointer to the result is in |*ret|. If |*ret| is already non-NULL on entry
  * then the result is written directly into |*ret|, otherwise a fresh |DH| is
- * allocated. On successful exit, |*inp| is advanced past the DER structure. It
+ * allocated. However, one should not depend on writing into |*ret| because
+ * this behaviour is likely to change in the future.
+ *
+ * On successful exit, |*inp| is advanced past the DER structure. It
  * returns the result or NULL on error. */
 OPENSSL_EXPORT DH *d2i_DHparams(DH **ret, const unsigned char **inp, long len);
 
@@ -193,11 +197,21 @@ OPENSSL_EXPORT int i2d_DHparams(const DH *in, unsigned char **outp);
  * See |ex_data.h| for details. */
 
 OPENSSL_EXPORT int DH_get_ex_new_index(long argl, void *argp,
-                                       CRYPTO_EX_new *new_func,
+                                       CRYPTO_EX_unused *unused,
                                        CRYPTO_EX_dup *dup_func,
                                        CRYPTO_EX_free *free_func);
 OPENSSL_EXPORT int DH_set_ex_data(DH *d, int idx, void *arg);
 OPENSSL_EXPORT void *DH_get_ex_data(DH *d, int idx);
+
+
+/* Deprecated functions. */
+
+/* DH_generate_parameters behaves like |DH_generate_parameters_ex|, which is
+ * what you should use instead. It returns NULL on error, or a newly-allocated
+ * |DH| on success. This function is provided for compatibility only. */
+OPENSSL_EXPORT DH *DH_generate_parameters(int prime_len, int generator,
+                                          void (*callback)(int, int, void *),
+                                          void *cb_arg);
 
 
 struct dh_st {

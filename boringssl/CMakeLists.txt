@@ -1,6 +1,16 @@
 cmake_minimum_required (VERSION 2.8.10)
 
-project (BoringSSL)
+# Defer enabling C and CXX languages.
+project (BoringSSL NONE)
+
+if(WIN32)
+  # On Windows, prefer cl over gcc if both are available. By default most of
+  # the CMake generators prefer gcc, even on Windows.
+  set(CMAKE_GENERATOR_CC cl)
+endif()
+
+enable_language(C)
+enable_language(CXX)
 
 if(ANDROID)
   # Android-NDK CMake files reconfigure the path and so Go and Perl won't be
@@ -17,8 +27,9 @@ if (NOT GO_EXECUTABLE)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -Wsign-compare -Wmissing-field-initializers -ggdb -fvisibility=hidden")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wsign-compare -Wmissing-field-initializers -ggdb -std=c++0x -fvisibility=hidden")
+  set(C_CXX_FLAGS "-Wall -Werror -Wformat=2 -Wsign-compare -Wmissing-field-initializers -ggdb -fvisibility=hidden")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${C_CXX_FLAGS} -Wmissing-prototypes")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x ${C_CXX_FLAGS} -Wmissing-declarations")
 elseif(MSVC)
   set(MSVC_DISABLED_WARNINGS_LIST
       "C4100" # 'exarg' : unreferenced formal parameter
@@ -60,10 +71,25 @@ elseif(MSVC)
       "C4996" # 'read': The POSIX name for this item is deprecated. Instead,
               # use the ISO C++ conformant name: _read.
      )
+  if(NOT(CMAKE_C_COMPILER_VERSION VERSION_LESS "19.0.23506"))
+    # MSVC 2015 Update 1.
+    set(MSVC_DISABLED_WARNINGS_LIST
+        ${MSVC_DISABLED_WARNINGS_LIST}
+        "C4464" # relative include path contains '..'
+        "C4623" # default constructor was implicitly defined as deleted
+        "C5027" # move assignment operator was implicitly defined as deleted
+       )
+    set(MSVC_LEVEL4_WARNINGS_LIST
+        # See https://connect.microsoft.com/VisualStudio/feedback/details/1217660/warning-c4265-when-using-functional-header
+        "C4265" # class has virtual functions, but destructor is not virtual
+        )
+    string(REPLACE "C" " -w4" MSVC_LEVEL4_WARNINGS_STR
+                              ${MSVC_LEVEL4_WARNINGS_LIST})
+  endif()
   string(REPLACE "C" " -wd" MSVC_DISABLED_WARNINGS_STR
                             ${MSVC_DISABLED_WARNINGS_LIST})
-  set(CMAKE_C_FLAGS   "-Wall -WX ${MSVC_DISABLED_WARNINGS_STR}")
-  set(CMAKE_CXX_FLAGS "-Wall -WX ${MSVC_DISABLED_WARNINGS_STR}")
+  set(CMAKE_C_FLAGS   "-Wall -WX ${MSVC_DISABLED_WARNINGS_STR} ${MSVC_LEVEL4_WARNINGS_STR}")
+  set(CMAKE_CXX_FLAGS "-Wall -WX ${MSVC_DISABLED_WARNINGS_STR} ${MSVC_LEVEL4_WARNINGS_STR}")
   add_definitions(-D_HAS_EXCEPTIONS=0)
   add_definitions(-DWIN32_LEAN_AND_MEAN)
   add_definitions(-DNOMINMAX)
@@ -85,8 +111,11 @@ if(FUZZ)
     message("You need to build with Clang for fuzzing to work")
   endif()
 
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize-coverage=edge,indirect-calls")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize-coverage=edge,indirect-calls")
+  add_definitions(-DBORINGSSL_UNSAFE_FUZZER_MODE)
+  set(RUNNER_ARGS "-fuzzer")
+
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize-coverage=edge,indirect-calls,8bit-counters")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize-coverage=edge,indirect-calls,8bit-counters")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
   link_directories(.)
 endif()
@@ -173,6 +202,7 @@ add_custom_target(
             ${CMAKE_BINARY_DIR}
     COMMAND cd ssl/test/runner
     COMMAND ${GO_EXECUTABLE} test -shim-path $<TARGET_FILE:bssl_shim>
+            ${RUNNER_ARGS}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     DEPENDS all_tests bssl_shim
     ${MAYBE_USES_TERMINAL})

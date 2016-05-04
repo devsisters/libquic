@@ -104,8 +104,8 @@ uint8_t *SHA224(const uint8_t *data, size_t len, uint8_t *out) {
     out = buf;
   }
   SHA224_Init(&ctx);
-  SHA256_Update(&ctx, data, len);
-  SHA256_Final(out, &ctx);
+  SHA224_Update(&ctx, data, len);
+  SHA224_Final(out, &ctx);
   OPENSSL_cleanse(&ctx, sizeof(ctx));
   return out;
 }
@@ -155,13 +155,13 @@ int SHA224_Final(uint8_t *md, SHA256_CTX *ctx) {
       case SHA224_DIGEST_LENGTH:                            \
         for (nn = 0; nn < SHA224_DIGEST_LENGTH / 4; nn++) { \
           ll = (c)->h[nn];                                  \
-          (void) HOST_l2c(ll, (s));                         \
+          HOST_l2c(ll, (s));                                \
         }                                                   \
         break;                                              \
       case SHA256_DIGEST_LENGTH:                            \
         for (nn = 0; nn < SHA256_DIGEST_LENGTH / 4; nn++) { \
           ll = (c)->h[nn];                                  \
-          (void) HOST_l2c(ll, (s));                         \
+          HOST_l2c(ll, (s));                                \
         }                                                   \
         break;                                              \
       default:                                              \
@@ -170,7 +170,7 @@ int SHA224_Final(uint8_t *md, SHA256_CTX *ctx) {
         }                                                   \
         for (nn = 0; nn < (c)->md_len / 4; nn++) {          \
           ll = (c)->h[nn];                                  \
-          (void) HOST_l2c(ll, (s));                         \
+          HOST_l2c(ll, (s));                                \
         }                                                   \
         break;                                              \
     }                                                       \
@@ -203,6 +203,8 @@ static const uint32_t K256[64] = {
     0x2748774cUL, 0x34b0bcb5UL, 0x391c0cb3UL, 0x4ed8aa4aUL, 0x5b9cca4fUL,
     0x682e6ff3UL, 0x748f82eeUL, 0x78a5636fUL, 0x84c87814UL, 0x8cc70208UL,
     0x90befffaUL, 0xa4506cebUL, 0xbef9a3f7UL, 0xc67178f2UL};
+
+#define ROTATE(a, n) (((a) << (n)) | ((a) >> (32 - (n))))
 
 /* FIPS specification refers to right rotations, while our ROTATE macro
  * is left one. This is why you might notice that rotation coefficients

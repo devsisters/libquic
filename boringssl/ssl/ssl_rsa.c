@@ -326,6 +326,11 @@ void SSL_set_private_key_method(SSL *ssl,
   ssl->cert->key_method = key_method;
 }
 
+void SSL_CTX_set_private_key_method(SSL_CTX *ctx,
+                                    const SSL_PRIVATE_KEY_METHOD *key_method) {
+  ctx->cert->key_method = key_method;
+}
+
 int SSL_set_private_key_digest_prefs(SSL *ssl, const int *digest_nids,
                                      size_t num_digests) {
   OPENSSL_free(ssl->cert->digest_nids);
@@ -401,20 +406,19 @@ enum ssl_private_key_result_t ssl_private_key_decrypt(
                                           in_len);
   }
 
-  if (ssl_private_key_type(ssl) != EVP_PKEY_RSA) {
+  RSA *rsa = EVP_PKEY_get0_RSA(ssl->cert->privatekey);
+  if (rsa == NULL) {
     /* Decrypt operations are only supported for RSA keys. */
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
     return ssl_private_key_failure;
   }
 
-  enum ssl_private_key_result_t ret = ssl_private_key_failure;
-  RSA *rsa = ssl->cert->privatekey->pkey.rsa;
   /* Decrypt with no padding. PKCS#1 padding will be removed as part
    * of the timing-sensitive code by the caller. */
-  if (RSA_decrypt(rsa, out_len, out, max_out, in, in_len, RSA_NO_PADDING)) {
-    ret = ssl_private_key_success;
+  if (!RSA_decrypt(rsa, out_len, out, max_out, in, in_len, RSA_NO_PADDING)) {
+    return ssl_private_key_failure;
   }
-  return ret;
+  return ssl_private_key_success;
 }
 
 enum ssl_private_key_result_t ssl_private_key_decrypt_complete(

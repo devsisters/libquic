@@ -24,7 +24,8 @@
 #include <openssl/curve25519.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>
-#include <openssl/obj.h>
+#include <openssl/newhope.h>
+#include <openssl/nid.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
 
@@ -405,7 +406,6 @@ static bool Speed25519(const std::string &selected) {
 
   TimeResults results;
 
-#if !defined(OPENSSL_SMALL)
   uint8_t public_key[32], private_key[64];
 
   if (!TimeFunction(&results, [&public_key, &private_key]() -> bool {
@@ -438,7 +438,6 @@ static bool Speed25519(const std::string &selected) {
   }
 
   results.Print("Ed25519 verify");
-#endif
 
   if (!TimeFunction(&results, []() -> bool {
         uint8_t out[32], in[32];
@@ -466,6 +465,82 @@ static bool Speed25519(const std::string &selected) {
 
   results.Print("Curve25519 arbitrary point multiplication");
 
+  return true;
+}
+
+static bool SpeedSPAKE2(const std::string &selected) {
+  if (!selected.empty() && selected.find("SPAKE2") == std::string::npos) {
+    return true;
+  }
+
+  TimeResults results;
+
+  static const uint8_t kAliceName[] = {'A'};
+  static const uint8_t kBobName[] = {'B'};
+  static const uint8_t kPassword[] = "password";
+  ScopedSPAKE2_CTX alice(SPAKE2_CTX_new(spake2_role_alice, kAliceName,
+                                        sizeof(kAliceName), kBobName,
+                                        sizeof(kBobName)));
+  uint8_t alice_msg[SPAKE2_MAX_MSG_SIZE];
+  size_t alice_msg_len;
+
+  if (!SPAKE2_generate_msg(alice.get(), alice_msg, &alice_msg_len,
+                           sizeof(alice_msg),
+                           kPassword, sizeof(kPassword))) {
+    fprintf(stderr, "SPAKE2_generate_msg failed.\n");
+    return false;
+  }
+
+  if (!TimeFunction(&results, [&alice_msg, alice_msg_len]() -> bool {
+        ScopedSPAKE2_CTX bob(SPAKE2_CTX_new(spake2_role_bob, kBobName,
+                                            sizeof(kBobName), kAliceName,
+                                            sizeof(kAliceName)));
+        uint8_t bob_msg[SPAKE2_MAX_MSG_SIZE], bob_key[64];
+        size_t bob_msg_len, bob_key_len;
+        if (!SPAKE2_generate_msg(bob.get(), bob_msg, &bob_msg_len,
+                                 sizeof(bob_msg), kPassword,
+                                 sizeof(kPassword)) ||
+            !SPAKE2_process_msg(bob.get(), bob_key, &bob_key_len,
+                                sizeof(bob_key), alice_msg, alice_msg_len)) {
+          return false;
+        }
+
+        return true;
+      })) {
+    fprintf(stderr, "SPAKE2 failed.\n");
+  }
+
+  results.Print("SPAKE2 over Ed25519");
+
+  return true;
+}
+
+static bool SpeedNewHope(const std::string &selected) {
+  if (!selected.empty() && selected.find("newhope") == std::string::npos) {
+    return true;
+  }
+
+  TimeResults results;
+  NEWHOPE_POLY *sk = NEWHOPE_POLY_new();
+  uint8_t clientmsg[NEWHOPE_CLIENTMSG_LENGTH];
+  RAND_bytes(clientmsg, sizeof(clientmsg));
+
+  if (!TimeFunction(&results, [sk, &clientmsg]() -> bool {
+        uint8_t server_key[SHA256_DIGEST_LENGTH];
+        uint8_t servermsg[NEWHOPE_SERVERMSG_LENGTH];
+        NEWHOPE_keygen(servermsg, sk);
+        if (!NEWHOPE_server_compute_key(server_key, sk, clientmsg,
+                                        NEWHOPE_CLIENTMSG_LENGTH)) {
+          return false;
+        }
+        return true;
+      })) {
+    fprintf(stderr, "failed to exchange key.\n");
+    return false;
+  }
+
+  NEWHOPE_POLY_free(sk);
+  results.Print("newhope server key exchange");
   return true;
 }
 
@@ -530,11 +605,14 @@ bool Speed(const std::vector<std::string> &args) {
 
   if (!SpeedAEAD(EVP_aead_aes_128_gcm(), "AES-128-GCM", kTLSADLen, selected) ||
       !SpeedAEAD(EVP_aead_aes_256_gcm(), "AES-256-GCM", kTLSADLen, selected) ||
-      !SpeedAEAD(EVP_aead_chacha20_poly1305_rfc7539(), "ChaCha20-Poly1305",
-                 kTLSADLen, selected) ||
+      !SpeedAEAD(EVP_aead_chacha20_poly1305(), "ChaCha20-Poly1305", kTLSADLen,
+                 selected) ||
       !SpeedAEAD(EVP_aead_chacha20_poly1305_old(), "ChaCha20-Poly1305-Old",
                  kTLSADLen, selected) ||
       !SpeedAEAD(EVP_aead_rc4_md5_tls(), "RC4-MD5", kLegacyADLen, selected) ||
+      !SpeedAEAD(EVP_aead_rc4_sha1_tls(), "RC4-SHA1", kLegacyADLen, selected) ||
+      !SpeedAEAD(EVP_aead_des_ede3_cbc_sha1_tls(), "DES-EDE3-CBC-SHA1",
+                 kLegacyADLen, selected) ||
       !SpeedAEAD(EVP_aead_aes_128_cbc_sha1_tls(), "AES-128-CBC-SHA1",
                  kLegacyADLen, selected) ||
       !SpeedAEAD(EVP_aead_aes_256_cbc_sha1_tls(), "AES-256-CBC-SHA1",
@@ -545,7 +623,9 @@ bool Speed(const std::vector<std::string> &args) {
       !SpeedRandom(selected) ||
       !SpeedECDH(selected) ||
       !SpeedECDSA(selected) ||
-      !Speed25519(selected)) {
+      !Speed25519(selected) ||
+      !SpeedSPAKE2(selected) ||
+      !SpeedNewHope(selected)) {
     return false;
   }
 

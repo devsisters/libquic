@@ -44,8 +44,10 @@ typedef int ssize_t;
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <openssl/x509.h>
 
 #include "internal.h"
+#include "transport_common.h"
 
 
 #if !defined(OPENSSL_WINDOWS)
@@ -172,6 +174,11 @@ void PrintConnectionInfo(const SSL *ssl) {
   fprintf(stderr, "  Resumed session: %s\n",
           SSL_session_reused(ssl) ? "yes" : "no");
   fprintf(stderr, "  Cipher: %s\n", SSL_CIPHER_get_name(cipher));
+  if (SSL_CIPHER_is_ECDHE(cipher)) {
+    fprintf(stderr, "  ECDHE curve: %s\n",
+            SSL_get_curve_name(
+                SSL_SESSION_get_key_exchange_info(SSL_get_session(ssl))));
+  }
   fprintf(stderr, "  Secure renegotiation: %s\n",
           SSL_get_secure_renegotiation_support(ssl) ? "yes" : "no");
 
@@ -185,6 +192,19 @@ void PrintConnectionInfo(const SSL *ssl) {
   unsigned alpn_len;
   SSL_get0_alpn_selected(ssl, &alpn, &alpn_len);
   fprintf(stderr, "  ALPN protocol: %.*s\n", alpn_len, alpn);
+
+  // Print the server cert subject and issuer names.
+  X509 *peer = SSL_get_peer_certificate(ssl);
+  if (peer != NULL) {
+    fprintf(stderr, "  Cert subject: ");
+    X509_NAME_print_ex_fp(stderr, X509_get_subject_name(peer), 0,
+                          XN_FLAG_ONELINE);
+    fprintf(stderr, "\n  Cert issuer: ");
+    X509_NAME_print_ex_fp(stderr, X509_get_issuer_name(peer), 0,
+                          XN_FLAG_ONELINE);
+    fprintf(stderr, "\n");
+    X509_free(peer);
+  }
 }
 
 bool SocketSetNonBlocking(int sock, bool is_non_blocking) {

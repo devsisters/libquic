@@ -20,6 +20,8 @@
 #include <openssl/err.h>
 #include <openssl/hkdf.h>
 
+#include "../test/test_util.h"
+
 
 typedef struct {
   const EVP_MD *(*md_func)(void);
@@ -216,7 +218,6 @@ int main(void) {
   size_t i;
 
   CRYPTO_library_init();
-  ERR_load_crypto_strings();
 
   for (i = 0; i < sizeof(kTests) / sizeof(kTests[0]); i++) {
     const hkdf_test_vector_t *test = &kTests[i];
@@ -227,8 +228,9 @@ int main(void) {
       return 1;
     }
     if (memcmp(buf, test->out, test->out_len) != 0) {
-      fprintf(stderr, "%u: Resulting key material does not match test vector\n",
-              (unsigned)i);
+      fprintf(stderr, "%" OPENSSL_PR_SIZE_T
+                      ": Resulting key material does not match test vector\n",
+              i);
       return 1;
     }
   }

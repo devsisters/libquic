@@ -32,7 +32,6 @@ add_library(
   f_int.c
   f_string.c
   t_bitst.c
-  t_pkey.c
   tasn_dec.c
   tasn_enc.c
   tasn_fre.c
@@ -43,3 +42,14 @@ add_library(
   x_bignum.c
   x_long.c
 )
+
+add_executable(
+  asn1_test
+
+  asn1_test.cc
+
+  $<TARGET_OBJECTS:test_support>
+)
+
+target_link_libraries(asn1_test crypto)
+add_dependencies(all_tests asn1_test)

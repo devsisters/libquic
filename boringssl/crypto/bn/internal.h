@@ -125,12 +125,14 @@
 
 #include <openssl/base.h>
 
-#if defined(OPENSSL_X86_64) && defined(_MSC_VER) && _MSC_VER >= 1400
+#if defined(OPENSSL_X86_64) && defined(_MSC_VER)
 #pragma warning(push, 3)
 #include <intrin.h>
 #pragma warning(pop)
 #pragma intrinsic(__umulh, _umul128)
 #endif
+
+#include "../internal.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -144,61 +146,60 @@ BIGNUM *bn_expand(BIGNUM *bn, size_t bits);
 
 #if !defined(_MSC_VER)
 /* MSVC doesn't support two-word integers on 64-bit. */
-#define BN_LLONG	__int128_t
-#define BN_ULLONG	__uint128_t
+#define BN_ULLONG	uint128_t
 #endif
 
-#define BN_BITS		128
 #define BN_BITS2	64
 #define BN_BYTES	8
 #define BN_BITS4	32
-#define BN_MASK		(0xffffffffffffffffffffffffffffffffLL)
-#define BN_MASK2	(0xffffffffffffffffL)
-#define BN_MASK2l	(0xffffffffL)
-#define BN_MASK2h	(0xffffffff00000000L)
-#define BN_MASK2h1	(0xffffffff80000000L)
-#define BN_TBIT		(0x8000000000000000L)
+#define BN_MASK2	(0xffffffffffffffffUL)
+#define BN_MASK2l	(0xffffffffUL)
+#define BN_MASK2h	(0xffffffff00000000UL)
+#define BN_MASK2h1	(0xffffffff80000000UL)
+#define BN_TBIT		(0x8000000000000000UL)
 #define BN_DEC_CONV	(10000000000000000000UL)
 #define BN_DEC_NUM	19
+#define TOBN(hi, lo) ((BN_ULONG)hi << 32 | lo)
 
 #elif defined(OPENSSL_32_BIT)
 
-#define BN_LLONG	int64_t
 #define BN_ULLONG	uint64_t
-#define BN_MASK		(0xffffffffffffffffLL)
-#define BN_BITS		64
 #define BN_BITS2	32
 #define BN_BYTES	4
 #define BN_BITS4	16
-#define BN_MASK2	(0xffffffffL)
-#define BN_MASK2l	(0xffff)
-#define BN_MASK2h1	(0xffff8000L)
-#define BN_MASK2h	(0xffff0000L)
-#define BN_TBIT		(0x80000000L)
-#define BN_DEC_CONV	(1000000000L)
+#define BN_MASK2	(0xffffffffUL)
+#define BN_MASK2l	(0xffffUL)
+#define BN_MASK2h1	(0xffff8000UL)
+#define BN_MASK2h	(0xffff0000UL)
+#define BN_TBIT		(0x80000000UL)
+#define BN_DEC_CONV	(1000000000UL)
 #define BN_DEC_NUM	9
+#define TOBN(hi, lo) lo, hi
 
 #else
 #error "Must define either OPENSSL_32_BIT or OPENSSL_64_BIT"
 #endif
 
-/* Pentium pro 16,16,16,32,64 */
-/* Alpha       16,16,16,16.64 */
-#define BN_MULL_SIZE_NORMAL (16)              /* 32 */
-#define BN_MUL_RECURSIVE_SIZE_NORMAL (16)     /* 32 less than */
-#define BN_SQR_RECURSIVE_SIZE_NORMAL (16)     /* 32 */
-#define BN_MUL_LOW_RECURSIVE_SIZE_NORMAL (32) /* 32 */
-#define BN_MONT_CTX_SET_SIZE_WORD (64)        /* 32 */
 
-#if defined(BN_LLONG)
+#define STATIC_BIGNUM(x)                                \
+  {                                                     \
+    (BN_ULONG *)x, sizeof(x) / sizeof(BN_ULONG),        \
+    sizeof(x) / sizeof(BN_ULONG), 0, BN_FLG_STATIC_DATA \
+  }
+
+#if defined(BN_ULLONG)
 #define Lw(t) (((BN_ULONG)(t))&BN_MASK2)
 #define Hw(t) (((BN_ULONG)((t)>>BN_BITS2))&BN_MASK2)
 #endif
 
+
+/* bn_set_words sets |bn| to the value encoded in the |num| words in |words|,
+ * least significant word first. */
+int bn_set_words(BIGNUM *bn, const BN_ULONG *words, size_t num);
+
 BN_ULONG bn_mul_add_words(BN_ULONG *rp, const BN_ULONG *ap, int num, BN_ULONG w);
 BN_ULONG bn_mul_words(BN_ULONG *rp, const BN_ULONG *ap, int num, BN_ULONG w);
 void     bn_sqr_words(BN_ULONG *rp, const BN_ULONG *ap, int num);
-BN_ULONG bn_div_words(BN_ULONG h, BN_ULONG l, BN_ULONG d);
 BN_ULONG bn_add_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int num);
 BN_ULONG bn_sub_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int num);
 
@@ -220,67 +221,12 @@ int bn_cmp_part_words(const BN_ULONG *a, const BN_ULONG *b, int cl, int dl);
 int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
                 const BN_ULONG *np, const BN_ULONG *n0, int num);
 
-#if !defined(BN_LLONG)
+#if defined(OPENSSL_X86_64) && defined(_MSC_VER)
+#define BN_UMULT_LOHI(low, high, a, b) ((low) = _umul128((a), (b), &(high)))
+#endif
 
-#define LBITS(a) ((a) & BN_MASK2l)
-#define HBITS(a) (((a) >> BN_BITS4) & BN_MASK2l)
-#define L2HBITS(a) (((a) << BN_BITS4) & BN_MASK2)
-
-#define LLBITS(a) ((a) & BN_MASKl)
-#define LHBITS(a) (((a) >> BN_BITS2) & BN_MASKl)
-#define LL2HBITS(a) ((BN_ULLONG)((a) & BN_MASKl) << BN_BITS2)
-
-#define mul64(l, h, bl, bh)       \
-  {                               \
-    BN_ULONG m, m1, lt, ht;       \
-                                  \
-    lt = l;                       \
-    ht = h;                       \
-    m = (bh) * (lt);              \
-    lt = (bl) * (lt);             \
-    m1 = (bl) * (ht);             \
-    ht = (bh) * (ht);             \
-    m = (m + m1) & BN_MASK2;      \
-    if (m < m1)                   \
-      ht += L2HBITS((BN_ULONG)1); \
-    ht += HBITS(m);               \
-    m1 = L2HBITS(m);              \
-    lt = (lt + m1) & BN_MASK2;    \
-    if (lt < m1)                  \
-      ht++;                       \
-    (l) = lt;                     \
-    (h) = ht;                     \
-  }
-
-#endif  /* !defined(BN_LLONG) */
-
-#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64)
-# if defined(__GNUC__) && __GNUC__ >= 2
-#  define BN_UMULT_HIGH(a,b)	({	\
-	register BN_ULONG ret,discard;	\
-	__asm__ ("mulq	%3"		\
-	     : "=a"(discard),"=d"(ret)	\
-	     : "a"(a), "g"(b)		\
-	     : "cc");			\
-	ret;			})
-#  define BN_UMULT_LOHI(low,high,a,b)	\
-	__asm__ ("mulq	%3"		\
-		: "=a"(low),"=d"(high)	\
-		: "a"(a),"g"(b)		\
-		: "cc");
-# elif defined(_MSC_VER) && _MSC_VER >= 1400
-#  define BN_UMULT_HIGH(a, b) __umulh((a), (b))
-#  define BN_UMULT_LOHI(low, high, a, b) ((low) = _umul128((a), (b), &(high)))
-# endif
-#elif !defined(OPENSSL_NO_ASM) && defined(OPENSSL_AARCH64)
-# if defined(__GNUC__) && __GNUC__>=2
-#  define BN_UMULT_HIGH(a,b)	({	\
-	register BN_ULONG ret;		\
-	__asm__ ("umulh	%0,%1,%2"	\
-	     : "=r"(ret)		\
-	     : "r"(a), "r"(b));		\
-	ret;			})
-# endif
+#if !defined(BN_ULLONG) && !defined(BN_UMULT_LOHI)
+#error "Either BN_ULLONG or BN_UMULT_LOHI must be defined on every platform."
 #endif
 
 

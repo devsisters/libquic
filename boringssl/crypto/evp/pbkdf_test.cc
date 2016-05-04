@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>
@@ -189,7 +188,6 @@ static bool TestZeroIterations() {
 
 int main(void) {
   CRYPTO_library_init();
-  ERR_load_crypto_strings();
 
   if (!TestEmptyPassword()) {
     fprintf(stderr, "TestEmptyPassword failed\n");

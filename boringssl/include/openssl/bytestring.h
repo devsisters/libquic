@@ -128,9 +128,21 @@ OPENSSL_EXPORT int CBS_get_u24_length_prefixed(CBS *cbs, CBS *out);
 #define CBS_ASN1_NULL 0x5
 #define CBS_ASN1_OBJECT 0x6
 #define CBS_ASN1_ENUMERATED 0xa
+#define CBS_ASN1_UTF8STRING 0xc
 #define CBS_ASN1_SEQUENCE (0x10 | CBS_ASN1_CONSTRUCTED)
 #define CBS_ASN1_SET (0x11 | CBS_ASN1_CONSTRUCTED)
+#define CBS_ASN1_NUMERICSTRING 0x12
+#define CBS_ASN1_PRINTABLESTRING 0x13
+#define CBS_ASN1_T16STRING 0x14
+#define CBS_ASN1_VIDEOTEXSTRING 0x15
+#define CBS_ASN1_IA5STRING 0x16
+#define CBS_ASN1_UTCTIME 0x17
 #define CBS_ASN1_GENERALIZEDTIME 0x18
+#define CBS_ASN1_GRAPHICSTRING 0x19
+#define CBS_ASN1_VISIBLESTRING 0x1a
+#define CBS_ASN1_GENERALSTRING 0x1b
+#define CBS_ASN1_UNIVERSALSTRING 0x1c
+#define CBS_ASN1_BMPSTRING 0x1e
 
 #define CBS_ASN1_CONSTRUCTED 0x20
 #define CBS_ASN1_CONTEXT_SPECIFIC 0x80
@@ -238,13 +250,13 @@ struct cbb_buffer_st {
 
 struct cbb_st {
   struct cbb_buffer_st *base;
-  /* offset is the offset from the start of |base->buf| to the position of any
-   * pending length-prefix. */
-  size_t offset;
   /* child points to a child CBB if a length-prefix is pending. */
   CBB *child;
-  /* pending_len_len contains the number of bytes in a pending length-prefix,
-   * or zero if no length-prefix is pending. */
+  /* offset is the number of bytes from the start of |base->buf| to this |CBB|'s
+   * pending length prefix. */
+  size_t offset;
+  /* pending_len_len contains the number of bytes in this |CBB|'s pending
+   * length-prefix, or zero if no length-prefix is pending. */
   uint8_t pending_len_len;
   char pending_is_asn1;
   /* is_top_level is true iff this is a top-level |CBB| (as opposed to a child
@@ -292,12 +304,18 @@ OPENSSL_EXPORT int CBB_finish(CBB *cbb, uint8_t **out_data, size_t *out_len);
  * on error. */
 OPENSSL_EXPORT int CBB_flush(CBB *cbb);
 
-/* CBB_len returns the number of bytes written to |cbb|'s top-level |CBB|. It
- * may be compared before and after an operation to determine how many bytes
- * were written.
+/* CBB_data returns a pointer to the bytes written to |cbb|. It does not flush
+ * |cbb|. The pointer is valid until the next operation to |cbb|.
  *
- * It is a fatal error to call this on a CBB with any active children. This does
- * not flush |cbb|. */
+ * To avoid unfinalized length prefixes, it is a fatal error to call this on a
+ * CBB with any active children. */
+OPENSSL_EXPORT const uint8_t *CBB_data(const CBB *cbb);
+
+/* CBB_len returns the number of bytes written to |cbb|. It does not flush
+ * |cbb|.
+ *
+ * To avoid unfinalized length prefixes, it is a fatal error to call this on a
+ * CBB with any active children. */
 OPENSSL_EXPORT size_t CBB_len(const CBB *cbb);
 
 /* CBB_add_u8_length_prefixed sets |*out_contents| to a new child of |cbb|. The
@@ -331,6 +349,17 @@ OPENSSL_EXPORT int CBB_add_bytes(CBB *cbb, const uint8_t *data, size_t len);
  * actual contents to |*out_data|. It returns one on success and zero
  * otherwise. */
 OPENSSL_EXPORT int CBB_add_space(CBB *cbb, uint8_t **out_data, size_t len);
+
+/* CBB_reserve ensures |cbb| has room for |len| additional bytes and sets
+ * |*out_data| to point to the beginning of that space. It returns one on
+ * success and zero otherwise. The caller may write up to |len| bytes to
+ * |*out_data| and call |CBB_did_write| to complete the write. |*out_data| is
+ * valid until the next operation on |cbb| or an ancestor |CBB|. */
+OPENSSL_EXPORT int CBB_reserve(CBB *cbb, uint8_t **out_data, size_t len);
+
+/* CBB_did_write advances |cbb| by |len| bytes, assuming the space has been
+ * written to by the caller. It returns one on success and zero on error. */
+OPENSSL_EXPORT int CBB_did_write(CBB *cbb, size_t len);
 
 /* CBB_add_u8 appends an 8-bit number from |value| to |cbb|. It returns one on
  * success and zero otherwise. */

@@ -18,13 +18,16 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <openssl/base64.h>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
+#include <openssl/pem.h>
 #include <openssl/ssl.h>
+#include <openssl/x509.h>
 
 #include "test/scoped_types.h"
 #include "../crypto/test/test_util.h"
@@ -38,159 +41,178 @@ struct ExpectedCipher {
 struct CipherTest {
   // The rule string to apply.
   const char *rule;
-  // The list of expected ciphers, in order, terminated with -1.
-  const ExpectedCipher *expected;
+  // The list of expected ciphers, in order.
+  std::vector<ExpectedCipher> expected;
 };
 
-// Selecting individual ciphers should work.
-static const char kRule1[] =
-    "ECDHE-ECDSA-CHACHA20-POLY1305:"
-    "ECDHE-RSA-CHACHA20-POLY1305:"
-    "ECDHE-ECDSA-AES128-GCM-SHA256:"
-    "ECDHE-RSA-AES128-GCM-SHA256";
-
-static const ExpectedCipher kExpected1[] = {
-  { TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 0 },
-  { TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0 },
-  { TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0 },
-  { TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0 },
-  { 0, 0 },
-};
-
-// + reorders selected ciphers to the end, keeping their relative
-// order.
-static const char kRule2[] =
-    "ECDHE-ECDSA-CHACHA20-POLY1305:"
-    "ECDHE-RSA-CHACHA20-POLY1305:"
-    "ECDHE-ECDSA-AES128-GCM-SHA256:"
-    "ECDHE-RSA-AES128-GCM-SHA256:"
-    "+aRSA";
-
-static const ExpectedCipher kExpected2[] = {
-  { TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 0 },
-  { TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0 },
-  { TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0 },
-  { TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0 },
-  { 0, 0 },
-};
-
-// ! banishes ciphers from future selections.
-static const char kRule3[] =
-    "!aRSA:"
-    "ECDHE-ECDSA-CHACHA20-POLY1305:"
-    "ECDHE-RSA-CHACHA20-POLY1305:"
-    "ECDHE-ECDSA-AES128-GCM-SHA256:"
-    "ECDHE-RSA-AES128-GCM-SHA256";
-
-static const ExpectedCipher kExpected3[] = {
-  { TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 0 },
-  { TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0 },
-  { 0, 0 },
-};
-
-// Multiple masks can be ANDed in a single rule.
-static const char kRule4[] = "kRSA+AESGCM+AES128";
-
-static const ExpectedCipher kExpected4[] = {
-  { TLS1_CK_RSA_WITH_AES_128_GCM_SHA256, 0 },
-  { 0, 0 },
-};
-
-// - removes selected ciphers, but preserves their order for future
-// selections. Select AES_128_GCM, but order the key exchanges RSA,
-// DHE_RSA, ECDHE_RSA.
-static const char kRule5[] =
-    "ALL:-kECDHE:-kDHE:-kRSA:-ALL:"
-    "AESGCM+AES128+aRSA";
-
-static const ExpectedCipher kExpected5[] = {
-  { TLS1_CK_RSA_WITH_AES_128_GCM_SHA256, 0 },
-  { TLS1_CK_DHE_RSA_WITH_AES_128_GCM_SHA256, 0 },
-  { TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0 },
-  { 0, 0 },
-};
-
-// Unknown selectors are no-ops.
-static const char kRule6[] =
-    "ECDHE-ECDSA-CHACHA20-POLY1305:"
-    "ECDHE-RSA-CHACHA20-POLY1305:"
-    "ECDHE-ECDSA-AES128-GCM-SHA256:"
-    "ECDHE-RSA-AES128-GCM-SHA256:"
-    "BOGUS1:-BOGUS2:+BOGUS3:!BOGUS4";
-
-static const ExpectedCipher kExpected6[] = {
-  { TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 0 },
-  { TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0 },
-  { TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0 },
-  { TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0 },
-  { 0, 0 },
-};
-
-// Square brackets specify equi-preference groups.
-static const char kRule7[] =
-    "[ECDHE-ECDSA-CHACHA20-POLY1305|ECDHE-ECDSA-AES128-GCM-SHA256]:"
-    "[ECDHE-RSA-CHACHA20-POLY1305]:"
-    "ECDHE-RSA-AES128-GCM-SHA256";
-
-static const ExpectedCipher kExpected7[] = {
-  { TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 1 },
-  { TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0 },
-  { TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0 },
-  { TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0 },
-  { 0, 0 },
-};
-
-// @STRENGTH performs a stable strength-sort of the selected
-// ciphers and only the selected ciphers.
-static const char kRule8[] =
-    // To simplify things, banish all but {ECDHE_RSA,RSA} x
-    // {CHACHA20,AES_256_CBC,AES_128_CBC,RC4} x SHA1.
-    "!kEDH:!AESGCM:!3DES:!SHA256:!MD5:!SHA384:"
-    // Order some ciphers backwards by strength.
-    "ALL:-CHACHA20:-AES256:-AES128:-RC4:-ALL:"
-    // Select ECDHE ones and sort them by strength. Ties should resolve
-    // based on the order above.
-    "kECDHE:@STRENGTH:-ALL:"
-    // Now bring back everything uses RSA. ECDHE_RSA should be first,
-    // sorted by strength. Then RSA, backwards by strength.
-    "aRSA";
-
-static const ExpectedCipher kExpected8[] = {
-  { TLS1_CK_ECDHE_RSA_WITH_AES_256_CBC_SHA, 0 },
-  { TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0 },
-  { TLS1_CK_ECDHE_RSA_WITH_RC4_128_SHA, 0 },
-  { TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA, 0 },
-  { SSL3_CK_RSA_RC4_128_SHA, 0 },
-  { TLS1_CK_RSA_WITH_AES_128_SHA, 0 },
-  { TLS1_CK_RSA_WITH_AES_256_SHA, 0 },
-  { 0, 0 },
-};
-
-// Exact ciphers may not be used in multi-part rules; they are treated
-// as unknown aliases.
-static const char kRule9[] =
-    "ECDHE-ECDSA-CHACHA20-POLY1305:"
-    "ECDHE-RSA-CHACHA20-POLY1305:"
-    "!ECDHE-RSA-CHACHA20-POLY1305+RSA:"
-    "!ECDSA+ECDHE-ECDSA-CHACHA20-POLY1305";
-
-static const ExpectedCipher kExpected9[] = {
-  { TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 0 },
-  { TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0 },
-  { 0, 0 },
-};
-
-static CipherTest kCipherTests[] = {
-  { kRule1, kExpected1 },
-  { kRule2, kExpected2 },
-  { kRule3, kExpected3 },
-  { kRule4, kExpected4 },
-  { kRule5, kExpected5 },
-  { kRule6, kExpected6 },
-  { kRule7, kExpected7 },
-  { kRule8, kExpected8 },
-  { kRule9, kExpected9 },
-  { NULL, NULL },
+static const CipherTest kCipherTests[] = {
+    // Selecting individual ciphers should work.
+    {
+        "ECDHE-ECDSA-CHACHA20-POLY1305:"
+        "ECDHE-RSA-CHACHA20-POLY1305:"
+        "ECDHE-ECDSA-AES128-GCM-SHA256:"
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        {
+            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0},
+            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+        },
+    },
+    // + reorders selected ciphers to the end, keeping their relative order.
+    {
+        "ECDHE-ECDSA-CHACHA20-POLY1305:"
+        "ECDHE-RSA-CHACHA20-POLY1305:"
+        "ECDHE-ECDSA-AES128-GCM-SHA256:"
+        "ECDHE-RSA-AES128-GCM-SHA256:"
+        "+aRSA",
+        {
+            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 0},
+            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+        },
+    },
+    // ! banishes ciphers from future selections.
+    {
+        "!aRSA:"
+        "ECDHE-ECDSA-CHACHA20-POLY1305:"
+        "ECDHE-RSA-CHACHA20-POLY1305:"
+        "ECDHE-ECDSA-AES128-GCM-SHA256:"
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        {
+            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 0},
+            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+        },
+    },
+    // Multiple masks can be ANDed in a single rule.
+    {
+        "kRSA+AESGCM+AES128",
+        {
+            {TLS1_CK_RSA_WITH_AES_128_GCM_SHA256, 0},
+        },
+    },
+    // - removes selected ciphers, but preserves their order for future
+    // selections. Select AES_128_GCM, but order the key exchanges RSA, DHE_RSA,
+    // ECDHE_RSA.
+    {
+        "ALL:-kECDHE:-kDHE:-kRSA:-ALL:"
+        "AESGCM+AES128+aRSA",
+        {
+            {TLS1_CK_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {TLS1_CK_DHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+        },
+    },
+    // Unknown selectors are no-ops.
+    {
+        "ECDHE-ECDSA-CHACHA20-POLY1305:"
+        "ECDHE-RSA-CHACHA20-POLY1305:"
+        "ECDHE-ECDSA-AES128-GCM-SHA256:"
+        "ECDHE-RSA-AES128-GCM-SHA256:"
+        "BOGUS1:-BOGUS2:+BOGUS3:!BOGUS4",
+        {
+            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0},
+            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+        },
+    },
+    // Square brackets specify equi-preference groups.
+    {
+        "[ECDHE-ECDSA-CHACHA20-POLY1305|ECDHE-ECDSA-AES128-GCM-SHA256]:"
+        "[ECDHE-RSA-CHACHA20-POLY1305]:"
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        {
+            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 1},
+            {TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 1},
+            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 1},
+            {TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+        },
+    },
+    // @STRENGTH performs a stable strength-sort of the selected ciphers and
+    // only the selected ciphers.
+    {
+        // To simplify things, banish all but {ECDHE_RSA,RSA} x
+        // {CHACHA20,AES_256_CBC,AES_128_CBC,RC4} x SHA1.
+        "!kEDH:!AESGCM:!3DES:!SHA256:!MD5:!SHA384:"
+        // Order some ciphers backwards by strength.
+        "ALL:-CHACHA20:-AES256:-AES128:-RC4:-ALL:"
+        // Select ECDHE ones and sort them by strength. Ties should resolve
+        // based on the order above.
+        "kECDHE:@STRENGTH:-ALL:"
+        // Now bring back everything uses RSA. ECDHE_RSA should be first, sorted
+        // by strength. Then RSA, backwards by strength.
+        "aRSA",
+        {
+            {TLS1_CK_ECDHE_RSA_WITH_AES_256_CBC_SHA, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_RC4_128_SHA, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA, 0},
+            {SSL3_CK_RSA_RC4_128_SHA, 0},
+            {TLS1_CK_RSA_WITH_AES_128_SHA, 0},
+            {TLS1_CK_RSA_WITH_AES_256_SHA, 0},
+        },
+    },
+    // Exact ciphers may not be used in multi-part rules; they are treated
+    // as unknown aliases.
+    {
+        "ECDHE-ECDSA-AES128-GCM-SHA256:"
+        "ECDHE-RSA-AES128-GCM-SHA256:"
+        "!ECDHE-RSA-AES128-GCM-SHA256+RSA:"
+        "!ECDSA+ECDHE-ECDSA-AES128-GCM-SHA256",
+        {
+            {TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0},
+        },
+    },
+    // SSLv3 matches everything that existed before TLS 1.2.
+    {
+        "AES128-SHA:AES128-SHA256:!SSLv3",
+        {
+            {TLS1_CK_RSA_WITH_AES_128_SHA256, 0},
+        },
+    },
+    // TLSv1.2 matches everything added in TLS 1.2.
+    {
+        "AES128-SHA:AES128-SHA256:!TLSv1.2",
+        {
+            {TLS1_CK_RSA_WITH_AES_128_SHA, 0},
+        },
+    },
+    // The two directives have no intersection.
+    {
+        "AES128-SHA:AES128-SHA256:!TLSv1.2+SSLv3",
+        {
+            {TLS1_CK_RSA_WITH_AES_128_SHA, 0},
+            {TLS1_CK_RSA_WITH_AES_128_SHA256, 0},
+        },
+    },
+    // The shared name of the CHACHA20_POLY1305 variants behaves like a cipher
+    // name and not an alias. It may not be used in a multipart rule. (That the
+    // shared name works is covered by the standard tests.)
+    {
+        "ECDHE-ECDSA-CHACHA20-POLY1305:"
+        "ECDHE-RSA-CHACHA20-POLY1305:"
+        "!ECDHE-RSA-CHACHA20-POLY1305+RSA:"
+        "!ECDSA+ECDHE-ECDSA-CHACHA20-POLY1305",
+        {
+            {TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {TLS1_CK_ECDHE_ECDSA_CHACHA20_POLY1305_OLD, 0},
+            {TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 0},
+            {TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD, 0},
+        },
+    },
 };
 
 static const char *kBadRules[] = {
@@ -214,7 +236,6 @@ static const char *kBadRules[] = {
   "[ECDHE-RSA-CHACHA20-POLY1305|ECDHE-RSA-AES128-GCM-SHA256]:!FOO",
   "[ECDHE-RSA-CHACHA20-POLY1305|ECDHE-RSA-AES128-GCM-SHA256]:-FOO",
   "[ECDHE-RSA-CHACHA20-POLY1305|ECDHE-RSA-AES128-GCM-SHA256]:@STRENGTH",
-  NULL,
 };
 
 static const char *kMustNotIncludeNull[] = {
@@ -222,6 +243,8 @@ static const char *kMustNotIncludeNull[] = {
   "DEFAULT",
   "ALL:!eNULL",
   "ALL:!NULL",
+  "MEDIUM",
+  "HIGH",
   "FIPS",
   "SHA",
   "SHA1",
@@ -229,7 +252,6 @@ static const char *kMustNotIncludeNull[] = {
   "SSLv3",
   "TLSv1",
   "TLSv1.2",
-  NULL
 };
 
 static void PrintCipherPreferenceList(ssl_cipher_preference_list_st *list) {
@@ -252,34 +274,33 @@ static void PrintCipherPreferenceList(ssl_cipher_preference_list_st *list) {
   }
 }
 
-static bool TestCipherRule(CipherTest *t) {
+static bool TestCipherRule(const CipherTest &t) {
   ScopedSSL_CTX ctx(SSL_CTX_new(TLS_method()));
   if (!ctx) {
     return false;
   }
 
-  if (!SSL_CTX_set_cipher_list(ctx.get(), t->rule)) {
-    fprintf(stderr, "Error testing cipher rule '%s'\n", t->rule);
+  if (!SSL_CTX_set_cipher_list(ctx.get(), t.rule)) {
+    fprintf(stderr, "Error testing cipher rule '%s'\n", t.rule);
     return false;
   }
 
   // Compare the two lists.
-  size_t i;
-  for (i = 0; i < sk_SSL_CIPHER_num(ctx->cipher_list->ciphers); i++) {
+  if (sk_SSL_CIPHER_num(ctx->cipher_list->ciphers) != t.expected.size()) {
+    fprintf(stderr, "Error: cipher rule '%s' evaluated to:\n", t.rule);
+    PrintCipherPreferenceList(ctx->cipher_list);
+    return false;
+  }
+
+  for (size_t i = 0; i < t.expected.size(); i++) {
     const SSL_CIPHER *cipher =
         sk_SSL_CIPHER_value(ctx->cipher_list->ciphers, i);
-    if (t->expected[i].id != SSL_CIPHER_get_id(cipher) ||
-        t->expected[i].in_group_flag != ctx->cipher_list->in_group_flags[i]) {
-      fprintf(stderr, "Error: cipher rule '%s' evaluated to:\n", t->rule);
+    if (t.expected[i].id != SSL_CIPHER_get_id(cipher) ||
+        t.expected[i].in_group_flag != ctx->cipher_list->in_group_flags[i]) {
+      fprintf(stderr, "Error: cipher rule '%s' evaluated to:\n", t.rule);
       PrintCipherPreferenceList(ctx->cipher_list);
       return false;
     }
-  }
-
-  if (t->expected[i].id != 0) {
-    fprintf(stderr, "Error: cipher rule '%s' evaluated to:\n", t->rule);
-    PrintCipherPreferenceList(ctx->cipher_list);
-    return false;
   }
 
   return true;
@@ -304,26 +325,26 @@ static bool TestRuleDoesNotIncludeNull(const char *rule) {
 }
 
 static bool TestCipherRules() {
-  for (size_t i = 0; kCipherTests[i].rule != NULL; i++) {
-    if (!TestCipherRule(&kCipherTests[i])) {
+  for (const CipherTest &test : kCipherTests) {
+    if (!TestCipherRule(test)) {
       return false;
     }
   }
 
-  for (size_t i = 0; kBadRules[i] != NULL; i++) {
+  for (const char *rule : kBadRules) {
     ScopedSSL_CTX ctx(SSL_CTX_new(SSLv23_server_method()));
     if (!ctx) {
       return false;
     }
-    if (SSL_CTX_set_cipher_list(ctx.get(), kBadRules[i])) {
-      fprintf(stderr, "Cipher rule '%s' unexpectedly succeeded\n", kBadRules[i]);
+    if (SSL_CTX_set_cipher_list(ctx.get(), rule)) {
+      fprintf(stderr, "Cipher rule '%s' unexpectedly succeeded\n", rule);
       return false;
     }
     ERR_clear_error();
   }
 
-  for (size_t i = 0; kMustNotIncludeNull[i] != NULL; i++) {
-    if (!TestRuleDoesNotIncludeNull(kMustNotIncludeNull[i])) {
+  for (const char *rule : kMustNotIncludeNull) {
+    if (!TestRuleDoesNotIncludeNull(rule)) {
       return false;
     }
   }
@@ -666,6 +687,8 @@ static const CIPHER_RFC_NAME_TEST kCipherRFCNameTests[] = {
   { TLS1_CK_PSK_WITH_RC4_128_SHA, "TLS_PSK_WITH_RC4_SHA" },
   { TLS1_CK_ECDHE_PSK_WITH_AES_128_CBC_SHA,
     "TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA" },
+  { TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+    "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256" },
   // These names are non-standard:
   { TLS1_CK_ECDHE_RSA_CHACHA20_POLY1305_OLD,
     "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256" },
@@ -872,23 +895,6 @@ static ScopedSSL_SESSION CreateTestSession(uint32_t number) {
   return ret;
 }
 
-// TODO(davidben): Switch this to a |std::vector<ScopedSSL_SESSION>| once we can
-// rely on a move-aware |std::vector|.
-class ScopedSessionVector {
- public:
-  explicit ScopedSessionVector(std::vector<SSL_SESSION*> *sessions)
-      : sessions_(sessions) {}
-
-  ~ScopedSessionVector() {
-    for (SSL_SESSION *session : *sessions_) {
-      SSL_SESSION_free(session);
-    }
-  }
-
- private:
-  std::vector<SSL_SESSION*> *const sessions_;
-};
-
 // Test that the internal session cache behaves as expected.
 static bool TestInternalSessionCache() {
   ScopedSSL_CTX ctx(SSL_CTX_new(TLS_method()));
@@ -897,38 +903,38 @@ static bool TestInternalSessionCache() {
   }
 
   // Prepare 10 test sessions.
-  std::vector<SSL_SESSION*> sessions;
-  ScopedSessionVector cleanup(&sessions);
+  std::vector<ScopedSSL_SESSION> sessions;
   for (int i = 0; i < 10; i++) {
     ScopedSSL_SESSION session = CreateTestSession(i);
     if (!session) {
       return false;
     }
-    sessions.push_back(session.release());
+    sessions.push_back(std::move(session));
   }
 
   SSL_CTX_sess_set_cache_size(ctx.get(), 5);
 
   // Insert all the test sessions.
-  for (SSL_SESSION *session : sessions) {
-    if (!SSL_CTX_add_session(ctx.get(), session)) {
+  for (const auto &session : sessions) {
+    if (!SSL_CTX_add_session(ctx.get(), session.get())) {
       return false;
     }
   }
 
   // Only the last five should be in the list.
-  std::vector<SSL_SESSION*> expected;
-  expected.push_back(sessions[9]);
-  expected.push_back(sessions[8]);
-  expected.push_back(sessions[7]);
-  expected.push_back(sessions[6]);
-  expected.push_back(sessions[5]);
+  std::vector<SSL_SESSION*> expected = {
+      sessions[9].get(),
+      sessions[8].get(),
+      sessions[7].get(),
+      sessions[6].get(),
+      sessions[5].get(),
+  };
   if (!ExpectCache(ctx.get(), expected)) {
     return false;
   }
 
   // Inserting an element already in the cache should fail.
-  if (SSL_CTX_add_session(ctx.get(), sessions[7]) ||
+  if (SSL_CTX_add_session(ctx.get(), sessions[7].get()) ||
       !ExpectCache(ctx.get(), expected)) {
     return false;
   }
@@ -939,33 +945,186 @@ static bool TestInternalSessionCache() {
   if (!collision || !SSL_CTX_add_session(ctx.get(), collision.get())) {
     return false;
   }
-  expected.clear();
-  expected.push_back(collision.get());
-  expected.push_back(sessions[9]);
-  expected.push_back(sessions[8]);
-  expected.push_back(sessions[6]);
-  expected.push_back(sessions[5]);
+  expected = {
+      collision.get(),
+      sessions[9].get(),
+      sessions[8].get(),
+      sessions[6].get(),
+      sessions[5].get(),
+  };
   if (!ExpectCache(ctx.get(), expected)) {
     return false;
   }
 
   // Removing sessions behaves correctly.
-  if (!SSL_CTX_remove_session(ctx.get(), sessions[6])) {
+  if (!SSL_CTX_remove_session(ctx.get(), sessions[6].get())) {
     return false;
   }
-  expected.clear();
-  expected.push_back(collision.get());
-  expected.push_back(sessions[9]);
-  expected.push_back(sessions[8]);
-  expected.push_back(sessions[5]);
+  expected = {
+      collision.get(),
+      sessions[9].get(),
+      sessions[8].get(),
+      sessions[5].get(),
+  };
   if (!ExpectCache(ctx.get(), expected)) {
     return false;
   }
 
   // Removing sessions requires an exact match.
-  if (SSL_CTX_remove_session(ctx.get(), sessions[0]) ||
-      SSL_CTX_remove_session(ctx.get(), sessions[7]) ||
+  if (SSL_CTX_remove_session(ctx.get(), sessions[0].get()) ||
+      SSL_CTX_remove_session(ctx.get(), sessions[7].get()) ||
       !ExpectCache(ctx.get(), expected)) {
+    return false;
+  }
+
+  return true;
+}
+
+static uint16_t EpochFromSequence(uint64_t seq) {
+  return static_cast<uint16_t>(seq >> 48);
+}
+
+static ScopedX509 GetTestCertificate() {
+  static const char kCertPEM[] =
+      "-----BEGIN CERTIFICATE-----\n"
+      "MIICWDCCAcGgAwIBAgIJAPuwTC6rEJsMMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV\n"
+      "BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX\n"
+      "aWRnaXRzIFB0eSBMdGQwHhcNMTQwNDIzMjA1MDQwWhcNMTcwNDIyMjA1MDQwWjBF\n"
+      "MQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50\n"
+      "ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKB\n"
+      "gQDYK8imMuRi/03z0K1Zi0WnvfFHvwlYeyK9Na6XJYaUoIDAtB92kWdGMdAQhLci\n"
+      "HnAjkXLI6W15OoV3gA/ElRZ1xUpxTMhjP6PyY5wqT5r6y8FxbiiFKKAnHmUcrgfV\n"
+      "W28tQ+0rkLGMryRtrukXOgXBv7gcrmU7G1jC2a7WqmeI8QIDAQABo1AwTjAdBgNV\n"
+      "HQ4EFgQUi3XVrMsIvg4fZbf6Vr5sp3Xaha8wHwYDVR0jBBgwFoAUi3XVrMsIvg4f\n"
+      "Zbf6Vr5sp3Xaha8wDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQUFAAOBgQA76Hht\n"
+      "ldY9avcTGSwbwoiuIqv0jTL1fHFnzy3RHMLDh+Lpvolc5DSrSJHCP5WuK0eeJXhr\n"
+      "T5oQpHL9z/cCDLAKCKRa4uV0fhEdOWBqyR9p8y5jJtye72t6CuFUV5iqcpF4BH4f\n"
+      "j2VNHwsSrJwkD4QUGlUtH7vwnQmyCFxZMmWAJg==\n"
+      "-----END CERTIFICATE-----\n";
+  ScopedBIO bio(BIO_new_mem_buf(kCertPEM, strlen(kCertPEM)));
+  return ScopedX509(PEM_read_bio_X509(bio.get(), nullptr, nullptr, nullptr));
+}
+
+static ScopedEVP_PKEY GetTestKey() {
+  static const char kKeyPEM[] =
+      "-----BEGIN RSA PRIVATE KEY-----\n"
+      "MIICXgIBAAKBgQDYK8imMuRi/03z0K1Zi0WnvfFHvwlYeyK9Na6XJYaUoIDAtB92\n"
+      "kWdGMdAQhLciHnAjkXLI6W15OoV3gA/ElRZ1xUpxTMhjP6PyY5wqT5r6y8FxbiiF\n"
+      "KKAnHmUcrgfVW28tQ+0rkLGMryRtrukXOgXBv7gcrmU7G1jC2a7WqmeI8QIDAQAB\n"
+      "AoGBAIBy09Fd4DOq/Ijp8HeKuCMKTHqTW1xGHshLQ6jwVV2vWZIn9aIgmDsvkjCe\n"
+      "i6ssZvnbjVcwzSoByhjN8ZCf/i15HECWDFFh6gt0P5z0MnChwzZmvatV/FXCT0j+\n"
+      "WmGNB/gkehKjGXLLcjTb6dRYVJSCZhVuOLLcbWIV10gggJQBAkEA8S8sGe4ezyyZ\n"
+      "m4e9r95g6s43kPqtj5rewTsUxt+2n4eVodD+ZUlCULWVNAFLkYRTBCASlSrm9Xhj\n"
+      "QpmWAHJUkQJBAOVzQdFUaewLtdOJoPCtpYoY1zd22eae8TQEmpGOR11L6kbxLQsk\n"
+      "aMly/DOnOaa82tqAGTdqDEZgSNmCeKKknmECQAvpnY8GUOVAubGR6c+W90iBuQLj\n"
+      "LtFp/9ihd2w/PoDwrHZaoUYVcT4VSfJQog/k7kjE4MYXYWL8eEKg3WTWQNECQQDk\n"
+      "104Wi91Umd1PzF0ijd2jXOERJU1wEKe6XLkYYNHWQAe5l4J4MWj9OdxFXAxIuuR/\n"
+      "tfDwbqkta4xcux67//khAkEAvvRXLHTaa6VFzTaiiO8SaFsHV3lQyXOtMrBpB5jd\n"
+      "moZWgjHvB2W9Ckn7sDqsPB+U2tyX0joDdQEyuiMECDY8oQ==\n"
+      "-----END RSA PRIVATE KEY-----\n";
+  ScopedBIO bio(BIO_new_mem_buf(kKeyPEM, strlen(kKeyPEM)));
+  return ScopedEVP_PKEY(
+      PEM_read_bio_PrivateKey(bio.get(), nullptr, nullptr, nullptr));
+}
+
+static bool TestSequenceNumber(bool dtls) {
+  ScopedSSL_CTX client_ctx(SSL_CTX_new(dtls ? DTLS_method() : TLS_method()));
+  ScopedSSL_CTX server_ctx(SSL_CTX_new(dtls ? DTLS_method() : TLS_method()));
+  if (!client_ctx || !server_ctx) {
+    return false;
+  }
+
+  ScopedX509 cert = GetTestCertificate();
+  ScopedEVP_PKEY key = GetTestKey();
+  if (!cert || !key ||
+      !SSL_CTX_use_certificate(server_ctx.get(), cert.get()) ||
+      !SSL_CTX_use_PrivateKey(server_ctx.get(), key.get())) {
+    return false;
+  }
+
+  // Create a client and server connected to each other.
+  ScopedSSL client(SSL_new(client_ctx.get())), server(SSL_new(server_ctx.get()));
+  if (!client || !server) {
+    return false;
+  }
+  SSL_set_connect_state(client.get());
+  SSL_set_accept_state(server.get());
+
+  BIO *bio1, *bio2;
+  if (!BIO_new_bio_pair(&bio1, 0, &bio2, 0)) {
+    return false;
+  }
+  // SSL_set_bio takes ownership.
+  SSL_set_bio(client.get(), bio1, bio1);
+  SSL_set_bio(server.get(), bio2, bio2);
+
+  // Drive both their handshakes to completion.
+  for (;;) {
+    int client_ret = SSL_do_handshake(client.get());
+    int client_err = SSL_get_error(client.get(), client_ret);
+    if (client_err != SSL_ERROR_NONE &&
+        client_err != SSL_ERROR_WANT_READ &&
+        client_err != SSL_ERROR_WANT_WRITE) {
+      fprintf(stderr, "Client error: %d\n", client_err);
+      return false;
+    }
+
+    int server_ret = SSL_do_handshake(server.get());
+    int server_err = SSL_get_error(server.get(), server_ret);
+    if (server_err != SSL_ERROR_NONE &&
+        server_err != SSL_ERROR_WANT_READ &&
+        server_err != SSL_ERROR_WANT_WRITE) {
+      fprintf(stderr, "Server error: %d\n", server_err);
+      return false;
+    }
+
+    if (client_ret == 1 && server_ret == 1) {
+      break;
+    }
+  }
+
+  uint64_t client_read_seq = SSL_get_read_sequence(client.get());
+  uint64_t client_write_seq = SSL_get_write_sequence(client.get());
+  uint64_t server_read_seq = SSL_get_read_sequence(server.get());
+  uint64_t server_write_seq = SSL_get_write_sequence(server.get());
+
+  if (dtls) {
+    // Both client and server must be at epoch 1.
+    if (EpochFromSequence(client_read_seq) != 1 ||
+        EpochFromSequence(client_write_seq) != 1 ||
+        EpochFromSequence(server_read_seq) != 1 ||
+        EpochFromSequence(server_write_seq) != 1) {
+      fprintf(stderr, "Bad epochs.\n");
+      return false;
+    }
+
+    // The next record to be written should exceed the largest received.
+    if (client_write_seq <= server_read_seq ||
+        server_write_seq <= client_read_seq) {
+      fprintf(stderr, "Inconsistent sequence numbers.\n");
+      return false;
+    }
+  } else {
+    // The next record to be written should equal the next to be received.
+    if (client_write_seq != server_read_seq ||
+        server_write_seq != client_write_seq) {
+      fprintf(stderr, "Inconsistent sequence numbers.\n");
+      return false;
+    }
+  }
+
+  // Send a record from client to server.
+  uint8_t byte = 0;
+  if (SSL_write(client.get(), &byte, 1) != 1 ||
+      SSL_read(server.get(), &byte, 1) != 1) {
+    fprintf(stderr, "Could not send byte.\n");
+    return false;
+  }
+
+  // The client write and server read sequence numbers should have incremented.
+  if (client_write_seq + 1 != SSL_get_write_sequence(client.get()) ||
+      server_read_seq + 1 != SSL_get_read_sequence(server.get())) {
+    fprintf(stderr, "Sequence numbers did not increment.\n");\
     return false;
   }
 
@@ -993,7 +1152,9 @@ int main() {
       !TestCipherGetRFCName() ||
       !TestPaddingExtension() ||
       !TestClientCAList() ||
-      !TestInternalSessionCache()) {
+      !TestInternalSessionCache() ||
+      !TestSequenceNumber(false /* TLS */) ||
+      !TestSequenceNumber(true /* DTLS */)) {
     ERR_print_errors_fp(stderr);
     return 1;
   }

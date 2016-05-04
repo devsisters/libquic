@@ -45,12 +45,12 @@ struct TestConfig {
   std::string expected_channel_id;
   std::string send_channel_id;
   bool shim_writes_first = false;
-  bool tls_d5_bug = false;
   std::string host_name;
   std::string advertise_alpn;
   std::string expected_alpn;
   std::string expected_advertised_alpn;
   std::string select_alpn;
+  bool decline_alpn = false;
   bool expect_session_miss = false;
   bool expect_extended_master_secret = false;
   std::string psk;
@@ -77,7 +77,6 @@ struct TestConfig {
   std::string export_label;
   std::string export_context;
   bool use_export_context = false;
-  bool no_legacy_server_connect = false;
   bool tls_unique = false;
   bool expect_ticket_renewal = false;
   bool expect_no_session = false;
@@ -90,7 +89,6 @@ struct TestConfig {
   std::string ocsp_response;
   bool check_close_notify = false;
   bool shim_shuts_down = false;
-  bool microsoft_big_sslv3_buffer = false;
   bool verify_fail = false;
   bool verify_peer = false;
   bool expect_verify_result = false;
@@ -102,6 +100,10 @@ struct TestConfig {
   bool disable_npn = false;
   int expect_server_key_exchange_hash = 0;
   bool p384_only = false;
+  bool enable_all_curves = false;
+  bool use_sparse_dh_prime = false;
+  int expect_key_exchange_info = 0;
+  bool use_old_client_cert_callback = false;
 };
 
 bool ParseConfig(int argc, char **argv, TestConfig *out_config);

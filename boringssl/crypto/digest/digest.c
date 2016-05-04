@@ -60,7 +60,6 @@
 #include <string.h>
 
 #include <openssl/err.h>
-#include <openssl/obj.h>
 #include <openssl/mem.h>
 
 #include "internal.h"
@@ -166,6 +165,7 @@ int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *engine) {
   if (ctx->digest != type) {
     if (ctx->digest && ctx->digest->ctx_size > 0) {
       OPENSSL_free(ctx->md_data);
+      ctx->md_data = NULL;
     }
     ctx->digest = type;
     if (type->ctx_size > 0) {
@@ -231,11 +231,11 @@ const EVP_MD *EVP_MD_CTX_md(const EVP_MD_CTX *ctx) {
   return ctx->digest;
 }
 
-unsigned EVP_MD_CTX_size(const EVP_MD_CTX *ctx) {
+size_t EVP_MD_CTX_size(const EVP_MD_CTX *ctx) {
   return EVP_MD_size(EVP_MD_CTX_md(ctx));
 }
 
-unsigned EVP_MD_CTX_block_size(const EVP_MD_CTX *ctx) {
+size_t EVP_MD_CTX_block_size(const EVP_MD_CTX *ctx) {
   return EVP_MD_block_size(EVP_MD_CTX_md(ctx));
 }
 

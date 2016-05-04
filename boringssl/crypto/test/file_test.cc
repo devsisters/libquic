@@ -14,6 +14,8 @@
 
 #include "file_test.h"
 
+#include <memory>
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -63,30 +65,23 @@ static std::string StripSpace(const char *str, size_t len) {
 }
 
 FileTest::ReadResult FileTest::ReadNext() {
-  // If the previous test had unused attributes or block, it is an error.
+  // If the previous test had unused attributes, it is an error.
   if (!unused_attributes_.empty()) {
     for (const std::string &key : unused_attributes_) {
       PrintLine("Unused attribute: %s", key.c_str());
     }
     return kReadError;
   }
-  if (!block_.empty() && !used_block_) {
-    PrintLine("Unused block");
-    return kReadError;
-  }
 
   ClearTest();
 
-  bool in_block = false;
+  static const size_t kBufLen = 64 + 8192*2;
+  std::unique_ptr<char[]> buf(new char[kBufLen]);
+
   while (true) {
     // Read the next line.
-    char buf[4096];
-    if (fgets(buf, sizeof(buf), file_) == nullptr) {
+    if (fgets(buf.get(), kBufLen, file_) == nullptr) {
       if (feof(file_)) {
-        if (in_block) {
-          fprintf(stderr, "Unterminated block.\n");
-          return kReadError;
-        }
         // EOF is a valid terminator for a test.
         return start_line_ > 0 ? kReadSuccess : kReadEOF;
       }
@@ -95,42 +90,28 @@ FileTest::ReadResult FileTest::ReadNext() {
     }
 
     line_++;
-    size_t len = strlen(buf);
+    size_t len = strlen(buf.get());
     // Check for truncation.
     if (len > 0 && buf[len - 1] != '\n' && !feof(file_)) {
       fprintf(stderr, "Line %u too long.\n", line_);
       return kReadError;
     }
 
-    bool is_delimiter = strncmp(buf, "---", 3) == 0;
-    if (in_block) {
-      block_ += buf;
-      if (is_delimiter) {
-        // Ending the block completes the test.
-        return kReadSuccess;
-      }
-    } else if (is_delimiter) {
-      if (start_line_ == 0) {
-        fprintf(stderr, "Line %u: Unexpected block.\n", line_);
-        return kReadError;
-      }
-      in_block = true;
-      block_ += buf;
-    } else if (buf[0] == '\n' || buf[0] == '\0') {
+    if (buf[0] == '\n' || buf[0] == '\0') {
       // Empty lines delimit tests.
       if (start_line_ > 0) {
         return kReadSuccess;
       }
     } else if (buf[0] != '#') {  // Comment lines are ignored.
       // Parse the line as an attribute.
-      const char *delimiter = FindDelimiter(buf);
+      const char *delimiter = FindDelimiter(buf.get());
       if (delimiter == nullptr) {
         fprintf(stderr, "Line %u: Could not parse attribute.\n", line_);
         return kReadError;
       }
-      std::string key = StripSpace(buf, delimiter - buf);
+      std::string key = StripSpace(buf.get(), delimiter - buf.get());
       std::string value = StripSpace(delimiter + 1,
-                                     buf + len - delimiter - 1);
+                                     buf.get() + len - delimiter - 1);
 
       unused_attributes_.insert(key);
       attributes_[key] = value;
@@ -163,11 +144,6 @@ const std::string &FileTest::GetType() {
 const std::string &FileTest::GetParameter() {
   OnKeyUsed(type_);
   return parameter_;
-}
-
-const std::string &FileTest::GetBlock() {
-  used_block_ = true;
-  return block_;
 }
 
 bool FileTest::HasAttribute(const std::string &key) {
@@ -224,6 +200,7 @@ bool FileTest::GetBytes(std::vector<uint8_t> *out, const std::string &key) {
     PrintLine("Error decoding value: %s", value.c_str());
     return false;
   }
+  out->clear();
   out->reserve(value.size() / 2);
   for (size_t i = 0; i < value.size(); i += 2) {
     uint8_t hi, lo;
@@ -266,9 +243,7 @@ void FileTest::ClearTest() {
   type_.clear();
   parameter_.clear();
   attributes_.clear();
-  block_.clear();
   unused_attributes_.clear();
-  used_block_ = false;
 }
 
 void FileTest::OnKeyUsed(const std::string &key) {
@@ -304,6 +279,7 @@ int FileTestMain(bool (*run_test)(FileTest *t, void *arg), void *arg,
                      t.GetAttributeOrDie("Error").c_str(),
                      ERR_reason_error_string(err));
         failed = true;
+        ERR_clear_error();
         continue;
       }
       ERR_clear_error();

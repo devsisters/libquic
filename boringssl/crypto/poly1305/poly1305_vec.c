@@ -20,42 +20,40 @@
 
 #include <openssl/poly1305.h>
 
+#include "../internal.h"
+
 
 #if !defined(OPENSSL_WINDOWS) && defined(OPENSSL_X86_64)
 
 #include <emmintrin.h>
 
-#define ALIGN(x) __attribute__((aligned(x)))
-/* inline is not a keyword in C89. */
-#define INLINE 
-#define U8TO64_LE(m) (*(uint64_t *)(m))
-#define U8TO32_LE(m) (*(uint32_t *)(m))
+#define U8TO64_LE(m) (*(const uint64_t *)(m))
+#define U8TO32_LE(m) (*(const uint32_t *)(m))
 #define U64TO8_LE(m, v) (*(uint64_t *)(m)) = v
 
 typedef __m128i xmmi;
-typedef unsigned __int128 uint128_t;
 
-static const uint32_t ALIGN(16) poly1305_x64_sse2_message_mask[4] = {
+static const alignas(16) uint32_t poly1305_x64_sse2_message_mask[4] = {
     (1 << 26) - 1, 0, (1 << 26) - 1, 0};
-static const uint32_t ALIGN(16) poly1305_x64_sse2_5[4] = {5, 0, 5, 0};
-static const uint32_t ALIGN(16) poly1305_x64_sse2_1shl128[4] = {(1 << 24), 0,
-                                                                (1 << 24), 0};
+static const alignas(16) uint32_t poly1305_x64_sse2_5[4] = {5, 0, 5, 0};
+static const alignas(16) uint32_t poly1305_x64_sse2_1shl128[4] = {
+    (1 << 24), 0, (1 << 24), 0};
 
-static uint128_t INLINE add128(uint128_t a, uint128_t b) { return a + b; }
+static inline uint128_t add128(uint128_t a, uint128_t b) { return a + b; }
 
-static uint128_t INLINE add128_64(uint128_t a, uint64_t b) { return a + b; }
+static inline uint128_t add128_64(uint128_t a, uint64_t b) { return a + b; }
 
-static uint128_t INLINE mul64x64_128(uint64_t a, uint64_t b) {
+static inline uint128_t mul64x64_128(uint64_t a, uint64_t b) {
   return (uint128_t)a * b;
 }
 
-static uint64_t INLINE lo128(uint128_t a) { return (uint64_t)a; }
+static inline uint64_t lo128(uint128_t a) { return (uint64_t)a; }
 
-static uint64_t INLINE shr128(uint128_t v, const int shift) {
+static inline uint64_t shr128(uint128_t v, const int shift) {
   return (uint64_t)(v >> shift);
 }
 
-static uint64_t INLINE shr128_pair(uint64_t hi, uint64_t lo, const int shift) {
+static inline uint64_t shr128_pair(uint64_t hi, uint64_t lo, const int shift) {
   return (uint64_t)((((uint128_t)hi << 64) | lo) >> shift);
 }
 
@@ -82,32 +80,32 @@ typedef struct poly1305_state_internal_t {
 } poly1305_state_internal; /* 448 bytes total + 63 bytes for
                               alignment = 511 bytes raw */
 
-static poly1305_state_internal INLINE *poly1305_aligned_state(
+static inline poly1305_state_internal *poly1305_aligned_state(
     poly1305_state *state) {
   return (poly1305_state_internal *)(((uint64_t)state + 63) & ~63);
 }
 
 /* copy 0-63 bytes */
-static void INLINE
+static inline void
 poly1305_block_copy(uint8_t *dst, const uint8_t *src, size_t bytes) {
   size_t offset = src - dst;
   if (bytes & 32) {
     _mm_storeu_si128((xmmi *)(dst + 0),
-                     _mm_loadu_si128((xmmi *)(dst + offset + 0)));
+                     _mm_loadu_si128((const xmmi *)(dst + offset + 0)));
     _mm_storeu_si128((xmmi *)(dst + 16),
-                     _mm_loadu_si128((xmmi *)(dst + offset + 16)));
+                     _mm_loadu_si128((const xmmi *)(dst + offset + 16)));
     dst += 32;
   }
   if (bytes & 16) {
-    _mm_storeu_si128((xmmi *)dst, _mm_loadu_si128((xmmi *)(dst + offset)));
+    _mm_storeu_si128((xmmi *)dst, _mm_loadu_si128((const xmmi *)(dst + offset)));
     dst += 16;
   }
   if (bytes & 8) {
-    *(uint64_t *)dst = *(uint64_t *)(dst + offset);
+    *(uint64_t *)dst = *(const uint64_t *)(dst + offset);
     dst += 8;
   }
   if (bytes & 4) {
-    *(uint32_t *)dst = *(uint32_t *)(dst + offset);
+    *(uint32_t *)dst = *(const uint32_t *)(dst + offset);
     dst += 4;
   }
   if (bytes & 2) {
@@ -120,7 +118,7 @@ poly1305_block_copy(uint8_t *dst, const uint8_t *src, size_t bytes) {
 }
 
 /* zero 0-15 bytes */
-static void INLINE poly1305_block_zero(uint8_t *dst, size_t bytes) {
+static inline void poly1305_block_zero(uint8_t *dst, size_t bytes) {
   if (bytes & 8) {
     *(uint64_t *)dst = 0;
     dst += 8;
@@ -138,7 +136,7 @@ static void INLINE poly1305_block_zero(uint8_t *dst, size_t bytes) {
   }
 }
 
-static size_t INLINE poly1305_min(size_t a, size_t b) {
+static inline size_t poly1305_min(size_t a, size_t b) {
   return (a < b) ? a : b;
 }
 
@@ -186,9 +184,9 @@ void CRYPTO_poly1305_init(poly1305_state *state, const uint8_t key[32]) {
 
 static void poly1305_first_block(poly1305_state_internal *st,
                                  const uint8_t *m) {
-  const xmmi MMASK = _mm_load_si128((xmmi *)poly1305_x64_sse2_message_mask);
-  const xmmi FIVE = _mm_load_si128((xmmi *)poly1305_x64_sse2_5);
-  const xmmi HIBIT = _mm_load_si128((xmmi *)poly1305_x64_sse2_1shl128);
+  const xmmi MMASK = _mm_load_si128((const xmmi *)poly1305_x64_sse2_message_mask);
+  const xmmi FIVE = _mm_load_si128((const xmmi *)poly1305_x64_sse2_5);
+  const xmmi HIBIT = _mm_load_si128((const xmmi *)poly1305_x64_sse2_1shl128);
   xmmi T5, T6;
   poly1305_power *p;
   uint128_t d[3];
@@ -265,10 +263,10 @@ static void poly1305_first_block(poly1305_state_internal *st,
   p->R24.d[3] = (uint32_t)(pad1 >> 32);
 
   /* H = [Mx,My] */
-  T5 = _mm_unpacklo_epi64(_mm_loadl_epi64((xmmi *)(m + 0)),
-                          _mm_loadl_epi64((xmmi *)(m + 16)));
-  T6 = _mm_unpacklo_epi64(_mm_loadl_epi64((xmmi *)(m + 8)),
-                          _mm_loadl_epi64((xmmi *)(m + 24)));
+  T5 = _mm_unpacklo_epi64(_mm_loadl_epi64((const xmmi *)(m + 0)),
+                          _mm_loadl_epi64((const xmmi *)(m + 16)));
+  T6 = _mm_unpacklo_epi64(_mm_loadl_epi64((const xmmi *)(m + 8)),
+                          _mm_loadl_epi64((const xmmi *)(m + 24)));
   st->H[0] = _mm_and_si128(MMASK, T5);
   st->H[1] = _mm_and_si128(MMASK, _mm_srli_epi64(T5, 26));
   T5 = _mm_or_si128(_mm_srli_epi64(T5, 52), _mm_slli_epi64(T6, 12));
@@ -279,9 +277,9 @@ static void poly1305_first_block(poly1305_state_internal *st,
 
 static void poly1305_blocks(poly1305_state_internal *st, const uint8_t *m,
                             size_t bytes) {
-  const xmmi MMASK = _mm_load_si128((xmmi *)poly1305_x64_sse2_message_mask);
-  const xmmi FIVE = _mm_load_si128((xmmi *)poly1305_x64_sse2_5);
-  const xmmi HIBIT = _mm_load_si128((xmmi *)poly1305_x64_sse2_1shl128);
+  const xmmi MMASK = _mm_load_si128((const xmmi *)poly1305_x64_sse2_message_mask);
+  const xmmi FIVE = _mm_load_si128((const xmmi *)poly1305_x64_sse2_5);
+  const xmmi HIBIT = _mm_load_si128((const xmmi *)poly1305_x64_sse2_1shl128);
 
   poly1305_power *p;
   xmmi H0, H1, H2, H3, H4;
@@ -345,10 +343,10 @@ static void poly1305_blocks(poly1305_state_internal *st, const uint8_t *m,
     T4 = _mm_add_epi64(T4, T5);
 
     /* H += [Mx,My]*[r^2,r^2] */
-    T5 = _mm_unpacklo_epi64(_mm_loadl_epi64((xmmi *)(m + 0)),
-                            _mm_loadl_epi64((xmmi *)(m + 16)));
-    T6 = _mm_unpacklo_epi64(_mm_loadl_epi64((xmmi *)(m + 8)),
-                            _mm_loadl_epi64((xmmi *)(m + 24)));
+    T5 = _mm_unpacklo_epi64(_mm_loadl_epi64((const xmmi *)(m + 0)),
+                            _mm_loadl_epi64((const xmmi *)(m + 16)));
+    T6 = _mm_unpacklo_epi64(_mm_loadl_epi64((const xmmi *)(m + 8)),
+                            _mm_loadl_epi64((const xmmi *)(m + 24)));
     M0 = _mm_and_si128(MMASK, T5);
     M1 = _mm_and_si128(MMASK, _mm_srli_epi64(T5, 26));
     T5 = _mm_or_si128(_mm_srli_epi64(T5, 52), _mm_slli_epi64(T6, 12));
@@ -409,10 +407,10 @@ static void poly1305_blocks(poly1305_state_internal *st, const uint8_t *m,
     T4 = _mm_add_epi64(T4, T5);
 
     /* H += [Mx,My] */
-    T5 = _mm_unpacklo_epi64(_mm_loadl_epi64((xmmi *)(m + 32)),
-                            _mm_loadl_epi64((xmmi *)(m + 48)));
-    T6 = _mm_unpacklo_epi64(_mm_loadl_epi64((xmmi *)(m + 40)),
-                            _mm_loadl_epi64((xmmi *)(m + 56)));
+    T5 = _mm_unpacklo_epi64(_mm_loadl_epi64((const xmmi *)(m + 32)),
+                            _mm_loadl_epi64((const xmmi *)(m + 48)));
+    T6 = _mm_unpacklo_epi64(_mm_loadl_epi64((const xmmi *)(m + 40)),
+                            _mm_loadl_epi64((const xmmi *)(m + 56)));
     M0 = _mm_and_si128(MMASK, T5);
     M1 = _mm_and_si128(MMASK, _mm_srli_epi64(T5, 26));
     T5 = _mm_or_si128(_mm_srli_epi64(T5, 52), _mm_slli_epi64(T6, 12));
@@ -469,9 +467,9 @@ static void poly1305_blocks(poly1305_state_internal *st, const uint8_t *m,
 
 static size_t poly1305_combine(poly1305_state_internal *st, const uint8_t *m,
                                size_t bytes) {
-  const xmmi MMASK = _mm_load_si128((xmmi *)poly1305_x64_sse2_message_mask);
-  const xmmi HIBIT = _mm_load_si128((xmmi *)poly1305_x64_sse2_1shl128);
-  const xmmi FIVE = _mm_load_si128((xmmi *)poly1305_x64_sse2_5);
+  const xmmi MMASK = _mm_load_si128((const xmmi *)poly1305_x64_sse2_message_mask);
+  const xmmi HIBIT = _mm_load_si128((const xmmi *)poly1305_x64_sse2_1shl128);
+  const xmmi FIVE = _mm_load_si128((const xmmi *)poly1305_x64_sse2_5);
 
   poly1305_power *p;
   xmmi H0, H1, H2, H3, H4;
@@ -542,10 +540,10 @@ static size_t poly1305_combine(poly1305_state_internal *st, const uint8_t *m,
     T4 = _mm_add_epi64(T4, T5);
 
     /* H += [Mx,My] */
-    T5 = _mm_unpacklo_epi64(_mm_loadl_epi64((xmmi *)(m + 0)),
-                            _mm_loadl_epi64((xmmi *)(m + 16)));
-    T6 = _mm_unpacklo_epi64(_mm_loadl_epi64((xmmi *)(m + 8)),
-                            _mm_loadl_epi64((xmmi *)(m + 24)));
+    T5 = _mm_unpacklo_epi64(_mm_loadl_epi64((const xmmi *)(m + 0)),
+                            _mm_loadl_epi64((const xmmi *)(m + 16)));
+    T6 = _mm_unpacklo_epi64(_mm_loadl_epi64((const xmmi *)(m + 8)),
+                            _mm_loadl_epi64((const xmmi *)(m + 24)));
     M0 = _mm_and_si128(MMASK, T5);
     M1 = _mm_and_si128(MMASK, _mm_srli_epi64(T5, 26));
     T5 = _mm_or_si128(_mm_srli_epi64(T5, 52), _mm_slli_epi64(T6, 12));
@@ -703,9 +701,9 @@ static size_t poly1305_combine(poly1305_state_internal *st, const uint8_t *m,
   t0 &= 0x3ffffff;
   t1 = t1 + c;
 
-  st->HH[0] = ((t0) | (t1 << 26)) & 0xfffffffffffull;
-  st->HH[1] = ((t1 >> 18) | (t2 << 8) | (t3 << 34)) & 0xfffffffffffull;
-  st->HH[2] = ((t3 >> 10) | (t4 << 16)) & 0x3ffffffffffull;
+  st->HH[0] = ((t0) | (t1 << 26)) & UINT64_C(0xfffffffffff);
+  st->HH[1] = ((t1 >> 18) | (t2 << 8) | (t3 << 34)) & UINT64_C(0xfffffffffff);
+  st->HH[2] = ((t3 >> 10) | (t4 << 16)) & UINT64_C(0x3ffffffffff);
 
   return consumed;
 }

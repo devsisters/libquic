@@ -21,13 +21,16 @@
 #include <memory>
 
 #include <openssl/aead.h>
+#include <openssl/asn1.h>
 #include <openssl/bio.h>
 #include <openssl/bn.h>
+#include <openssl/bytestring.h>
 #include <openssl/cmac.h>
+#include <openssl/curve25519.h>
 #include <openssl/dh.h>
+#include <openssl/ecdsa.h>
 #include <openssl/ec.h>
 #include <openssl/ec_key.h>
-#include <openssl/ecdsa.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/mem.h>
@@ -95,6 +98,7 @@ class ScopedOpenSSLContext {
   T ctx_;
 };
 
+using ScopedASN1_TYPE = ScopedOpenSSLType<ASN1_TYPE, ASN1_TYPE_free>;
 using ScopedBIO = ScopedOpenSSLType<BIO, BIO_vfree>;
 using ScopedBIGNUM = ScopedOpenSSLType<BIGNUM, BN_free>;
 using ScopedBN_CTX = ScopedOpenSSLType<BN_CTX, BN_CTX_free>;
@@ -110,10 +114,12 @@ using ScopedEVP_PKEY_CTX = ScopedOpenSSLType<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
 using ScopedPKCS8_PRIV_KEY_INFO = ScopedOpenSSLType<PKCS8_PRIV_KEY_INFO,
                                                     PKCS8_PRIV_KEY_INFO_free>;
 using ScopedPKCS12 = ScopedOpenSSLType<PKCS12, PKCS12_free>;
+using ScopedSPAKE2_CTX = ScopedOpenSSLType<SPAKE2_CTX, SPAKE2_CTX_free>;
 using ScopedRSA = ScopedOpenSSLType<RSA, RSA_free>;
 using ScopedX509 = ScopedOpenSSLType<X509, X509_free>;
 using ScopedX509_ALGOR = ScopedOpenSSLType<X509_ALGOR, X509_ALGOR_free>;
 using ScopedX509_SIG = ScopedOpenSSLType<X509_SIG, X509_SIG_free>;
+using ScopedX509_STORE_CTX = ScopedOpenSSLType<X509_STORE_CTX, X509_STORE_CTX_free>;
 
 using ScopedX509Stack = ScopedOpenSSLStack<STACK_OF(X509), X509, X509_free>;
 

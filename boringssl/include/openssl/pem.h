@@ -120,18 +120,16 @@ extern "C" {
 #define PEM_STRING_RSA_PUBLIC	"RSA PUBLIC KEY"
 #define PEM_STRING_DSA		"DSA PRIVATE KEY"
 #define PEM_STRING_DSA_PUBLIC	"DSA PUBLIC KEY"
+#define PEM_STRING_EC "EC PRIVATE KEY"
 #define PEM_STRING_PKCS7	"PKCS7"
 #define PEM_STRING_PKCS7_SIGNED	"PKCS #7 SIGNED DATA"
 #define PEM_STRING_PKCS8	"ENCRYPTED PRIVATE KEY"
 #define PEM_STRING_PKCS8INF	"PRIVATE KEY"
 #define PEM_STRING_DHPARAMS	"DH PARAMETERS"
-#define PEM_STRING_DHXPARAMS	"X9.42 DH PARAMETERS"
 #define PEM_STRING_SSL_SESSION	"SSL SESSION PARAMETERS"
 #define PEM_STRING_DSAPARAMS	"DSA PARAMETERS"
 #define PEM_STRING_ECDSA_PUBLIC "ECDSA PUBLIC KEY"
-#define PEM_STRING_ECPARAMETERS "EC PARAMETERS"
 #define PEM_STRING_ECPRIVATEKEY	"EC PRIVATE KEY"
-#define PEM_STRING_PARAMETERS	"PARAMETERS"
 #define PEM_STRING_CMS		"CMS"
 
   /* Note that this structure is initialised by PEM_SealInit and cleaned up
@@ -454,13 +452,11 @@ DECLARE_PEM_rw_const(DSAparams, DSA)
 
 #endif
 
-DECLARE_PEM_rw_const(ECPKParameters, EC_GROUP)
 DECLARE_PEM_rw_cb(ECPrivateKey, EC_KEY)
 DECLARE_PEM_rw(EC_PUBKEY, EC_KEY)
 
 
 DECLARE_PEM_rw_const(DHparams, DH)
-DECLARE_PEM_write_const(DHxparams, DH)
 
 
 DECLARE_PEM_rw_cb(PrivateKey, EVP_PKEY)
@@ -480,10 +476,6 @@ OPENSSL_EXPORT int PEM_write_PKCS8PrivateKey_nid(FILE *fp, EVP_PKEY *x, int nid,
 OPENSSL_EXPORT EVP_PKEY *d2i_PKCS8PrivateKey_fp(FILE *fp, EVP_PKEY **x, pem_password_cb *cb, void *u);
 
 OPENSSL_EXPORT int PEM_write_PKCS8PrivateKey(FILE *fp,EVP_PKEY *x,const EVP_CIPHER *enc, char *kstr,int klen, pem_password_cb *cd, void *u);
-
-OPENSSL_EXPORT EVP_PKEY *PEM_read_bio_Parameters(BIO *bp, EVP_PKEY **x);
-OPENSSL_EXPORT int PEM_write_bio_Parameters(BIO *bp, EVP_PKEY *x);
-
 
 OPENSSL_EXPORT EVP_PKEY *b2i_PrivateKey(const unsigned char **in, long length);
 OPENSSL_EXPORT EVP_PKEY *b2i_PublicKey(const unsigned char **in, long length);

@@ -62,6 +62,12 @@ OPENSSL_EXPORT void RAND_set_urandom_fd(int fd);
 OPENSSL_EXPORT void RAND_enable_fork_unsafe_buffering(int fd);
 #endif
 
+#if defined(BORINGSSL_UNSAFE_FUZZER_MODE)
+/* RAND_reset_for_fuzzing resets the fuzzer-only deterministic RNG. This
+ * function is only defined in the fuzzer-only build configuration. */
+OPENSSL_EXPORT void RAND_reset_for_fuzzing(void);
+#endif
+
 
 /* Deprecated functions */
 
@@ -74,6 +80,9 @@ OPENSSL_EXPORT void RAND_seed(const void *buf, int num);
 
 /* RAND_load_file returns a nonnegative number. */
 OPENSSL_EXPORT int RAND_load_file(const char *path, long num);
+
+/* RAND_file_name returns NULL. */
+OPENSSL_EXPORT const char *RAND_file_name(char *buf, size_t num);
 
 /* RAND_add does nothing. */
 OPENSSL_EXPORT void RAND_add(const void *buf, int num, double entropy);

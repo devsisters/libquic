@@ -98,7 +98,7 @@ OPENSSL_EXPORT uint8_t *SHA1(const uint8_t *data, size_t len, uint8_t *out);
 OPENSSL_EXPORT void SHA1_Transform(SHA_CTX *sha, const uint8_t *block);
 
 struct sha_state_st {
-#if !defined(ANDROID)
+#if defined(OPENSSL_WINDOWS)
   uint32_t h[5];
 #else
   /* wpa_supplicant accesses |h0|..|h4| so we must support those names
@@ -115,8 +115,8 @@ struct sha_state_st {
   };
 #endif
   uint32_t Nl, Nh;
-  uint32_t data[16];
-  unsigned int num;
+  uint8_t data[SHA_CBLOCK];
+  unsigned num;
 };
 
 
@@ -176,8 +176,8 @@ OPENSSL_EXPORT void SHA256_Transform(SHA256_CTX *sha, const uint8_t *data);
 struct sha256_state_st {
   uint32_t h[8];
   uint32_t Nl, Nh;
-  uint32_t data[16];
-  unsigned int num, md_len;
+  uint8_t data[SHA256_CBLOCK];
+  unsigned num, md_len;
 };
 
 
@@ -245,7 +245,7 @@ struct sha512_state_st {
     uint64_t d[16];
     uint8_t p[128];
   } u;
-  unsigned int num, md_len;
+  unsigned num, md_len;
 };
 
 

@@ -64,7 +64,7 @@
 #include <openssl/err.h>
 #include <openssl/ex_data.h>
 #include <openssl/mem.h>
-#include <openssl/obj.h>
+#include <openssl/nid.h>
 #include <openssl/thread.h>
 
 #include "internal.h"
@@ -76,7 +76,7 @@ static CRYPTO_EX_DATA_CLASS g_ex_data_class = CRYPTO_EX_DATA_CLASS_INIT;
 RSA *RSA_new(void) { return RSA_new_method(NULL); }
 
 RSA *RSA_new_method(const ENGINE *engine) {
-  RSA *rsa = (RSA *)OPENSSL_malloc(sizeof(RSA));
+  RSA *rsa = OPENSSL_malloc(sizeof(RSA));
   if (rsa == NULL) {
     OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
     return NULL;
@@ -96,13 +96,7 @@ RSA *RSA_new_method(const ENGINE *engine) {
   rsa->references = 1;
   rsa->flags = rsa->meth->flags;
   CRYPTO_MUTEX_init(&rsa->lock);
-
-  if (!CRYPTO_new_ex_data(&g_ex_data_class, rsa, &rsa->ex_data)) {
-    CRYPTO_MUTEX_cleanup(&rsa->lock);
-    METHOD_unref(rsa->meth);
-    OPENSSL_free(rsa);
-    return NULL;
-  }
+  CRYPTO_new_ex_data(&rsa->ex_data);
 
   if (rsa->meth->init && !rsa->meth->init(rsa)) {
     CRYPTO_free_ex_data(&g_ex_data_class, rsa, &rsa->ex_data);
@@ -264,16 +258,6 @@ int RSA_private_decrypt(size_t flen, const uint8_t *from, uint8_t *to, RSA *rsa,
   return out_len;
 }
 
-int RSA_verify_raw(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
-                   const uint8_t *in, size_t in_len, int padding) {
-  if (rsa->meth->verify_raw) {
-    return rsa->meth->verify_raw(rsa, out_len, out, max_out, in, in_len, padding);
-  }
-
-  return rsa_default_verify_raw(rsa, out_len, out, max_out, in, in_len,
-                                padding);
-}
-
 int RSA_public_decrypt(size_t flen, const uint8_t *from, uint8_t *to, RSA *rsa,
                        int padding) {
   size_t out_len;
@@ -308,11 +292,11 @@ int RSA_supports_digest(const RSA *rsa, const EVP_MD *md) {
   return 1;
 }
 
-int RSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+int RSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_unused *unused,
                          CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func) {
   int index;
-  if (!CRYPTO_get_ex_new_index(&g_ex_data_class, &index, argl, argp, new_func,
-                               dup_func, free_func)) {
+  if (!CRYPTO_get_ex_new_index(&g_ex_data_class, &index, argl, argp, dup_func,
+                               free_func)) {
     return -1;
   }
   return index;
@@ -479,21 +463,17 @@ finish:
 
 int RSA_verify(int hash_nid, const uint8_t *msg, size_t msg_len,
                const uint8_t *sig, size_t sig_len, RSA *rsa) {
+  if (rsa->n == NULL || rsa->e == NULL) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_VALUE_MISSING);
+    return 0;
+  }
+
   const size_t rsa_size = RSA_size(rsa);
   uint8_t *buf = NULL;
   int ret = 0;
   uint8_t *signed_msg = NULL;
   size_t signed_msg_len, len;
   int signed_msg_is_alloced = 0;
-
-  if (rsa->meth->verify) {
-    return rsa->meth->verify(hash_nid, msg, msg_len, sig, sig_len, rsa);
-  }
-
-  if (sig_len != rsa_size) {
-    OPENSSL_PUT_ERROR(RSA, RSA_R_WRONG_SIGNATURE_LENGTH);
-    return 0;
-  }
 
   if (hash_nid == NID_md5_sha1 && msg_len != SSL_SIG_LENGTH) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_INVALID_MESSAGE_LENGTH);
@@ -516,7 +496,7 @@ int RSA_verify(int hash_nid, const uint8_t *msg, size_t msg_len,
     goto out;
   }
 
-  if (len != signed_msg_len || CRYPTO_memcmp(buf, signed_msg, len) != 0) {
+  if (len != signed_msg_len || memcmp(buf, signed_msg, len) != 0) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_SIGNATURE);
     goto out;
   }

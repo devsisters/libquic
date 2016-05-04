@@ -102,21 +102,22 @@ uint8_t *SHA1(const uint8_t *data, size_t len, uint8_t *out) {
   do {                         \
     uint32_t ll;               \
     ll = (c)->h[0];            \
-    (void) HOST_l2c(ll, (s));  \
+    HOST_l2c(ll, (s));         \
     ll = (c)->h[1];            \
-    (void) HOST_l2c(ll, (s));  \
+    HOST_l2c(ll, (s));         \
     ll = (c)->h[2];            \
-    (void) HOST_l2c(ll, (s));  \
+    HOST_l2c(ll, (s));         \
     ll = (c)->h[3];            \
-    (void) HOST_l2c(ll, (s));  \
+    HOST_l2c(ll, (s));         \
     ll = (c)->h[4];            \
-    (void) HOST_l2c(ll, (s));  \
+    HOST_l2c(ll, (s));         \
   } while (0)
 
 #define HASH_UPDATE SHA1_Update
 #define HASH_TRANSFORM SHA1_Transform
 #define HASH_FINAL SHA1_Final
 #define HASH_BLOCK_DATA_ORDER sha1_block_data_order
+#define ROTATE(a, n) (((a) << (n)) | ((a) >> (32 - (n))))
 #define Xupdate(a, ix, ia, ib, ic, id) \
   ((a) = (ia ^ ib ^ ic ^ id), ix = (a) = ROTATE((a), 1))
 

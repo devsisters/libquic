@@ -109,12 +109,12 @@
 #include <openssl/ssl.h>
 
 #include <assert.h>
+#include <string.h>
 
 #include <openssl/bytestring.h>
 #include <openssl/err.h>
 
 #include "internal.h"
-#include "../crypto/internal.h"
 
 
 /* kMaxEmptyRecords is the number of consecutive, empty records that will be
@@ -123,36 +123,47 @@
  * forever. */
 static const uint8_t kMaxEmptyRecords = 32;
 
-static struct CRYPTO_STATIC_MUTEX g_big_buffer_lock = CRYPTO_STATIC_MUTEX_INIT;
-static uint64_t g_big_buffer_use_count = 0;
+/* ssl_needs_record_splitting returns one if |ssl|'s current outgoing cipher
+ * state needs record-splitting and zero otherwise. */
+static int ssl_needs_record_splitting(const SSL *ssl) {
+  return ssl->s3->aead_write_ctx != NULL &&
+         ssl3_protocol_version(ssl) < TLS1_1_VERSION &&
+         (ssl->mode & SSL_MODE_CBC_RECORD_SPLITTING) != 0 &&
+         SSL_CIPHER_is_block_cipher(ssl->s3->aead_write_ctx->cipher);
+}
 
-uint64_t OPENSSL_get_big_buffer_use_count(void) {
-  CRYPTO_STATIC_MUTEX_lock_read(&g_big_buffer_lock);
-  uint64_t ret = g_big_buffer_use_count;
-  CRYPTO_STATIC_MUTEX_unlock(&g_big_buffer_lock);
-  return ret;
+int ssl_record_sequence_update(uint8_t *seq, size_t seq_len) {
+  size_t i;
+  for (i = seq_len - 1; i < seq_len; i--) {
+    ++seq[i];
+    if (seq[i] != 0) {
+      return 1;
+    }
+  }
+  OPENSSL_PUT_ERROR(SSL, ERR_R_OVERFLOW);
+  return 0;
 }
 
 size_t ssl_record_prefix_len(const SSL *ssl) {
   if (SSL_IS_DTLS(ssl)) {
     return DTLS1_RT_HEADER_LENGTH +
-           SSL_AEAD_CTX_explicit_nonce_len(ssl->aead_read_ctx);
+           SSL_AEAD_CTX_explicit_nonce_len(ssl->s3->aead_read_ctx);
   } else {
     return SSL3_RT_HEADER_LENGTH +
-           SSL_AEAD_CTX_explicit_nonce_len(ssl->aead_read_ctx);
+           SSL_AEAD_CTX_explicit_nonce_len(ssl->s3->aead_read_ctx);
   }
 }
 
 size_t ssl_seal_prefix_len(const SSL *ssl) {
   if (SSL_IS_DTLS(ssl)) {
     return DTLS1_RT_HEADER_LENGTH +
-           SSL_AEAD_CTX_explicit_nonce_len(ssl->aead_write_ctx);
+           SSL_AEAD_CTX_explicit_nonce_len(ssl->s3->aead_write_ctx);
   } else {
     size_t ret = SSL3_RT_HEADER_LENGTH +
-                 SSL_AEAD_CTX_explicit_nonce_len(ssl->aead_write_ctx);
-    if (ssl->s3->need_record_splitting) {
+                 SSL_AEAD_CTX_explicit_nonce_len(ssl->s3->aead_write_ctx);
+    if (ssl_needs_record_splitting(ssl)) {
       ret += SSL3_RT_HEADER_LENGTH;
-      ret += ssl_cipher_get_record_split_len(ssl->aead_write_ctx->cipher);
+      ret += ssl_cipher_get_record_split_len(ssl->s3->aead_write_ctx->cipher);
     }
     return ret;
   }
@@ -161,11 +172,11 @@ size_t ssl_seal_prefix_len(const SSL *ssl) {
 size_t ssl_max_seal_overhead(const SSL *ssl) {
   if (SSL_IS_DTLS(ssl)) {
     return DTLS1_RT_HEADER_LENGTH +
-           SSL_AEAD_CTX_max_overhead(ssl->aead_write_ctx);
+           SSL_AEAD_CTX_max_overhead(ssl->s3->aead_write_ctx);
   } else {
     size_t ret = SSL3_RT_HEADER_LENGTH +
-                 SSL_AEAD_CTX_max_overhead(ssl->aead_write_ctx);
-    if (ssl->s3->need_record_splitting) {
+                 SSL_AEAD_CTX_max_overhead(ssl->s3->aead_write_ctx);
+    if (ssl_needs_record_splitting(ssl)) {
       ret *= 2;
     }
     return ret;
@@ -198,11 +209,7 @@ enum ssl_open_record_t tls_open_record(
   }
 
   /* Check the ciphertext length. */
-  size_t extra = 0;
-  if (ssl->options & SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER) {
-    extra = SSL3_RT_MAX_EXTRA;
-  }
-  if (ciphertext_len > SSL3_RT_MAX_ENCRYPTED_LENGTH + extra) {
+  if (ciphertext_len > SSL3_RT_MAX_ENCRYPTED_LENGTH) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_ENCRYPTED_LENGTH_TOO_LONG);
     *out_alert = SSL_AD_RECORD_OVERFLOW;
     return ssl_open_record_error;
@@ -222,31 +229,23 @@ enum ssl_open_record_t tls_open_record(
 
   /* Decrypt the body. */
   size_t plaintext_len;
-  if (!SSL_AEAD_CTX_open(ssl->aead_read_ctx, out, &plaintext_len, max_out,
+  if (!SSL_AEAD_CTX_open(ssl->s3->aead_read_ctx, out, &plaintext_len, max_out,
                          type, version, ssl->s3->read_sequence, CBS_data(&body),
                          CBS_len(&body))) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC);
     *out_alert = SSL_AD_BAD_RECORD_MAC;
     return ssl_open_record_error;
   }
-  if (!ssl3_record_sequence_update(ssl->s3->read_sequence, 8)) {
+  if (!ssl_record_sequence_update(ssl->s3->read_sequence, 8)) {
     *out_alert = SSL_AD_INTERNAL_ERROR;
     return ssl_open_record_error;
   }
 
   /* Check the plaintext length. */
-  if (plaintext_len > SSL3_RT_MAX_PLAIN_LENGTH + extra) {
+  if (plaintext_len > SSL3_RT_MAX_PLAIN_LENGTH) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_DATA_LENGTH_TOO_LONG);
     *out_alert = SSL_AD_RECORD_OVERFLOW;
     return ssl_open_record_error;
-  }
-
-  if (extra > 0 &&
-      (ciphertext_len > SSL3_RT_MAX_ENCRYPTED_LENGTH ||
-       plaintext_len > SSL3_RT_MAX_PLAIN_LENGTH)) {
-    CRYPTO_STATIC_MUTEX_lock_write(&g_big_buffer_lock);
-    g_big_buffer_use_count++;
-    CRYPTO_STATIC_MUTEX_unlock(&g_big_buffer_lock);
   }
 
   /* Limit the number of consecutive empty records. */
@@ -295,11 +294,11 @@ static int do_seal_record(SSL *ssl, uint8_t *out, size_t *out_len,
   out[2] = wire_version & 0xff;
 
   size_t ciphertext_len;
-  if (!SSL_AEAD_CTX_seal(ssl->aead_write_ctx, out + SSL3_RT_HEADER_LENGTH,
+  if (!SSL_AEAD_CTX_seal(ssl->s3->aead_write_ctx, out + SSL3_RT_HEADER_LENGTH,
                          &ciphertext_len, max_out - SSL3_RT_HEADER_LENGTH,
                          type, wire_version, ssl->s3->write_sequence, in,
                          in_len) ||
-      !ssl3_record_sequence_update(ssl->s3->write_sequence, 8)) {
+      !ssl_record_sequence_update(ssl->s3->write_sequence, 8)) {
     return 0;
   }
 
@@ -323,8 +322,8 @@ static int do_seal_record(SSL *ssl, uint8_t *out, size_t *out_len,
 int tls_seal_record(SSL *ssl, uint8_t *out, size_t *out_len, size_t max_out,
                     uint8_t type, const uint8_t *in, size_t in_len) {
   size_t frag_len = 0;
-  if (ssl->s3->need_record_splitting && type == SSL3_RT_APPLICATION_DATA &&
-      in_len > 1) {
+  if (type == SSL3_RT_APPLICATION_DATA && in_len > 1 &&
+      ssl_needs_record_splitting(ssl)) {
     /* |do_seal_record| will notice if it clobbers |in[0]|, but not if it
      * aliases the rest of |in|. */
     if (in + 1 <= out && out < in + in_len) {
@@ -344,9 +343,11 @@ int tls_seal_record(SSL *ssl, uint8_t *out, size_t *out_len, size_t max_out,
     out += frag_len;
     max_out -= frag_len;
 
-    assert(SSL3_RT_HEADER_LENGTH +
-               ssl_cipher_get_record_split_len(ssl->aead_write_ctx->cipher) ==
+#if !defined(BORINGSSL_UNSAFE_FUZZER_MODE)
+    assert(SSL3_RT_HEADER_LENGTH + ssl_cipher_get_record_split_len(
+                                       ssl->s3->aead_write_ctx->cipher) ==
            frag_len);
+#endif
   }
 
   if (!do_seal_record(ssl, out, out_len, max_out, type, in, in_len)) {
@@ -354,4 +355,27 @@ int tls_seal_record(SSL *ssl, uint8_t *out, size_t *out_len, size_t max_out,
   }
   *out_len += frag_len;
   return 1;
+}
+
+void ssl_set_read_state(SSL *ssl, SSL_AEAD_CTX *aead_ctx) {
+  if (SSL_IS_DTLS(ssl)) {
+    ssl->d1->r_epoch++;
+    memset(&ssl->d1->bitmap, 0, sizeof(ssl->d1->bitmap));
+  }
+  memset(ssl->s3->read_sequence, 0, sizeof(ssl->s3->read_sequence));
+
+  SSL_AEAD_CTX_free(ssl->s3->aead_read_ctx);
+  ssl->s3->aead_read_ctx = aead_ctx;
+}
+
+void ssl_set_write_state(SSL *ssl, SSL_AEAD_CTX *aead_ctx) {
+  if (SSL_IS_DTLS(ssl)) {
+    ssl->d1->w_epoch++;
+    memcpy(ssl->d1->last_write_sequence, ssl->s3->write_sequence,
+           sizeof(ssl->s3->write_sequence));
+  }
+  memset(ssl->s3->write_sequence, 0, sizeof(ssl->s3->write_sequence));
+
+  SSL_AEAD_CTX_free(ssl->s3->aead_write_ctx);
+  ssl->s3->aead_write_ctx = aead_ctx;
 }

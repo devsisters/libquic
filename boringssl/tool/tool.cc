@@ -26,31 +26,20 @@
 #include <libgen.h>
 #endif
 
+#include "internal.h"
 
-bool Ciphers(const std::vector<std::string> &args);
-bool Client(const std::vector<std::string> &args);
-bool DoPKCS12(const std::vector<std::string> &args);
-bool GenerateRSAKey(const std::vector<std::string> &args);
-bool MD5Sum(const std::vector<std::string> &args);
-bool Rand(const std::vector<std::string> &args);
-bool SHA1Sum(const std::vector<std::string> &args);
-bool SHA224Sum(const std::vector<std::string> &args);
-bool SHA256Sum(const std::vector<std::string> &args);
-bool SHA384Sum(const std::vector<std::string> &args);
-bool SHA512Sum(const std::vector<std::string> &args);
-bool Server(const std::vector<std::string> &args);
-bool Speed(const std::vector<std::string> &args);
 
 typedef bool (*tool_func_t)(const std::vector<std::string> &args);
 
 struct Tool {
-  char name[16];
+  const char *name;
   tool_func_t func;
 };
 
 static const Tool kTools[] = {
   { "ciphers", Ciphers },
   { "client", Client },
+  { "generate-ed25519", GenerateEd25519Key },
   { "genrsa", GenerateRSAKey },
   { "md5sum", MD5Sum },
   { "pkcs12", DoPKCS12 },
@@ -68,22 +57,20 @@ static const Tool kTools[] = {
 };
 
 static void usage(const char *name) {
-  printf("Usage: %s [", name);
+  printf("Usage: %s COMMAND\n", name);
+  printf("\n");
+  printf("Available commands:\n");
 
   for (size_t i = 0;; i++) {
     const Tool &tool = kTools[i];
     if (tool.func == nullptr) {
       break;
     }
-    if (i > 0) {
-      printf("|");
-    }
-    printf("%s", tool.name);
+    printf("    %s\n", tool.name);
   }
-  printf("]\n");
 }
 
-tool_func_t FindTool(const std::string &name) {
+static tool_func_t FindTool(const std::string &name) {
   for (size_t i = 0;; i++) {
     const Tool &tool = kTools[i];
     if (tool.func == nullptr || name == tool.name) {

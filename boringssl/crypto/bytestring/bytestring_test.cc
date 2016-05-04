@@ -344,12 +344,14 @@ static bool TestCBBPrefixed() {
   size_t buf_len;
   CBB cbb, contents, inner_contents, inner_inner_contents;
 
-  if (!CBB_init(&cbb, 0)) {
-    return false;
-  }
-  if (!CBB_add_u8_length_prefixed(&cbb, &contents) ||
+  if (!CBB_init(&cbb, 0) ||
+      CBB_len(&cbb) != 0 ||
+      !CBB_add_u8_length_prefixed(&cbb, &contents) ||
       !CBB_add_u8_length_prefixed(&cbb, &contents) ||
       !CBB_add_u8(&contents, 1) ||
+      CBB_len(&contents) != 1 ||
+      !CBB_flush(&cbb) ||
+      CBB_len(&cbb) != 3 ||
       !CBB_add_u16_length_prefixed(&cbb, &contents) ||
       !CBB_add_u16(&contents, 0x203) ||
       !CBB_add_u24_length_prefixed(&cbb, &contents) ||
@@ -577,7 +579,7 @@ static bool TestBerConvert() {
   static const uint8_t kIndefBER[] = {0x30, 0x80, 0x01, 0x01, 0x02, 0x00, 0x00};
   static const uint8_t kIndefDER[] = {0x30, 0x03, 0x01, 0x01, 0x02};
 
-  // kOctetStringBER contains an indefinite length OCTETSTRING with two parts.
+  // kOctetStringBER contains an indefinite length OCTET STRING with two parts.
   // These parts need to be concatenated in DER form.
   static const uint8_t kOctetStringBER[] = {0x24, 0x80, 0x04, 0x02, 0,    1,
                                             0x04, 0x02, 2,    3,    0x00, 0x00};
@@ -607,6 +609,16 @@ static bool TestBerConvert() {
       0x6e, 0x10, 0x9b, 0xb8, 0x02, 0x02, 0x07, 0xd0,
   };
 
+  // kConstructedStringBER contains a deeply-nested constructed OCTET STRING.
+  // The BER conversion collapses this to one level deep, but not completely.
+  static const uint8_t kConstructedStringBER[] = {
+      0xa0, 0x10, 0x24, 0x06, 0x04, 0x01, 0x00, 0x04, 0x01,
+      0x01, 0x24, 0x06, 0x04, 0x01, 0x02, 0x04, 0x01, 0x03,
+  };
+  static const uint8_t kConstructedStringDER[] = {
+      0xa0, 0x08, 0x04, 0x02, 0x00, 0x01, 0x04, 0x02, 0x02, 0x03,
+  };
+
   return DoBerConvert("kSimpleBER", kSimpleBER, sizeof(kSimpleBER),
                       kSimpleBER, sizeof(kSimpleBER)) &&
          DoBerConvert("kIndefBER", kIndefDER, sizeof(kIndefDER), kIndefBER,
@@ -615,7 +627,59 @@ static bool TestBerConvert() {
                       sizeof(kOctetStringDER), kOctetStringBER,
                       sizeof(kOctetStringBER)) &&
          DoBerConvert("kNSSBER", kNSSDER, sizeof(kNSSDER), kNSSBER,
-                      sizeof(kNSSBER));
+                      sizeof(kNSSBER)) &&
+         DoBerConvert("kConstructedStringBER", kConstructedStringDER,
+                      sizeof(kConstructedStringDER), kConstructedStringBER,
+                      sizeof(kConstructedStringBER));
+}
+
+struct ImplicitStringTest {
+  const char *in;
+  size_t in_len;
+  bool ok;
+  const char *out;
+  size_t out_len;
+};
+
+static const ImplicitStringTest kImplicitStringTests[] = {
+    // A properly-encoded string.
+    {"\x80\x03\x61\x61\x61", 5, true, "aaa", 3},
+    // An implicit-tagged string.
+    {"\xa0\x09\x04\x01\x61\x04\x01\x61\x04\x01\x61", 11, true, "aaa", 3},
+    // |CBS_get_asn1_implicit_string| only accepts one level deep of nesting.
+    {"\xa0\x0b\x24\x06\x04\x01\x61\x04\x01\x61\x04\x01\x61", 13, false, nullptr,
+     0},
+    // The outer tag must match.
+    {"\x81\x03\x61\x61\x61", 5, false, nullptr, 0},
+    {"\xa1\x09\x04\x01\x61\x04\x01\x61\x04\x01\x61", 11, false, nullptr, 0},
+    // The inner tag must match.
+    {"\xa1\x09\x0c\x01\x61\x0c\x01\x61\x0c\x01\x61", 11, false, nullptr, 0},
+};
+
+static bool TestImplicitString() {
+  for (const auto &test : kImplicitStringTests) {
+    uint8_t *storage = nullptr;
+    CBS in, out;
+    CBS_init(&in, reinterpret_cast<const uint8_t *>(test.in), test.in_len);
+    int ok = CBS_get_asn1_implicit_string(&in, &out, &storage,
+                                          CBS_ASN1_CONTEXT_SPECIFIC | 0,
+                                          CBS_ASN1_OCTETSTRING);
+    ScopedOpenSSLBytes scoper(storage);
+
+    if (static_cast<bool>(ok) != test.ok) {
+      fprintf(stderr, "CBS_get_asn1_implicit_string unexpectedly %s\n",
+              ok ? "succeeded" : "failed");
+      return false;
+    }
+
+    if (ok && (CBS_len(&out) != test.out_len ||
+               memcmp(CBS_data(&out), test.out, test.out_len) != 0)) {
+      fprintf(stderr, "CBS_get_asn1_implicit_string gave the wrong output\n");
+      return false;
+    }
+  }
+
+  return true;
 }
 
 struct ASN1Uint64Test {
@@ -701,12 +765,32 @@ static bool TestASN1Uint64() {
   return true;
 }
 
-static int TestZero() {
+static bool TestZero() {
   CBB cbb;
   CBB_zero(&cbb);
   // Calling |CBB_cleanup| on a zero-state |CBB| must not crash.
   CBB_cleanup(&cbb);
-  return 1;
+  return true;
+}
+
+static bool TestCBBReserve() {
+  uint8_t buf[10];
+  uint8_t *ptr;
+  size_t len;
+  ScopedCBB cbb;
+  if (!CBB_init_fixed(cbb.get(), buf, sizeof(buf)) ||
+      // Too large.
+      CBB_reserve(cbb.get(), &ptr, 11) ||
+      // Successfully reserve the entire space.
+      !CBB_reserve(cbb.get(), &ptr, 10) ||
+      ptr != buf ||
+      // Advancing under the maximum bytes is legal.
+      !CBB_did_write(cbb.get(), 5) ||
+      !CBB_finish(cbb.get(), NULL, &len) ||
+      len != 5) {
+    return false;
+  }
+  return true;
 }
 
 int main(void) {
@@ -725,9 +809,11 @@ int main(void) {
       !TestCBBDiscardChild() ||
       !TestCBBASN1() ||
       !TestBerConvert() ||
+      !TestImplicitString() ||
       !TestASN1Uint64() ||
       !TestGetOptionalASN1Bool() ||
-      !TestZero()) {
+      !TestZero() ||
+      !TestCBBReserve()) {
     return 1;
   }
 

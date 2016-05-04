@@ -92,10 +92,10 @@ struct conf_st {
 
 /* NCONF_new returns a fresh, empty |CONF|, or NULL on error. The |method|
  * argument must be NULL. */
-CONF *NCONF_new(void *method);
+OPENSSL_EXPORT CONF *NCONF_new(void *method);
 
 /* NCONF_free frees all the data owned by |conf| and then |conf| itself. */
-void NCONF_free(CONF *conf);
+OPENSSL_EXPORT void NCONF_free(CONF *conf);
 
 /* NCONF_load parses the file named |filename| and adds the values found to
  * |conf|. It returns one on success and zero on error. In the event of an
@@ -130,6 +130,31 @@ const char *NCONF_get_string(const CONF *conf, const char *section,
 int CONF_parse_list(const char *list, char sep, int remove_whitespace,
                     int (*list_cb)(const char *elem, int len, void *usr),
                     void *arg);
+
+
+/* Deprecated functions */
+
+/* These defines do nothing but are provided to make old code easier to
+ * compile. */
+#define CONF_MFLAGS_DEFAULT_SECTION 0
+#define CONF_MFLAGS_IGNORE_MISSING_FILE 0
+
+typedef struct conf_must_be_null_st CONF_MUST_BE_NULL;
+
+/* CONF_modules_load_file returns one. |filename| was originally a string, with
+ * NULL indicating the default. BoringSSL does not support configuration files,
+ * so this stub emulates the "default" no-op file but intentionally breaks
+ * compilation of consumers actively attempting to use this subsystem. */
+OPENSSL_EXPORT int CONF_modules_load_file(CONF_MUST_BE_NULL *filename,
+                                          const char *appname,
+                                          unsigned long flags);
+
+/* CONF_modules_free does nothing. */
+OPENSSL_EXPORT void CONF_modules_free(void);
+
+/* OPENSSL_config does nothing. */
+OPENSSL_EXPORT void OPENSSL_config(CONF_MUST_BE_NULL *config_name);
+
 
 #if defined(__cplusplus)
 }  /* extern C */

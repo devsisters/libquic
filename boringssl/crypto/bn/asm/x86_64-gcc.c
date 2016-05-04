@@ -1,9 +1,3 @@
-#include <openssl/bn.h>
-
-#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && !defined(OPENSSL_WINDOWS)
-
-#include "../internal.h"
-
 /* x86_64 BIGNUM accelerator version 0.1, December 2002.
  *
  * Implemented by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -56,7 +50,13 @@
  *    machine.
  */
 
- /* TODO(davidben): Get this file working on Windows x64. */
+#include <openssl/bn.h>
+
+/* TODO(davidben): Get this file working on Windows x64. */
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && defined(__GNUC__)
+
+#include "../internal.h"
+
 
 #undef mul
 #undef mul_add
@@ -186,14 +186,6 @@ void bn_sqr_words(BN_ULONG *r, const BN_ULONG *a, int n) {
   }
 }
 
-BN_ULONG bn_div_words(BN_ULONG h, BN_ULONG l, BN_ULONG d) {
-  BN_ULONG ret, waste;
-
-  asm("divq	%4" : "=a"(ret), "=d"(waste) : "a"(l), "d"(h), "g"(d) : "cc");
-
-  return ret;
-}
-
 BN_ULONG bn_add_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
                       int n) {
   BN_ULONG ret;
@@ -220,7 +212,6 @@ BN_ULONG bn_add_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
   return ret & 1;
 }
 
-#ifndef SIMICS
 BN_ULONG bn_sub_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
                       int n) {
   BN_ULONG ret;
@@ -246,65 +237,6 @@ BN_ULONG bn_sub_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
 
   return ret & 1;
 }
-#else
-/* Simics 1.4<7 has buggy sbbq:-( */
-#define BN_MASK2 0xffffffffffffffffL
-BN_ULONG bn_sub_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n) {
-  BN_ULONG t1, t2;
-  int c = 0;
-
-  if (n <= 0) {
-    return (BN_ULONG)0;
-  }
-
-  for (;;) {
-    t1 = a[0];
-    t2 = b[0];
-    r[0] = (t1 - t2 - c) & BN_MASK2;
-    if (t1 != t2) {
-      c = (t1 < t2);
-    }
-    if (--n <= 0) {
-      break;
-    }
-
-    t1 = a[1];
-    t2 = b[1];
-    r[1] = (t1 - t2 - c) & BN_MASK2;
-    if (t1 != t2) {
-      c = (t1 < t2);
-    }
-    if (--n <= 0) {
-      break;
-    }
-
-    t1 = a[2];
-    t2 = b[2];
-    r[2] = (t1 - t2 - c) & BN_MASK2;
-    if (t1 != t2) {
-      c = (t1 < t2);
-    }
-    if (--n <= 0) {
-      break;
-    }
-
-    t1 = a[3];
-    t2 = b[3];
-    r[3] = (t1 - t2 - c) & BN_MASK2;
-    if (t1 != t2) {
-      c = (t1 < t2);
-    }
-    if (--n <= 0) {
-      break;
-    }
-
-    a += 4;
-    b += 4;
-    r += 4;
-  }
-  return c;
-}
-#endif
 
 /* mul_add_c(a,b,c0,c1,c2)  -- c+=a*b for three word number c=(c2,c1,c0) */
 /* mul_add_c2(a,b,c0,c1,c2) -- c+=2*a*b for three word number c=(c2,c1,c0) */
@@ -596,4 +528,4 @@ void bn_sqr_comba4(BN_ULONG *r, const BN_ULONG *a) {
   r[7] = c2;
 }
 
-#endif  /* !NO_ASM && X86_64 && !WINDOWS */
+#endif  /* !NO_ASM && X86_64 && __GNUC__ */

@@ -63,18 +63,18 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 
-#include <openssl/bio.h>
+#include <openssl/bytestring.h>
 #include <openssl/crypto.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/pem.h>
 
 #include "../test/file_test.h"
 #include "../test/scoped_types.h"
@@ -103,34 +103,86 @@ static const EVP_MD *GetDigest(FileTest *t, const std::string &name) {
   return nullptr;
 }
 
-using KeyMap = std::map<std::string, EVP_PKEY*>;
+static int GetKeyType(FileTest *t, const std::string &name) {
+  if (name == "RSA") {
+    return EVP_PKEY_RSA;
+  }
+  if (name == "EC") {
+    return EVP_PKEY_EC;
+  }
+  if (name == "DSA") {
+    return EVP_PKEY_DSA;
+  }
+  t->PrintLine("Unknown key type: '%s'", name.c_str());
+  return EVP_PKEY_NONE;
+}
 
-// ImportPrivateKey evaluates a PrivateKey test in |t| and writes the resulting
-// private key to |key_map|.
-static bool ImportPrivateKey(FileTest *t, KeyMap *key_map) {
+using KeyMap = std::map<std::string, ScopedEVP_PKEY>;
+
+static bool ImportKey(FileTest *t, KeyMap *key_map,
+                      EVP_PKEY *(*parse_func)(CBS *cbs),
+                      int (*marshal_func)(CBB *cbb, const EVP_PKEY *key)) {
+  std::vector<uint8_t> input;
+  if (!t->GetBytes(&input, "Input")) {
+    return false;
+  }
+
+  CBS cbs;
+  CBS_init(&cbs, input.data(), input.size());
+  ScopedEVP_PKEY pkey(parse_func(&cbs));
+  if (!pkey) {
+    return false;
+  }
+
+  std::string key_type;
+  if (!t->GetAttribute(&key_type, "Type")) {
+    return false;
+  }
+  if (EVP_PKEY_id(pkey.get()) != GetKeyType(t, key_type)) {
+    t->PrintLine("Bad key type.");
+    return false;
+  }
+
+  // The key must re-encode correctly.
+  ScopedCBB cbb;
+  uint8_t *der;
+  size_t der_len;
+  if (!CBB_init(cbb.get(), 0) ||
+      !marshal_func(cbb.get(), pkey.get()) ||
+      !CBB_finish(cbb.get(), &der, &der_len)) {
+    return false;
+  }
+  ScopedOpenSSLBytes free_der(der);
+
+  std::vector<uint8_t> output = input;
+  if (t->HasAttribute("Output") &&
+      !t->GetBytes(&output, "Output")) {
+    return false;
+  }
+  if (!t->ExpectBytesEqual(output.data(), output.size(), der, der_len)) {
+    t->PrintLine("Re-encoding the key did not match.");
+    return false;
+  }
+
+  // Save the key for future tests.
   const std::string &key_name = t->GetParameter();
   if (key_map->count(key_name) > 0) {
     t->PrintLine("Duplicate key '%s'.", key_name.c_str());
     return false;
   }
-  const std::string &block = t->GetBlock();
-  ScopedBIO bio(BIO_new_mem_buf(const_cast<char*>(block.data()), block.size()));
-  if (!bio) {
-    return false;
-  }
-  ScopedEVP_PKEY pkey(PEM_read_bio_PrivateKey(bio.get(), nullptr, 0, nullptr));
-  if (!pkey) {
-    t->PrintLine("Error reading private key.");
-    return false;
-  }
-  (*key_map)[key_name] = pkey.release();
+  (*key_map)[key_name] = std::move(pkey);
   return true;
 }
 
 static bool TestEVP(FileTest *t, void *arg) {
   KeyMap *key_map = reinterpret_cast<KeyMap*>(arg);
   if (t->GetType() == "PrivateKey") {
-    return ImportPrivateKey(t, key_map);
+    return ImportKey(t, key_map, EVP_parse_private_key,
+                     EVP_marshal_private_key);
+  }
+
+  if (t->GetType() == "PublicKey") {
+    return ImportKey(t, key_map, EVP_parse_public_key, EVP_marshal_public_key);
   }
 
   int (*key_op_init)(EVP_PKEY_CTX *ctx);
@@ -156,7 +208,7 @@ static bool TestEVP(FileTest *t, void *arg) {
     t->PrintLine("Could not find key '%s'.", key_name.c_str());
     return false;
   }
-  EVP_PKEY *key = (*key_map)[key_name];
+  EVP_PKEY *key = (*key_map)[key_name].get();
 
   std::vector<uint8_t> input, output;
   if (!t->GetBytes(&input, "Input") ||
@@ -212,11 +264,5 @@ int main(int argc, char **argv) {
   }
 
   KeyMap map;
-  int ret = FileTestMain(TestEVP, &map, argv[1]);
-  // TODO(davidben): When we can rely on a move-aware std::map, make KeyMap a
-  // map of ScopedEVP_PKEY instead.
-  for (const auto &pair : map) {
-    EVP_PKEY_free(pair.second);
-  }
-  return ret;
+  return FileTestMain(TestEVP, &map, argv[1]);
 }
