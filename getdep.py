@@ -61,11 +61,6 @@ class DependencyTree(object):
                 # print now, dependency
                 depmap[now].append(dependency)
 
-        unused_excludes = self.excludes - self.excludes_used
-        if unused_excludes:
-            print("Warning: following excludes are not used on `{}`".format(target))
-            print(" - " + "\n - ".join(unused_excludes))
-
         return depmap
 
     def critical_node(self, target):

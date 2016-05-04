@@ -55,9 +55,13 @@ def main():
     dirs = set()
     files = set()
 
+    common_exclude = set(deps.get("automatic_dependency_common_exclude", []))
+    unused_common_exclude = set(deps.get("automatic_dependency_common_exclude", []))
+
     for autodep in deps.get("automatic_dependency", []):
-        tree = DependencyTree(chromium_root, autodep["exclude"], True)
+        tree = DependencyTree(chromium_root, common_exclude | set(autodep.get("exclude", [])), True)
         depmap = tree.get_dependencies(autodep["from"])
+        unused_common_exclude &= (tree.excludes - tree.excludes_used)
 
         for node in depmap.keys():
             dirpath = os.path.join("src", os.path.dirname(node))
@@ -68,6 +72,10 @@ def main():
             if node not in files:
                 run("cp {} src/{}".format(tree.realpath(node), node))
                 files.add(node)
+
+    if unused_common_exclude:
+        print("Warning: following common excludes are not used")
+        print(" - " + "\n - ".join(unused_common_exclude))
 
     for dep in deps.get("manual_dependency", []):
         if dep["action"] == "makedir":

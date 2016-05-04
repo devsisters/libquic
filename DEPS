@@ -4,144 +4,76 @@
 # START #
 {
     "chromium_revision": "192da0f866b250d8a674a7dd400ff2a5b6a01ac8",
+    "automatic_dependency_common_exclude": [
+        "base/debug/debugger.h",
+        "base/sequence_checker.h",
+        "base/files/file.h",
+        "base/tracked_objects.h",
+        "cached_network_parameters.pb.h",
+        "base/feature_list.h",
+        "base/metrics/field_trial.h"
+    ],
     "automatic_dependency": [
+        {
+            "from": "base/threading/platform_thread_posix.cc"
+        },
+        {
+            "from": "base/threading/platform_thread_linux.cc"
+        },
+        {
+            "from": "base/threading/platform_thread_freebsd.cc"
+        },
         {
             "from": "net/quic/quic_connection.cc",
             "exclude": [
-                "cached_network_parameters.pb.h",
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h",
-                "base/feature_list.h",
-                "net/base/registry_controlled_domains/registry_controlled_domain.h",
-                "base/metrics/field_trial.h"
-            ]
-        },
-        {
-            "from": "base/threading/platform_thread_posix.cc",
-            "exclude": [
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h"
-            ]
-        },
-        {
-            "from": "base/threading/platform_thread_linux.cc",
-            "exclude": [
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h",
-                "base/tracked_objects.h"
-            ]
-        },
-        {
-            "from": "base/threading/platform_thread_freebsd.cc",
-            "exclude": [
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h",
-                "base/tracked_objects.h"
+                "net/base/registry_controlled_domains/registry_controlled_domain.h"
             ]
         },
         {
             "from": "net/quic/quic_session.cc",
             "exclude": [
-                "cached_network_parameters.pb.h",
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h",
                 "net/ssl/ssl_info.h",
                 "net/spdy/spdy_header_block.h",
-                "base/feature_list.h",
-                "net/base/registry_controlled_domains/registry_controlled_domain.h",
-                "base/metrics/field_trial.h"
+                "net/base/registry_controlled_domains/registry_controlled_domain.h"
             ]
         },
         {
             "from": "net/quic/quic_client_session_base.cc",
             "exclude": [
-                "cached_network_parameters.pb.h",
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h",
-                "base/third_party/valgrind/memcheck.h",
                 "zconf.h",
                 "net/ssl/ssl_info.h",
                 "net/spdy/spdy_header_block.h",
-                "base/cpu.h",
                 "net/base/host_port_pair.h",
-                "base/feature_list.h",
-                "net/base/registry_controlled_domains/registry_controlled_domain.h",
-                "base/metrics/field_trial.h"
+                "net/base/registry_controlled_domains/registry_controlled_domain.h"
             ]
         },
         {
             "from": "net/quic/quic_crypto_client_stream.cc",
             "exclude": [
-                "cached_network_parameters.pb.h",
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h",
-                "base/third_party/valgrind/memcheck.h",
                 "zconf.h",
                 "net/ssl/ssl_info.h",
                 "net/spdy/spdy_header_block.h",
-                "base/cpu.h",
                 "net/base/host_port_pair.h",
-                "base/feature_list.h",
-                "net/base/registry_controlled_domains/registry_controlled_domain.h",
-                "base/metrics/field_trial.h"
+                "net/base/registry_controlled_domains/registry_controlled_domain.h"
             ]
         },
         {
             "from": "net/quic/quic_crypto_server_stream.cc",
             "exclude": [
-                "cached_network_parameters.pb.h",
                 "source_address_token.pb.h",
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h",
                 "zconf.h",
                 "net/ssl/ssl_info.h",
                 "net/spdy/spdy_header_block.h",
                 "modp_b64.h",
                 "modp_b64_data.h",
-                "base/cpu.h",
-                "base/feature_list.h",
-                "net/base/registry_controlled_domains/registry_controlled_domain.h",
-                "base/metrics/field_trial.h"
+                "net/base/registry_controlled_domains/registry_controlled_domain.h"
             ]
         },
         {
-            "from": "crypto/nss_util.cc",
-            "exclude": [
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h",
-                "base/tracked_objects.h",
-                "base/cpu.h",
-                "base/base_paths_android.h",
-                "base/base_paths_win.h",
-                "base/message_loop/message_loop.h"
-            ]
+            "from": "base/strings/sys_string_conversions_mac.mm"
         },
         {
-            "from": "base/strings/sys_string_conversions_mac.mm",
-            "exclude": [
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h",
-                "base/tracked_objects.h"
-            ]
-        },
-        {
-            "from": "net/base/io_buffer.h",
-            "exclude": [
-                "base/debug/debugger.h",
-                "base/sequence_checker.h",
-                "base/files/file.h",
-                "base/tracked_objects.h"
-            ]
+            "from": "net/base/io_buffer.h"
         }
     ],
     "manual_dependency": [
@@ -149,7 +81,6 @@
             "action": "makedir",
             "target": [
                 "base/third_party/superfasthash/",
-                "crypto/third_party/nss/"
             ]
         },
         {
@@ -178,7 +109,6 @@
                 "base/synchronization/condition_variable.h",
                 "base/synchronization/condition_variable_posix.cc",
                 "base/files/file_path_constants.cc",
-                "base/files/file_util_posix.cc",
                 "base/process/process_handle_posix.cc",
                 "net/base/completion_callback.h",
                 "net/base/host_port_pair.h",
@@ -187,24 +117,16 @@
                 "net/quic/quic_simple_buffer_allocator.cc",
                 "crypto/hmac_openssl.cc",
                 "crypto/symmetric_key_openssl.cc",
-                "crypto/openssl_util.h",
-                "crypto/openssl_util.cc",
-                "crypto/nss_util.h",
-                "crypto/nss_util_internal.h",
-                "crypto/nss_util.cc",
                 "base/memory/scoped_vector.h",
                 "third_party/modp_b64/modp_b64_data.h",
                 "base/mac/mach_logging.cc",
                 "base/mac/mach_logging.h",
                 "base/mac/scoped_mach_port.cc",
                 "base/mac/scoped_mach_port.h",
-                "base/scoped_generic.h",
                 "base/time/time_mac.cc",
                 "base/feature_list.h",
                 "third_party/zlib/*.c",
                 "third_party/zlib/*.h",
-                "crypto/third_party/nss/*.cc",
-                "crypto/third_party/nss/*.h",
                 "url/url_canon_*.cc",
                 "url/url_parse_file.cc"
             ]
