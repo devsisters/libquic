@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <iosfwd>
+#include <type_traits>
 
 #include "base/atomic_ref_count.h"
 #include "base/base_export.h"
@@ -283,7 +284,9 @@ class scoped_refptr {
   }
 
   // Copy conversion constructor.
-  template <typename U>
+  template <typename U,
+            typename = typename std::enable_if<
+                std::is_convertible<U*, T*>::value>::type>
   scoped_refptr(const scoped_refptr<U>& r) : ptr_(r.get()) {
     if (ptr_)
       AddRef(ptr_);
@@ -294,7 +297,9 @@ class scoped_refptr {
   scoped_refptr(scoped_refptr&& r) : ptr_(r.get()) { r.ptr_ = nullptr; }
 
   // Move conversion constructor.
-  template <typename U>
+  template <typename U,
+            typename = typename std::enable_if<
+                std::is_convertible<U*, T*>::value>::type>
   scoped_refptr(scoped_refptr<U>&& r) : ptr_(r.get()) {
     r.ptr_ = nullptr;
   }

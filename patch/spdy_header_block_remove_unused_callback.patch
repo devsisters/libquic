@@ -1,5 +1,5 @@
 diff --git a/src/net/spdy/spdy_header_block.cc b/src/net/spdy/spdy_header_block.cc
-index b24085f..c0765ee 100644
+index b060309..3a6e225 100644
 --- a/src/net/spdy/spdy_header_block.cc
 +++ b/src/net/spdy/spdy_header_block.cc
 @@ -228,6 +228,7 @@ void SpdyHeaderBlock::AppendHeader(const StringPiece key,
@@ -7,10 +7,10 @@ index b24085f..c0765ee 100644
  }
  
 +#if 0
- scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
+ std::unique_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
      const SpdyHeaderBlock* headers,
      NetLogCaptureMode capture_mode) {
-@@ -243,6 +244,7 @@ scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
+@@ -243,6 +244,7 @@ std::unique_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
    dict->Set("headers", headers_dict);
    return std::move(dict);
  }

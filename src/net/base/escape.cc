@@ -5,9 +5,9 @@
 #include "net/base/escape.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_offset_string_conversions.h"

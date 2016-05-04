@@ -169,7 +169,8 @@ void HpackHuffmanTable::BuildDecodeTables(const std::vector<Symbol>& symbols) {
       if (entry.length != 0 && entry.length < total_indexed) {
         // The difference between entry & table bit counts tells us how
         // many additional entries map to this one.
-        size_t fill_count = 1 << (total_indexed - entry.length);
+        size_t fill_count = static_cast<size_t>(1)
+                            << (total_indexed - entry.length);
         CHECK_LE(j + fill_count, table.size());
 
         for (size_t k = 1; k != fill_count; k++) {

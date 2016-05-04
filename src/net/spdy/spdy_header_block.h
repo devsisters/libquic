@@ -11,7 +11,6 @@
 #include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "net/base/linked_hash_map.h"
 #include "net/base/net_export.h"
@@ -126,11 +125,11 @@ class NET_EXPORT SpdyHeaderBlock {
   void AppendHeader(const base::StringPiece key, const base::StringPiece value);
 
   MapType block_;
-  scoped_ptr<Storage> storage_;
+  std::unique_ptr<Storage> storage_;
 };
 
 // Converts a SpdyHeaderBlock into NetLog event parameters.
-NET_EXPORT scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
+NET_EXPORT std::unique_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
     const SpdyHeaderBlock* headers,
     NetLogCaptureMode capture_mode);
 

@@ -56,20 +56,6 @@ const QuicTag kSRBF = TAG('S', 'R', 'B', 'F');   // Socket receive buffer
 const QuicTag kQBIC = TAG('Q', 'B', 'I', 'C');   // TCP cubic
 
 // Connection options (COPT) values
-const QuicTag kAFCW = TAG('A', 'F', 'C', 'W');   // Auto-tune flow control
-                                                 // receive windows.
-const QuicTag kIFW5 = TAG('I', 'F', 'W', '5');   // Set initial size
-                                                 // of stream flow control
-                                                 // receive window to
-                                                 // 32KB. (2^5 KB).
-const QuicTag kIFW6 = TAG('I', 'F', 'W', '6');   // Set initial size
-                                                 // of stream flow control
-                                                 // receive window to
-                                                 // 64KB. (2^6 KB).
-const QuicTag kIFW7 = TAG('I', 'F', 'W', '7');   // Set initial size
-                                                 // of stream flow control
-                                                 // receive window to
-                                                 // 128KB. (2^7 KB).
 const QuicTag kTBBR = TAG('T', 'B', 'B', 'R');   // Reduced Buffer Bloat TCP
 const QuicTag kRENO = TAG('R', 'E', 'N', 'O');   // Reno Congestion Control
 const QuicTag kBYTE = TAG('B', 'Y', 'T', 'E');   // TCP cubic or reno in bytes
@@ -90,8 +76,16 @@ const QuicTag kTLPR = TAG('T', 'L', 'P', 'R');   // Tail loss probe delay of
 const QuicTag kACKD = TAG('A', 'C', 'K', 'D');   // Ack decimation style acking.
 const QuicTag kAKD2 = TAG('A', 'K', 'D', '2');   // Ack decimation tolerating
                                                  // out of order packets.
+const QuicTag kAKD3 = TAG('A', 'K', 'D', '3');   // Ack decimation style acking
+                                                 // with 1/8 RTT acks.
+const QuicTag kAKD4 = TAG('A', 'K', 'D', '4');   // Ack decimation with 1/8 RTT
+                                                 // tolerating out of order.
 const QuicTag kSSLR = TAG('S', 'S', 'L', 'R');   // Slow Start Large Reduction.
 const QuicTag k5RTO = TAG('5', 'R', 'T', 'O');   // Close connection on 5 RTOs
+const QuicTag kCTIM = TAG('C', 'T', 'I', 'M');   // Client timestamp in seconds
+                                                 // since UNIX epoch.
+const QuicTag kDHDT = TAG('D', 'H', 'D', 'T');   // Disable HPACK dynamic table.
+const QuicTag kIPFS = TAG('I', 'P', 'F', 'S');   // Immediate Forward Secrecy.
 
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the
@@ -173,6 +167,9 @@ const QuicTag kRSEQ = TAG('R', 'S', 'E', 'Q');   // Rejected packet number
 
 // Universal tags
 const QuicTag kPAD  = TAG('P', 'A', 'D', '\0');  // Padding
+
+// Server push tags
+const QuicTag kSPSH = TAG('S', 'P', 'S', 'H');  // Support server push.
 
 // Sent by clients with the fix to crbug/566156
 const QuicTag kFIXD = TAG('F', 'I', 'X', 'D');   // Client hello

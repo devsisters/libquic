@@ -4,6 +4,8 @@
 
 #include "net/quic/quic_crypto_server_stream.h"
 
+#include <memory>
+
 #include "base/base64.h"
 #include "crypto/secure_hash.h"
 #include "net/quic/crypto/crypto_protocol.h"
@@ -16,6 +18,7 @@
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_session.h"
 
+using base::StringPiece;
 using std::string;
 
 namespace net {
@@ -112,7 +115,7 @@ void QuicCryptoServerStream::OnHandshakeMessage(
   }
 
   validate_client_hello_cb_ = new ValidateCallback(this);
-  return crypto_config_->ValidateClientHello(
+  crypto_config_->ValidateClientHello(
       message, session()->connection()->peer_address().address(),
       session()->connection()->self_address().address(), version(),
       session()->connection()->clock(), &crypto_proof_,
@@ -131,9 +134,10 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
   }
 
   CryptoHandshakeMessage reply;
+  DiversificationNonce diversification_nonce;
   string error_details;
-  QuicErrorCode error =
-      ProcessClientHello(message, result, &reply, &error_details);
+  QuicErrorCode error = ProcessClientHello(
+      message, result, &reply, &diversification_nonce, &error_details);
 
   if (error != QUIC_NO_ERROR) {
     CloseConnectionWithDetails(error, error_details);
@@ -194,6 +198,9 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
   session()->connection()->SetDecrypter(
       ENCRYPTION_INITIAL,
       crypto_negotiated_params_.initial_crypters.decrypter.release());
+  if (version() > QUIC_VERSION_32) {
+    session()->connection()->SetDiversificationNonce(diversification_nonce);
+  }
 
   // We want to be notified when the SHLO is ACKed so that we can disable
   // HANDSHAKE_MODE in the sent packet manager.
@@ -204,6 +211,11 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
   session()->connection()->SetEncrypter(
       ENCRYPTION_FORWARD_SECURE,
       crypto_negotiated_params_.forward_secure_crypters.encrypter.release());
+  if (config->HasClientSentConnectionOption(kIPFS, Perspective::IS_SERVER)) {
+    session()->connection()->SetDefaultEncryptionLevel(
+        ENCRYPTION_FORWARD_SECURE);
+  }
+
   session()->connection()->SetAlternativeDecrypter(
       ENCRYPTION_FORWARD_SECURE,
       crypto_negotiated_params_.forward_secure_crypters.decrypter.release(),
@@ -236,7 +248,7 @@ void QuicCryptoServerStream::SendServerConfigUpdate(
   DVLOG(1) << "Server: Sending server config update: "
            << server_config_update_message.DebugString();
   const QuicData& data = server_config_update_message.GetSerialized();
-  WriteOrBufferData(string(data.data(), data.length()), false, nullptr);
+  WriteOrBufferData(StringPiece(data.data(), data.length()), false, nullptr);
 
   ++num_server_config_update_messages_sent_;
 }
@@ -289,7 +301,7 @@ bool QuicCryptoServerStream::GetBase64SHA256ClientChannelID(
   }
 
   const string& channel_id(crypto_negotiated_params_.channel_id);
-  scoped_ptr<crypto::SecureHash> hash(
+  std::unique_ptr<crypto::SecureHash> hash(
       crypto::SecureHash::Create(crypto::SecureHash::SHA256));
   hash->Update(channel_id.data(), channel_id.size());
   uint8_t digest[32];
@@ -315,6 +327,7 @@ QuicErrorCode QuicCryptoServerStream::ProcessClientHello(
     const CryptoHandshakeMessage& message,
     const ValidateClientHelloResultCallback::Result& result,
     CryptoHandshakeMessage* reply,
+    DiversificationNonce* out_diversification_nonce,
     string* error_details) {
   if (!result.info.server_nonce.empty()) {
     ++num_handshake_messages_with_server_nonces_;
@@ -340,7 +353,7 @@ QuicErrorCode QuicCryptoServerStream::ProcessClientHello(
       use_stateless_rejects_in_crypto_config, server_designated_connection_id,
       connection->clock(), connection->random_generator(),
       compressed_certs_cache_, &crypto_negotiated_params_, &crypto_proof_,
-      reply, error_details);
+      reply, out_diversification_nonce, error_details);
 }
 
 void QuicCryptoServerStream::OverrideQuicConfigDefaults(QuicConfig* config) {}

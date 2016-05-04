@@ -8,10 +8,10 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/stl_util.h"
 #include "crypto/openssl_util.h"
 

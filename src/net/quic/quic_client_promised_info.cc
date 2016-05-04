@@ -17,7 +17,6 @@ QuicClientPromisedInfo::QuicClientPromisedInfo(QuicClientSessionBase* session,
                                                QuicStreamId id,
                                                string url)
     : session_(session),
-      helper_(session->connection()->helper()),
       id_(id),
       url_(url),
       client_request_delegate_(nullptr) {}
@@ -30,10 +29,11 @@ void QuicClientPromisedInfo::CleanupAlarm::OnAlarm() {
 }
 
 void QuicClientPromisedInfo::Init() {
-  cleanup_alarm_.reset(
-      helper_->CreateAlarm(new QuicClientPromisedInfo::CleanupAlarm(this)));
-  cleanup_alarm_->Set(helper_->GetClock()->ApproximateNow().Add(
-      QuicTime::Delta::FromSeconds(kPushPromiseTimeoutSecs)));
+  cleanup_alarm_.reset(session_->connection()->alarm_factory()->CreateAlarm(
+      new QuicClientPromisedInfo::CleanupAlarm(this)));
+  cleanup_alarm_->Set(
+      session_->connection()->helper()->GetClock()->ApproximateNow().Add(
+          QuicTime::Delta::FromSeconds(kPushPromiseTimeoutSecs)));
 }
 
 void QuicClientPromisedInfo::OnPromiseHeaders(const SpdyHeaderBlock& headers) {

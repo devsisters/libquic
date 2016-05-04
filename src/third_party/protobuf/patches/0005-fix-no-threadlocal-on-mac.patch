@@ -1,0 +1,16 @@
+--- protobuf-cleaned/src/google/protobuf/stubs/platform_macros.h	2015-12-30 13:21:46.000000000 -0800
++++ protobuf-patched/src/google/protobuf/stubs/platform_macros.h	2016-03-31 13:25:38.960009002 -0700
+@@ -111,11 +111,11 @@
+ 
+ #undef GOOGLE_PROTOBUF_PLATFORM_ERROR
+ 
+-#if defined(GOOGLE_PROTOBUF_OS_ANDROID) || defined(GOOGLE_PROTOBUF_OS_IPHONE)
++#if defined(GOOGLE_PROTOBUF_OS_ANDROID) || defined(GOOGLE_PROTOBUF_OS_APPLE)
+ // Android ndk does not support the __thread keyword very well yet. Here
+ // we use pthread_key_create()/pthread_getspecific()/... methods for
+ // TLS support on android.
+-// iOS also does not support the __thread keyword.
++// Apple Clang also does not support the __thread keyword.
+ #define GOOGLE_PROTOBUF_NO_THREADLOCAL
+ #endif
+ 

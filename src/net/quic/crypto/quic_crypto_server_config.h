@@ -9,12 +9,12 @@
 #include <stdint.h>
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 #include "net/base/ip_address.h"
@@ -266,7 +266,11 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // crypto_proof: output structure containing the crypto proof used in reply to
   //     a proof demand.
   // out: the resulting handshake message (either REJ or SHLO)
-  // error_details: used to store a string describing any error.
+  // out_diversification_nonce: If the resulting handshake message is SHLO and
+  //     the version is greater than QUIC_VERSION_32 then this contains a
+  //     32-byte value that should be included in the public header of
+  //     initially encrypted packets.
+  // error_details: used to store a std::string describing any error.
   QuicErrorCode ProcessClientHello(
       const ValidateClientHelloResultCallback::Result& validate_chlo_result,
       QuicConnectionId connection_id,
@@ -282,6 +286,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
       QuicCryptoNegotiatedParameters* params,
       QuicCryptoProof* crypto_proof,
       CryptoHandshakeMessage* out,
+      DiversificationNonce* out_diversification_nonce,
       std::string* error_details) const;
 
   // BuildServerConfigUpdateMessage sets |out| to be a SCUP message containing
@@ -432,7 +437,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
     // Holds the override source_address_token_boxer instance if the
     // Config is not using the default source address token boxer
     // instance provided by QuicCryptoServerConfig.
-    scoped_ptr<CryptoSecretBoxer> source_address_token_boxer_storage;
+    std::unique_ptr<CryptoSecretBoxer> source_address_token_boxer_storage;
 
    private:
     friend class base::RefCounted<Config>;
@@ -599,13 +604,13 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // active config will be promoted to primary.
   mutable QuicWallTime next_config_promotion_time_;
   // Callback to invoke when the primary config changes.
-  scoped_ptr<PrimaryConfigChangedCallback> primary_config_changed_cb_;
+  std::unique_ptr<PrimaryConfigChangedCallback> primary_config_changed_cb_;
 
   // Protects access to the pointer held by strike_register_client_.
   mutable base::Lock strike_register_client_lock_;
   // strike_register_ contains a data structure that keeps track of previously
   // observed client nonces in order to prevent replay attacks.
-  mutable scoped_ptr<StrikeRegisterClient> strike_register_client_;
+  mutable std::unique_ptr<StrikeRegisterClient> strike_register_client_;
 
   // Default source_address_token_boxer_ used to protect the
   // source-address tokens that are given to clients.  Individual
@@ -625,15 +630,15 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // server_nonce_strike_register_ contains a data structure that keeps track of
   // previously observed server nonces from this server, in order to prevent
   // replay attacks.
-  mutable scoped_ptr<StrikeRegister> server_nonce_strike_register_;
+  mutable std::unique_ptr<StrikeRegister> server_nonce_strike_register_;
 
   // proof_source_ contains an object that can provide certificate chains and
   // signatures.
-  scoped_ptr<ProofSource> proof_source_;
+  std::unique_ptr<ProofSource> proof_source_;
 
   // ephemeral_key_source_ contains an object that caches ephemeral keys for a
   // short period of time.
-  scoped_ptr<EphemeralKeySource> ephemeral_key_source_;
+  std::unique_ptr<EphemeralKeySource> ephemeral_key_source_;
 
   // These fields store configuration values. See the comments for their
   // respective setter functions.

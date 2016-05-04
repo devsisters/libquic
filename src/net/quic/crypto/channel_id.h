@@ -5,10 +5,10 @@
 #ifndef NET_QUIC_CRYPTO_CHANNEL_ID_H_
 #define NET_QUIC_CRYPTO_CHANNEL_ID_H_
 
+#include <memory>
 #include <string>
 
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_types.h"
@@ -40,7 +40,7 @@ class ChannelIDSourceCallback {
   // asynchonous GetChannelIDKey operation. If |*channel_id_key| is not nullptr
   // then the channel ID lookup is successful. |Run| may take ownership of
   // |*channel_id_key| by calling |release| on it.
-  virtual void Run(scoped_ptr<ChannelIDKey>* channel_id_key) = 0;
+  virtual void Run(std::unique_ptr<ChannelIDKey>* channel_id_key) = 0;
 };
 
 // ChannelIDSource is an abstract interface by which a QUIC client can obtain
@@ -59,7 +59,7 @@ class NET_EXPORT_PRIVATE ChannelIDSource {
   // |callback|.
   virtual QuicAsyncStatus GetChannelIDKey(
       const std::string& hostname,
-      scoped_ptr<ChannelIDKey>* channel_id_key,
+      std::unique_ptr<ChannelIDKey>* channel_id_key,
       ChannelIDSourceCallback* callback) = 0;
 };
 

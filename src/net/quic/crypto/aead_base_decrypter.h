@@ -10,34 +10,24 @@
 #include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "net/quic/crypto/quic_decrypter.h"
-
-#if defined(USE_OPENSSL)
 #include "net/quic/crypto/scoped_evp_aead_ctx.h"
-#else
-#include <pkcs11t.h>
-#endif
 
 namespace net {
 
 // AeadBaseDecrypter is the base class of AEAD QuicDecrypter subclasses.
 class NET_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
  public:
-#if defined(USE_OPENSSL)
   AeadBaseDecrypter(const EVP_AEAD* aead_alg,
                     size_t key_size,
                     size_t auth_tag_size,
                     size_t nonce_prefix_size);
-#else
-  AeadBaseDecrypter(CK_MECHANISM_TYPE aead_mechanism,
-                    size_t key_size,
-                    size_t auth_tag_size,
-                    size_t nonce_prefix_size);
-#endif
   ~AeadBaseDecrypter() override;
 
   // QuicDecrypter implementation
   bool SetKey(base::StringPiece key) override;
   bool SetNoncePrefix(base::StringPiece nonce_prefix) override;
+  bool SetPreliminaryKey(base::StringPiece key) override;
+  bool SetDiversificationNonce(DiversificationNonce nonce) override;
   bool DecryptPacket(QuicPathId path_id,
                      QuicPacketNumber packet_number,
                      base::StringPiece associated_data,
@@ -55,39 +45,19 @@ class NET_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
   static const size_t kMaxKeySize = 32;
   static const size_t kMaxNoncePrefixSize = 4;
 
-#if !defined(USE_OPENSSL)
-  struct AeadParams {
-    unsigned int len;
-    union {
-      CK_GCM_PARAMS gcm_params;
-      CK_NSS_AEAD_PARAMS nss_aead_params;
-    } data;
-  };
-
-  virtual void FillAeadParams(base::StringPiece nonce,
-                              base::StringPiece associated_data,
-                              size_t auth_tag_size,
-                              AeadParams* aead_params) const = 0;
-#endif  // !defined(USE_OPENSSL)
-
  private:
-#if defined(USE_OPENSSL)
   const EVP_AEAD* const aead_alg_;
-#else
-  const CK_MECHANISM_TYPE aead_mechanism_;
-#endif
   const size_t key_size_;
   const size_t auth_tag_size_;
   const size_t nonce_prefix_size_;
+  bool have_preliminary_key_;
 
   // The key.
   unsigned char key_[kMaxKeySize];
   // The nonce prefix.
   unsigned char nonce_prefix_[kMaxNoncePrefixSize];
 
-#if defined(USE_OPENSSL)
   ScopedEVPAEADCtx ctx_;
-#endif
 
   DISALLOW_COPY_AND_ASSIGN(AeadBaseDecrypter);
 };

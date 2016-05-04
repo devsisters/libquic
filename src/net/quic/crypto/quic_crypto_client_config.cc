@@ -4,11 +4,13 @@
 
 #include "net/quic/crypto/quic_crypto_client_config.h"
 
+#include <memory>
+
 #include "base/metrics/histogram_macros.h"
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
 #include "net/quic/crypto/cert_compressor.h"
-#include "net/quic/crypto/chacha20_poly1305_rfc7539_encrypter.h"
+#include "net/quic/crypto/chacha20_poly1305_encrypter.h"
 #include "net/quic/crypto/channel_id.h"
 #include "net/quic/crypto/common_cert_set.h"
 #include "net/quic/crypto/crypto_framer.h"
@@ -147,7 +149,7 @@ QuicCryptoClientConfig::CachedState::SetServerConfig(StringPiece server_config,
 
   // Even if the new server config matches the existing one, we still wish to
   // reject it if it has expired.
-  scoped_ptr<CryptoHandshakeMessage> new_scfg_storage;
+  std::unique_ptr<CryptoHandshakeMessage> new_scfg_storage;
   const CryptoHandshakeMessage* new_scfg;
 
   if (!matches_existing) {
@@ -375,16 +377,10 @@ string QuicCryptoClientConfig::CachedState::GetNextServerNonce() {
 
 void QuicCryptoClientConfig::SetDefaults() {
   // Key exchange methods.
-  kexs.resize(2);
-  kexs[0] = kC255;
-  kexs[1] = kP256;
+  kexs = {kC255, kP256};
 
   // Authenticated encryption algorithms. Prefer RFC 7539 ChaCha20 by default.
-  aead.clear();
-  if (ChaCha20Poly1305Rfc7539Encrypter::IsSupported()) {
-    aead.push_back(kCC20);
-  }
-  aead.push_back(kAESG);
+  aead = {kCC20, kAESG};
 
   disable_ecdsa_ = false;
 }
@@ -485,6 +481,7 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
 QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     const QuicServerId& server_id,
     QuicConnectionId connection_id,
+    const QuicVersion actual_version,
     const QuicVersion preferred_version,
     const CachedState* cached,
     QuicWallTime now,
@@ -651,7 +648,8 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     if (!CryptoUtils::DeriveKeys(
             out_params->initial_premaster_secret, out_params->aead,
             out_params->client_nonce, out_params->server_nonce, hkdf_input,
-            Perspective::IS_CLIENT, &crypters, nullptr /* subkey secret */)) {
+            Perspective::IS_CLIENT, CryptoUtils::Diversification::Never(),
+            &crypters, nullptr /* subkey secret */)) {
       *error_details = "Symmetric key setup failed";
       return QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED;
     }
@@ -659,7 +657,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     const QuicData& cetv_plaintext = cetv.GetSerialized();
     const size_t encrypted_len =
         crypters.encrypter->GetCiphertextSize(cetv_plaintext.length());
-    scoped_ptr<char[]> output(new char[encrypted_len]);
+    std::unique_ptr<char[]> output(new char[encrypted_len]);
     size_t output_size = 0;
     if (!crypters.encrypter->EncryptPacket(
             kDefaultPathId /* path id */, 0 /* packet number */,
@@ -701,10 +699,17 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   hkdf_input.append(out_params->hkdf_input_suffix);
 
   string* subkey_secret = &out_params->initial_subkey_secret;
+
+  // Only perform key diversification for QUIC versions 33 and later.
+  // TODO(rch): remove the |actual_version| argument to this method when
+  // QUIC_VERSION_32 is removed.
+  CryptoUtils::Diversification diversification =
+      actual_version > QUIC_VERSION_32 ? CryptoUtils::Diversification::Pending()
+                                       : CryptoUtils::Diversification::Never();
   if (!CryptoUtils::DeriveKeys(out_params->initial_premaster_secret,
                                out_params->aead, out_params->client_nonce,
                                out_params->server_nonce, hkdf_input,
-                               Perspective::IS_CLIENT,
+                               Perspective::IS_CLIENT, diversification,
                                &out_params->initial_crypters, subkey_secret)) {
     *error_details = "Symmetric key setup failed";
     return QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED;
@@ -877,6 +882,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
           out_params->client_nonce,
           shlo_nonce.empty() ? out_params->server_nonce : shlo_nonce,
           hkdf_input, Perspective::IS_CLIENT,
+          CryptoUtils::Diversification::Never(),
           &out_params->forward_secure_crypters, &out_params->subkey_secret)) {
     *error_details = "Symmetric key setup failed";
     return QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED;

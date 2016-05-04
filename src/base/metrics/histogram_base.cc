@@ -128,8 +128,8 @@ void HistogramBase::EnableActivityReportHistogram(
   DCHECK(!report_histogram_);
   size_t existing = StatisticsRecorder::GetHistogramCount();
   if (existing != 0) {
-    DLOG(WARNING) << existing
-                  << " histograms were created before reporting was enabled.";
+    DVLOG(1) << existing
+             << " histograms were created before reporting was enabled.";
   }
 
   std::string name =

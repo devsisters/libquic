@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include <algorithm>
+#include <memory>
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
@@ -18,7 +19,7 @@
 #include "net/quic/crypto/aes_128_gcm_12_decrypter.h"
 #include "net/quic/crypto/aes_128_gcm_12_encrypter.h"
 #include "net/quic/crypto/cert_compressor.h"
-#include "net/quic/crypto/chacha20_poly1305_rfc7539_encrypter.h"
+#include "net/quic/crypto/chacha20_poly1305_encrypter.h"
 #include "net/quic/crypto/channel_id.h"
 #include "net/quic/crypto/crypto_framer.h"
 #include "net/quic/crypto/crypto_handshake_message.h"
@@ -235,7 +236,7 @@ QuicCryptoServerConfig::QuicCryptoServerConfig(
   server_nonce_entropy->RandBytes(server_nonce_orbit_,
                                   sizeof(server_nonce_orbit_));
   const size_t key_size = server_nonce_boxer_.GetKeySize();
-  scoped_ptr<uint8_t[]> key_bytes(new uint8_t[key_size]);
+  std::unique_ptr<uint8_t[]> key_bytes(new uint8_t[key_size]);
   server_nonce_entropy->RandBytes(key_bytes.get(), key_size);
 
   server_nonce_boxer_.SetKeys(
@@ -255,7 +256,7 @@ QuicServerConfigProtobuf* QuicCryptoServerConfig::GenerateConfig(
 
   const string curve25519_private_key =
       Curve25519KeyExchange::NewPrivateKey(rand);
-  scoped_ptr<Curve25519KeyExchange> curve25519(
+  std::unique_ptr<Curve25519KeyExchange> curve25519(
       Curve25519KeyExchange::New(curve25519_private_key));
   StringPiece curve25519_public_value = curve25519->public_value();
 
@@ -274,7 +275,8 @@ QuicServerConfigProtobuf* QuicCryptoServerConfig::GenerateConfig(
   string p256_private_key;
   if (options.p256) {
     p256_private_key = P256KeyExchange::NewPrivateKey();
-    scoped_ptr<P256KeyExchange> p256(P256KeyExchange::New(p256_private_key));
+    std::unique_ptr<P256KeyExchange> p256(
+        P256KeyExchange::New(p256_private_key));
     StringPiece p256_public_value = p256->public_value();
 
     DCHECK_LT(p256_public_value.size(), (1U << 24));
@@ -294,8 +296,7 @@ QuicServerConfigProtobuf* QuicCryptoServerConfig::GenerateConfig(
   } else {
     msg.SetTaglist(kKEXS, kC255, 0);
   }
-  if (FLAGS_quic_crypto_server_config_default_has_chacha20 &&
-      ChaCha20Poly1305Rfc7539Encrypter::IsSupported()) {
+  if (FLAGS_quic_crypto_server_config_default_has_chacha20) {
     msg.SetTaglist(kAEAD, kAESG, kCC20, 0);
   } else {
     msg.SetTaglist(kAEAD, kAESG, 0);
@@ -332,9 +333,9 @@ QuicServerConfigProtobuf* QuicCryptoServerConfig::GenerateConfig(
   if (options.id.empty()) {
     // We need to ensure that the SCID changes whenever the server config does
     // thus we make it a hash of the rest of the server config.
-    scoped_ptr<QuicData> serialized(
+    std::unique_ptr<QuicData> serialized(
         CryptoFramer::ConstructHandshakeMessage(msg));
-    scoped_ptr<SecureHash> hash(SecureHash::Create(SecureHash::SHA256));
+    std::unique_ptr<SecureHash> hash(SecureHash::Create(SecureHash::SHA256));
     hash->Update(serialized->data(), serialized->length());
 
     char scid_bytes[16];
@@ -347,9 +348,11 @@ QuicServerConfigProtobuf* QuicCryptoServerConfig::GenerateConfig(
   // everything but itself and so extra tags should be added prior to the
   // preceeding if block.
 
-  scoped_ptr<QuicData> serialized(CryptoFramer::ConstructHandshakeMessage(msg));
+  std::unique_ptr<QuicData> serialized(
+      CryptoFramer::ConstructHandshakeMessage(msg));
 
-  scoped_ptr<QuicServerConfigProtobuf> config(new QuicServerConfigProtobuf);
+  std::unique_ptr<QuicServerConfigProtobuf> config(
+      new QuicServerConfigProtobuf);
   config->set_config(serialized->AsStringPiece());
   QuicServerConfigProtobuf::PrivateKey* curve25519_key = config->add_key();
   curve25519_key->set_tag(kC255);
@@ -367,7 +370,7 @@ QuicServerConfigProtobuf* QuicCryptoServerConfig::GenerateConfig(
 CryptoHandshakeMessage* QuicCryptoServerConfig::AddConfig(
     QuicServerConfigProtobuf* protobuf,
     const QuicWallTime now) {
-  scoped_ptr<CryptoHandshakeMessage> msg(
+  std::unique_ptr<CryptoHandshakeMessage> msg(
       CryptoFramer::ParseMessage(protobuf->config()));
 
   if (!msg.get()) {
@@ -403,7 +406,7 @@ CryptoHandshakeMessage* QuicCryptoServerConfig::AddDefaultConfig(
     QuicRandom* rand,
     const QuicClock* clock,
     const ConfigOptions& options) {
-  scoped_ptr<QuicServerConfigProtobuf> config(
+  std::unique_ptr<QuicServerConfigProtobuf> config(
       GenerateConfig(rand, clock, options));
   return AddConfig(config.get(), clock->WallNow());
 }
@@ -557,6 +560,7 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
     QuicCryptoNegotiatedParameters* params,
     QuicCryptoProof* crypto_proof,
     CryptoHandshakeMessage* out,
+    DiversificationNonce* out_diversification_nonce,
     string* error_details) const {
   DCHECK(error_details);
 
@@ -691,7 +695,7 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
   }
 
   if (!info.sni.empty()) {
-    scoped_ptr<char[]> sni_tmp(new char[info.sni.length() + 1]);
+    std::unique_ptr<char[]> sni_tmp(new char[info.sni.length() + 1]);
     memcpy(sni_tmp.get(), info.sni.data(), info.sni.length());
     sni_tmp[info.sni.length()] = 0;
     params->sni = CryptoUtils::NormalizeHostname(sni_tmp.get());
@@ -736,8 +740,9 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
     CrypterPair crypters;
     if (!CryptoUtils::DeriveKeys(params->initial_premaster_secret, params->aead,
                                  info.client_nonce, info.server_nonce,
-                                 hkdf_input, Perspective::IS_SERVER, &crypters,
-                                 nullptr /* subkey secret */)) {
+                                 hkdf_input, Perspective::IS_SERVER,
+                                 CryptoUtils::Diversification::Never(),
+                                 &crypters, nullptr /* subkey secret */)) {
       *error_details = "Symmetric key setup failed";
       return QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED;
     }
@@ -752,7 +757,7 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
       *error_details = "CETV decryption failure";
       return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
     }
-    scoped_ptr<CryptoHandshakeMessage> cetv(
+    std::unique_ptr<CryptoHandshakeMessage> cetv(
         CryptoFramer::ParseMessage(StringPiece(plaintext, plaintext_length)));
     if (!cetv.get()) {
       *error_details = "CETV parse error";
@@ -778,9 +783,18 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
   hkdf_input.append(hkdf_suffix);
 
   string* subkey_secret = &params->initial_subkey_secret;
+  CryptoUtils::Diversification diversification =
+      CryptoUtils::Diversification::Never();
+  if (version > QUIC_VERSION_32) {
+    rand->RandBytes(reinterpret_cast<char*>(out_diversification_nonce),
+                    sizeof(*out_diversification_nonce));
+    diversification =
+        CryptoUtils::Diversification::Now(out_diversification_nonce);
+  }
+
   if (!CryptoUtils::DeriveKeys(params->initial_premaster_secret, params->aead,
                                info.client_nonce, info.server_nonce, hkdf_input,
-                               Perspective::IS_SERVER,
+                               Perspective::IS_SERVER, diversification,
                                &params->initial_crypters, subkey_secret)) {
     *error_details = "Symmetric key setup failed";
     return QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED;
@@ -793,7 +807,7 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
             key_exchange, rand, clock->ApproximateNow(), public_value,
             &forward_secure_public_value);
   } else {
-    scoped_ptr<KeyExchange> forward_secure_key_exchange(
+    std::unique_ptr<KeyExchange> forward_secure_key_exchange(
         key_exchange->NewKeyPair(rand));
     forward_secure_public_value =
         forward_secure_key_exchange->public_value().as_string();
@@ -816,11 +830,13 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
     shlo_nonce = NewServerNonce(rand, info.now);
     out->SetStringPiece(kServerNonceTag, shlo_nonce);
   }
+
   if (!CryptoUtils::DeriveKeys(
           params->forward_secure_premaster_secret, params->aead,
           info.client_nonce,
           shlo_nonce.empty() ? info.server_nonce : shlo_nonce,
           forward_secure_hkdf_input, Perspective::IS_SERVER,
+          CryptoUtils::Diversification::Never(),
           &params->forward_secure_crypters, &params->subkey_secret)) {
     *error_details = "Symmetric key setup failed";
     return QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED;
@@ -1293,13 +1309,11 @@ const string QuicCryptoServerConfig::CompressChain(
     const string& client_cached_cert_hashes,
     const CommonCertSets* common_sets) const {
   // Check whether the compressed certs is available in the cache.
-  if (FLAGS_quic_use_cached_compressed_certs) {
-    DCHECK(compressed_certs_cache);
-    const string* cached_value = compressed_certs_cache->GetCompressedCert(
-        chain, client_common_set_hashes, client_cached_cert_hashes);
-    if (cached_value) {
-      return *cached_value;
-    }
+  DCHECK(compressed_certs_cache);
+  const string* cached_value = compressed_certs_cache->GetCompressedCert(
+      chain, client_common_set_hashes, client_cached_cert_hashes);
+  if (cached_value) {
+    return *cached_value;
   }
 
   const string compressed =
@@ -1307,17 +1321,15 @@ const string QuicCryptoServerConfig::CompressChain(
                                     client_common_set_hashes, common_sets);
 
   // Insert the newly compressed cert to cache.
-  if (FLAGS_quic_use_cached_compressed_certs) {
-    compressed_certs_cache->Insert(chain, client_common_set_hashes,
-                                   client_cached_cert_hashes, compressed);
-  }
+  compressed_certs_cache->Insert(chain, client_common_set_hashes,
+                                 client_cached_cert_hashes, compressed);
   return compressed;
 }
 
 scoped_refptr<QuicCryptoServerConfig::Config>
 QuicCryptoServerConfig::ParseConfigProtobuf(
     QuicServerConfigProtobuf* protobuf) {
-  scoped_ptr<CryptoHandshakeMessage> msg(
+  std::unique_ptr<CryptoHandshakeMessage> msg(
       CryptoFramer::ParseMessage(protobuf->config()));
 
   if (msg->tag() != kSCFG) {
@@ -1453,7 +1465,7 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
       return nullptr;
     }
 
-    scoped_ptr<KeyExchange> ka;
+    std::unique_ptr<KeyExchange> ka;
     switch (tag) {
       case kC255:
         ka.reset(Curve25519KeyExchange::New(private_key));

@@ -38,8 +38,13 @@ class BASE_EXPORT HistogramSamples {
     // accuracy of this value; there may be races during histogram
     // accumulation and snapshotting that we choose to accept. It should
     // be treated as approximate.
-    // TODO(bcwhite): Change this to std::atomic<int64_t>.
+#ifdef ARCH_CPU_64_BITS
+    subtle::Atomic64 sum;
+#else
+    // 32-bit systems don't have atomic 64-bit operations. Use a basic type
+    // and don't worry about "shearing".
     int64_t sum;
+#endif
 
     // A "redundant" count helps identify memory corruption. It redundantly
     // stores the total number of samples accumulated in the histogram. We
@@ -74,7 +79,13 @@ class BASE_EXPORT HistogramSamples {
 
   // Accessor fuctions.
   uint64_t id() const { return meta_->id; }
-  int64_t sum() const { return meta_->sum; }
+  int64_t sum() const {
+#ifdef ARCH_CPU_64_BITS
+    return subtle::NoBarrier_Load(&meta_->sum);
+#else
+    return meta_->sum;
+#endif
+  }
   HistogramBase::Count redundant_count() const {
     return subtle::NoBarrier_Load(&meta_->redundant_count);
   }

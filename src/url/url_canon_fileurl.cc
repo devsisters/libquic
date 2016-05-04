@@ -4,6 +4,7 @@
 
 // Functions for canonicalizing "file:" URLs.
 
+#include "base/strings/string_util.h"
 #include "url/url_canon.h"
 #include "url/url_canon_internal.h"
 #include "url/url_file.h"
@@ -39,7 +40,7 @@ int FileDoDriveSpec(const CHAR* spec, int begin, int end,
   // and that it is followed by a colon/pipe.
 
   // Normalize Windows drive letters to uppercase
-  if (spec[after_slashes] >= 'a' && spec[after_slashes] <= 'z')
+  if (base::IsAsciiLower(spec[after_slashes]))
     output->push_back(static_cast<char>(spec[after_slashes] - 'a' + 'A'));
   else
     output->push_back(static_cast<char>(spec[after_slashes]));

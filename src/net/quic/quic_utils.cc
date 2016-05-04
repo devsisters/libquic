@@ -79,8 +79,7 @@ uint128 IncrementalHash(uint128 hash, const char* data, size_t len) {
 }
 
 bool IsInitializedIPEndPoint(const IPEndPoint& address) {
-  return net::GetAddressFamily(address.address().bytes()) !=
-         net::ADDRESS_FAMILY_UNSPECIFIED;
+  return address.address().IsValid();
 }
 
 }  // namespace

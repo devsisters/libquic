@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -86,8 +86,41 @@ class LIBPROTOBUF_EXPORT Printer {
   void Print(const char* text, const char* variable1, const string& value1,
                                const char* variable2, const string& value2,
                                const char* variable3, const string& value3);
-  // TODO(kenton):  Overloaded versions with more variables?  Three seems
-  //   to be enough.
+  // Like the first Print(), except the substitutions are given as parameters.
+  void Print(const char* text, const char* variable1, const string& value1,
+                               const char* variable2, const string& value2,
+                               const char* variable3, const string& value3,
+                               const char* variable4, const string& value4);
+  // Like the first Print(), except the substitutions are given as parameters.
+  void Print(const char* text, const char* variable1, const string& value1,
+                               const char* variable2, const string& value2,
+                               const char* variable3, const string& value3,
+                               const char* variable4, const string& value4,
+                               const char* variable5, const string& value5);
+  // Like the first Print(), except the substitutions are given as parameters.
+  void Print(const char* text, const char* variable1, const string& value1,
+                               const char* variable2, const string& value2,
+                               const char* variable3, const string& value3,
+                               const char* variable4, const string& value4,
+                               const char* variable5, const string& value5,
+                               const char* variable6, const string& value6);
+  // Like the first Print(), except the substitutions are given as parameters.
+  void Print(const char* text, const char* variable1, const string& value1,
+                               const char* variable2, const string& value2,
+                               const char* variable3, const string& value3,
+                               const char* variable4, const string& value4,
+                               const char* variable5, const string& value5,
+                               const char* variable6, const string& value6,
+                               const char* variable7, const string& value7);
+  // Like the first Print(), except the substitutions are given as parameters.
+  void Print(const char* text, const char* variable1, const string& value1,
+                               const char* variable2, const string& value2,
+                               const char* variable3, const string& value3,
+                               const char* variable4, const string& value4,
+                               const char* variable5, const string& value5,
+                               const char* variable6, const string& value6,
+                               const char* variable7, const string& value7,
+                               const char* variable8, const string& value8);
 
   // Indent text by two spaces.  After calling Indent(), two spaces will be
   // inserted at the beginning of each line of text.  Indent() may be called

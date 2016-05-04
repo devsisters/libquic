@@ -8,6 +8,7 @@
 // Provides shared functions used by the internals of the parser and
 // canonicalizer for file URLs. Do not use outside of these modules.
 
+#include "base/strings/string_util.h"
 #include "url/url_parse_internal.h"
 
 namespace url {
@@ -17,9 +18,6 @@ namespace url {
 // We allow both "c:" and "c|" as drive identifiers.
 inline bool IsWindowsDriveSeparator(base::char16 ch) {
   return ch == ':' || ch == '|';
-}
-inline bool IsWindowsDriveLetter(base::char16 ch) {
-  return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
 }
 
 #endif  // WIN32
@@ -48,7 +46,7 @@ inline bool DoesBeginWindowsDriveSpec(const CHAR* spec, int start_offset,
   int remaining_len = spec_len - start_offset;
   if (remaining_len < 2)
     return false;  // Not enough room.
-  if (!IsWindowsDriveLetter(spec[start_offset]))
+  if (!base::IsAsciiAlpha(spec[start_offset]))
     return false;  // Doesn't start with a valid drive letter.
   if (!IsWindowsDriveSeparator(spec[start_offset + 1]))
     return false;  // Isn't followed with a drive separator.

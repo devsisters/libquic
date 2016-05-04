@@ -158,7 +158,7 @@ const uint8_t kCanonicalToSymbol[] = {
 };
 // clang-format on
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
 
 // Only used in DLOG.
 bool IsEOSPrefix(HuffmanWord bits, HuffmanCodeLength bits_available) {
@@ -171,7 +171,7 @@ bool IsEOSPrefix(HuffmanWord bits, HuffmanCodeLength bits_available) {
   return bits == expected;
 }
 
-#endif  // NDEBUG
+#endif  // NDEBUG && !defined(DCHECK_ALWAYS_ON)
 
 }  // namespace
 

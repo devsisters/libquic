@@ -147,7 +147,7 @@ void QuicReceivedPacketManager::RecordPacketReceived(
     QuicTime receipt_time) {
   QuicPacketNumber packet_number = header.packet_number;
   DCHECK(IsAwaitingPacket(packet_number));
-  if (FLAGS_quic_dont_copy_acks && !ack_frame_updated_) {
+  if (!ack_frame_updated_) {
     ack_frame_.received_packet_times.clear();
   }
   ack_frame_updated_ = true;
@@ -204,42 +204,6 @@ struct isTooLarge {
   }
 };
 }  // namespace
-
-void QuicReceivedPacketManager::UpdateReceivedPacketInfo(
-    QuicAckFrame* ack_frame,
-    QuicTime approximate_now) {
-  DCHECK(!FLAGS_quic_dont_copy_acks);
-  ack_frame_updated_ = false;
-  *ack_frame = ack_frame_;
-  ack_frame->entropy_hash = EntropyHash(ack_frame_.largest_observed);
-
-  if (time_largest_observed_ == QuicTime::Zero()) {
-    // We have received no packets.
-    ack_frame->ack_delay_time = QuicTime::Delta::Infinite();
-    return;
-  }
-
-  // Ensure the delta is zero if approximate now is "in the past".
-  ack_frame->ack_delay_time =
-      approximate_now < time_largest_observed_
-          ? QuicTime::Delta::Zero()
-          : approximate_now.Subtract(time_largest_observed_);
-
-  // Clear all packet times if any are too far from largest observed.
-  // It's expected this is extremely rare.
-  for (PacketTimeVector::iterator it = ack_frame_.received_packet_times.begin();
-       it != ack_frame_.received_packet_times.end();) {
-    if (ack_frame_.largest_observed - it->first >=
-        numeric_limits<uint8_t>::max()) {
-      it = ack_frame_.received_packet_times.erase(it);
-    } else {
-      ++it;
-    }
-  }
-
-  ack_frame->received_packet_times.clear();
-  ack_frame->received_packet_times.swap(ack_frame_.received_packet_times);
-}
 
 const QuicFrame QuicReceivedPacketManager::GetUpdatedAckFrame(
     QuicTime approximate_now) {

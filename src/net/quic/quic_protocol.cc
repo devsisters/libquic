@@ -5,6 +5,7 @@
 #include "net/quic/quic_protocol.h"
 
 #include "base/stl_util.h"
+#include "base/strings/string_number_conversions.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_utils.h"
 
@@ -22,16 +23,19 @@ size_t GetPacketHeaderSize(const QuicPacketHeader& header) {
   return GetPacketHeaderSize(header.public_header.connection_id_length,
                              header.public_header.version_flag,
                              header.public_header.multipath_flag,
+                             header.public_header.nonce != nullptr,
                              header.public_header.packet_number_length);
 }
 
 size_t GetPacketHeaderSize(QuicConnectionIdLength connection_id_length,
                            bool include_version,
                            bool include_path_id,
+                           bool include_diversification_nonce,
                            QuicPacketNumberLength packet_number_length) {
   return kPublicFlagsSize + connection_id_length +
          (include_version ? kQuicVersionSize : 0) +
          (include_path_id ? kQuicPathIdSize : 0) + packet_number_length +
+         (include_diversification_nonce ? kDiversificationNonceSize : 0) +
          kPrivateFlagsSize;
 }
 
@@ -42,10 +46,12 @@ size_t GetStartOfEncryptedData(const QuicPacketHeader& header) {
 size_t GetStartOfEncryptedData(QuicConnectionIdLength connection_id_length,
                                bool include_version,
                                bool include_path_id,
+                               bool include_diversification_nonce,
                                QuicPacketNumberLength packet_number_length) {
   // Encryption starts before private flags.
   return GetPacketHeaderSize(connection_id_length, include_version,
-                             include_path_id, packet_number_length) -
+                             include_path_id, include_diversification_nonce,
+                             packet_number_length) -
          kPrivateFlagsSize;
 }
 
@@ -55,17 +61,11 @@ QuicPacketPublicHeader::QuicPacketPublicHeader()
       multipath_flag(false),
       reset_flag(false),
       version_flag(false),
-      packet_number_length(PACKET_6BYTE_PACKET_NUMBER) {}
+      packet_number_length(PACKET_6BYTE_PACKET_NUMBER),
+      nonce(nullptr) {}
 
 QuicPacketPublicHeader::QuicPacketPublicHeader(
-    const QuicPacketPublicHeader& other)
-    : connection_id(other.connection_id),
-      connection_id_length(other.connection_id_length),
-      multipath_flag(other.multipath_flag),
-      reset_flag(other.reset_flag),
-      version_flag(other.version_flag),
-      packet_number_length(other.packet_number_length),
-      versions(other.versions) {}
+    const QuicPacketPublicHeader& other) = default;
 
 QuicPacketPublicHeader::~QuicPacketPublicHeader() {}
 
@@ -196,6 +196,8 @@ QuicTag QuicVersionToQuicTag(const QuicVersion version) {
       return MakeQuicTag('Q', '0', '3', '1');
     case QUIC_VERSION_32:
       return MakeQuicTag('Q', '0', '3', '2');
+    case QUIC_VERSION_33:
+      return MakeQuicTag('Q', '0', '3', '3');
     default:
       // This shold be an ERROR because we should never attempt to convert an
       // invalid QuicVersion to be written to the wire.
@@ -230,6 +232,7 @@ string QuicVersionToString(const QuicVersion version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_30);
     RETURN_STRING_LITERAL(QUIC_VERSION_31);
     RETURN_STRING_LITERAL(QUIC_VERSION_32);
+    RETURN_STRING_LITERAL(QUIC_VERSION_33);
     default:
       return "QUIC_VERSION_UNSUPPORTED";
   }
@@ -268,6 +271,11 @@ ostream& operator<<(ostream& os, const QuicPacketHeader& header) {
       os << header.public_header.versions[i] << " ";
     }
   }
+  os << ", diversification_nonce: "
+     << (header.public_header.nonce == nullptr
+             ? "none"
+             : "0x" + base::HexEncode(*header.public_header.nonce,
+                                      kDiversificationNonceSize));
   os << ", fec_flag: " << header.fec_flag
      << ", entropy_flag: " << header.entropy_flag
      << ", entropy hash: " << static_cast<int>(header.entropy_hash)
@@ -682,12 +690,14 @@ QuicPacket::QuicPacket(char* buffer,
                        QuicConnectionIdLength connection_id_length,
                        bool includes_version,
                        bool includes_path_id,
+                       bool includes_diversification_nonce,
                        QuicPacketNumberLength packet_number_length)
     : QuicData(buffer, length, owns_buffer),
       buffer_(buffer),
       connection_id_length_(connection_id_length),
       includes_version_(includes_version),
       includes_path_id_(includes_path_id),
+      includes_diversification_nonce_(includes_diversification_nonce),
       packet_number_length_(packet_number_length) {}
 
 QuicEncryptedPacket::QuicEncryptedPacket(const char* buffer, size_t length)
@@ -733,15 +743,16 @@ ostream& operator<<(ostream& os, const QuicReceivedPacket& s) {
 }
 
 StringPiece QuicPacket::AssociatedData() const {
-  return StringPiece(data(), GetStartOfEncryptedData(
-                                 connection_id_length_, includes_version_,
-                                 includes_path_id_, packet_number_length_));
+  return StringPiece(
+      data(), GetStartOfEncryptedData(
+                  connection_id_length_, includes_version_, includes_path_id_,
+                  includes_diversification_nonce_, packet_number_length_));
 }
 
 StringPiece QuicPacket::Plaintext() const {
-  const size_t start_of_encrypted_data =
-      GetStartOfEncryptedData(connection_id_length_, includes_version_,
-                              includes_path_id_, packet_number_length_);
+  const size_t start_of_encrypted_data = GetStartOfEncryptedData(
+      connection_id_length_, includes_version_, includes_path_id_,
+      includes_diversification_nonce_, packet_number_length_);
   return StringPiece(data() + start_of_encrypted_data,
                      length() - start_of_encrypted_data);
 }
@@ -768,7 +779,7 @@ SerializedPacket::SerializedPacket(QuicPathId path_id,
     : encrypted_buffer(encrypted_buffer),
       encrypted_length(encrypted_length),
       has_crypto_handshake(NOT_HANDSHAKE),
-      needs_padding(false),
+      num_padding_bytes(0),
       path_id(path_id),
       packet_number(packet_number),
       packet_number_length(packet_number_length),
@@ -793,7 +804,7 @@ TransmissionInfo::TransmissionInfo()
       in_flight(false),
       is_unackable(false),
       has_crypto_handshake(false),
-      needs_padding(false),
+      num_padding_bytes(0),
       retransmission(0) {}
 
 TransmissionInfo::TransmissionInfo(EncryptionLevel level,
@@ -802,7 +813,7 @@ TransmissionInfo::TransmissionInfo(EncryptionLevel level,
                                    QuicTime sent_time,
                                    QuicPacketLength bytes_sent,
                                    bool has_crypto_handshake,
-                                   bool needs_padding)
+                                   int num_padding_bytes)
     : encryption_level(level),
       packet_number_length(packet_number_length),
       bytes_sent(bytes_sent),
@@ -812,7 +823,7 @@ TransmissionInfo::TransmissionInfo(EncryptionLevel level,
       in_flight(false),
       is_unackable(false),
       has_crypto_handshake(has_crypto_handshake),
-      needs_padding(needs_padding),
+      num_padding_bytes(num_padding_bytes),
       retransmission(0) {}
 
 TransmissionInfo::TransmissionInfo(const TransmissionInfo& other) = default;

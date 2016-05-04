@@ -14,12 +14,12 @@
 
 #include <limits>
 #include <map>
+#include <memory>
 #include <string>
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/sys_byteorder.h"
 #include "net/base/net_export.h"
@@ -48,11 +48,16 @@ typedef uint32_t SpdyStreamId;
 // flow control).
 const SpdyStreamId kSessionFlowControlStreamId = 0;
 
-// The maxmium possible control frame size allowed by the spec.
-const int32_t kSpdyMaxControlFrameSize = (1 << 24) - 1;
+// The maxmium possible frame payload size allowed by the spec.
+const uint32_t kSpdyMaxFrameSizeLimit = (1 << 24) - 1;
 
-// The maximum control frame size we accept.
-const int32_t kControlFrameSizeLimit = 1 << 14;
+// The initial value for the maximum frame payload size as per the spec. This is
+// the maximum control frame size we accept.
+const uint32_t kSpdyInitialFrameSizeLimit = 1 << 14;
+
+// The initial value for the maximum size of the header list, "unlimited" (max
+// unsigned 32-bit int) as per the spec.
+const uint32_t kSpdyInitialHeaderListSizeLimit = 0xFFFFFFFF;
 
 // Maximum window size for a Spdy stream or session.
 const int32_t kSpdyMaximumWindowSize = 0x7FFFFFFF;  // Max signed 32bit int
@@ -282,9 +287,7 @@ enum SpdyFrameType {
 enum SpdyDataFlags {
   DATA_FLAG_NONE = 0x00,
   DATA_FLAG_FIN = 0x01,
-  DATA_FLAG_END_SEGMENT = 0x02,
   DATA_FLAG_PADDED = 0x08,
-  DATA_FLAG_COMPRESSED = 0x20,
 };
 
 // Flags on control packets
@@ -300,7 +303,6 @@ enum SpdyPingFlags {
 
 // Used by HEADERS, PUSH_PROMISE, and CONTINUATION.
 enum SpdyHeadersFlags {
-  HEADERS_FLAG_END_SEGMENT = 0x02,
   HEADERS_FLAG_END_HEADERS = 0x04,
   HEADERS_FLAG_PADDED = 0x08,
   HEADERS_FLAG_PRIORITY = 0x20,
@@ -441,6 +443,12 @@ class NET_EXPORT_PRIVATE SpdyConstants {
   // in the given SPDY version.
   static int DataFrameType(SpdyMajorVersion version);
 
+  // (HTTP/2) All standard frame types except WINDOW_UPDATE are
+  // (stream-specific xor connection-level). Returns false iff we know
+  // the given frame type does not align with the given streamID.
+  static bool IsValidHTTP2FrameStreamId(SpdyStreamId current_frame_stream_id,
+                                        SpdyFrameType frame_type_field);
+
   // Returns true if a given on-the-wire enumeration of a setting id is valid
   // for a given protocol version, false otherwise.
   static bool IsValidSettingId(SpdyMajorVersion version, int setting_id_field);
@@ -522,14 +530,9 @@ class NET_EXPORT_PRIVATE SpdyConstants {
   static std::string GetVersionString(SpdyMajorVersion version);
 };
 
-class SpdyFrame;
-typedef SpdyFrame SpdySerializedFrame;
-
 class SpdyFrameVisitor;
 
 // Intermediate representation for SPDY frames.
-// TODO(hkhalil): Rename this class to SpdyFrame when the existing SpdyFrame is
-// gone.
 class NET_EXPORT_PRIVATE SpdyFrameIR {
  public:
   virtual ~SpdyFrameIR() {}
@@ -651,7 +654,7 @@ class NET_EXPORT_PRIVATE SpdyDataIR
 
  private:
   // Used to store data that this SpdyDataIR should own.
-  scoped_ptr<std::string> data_store_;
+  std::unique_ptr<std::string> data_store_;
   base::StringPiece data_;
 
   bool padded_;
@@ -860,7 +863,7 @@ class NET_EXPORT_PRIVATE SpdyWindowUpdateIR : public SpdyFrameWithStreamIdIR {
   }
   int32_t delta() const { return delta_; }
   void set_delta(int32_t delta) {
-    DCHECK_LT(0, delta);
+    DCHECK_LE(0, delta);
     DCHECK_LE(delta, kSpdyMaximumWindowSize);
     delta_ = delta;
   }
@@ -987,35 +990,50 @@ class NET_EXPORT_PRIVATE SpdyPriorityIR : public SpdyFrameWithStreamIdIR {
   DISALLOW_COPY_AND_ASSIGN(SpdyPriorityIR);
 };
 
-// -------------------------------------------------------------------------
-// Wrapper classes for various SPDY frames.
-
-// All Spdy Frame types derive from this SpdyFrame class.
-class SpdyFrame {
+class SpdySerializedFrame {
  public:
-  // Create a SpdyFrame using a pre-created buffer.
-  // If |owns_buffer| is true, this class takes ownership of the buffer
-  // and will delete it on cleanup.  The buffer must have been created using
-  // new char[].
+  SpdySerializedFrame()
+      : frame_(const_cast<char*>("")), size_(0), owns_buffer_(false) {}
+
+  // Create a valid SpdySerializedFrame using a pre-created buffer.
+  // If |owns_buffer| is true, this class takes ownership of the buffer and will
+  // delete it on cleanup.  The buffer must have been created using new char[].
   // If |owns_buffer| is false, the caller retains ownership of the buffer and
   // is responsible for making sure the buffer outlives this frame.  In other
   // words, this class does NOT create a copy of the buffer.
-  SpdyFrame(char* data, size_t size, bool owns_buffer)
-      : frame_(data),
-        size_(size),
-        owns_buffer_(owns_buffer) {
-    DCHECK(frame_);
+  SpdySerializedFrame(char* data, size_t size, bool owns_buffer)
+      : frame_(data), size_(size), owns_buffer_(owns_buffer) {}
+
+  SpdySerializedFrame(SpdySerializedFrame&& other)
+      : frame_(other.frame_),
+        size_(other.size_),
+        owns_buffer_(other.owns_buffer_) {
+    // |other| is no longer responsible for the buffer.
+    other.owns_buffer_ = false;
   }
 
-  ~SpdyFrame() {
+  SpdySerializedFrame& operator=(SpdySerializedFrame&& other) {
+    // Free buffer if necessary.
     if (owns_buffer_) {
-      delete [] frame_;
+      delete[] frame_;
     }
-    frame_ = NULL;
+    // Take over |other|.
+    frame_ = other.frame_;
+    size_ = other.size_;
+    owns_buffer_ = other.owns_buffer_;
+    // |other| is no longer responsible for the buffer.
+    other.owns_buffer_ = false;
+    return *this;
   }
 
-  // Provides access to the frame bytes, which is a buffer containing
-  // the frame packed as expected for sending over the wire.
+  ~SpdySerializedFrame() {
+    if (owns_buffer_) {
+      delete[] frame_;
+    }
+  }
+
+  // Provides access to the frame bytes, which is a buffer containing the frame
+  // packed as expected for sending over the wire.
   char* data() const { return frame_; }
 
   // Returns the actual size of the underlying buffer.
@@ -1027,7 +1045,7 @@ class SpdyFrame {
  private:
   size_t size_;
   bool owns_buffer_;
-  DISALLOW_COPY_AND_ASSIGN(SpdyFrame);
+  DISALLOW_COPY_AND_ASSIGN(SpdySerializedFrame);
 };
 
 // This interface is for classes that want to process SpdyFrameIRs without

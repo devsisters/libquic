@@ -51,7 +51,7 @@ namespace base {
     } while (0)
 
 class HistogramSamples;
-class PersistentMemoryAllocator;
+class PersistentHistogramAllocator;
 
 class BASE_EXPORT SparseHistogram : public HistogramBase {
  public:
@@ -59,9 +59,10 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
   // new one.
   static HistogramBase* FactoryGet(const std::string& name, int32_t flags);
 
-  // Create a histogram using data in persistent storage.
+  // Create a histogram using data in persistent storage. The allocator must
+  // live longer than the created sparse histogram.
   static std::unique_ptr<HistogramBase> PersistentCreate(
-      PersistentMemoryAllocator* allocator,
+      PersistentHistogramAllocator* allocator,
       const std::string& name,
       HistogramSamples::Metadata* meta,
       HistogramSamples::Metadata* logged_meta);
@@ -91,7 +92,7 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
   // Clients should always use FactoryGet to create SparseHistogram.
   explicit SparseHistogram(const std::string& name);
 
-  SparseHistogram(PersistentMemoryAllocator* allocator,
+  SparseHistogram(PersistentHistogramAllocator* allocator,
                   const std::string& name,
                   HistogramSamples::Metadata* meta,
                   HistogramSamples::Metadata* logged_meta);

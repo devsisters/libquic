@@ -10,29 +10,17 @@
 #include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "net/quic/crypto/quic_encrypter.h"
-
-#if defined(USE_OPENSSL)
 #include "net/quic/crypto/scoped_evp_aead_ctx.h"
-#else
-#include <pkcs11t.h>
-#endif
 
 namespace net {
 
 // AeadBaseEncrypter is the base class of AEAD QuicEncrypter subclasses.
 class NET_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
  public:
-#if defined(USE_OPENSSL)
   AeadBaseEncrypter(const EVP_AEAD* aead_alg,
                     size_t key_size,
                     size_t auth_tag_size,
                     size_t nonce_prefix_size);
-#else
-  AeadBaseEncrypter(CK_MECHANISM_TYPE aead_mechanism,
-                    size_t key_size,
-                    size_t auth_tag_size,
-                    size_t nonce_prefix_size);
-#endif
   ~AeadBaseEncrypter() override;
 
   // QuicEncrypter implementation
@@ -66,27 +54,8 @@ class NET_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
   static const size_t kMaxKeySize = 32;
   static const size_t kMaxNoncePrefixSize = 4;
 
-#if !defined(USE_OPENSSL)
-  struct AeadParams {
-    unsigned int len;
-    union {
-      CK_GCM_PARAMS gcm_params;
-      CK_NSS_AEAD_PARAMS nss_aead_params;
-    } data;
-  };
-
-  virtual void FillAeadParams(base::StringPiece nonce,
-                              base::StringPiece associated_data,
-                              size_t auth_tag_size,
-                              AeadParams* aead_params) const = 0;
-#endif
-
  private:
-#if defined(USE_OPENSSL)
   const EVP_AEAD* const aead_alg_;
-#else
-  const CK_MECHANISM_TYPE aead_mechanism_;
-#endif
   const size_t key_size_;
   const size_t auth_tag_size_;
   const size_t nonce_prefix_size_;
@@ -96,9 +65,7 @@ class NET_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
   // The nonce prefix.
   unsigned char nonce_prefix_[kMaxNoncePrefixSize];
 
-#if defined(USE_OPENSSL)
   ScopedEVPAEADCtx ctx_;
-#endif
 
   DISALLOW_COPY_AND_ASSIGN(AeadBaseEncrypter);
 };

@@ -10,15 +10,14 @@
 #include <stddef.h>
 
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/containers/hash_tables.h"
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "net/base/ip_endpoint.h"
 #include "net/quic/quic_connection.h"
@@ -336,20 +335,12 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // control window in a negotiated config. Closes the connection if invalid.
   void OnNewSessionFlowControlWindow(QuicStreamOffset new_window);
 
-  // Called in OnConfigNegotiated when auto-tuning is enabled for flow
-  // control receive windows.
-  void EnableAutoTuneReceiveWindow();
-
-  // Called in OnConfigNegotiated for finch trials to measure performance of
-  // starting with smaller flow control receive windows and auto-tuning.
-  void AdjustInitialFlowControlWindows(size_t stream_window);
-
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
   std::map<QuicStreamId, QuicStreamOffset>
       locally_closed_streams_highest_offset_;
 
-  scoped_ptr<QuicConnection> connection_;
+  std::unique_ptr<QuicConnection> connection_;
 
   std::vector<ReliableQuicStream*> closed_streams_;
 

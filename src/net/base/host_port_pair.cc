@@ -38,7 +38,7 @@ HostPortPair HostPortPair::FromString(const std::string& str) {
   if (key_port.size() != 2)
     return HostPortPair();
   int port;
-  if (!ParseNonNegativeDecimalInt(key_port[1], &port))
+  if (!ParseInt32(key_port[1], ParseIntFormat::NON_NEGATIVE, &port))
     return HostPortPair();
   if (!IsPortValid(port))
     return HostPortPair();

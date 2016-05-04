@@ -9,6 +9,7 @@
 #include "base/strings/stringprintf.h"
 #include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_flags.h"
+#include "net/quic/quic_header_list.h"
 #include "net/quic/quic_headers_stream.h"
 #include "net/quic/quic_spdy_session.h"
 #include "net/quic/quic_time.h"
@@ -75,13 +76,18 @@ class QuicHeadersStream::SpdyFramerVisitor
   }
 
   SpdyHeadersHandlerInterface* OnHeaderFrameStart(
-      SpdyStreamId stream_id) override {
-    LOG(FATAL);
-    return nullptr;
+      SpdyStreamId /* stream_id */) override {
+    return &header_list_;
   }
 
-  void OnHeaderFrameEnd(SpdyStreamId stream_id, bool end_headers) override {
-    LOG(FATAL);
+  void OnHeaderFrameEnd(SpdyStreamId /* stream_id */,
+                        bool end_headers) override {
+    if (end_headers) {
+      if (stream_->IsConnected()) {
+        stream_->OnHeaderList(header_list_);
+      }
+      header_list_.Clear();
+    }
   }
 
   void OnError(SpdyFramer* framer) override {
@@ -184,6 +190,7 @@ class QuicHeadersStream::SpdyFramerVisitor
 
  private:
   QuicHeadersStream* stream_;
+  QuicHeaderList header_list_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyFramerVisitor);
 };
@@ -223,11 +230,10 @@ size_t QuicHeadersStream::WriteHeaders(QuicStreamId stream_id,
     headers_frame.set_has_priority(true);
     headers_frame.set_priority(priority);
   }
-  scoped_ptr<SpdySerializedFrame> frame(
-      spdy_framer_.SerializeFrame(headers_frame));
-  WriteOrBufferData(StringPiece(frame->data(), frame->size()), false,
+  SpdySerializedFrame frame(spdy_framer_.SerializeFrame(headers_frame));
+  WriteOrBufferData(StringPiece(frame.data(), frame.size()), false,
                     ack_listener);
-  return frame->size();
+  return frame.size();
 }
 
 size_t QuicHeadersStream::WritePushPromise(
@@ -246,11 +252,10 @@ size_t QuicHeadersStream::WritePushPromise(
   // response headers.
   push_promise.set_fin(false);
 
-  scoped_ptr<SpdySerializedFrame> frame(
-      spdy_framer_.SerializeFrame(push_promise));
-  WriteOrBufferData(StringPiece(frame->data(), frame->size()), false,
+  SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
+  WriteOrBufferData(StringPiece(frame.data(), frame.size()), false,
                     ack_listener);
-  return frame->size();
+  return frame.size();
 }
 
 void QuicHeadersStream::OnDataAvailable() {
@@ -358,12 +363,46 @@ void QuicHeadersStream::OnControlFrameHeaderData(SpdyStreamId stream_id,
   }
 }
 
+void QuicHeadersStream::OnHeaderList(const QuicHeaderList& header_list) {
+  if (measure_headers_hol_blocking_time_) {
+    if (prev_max_timestamp_ > cur_max_timestamp_) {
+      // prev_max_timestamp_ > cur_max_timestamp_ implies that
+      // headers from lower numbered streams actually came off the
+      // wire after headers for the current stream, hence there was
+      // HOL blocking.
+      QuicTime::Delta delta = prev_max_timestamp_.Subtract(cur_max_timestamp_);
+      DVLOG(1) << "stream " << stream_id_
+               << ": Net.QuicSession.HeadersHOLBlockedTime "
+               << delta.ToMilliseconds();
+      spdy_session_->OnHeadersHeadOfLineBlocking(delta);
+    }
+    prev_max_timestamp_ = std::max(prev_max_timestamp_, cur_max_timestamp_);
+    cur_max_timestamp_ = QuicTime::Zero();
+  }
+  if (promised_stream_id_ == kInvalidStreamId) {
+    spdy_session_->OnStreamHeaderList(stream_id_, fin_, frame_len_,
+                                      header_list);
+  } else {
+    spdy_session_->OnPromiseHeaderList(stream_id_, promised_stream_id_,
+                                       frame_len_, header_list);
+  }
+  // Reset state for the next frame.
+  promised_stream_id_ = kInvalidStreamId;
+  stream_id_ = kInvalidStreamId;
+  fin_ = false;
+  frame_len_ = 0;
+}
+
 void QuicHeadersStream::OnCompressedFrameSize(size_t frame_len) {
   frame_len_ += frame_len;
 }
 
 bool QuicHeadersStream::IsConnected() {
   return session()->connection()->connected();
+}
+
+void QuicHeadersStream::DisableHpackDynamicTable() {
+  spdy_framer_.UpdateHeaderEncoderTableSize(0);
 }
 
 }  // namespace net

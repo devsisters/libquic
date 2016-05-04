@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -15,7 +16,6 @@
 
 #include "base/logging.h"
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
@@ -118,6 +118,9 @@ class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
 
   // Called when a StopWaitingFrame has been parsed.
   virtual bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) = 0;
+
+  // Called when a QuicPaddingFrame has been parsed.
+  virtual bool OnPaddingFrame(const QuicPaddingFrame& frame) = 0;
 
   // Called when a PingFrame has been parsed.
   virtual bool OnPingFrame(const QuicPingFrame& frame) = 0;
@@ -264,6 +267,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
       QuicConnectionIdLength connection_id_length,
       bool includes_version,
       bool includes_path_id,
+      bool includes_diversification_nonce,
       QuicPacketNumberLength packet_number_length);
 
   // Serializes a packet containing |frames| into |buffer|.
@@ -530,9 +534,9 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // skipped as necessary).
   QuicVersionVector supported_versions_;
   // Primary decrypter used to decrypt packets during parsing.
-  scoped_ptr<QuicDecrypter> decrypter_;
+  std::unique_ptr<QuicDecrypter> decrypter_;
   // Alternative decrypter that can also be used to decrypt packets.
-  scoped_ptr<QuicDecrypter> alternative_decrypter_;
+  std::unique_ptr<QuicDecrypter> alternative_decrypter_;
   // The encryption level of |decrypter_|.
   EncryptionLevel decrypter_level_;
   // The encryption level of |alternative_decrypter_|.
@@ -542,7 +546,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // decrypter.
   bool alternative_decrypter_latch_;
   // Encrypters used to encrypt packets via EncryptPayload().
-  scoped_ptr<QuicEncrypter> encrypter_[NUM_ENCRYPTION_LEVELS];
+  std::unique_ptr<QuicEncrypter> encrypter_[NUM_ENCRYPTION_LEVELS];
   // Tracks if the framer is being used by the entity that received the
   // connection or the entity that initiated it.
   Perspective perspective_;
@@ -554,6 +558,8 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // The time delta computed for the last timestamp frame. This is relative to
   // the creation_time.
   QuicTime::Delta last_timestamp_;
+  // The diversification nonce from the last received packet.
+  DiversificationNonce last_nonce_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicFramer);
 };

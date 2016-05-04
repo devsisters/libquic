@@ -14,9 +14,9 @@
 #include <stdint.h>
 
 #include <map>
+#include <memory>
 
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/quic/congestion_control/send_algorithm_interface.h"
 #include "net/quic/quic_bandwidth.h"
 #include "net/quic/quic_config.h"
@@ -68,7 +68,7 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
   // End implementation of SendAlgorithmInterface.
 
  private:
-  scoped_ptr<SendAlgorithmInterface> sender_;  // Underlying sender.
+  std::unique_ptr<SendAlgorithmInterface> sender_;  // Underlying sender.
   // The estimated system alarm granularity.
   const QuicTime::Delta alarm_granularity_;
   // Configured maximum size of the burst coming out of quiescence.  The burst

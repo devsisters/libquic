@@ -10,9 +10,9 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <memory>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_util.h"
 #include "crypto/openssl_util.h"
 
@@ -40,7 +40,7 @@ SymmetricKey* SymmetricKey::GenerateRandomKey(Algorithm algorithm,
     return NULL;
 
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
-  scoped_ptr<SymmetricKey> key(new SymmetricKey);
+  std::unique_ptr<SymmetricKey> key(new SymmetricKey);
   uint8_t* key_data = reinterpret_cast<uint8_t*>(
       base::WriteInto(&key->key_, key_size_in_bytes + 1));
 
@@ -71,7 +71,7 @@ SymmetricKey* SymmetricKey::DeriveKeyFromPassword(Algorithm algorithm,
     return NULL;
 
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
-  scoped_ptr<SymmetricKey> key(new SymmetricKey);
+  std::unique_ptr<SymmetricKey> key(new SymmetricKey);
   uint8_t* key_data = reinterpret_cast<uint8_t*>(
       base::WriteInto(&key->key_, key_size_in_bytes + 1));
   int rv = PKCS5_PBKDF2_HMAC_SHA1(
@@ -92,7 +92,7 @@ SymmetricKey* SymmetricKey::Import(Algorithm algorithm,
       return NULL;
   }
 
-  scoped_ptr<SymmetricKey> key(new SymmetricKey);
+  std::unique_ptr<SymmetricKey> key(new SymmetricKey);
   key->key_ = raw_key;
   return key.release();
 }

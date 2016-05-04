@@ -42,6 +42,8 @@
 #ifndef BASE_CANCELABLE_CALLBACK_H_
 #define BASE_CANCELABLE_CALLBACK_H_
 
+#include <utility>
+
 #include "base/base_export.h"
 #include "base/bind.h"
 #include "base/callback.h"
@@ -103,7 +105,7 @@ class CancelableCallback<void(A...)> {
 
  private:
   void Forward(A... args) const {
-    callback_.Run(args...);
+    callback_.Run(std::forward<A>(args)...);
   }
 
   // Helper method to bind |forwarder_| using a weak pointer from

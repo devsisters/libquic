@@ -18,8 +18,6 @@
 
 using base::IntToString;
 using base::StringPiece;
-using base::hash_map;
-using base::hash_set;
 using std::make_pair;
 using std::map;
 using std::max;
@@ -49,7 +47,7 @@ QuicSession::QuicSession(QuicConnection* connection, const QuicConfig& config)
                        perspective(),
                        kMinimumFlowControlSendWindow,
                        config_.GetInitialSessionFlowControlWindowToSend(),
-                       false),
+                       perspective() == Perspective::IS_SERVER),
       currently_writing_stream_id_(0) {}
 
 void QuicSession::Initialize() {
@@ -379,44 +377,17 @@ void QuicSession::OnConfigNegotiated() {
   connection_->SetFromConfig(config_);
 
   uint32_t max_streams = config_.MaxStreamsPerConnection();
-  if (perspective() == Perspective::IS_SERVER) {
-    if (!FLAGS_quic_different_max_num_open_streams) {
-      max_streams =
-          max(max_streams + kMaxStreamsMinimumIncrement,
-              static_cast<uint32_t>(max_streams * kMaxStreamsMultiplier));
-    }
-
-    if (config_.HasReceivedConnectionOptions()) {
-      if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kAFCW)) {
-        // The following variations change the initial receive flow control
-        // window sizes.
-        if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kIFW5)) {
-          AdjustInitialFlowControlWindows(32 * 1024);
-        }
-        if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kIFW6)) {
-          AdjustInitialFlowControlWindows(64 * 1024);
-        }
-        if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kIFW7)) {
-          AdjustInitialFlowControlWindows(128 * 1024);
-        }
-        EnableAutoTuneReceiveWindow();
-      }
-    }
-  }
 
   set_max_open_outgoing_streams(max_streams);
 
-  uint32_t max_incoming_streams = max_streams;
-  if (FLAGS_quic_different_max_num_open_streams) {
-    // A small number of additional incoming streams beyond the limit should be
-    // allowed. This helps avoid early connection termination when FIN/RSTs for
-    // old streams are lost or arrive out of order.
-    // Use a minimum number of additional streams, or a percentage increase,
-    // whichever is larger.
-    max_incoming_streams =
-        max(max_streams + kMaxStreamsMinimumIncrement,
-            static_cast<uint32_t>(max_streams * kMaxStreamsMultiplier));
-  }
+  // A small number of additional incoming streams beyond the limit should be
+  // allowed. This helps avoid early connection termination when FIN/RSTs for
+  // old streams are lost or arrive out of order.
+  // Use a minimum number of additional streams, or a percentage increase,
+  // whichever is larger.
+  uint32_t max_incoming_streams =
+      max(max_streams + kMaxStreamsMinimumIncrement,
+          static_cast<uint32_t>(max_streams * kMaxStreamsMultiplier));
   set_max_open_incoming_streams(max_incoming_streams);
 
   if (config_.HasReceivedInitialStreamFlowControlWindowBytes()) {
@@ -428,45 +399,6 @@ void QuicSession::OnConfigNegotiated() {
   if (config_.HasReceivedInitialSessionFlowControlWindowBytes()) {
     OnNewSessionFlowControlWindow(
         config_.ReceivedInitialSessionFlowControlWindowBytes());
-  }
-}
-
-void QuicSession::EnableAutoTuneReceiveWindow() {
-  DVLOG(1) << ENDPOINT << "Enable auto tune receive windows";
-  flow_controller_.set_auto_tune_receive_window(true);
-  // Inform all existing streams about the new window.
-  for (auto const& kv : static_stream_map_) {
-    kv.second->flow_controller()->set_auto_tune_receive_window(true);
-  }
-  for (auto const& kv : dynamic_stream_map_) {
-    kv.second->flow_controller()->set_auto_tune_receive_window(true);
-  }
-}
-
-void QuicSession::AdjustInitialFlowControlWindows(size_t stream_window) {
-  const float session_window_multiplier =
-      config_.GetInitialStreamFlowControlWindowToSend()
-          ? static_cast<float>(
-                config_.GetInitialSessionFlowControlWindowToSend()) /
-                config_.GetInitialStreamFlowControlWindowToSend()
-          : 1.0;
-  DVLOG(1) << ENDPOINT << "Set stream receive window to " << stream_window;
-  config_.SetInitialStreamFlowControlWindowToSend(stream_window);
-  // Reduce the session window as well, motivation is reducing resource waste
-  // and denial of service vulnerability, as with the stream window.  Session
-  // size is set according to the ratio between session and stream window size
-  // previous to auto-tuning. Note that the ratio may change dynamically, since
-  // auto-tuning acts independently for each flow controller.
-  size_t session_window = session_window_multiplier * stream_window;
-  DVLOG(1) << ENDPOINT << "Set session receive window to " << session_window;
-  config_.SetInitialSessionFlowControlWindowToSend(session_window);
-  flow_controller_.UpdateReceiveWindowSize(session_window);
-  // Inform all existing streams about the new window.
-  for (auto const& kv : static_stream_map_) {
-    kv.second->flow_controller()->UpdateReceiveWindowSize(stream_window);
-  }
-  for (auto const& kv : dynamic_stream_map_) {
-    kv.second->flow_controller()->UpdateReceiveWindowSize(stream_window);
   }
 }
 

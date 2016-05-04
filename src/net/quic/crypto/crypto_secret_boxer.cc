@@ -4,8 +4,9 @@
 
 #include "net/quic/crypto/crypto_secret_boxer.h"
 
+#include <memory>
+
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/quic/crypto/aes_128_gcm_12_decrypter.h"
 #include "net/quic/crypto/aes_128_gcm_12_encrypter.h"
 #include "net/quic/crypto/crypto_protocol.h"
@@ -55,7 +56,7 @@ void CryptoSecretBoxer::SetKeys(const vector<string>& keys) {
 }
 
 string CryptoSecretBoxer::Box(QuicRandom* rand, StringPiece plaintext) const {
-  scoped_ptr<Aes128Gcm12Encrypter> encrypter(new Aes128Gcm12Encrypter());
+  std::unique_ptr<Aes128Gcm12Encrypter> encrypter(new Aes128Gcm12Encrypter());
   {
     base::AutoLock l(lock_);
     DCHECK_EQ(kKeySize, keys_[0].size());
@@ -99,7 +100,7 @@ bool CryptoSecretBoxer::Unbox(StringPiece ciphertext,
   memcpy(&packet_number, nonce.data() + nonce_prefix.size(),
          sizeof(packet_number));
 
-  scoped_ptr<Aes128Gcm12Decrypter> decrypter(new Aes128Gcm12Decrypter());
+  std::unique_ptr<Aes128Gcm12Decrypter> decrypter(new Aes128Gcm12Decrypter());
   char plaintext[kMaxPacketSize];
   size_t plaintext_length = 0;
   bool ok = false;

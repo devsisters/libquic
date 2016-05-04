@@ -54,6 +54,8 @@ class NET_EXPORT_PRIVATE QuicClientPromisedInfo
 
   void Cancel() override;
 
+  void Reset(QuicRstStreamErrorCode error_code);
+
   // Client requests are initially associated to promises by matching
   // URL in the client request against the URL in the promise headers,
   // uing the |promised_by_url| map.  The push can be cross-origin, so
@@ -88,12 +90,9 @@ class NET_EXPORT_PRIVATE QuicClientPromisedInfo
     QuicClientPromisedInfo* promised_;
   };
 
-  void Reset(QuicRstStreamErrorCode error_code);
-
   QuicAsyncStatus FinalValidation();
 
   QuicClientSessionBase* session_;
-  QuicConnectionHelperInterface* helper_;
   QuicStreamId id_;
   std::string url_;
   std::unique_ptr<SpdyHeaderBlock> request_headers_;

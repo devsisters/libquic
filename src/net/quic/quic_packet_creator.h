@@ -12,18 +12,16 @@
 
 #include <stddef.h>
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "net/quic/quic_framer.h"
 #include "net/quic/quic_protocol.h"
-
-using base::hash_map;
 
 namespace net {
 namespace test {
@@ -74,6 +72,11 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   // Makes the framer not serialize the protocol version in sent packets.
   void StopSendingVersion();
 
+  // SetDiversificationNonce sets the nonce that will be sent in each public
+  // header of packets encrypted at the initial encryption level. Should only
+  // be called by servers.
+  void SetDiversificationNonce(const DiversificationNonce nonce);
+
   // Update the packet number length to use in future packets as soon as it
   // can be safely changed.
   // TODO(fayang): Directly set packet number length instead of compute it in
@@ -86,6 +89,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
       QuicConnectionIdLength connection_id_length,
       bool include_version,
       bool include_path_id,
+      bool include_diversification_nonce,
       QuicPacketNumberLength packet_number_length,
       QuicStreamOffset offset);
 
@@ -99,7 +103,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
                    size_t iov_offset,
                    QuicStreamOffset offset,
                    bool fin,
-                   bool needs_padding,
+                   bool needs_full_padding,
                    QuicFrame* frame);
 
   // Returns true if current open packet can accommodate more stream frames of
@@ -216,16 +220,15 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
 
   // Converts a raw payload to a frame which fits into the current open
   // packet.  The payload begins at |iov_offset| into the |iov|.
-  // Returns the number of bytes consumed from data.
   // If data is empty and fin is true, the expected behavior is to consume the
   // fin but return 0.  If any data is consumed, it will be copied into a
   // new buffer that |frame| will point to and own.
-  size_t CreateStreamFrame(QuicStreamId id,
-                           QuicIOVector iov,
-                           size_t iov_offset,
-                           QuicStreamOffset offset,
-                           bool fin,
-                           QuicFrame* frame);
+  void CreateStreamFrame(QuicStreamId id,
+                         QuicIOVector iov,
+                         size_t iov_offset,
+                         QuicStreamOffset offset,
+                         bool fin,
+                         QuicFrame* frame);
 
   // Copies |length| bytes from iov starting at offset |iov_offset| into buffer.
   // |iov| must be at least iov_offset+length total length and buffer must be
@@ -264,12 +267,16 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   // Clears all fields of packet_ that should be cleared between serializations.
   void ClearPacket();
 
+  // Returns true if a diversification nonce should be included in the current
+  // packet's public header.
+  bool IncludeNonceInPublicHeader();
+
   // Does not own these delegates or the framer.
   DelegateInterface* delegate_;
   DebugDelegate* debug_delegate_;
   QuicFramer* framer_;
 
-  scoped_ptr<QuicRandomBoolSource> random_bool_source_;
+  std::unique_ptr<QuicRandomBoolSource> random_bool_source_;
   QuicBufferAllocator* const buffer_allocator_;
 
   // Controls whether version should be included while serializing the packet.
@@ -281,6 +288,10 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   // a packet boundary, when the creator's packet_number_length_ can be changed
   // to this new value.
   QuicPacketNumberLength next_packet_number_length_;
+  // If true, then |nonce_for_public_header_| will be included in the public
+  // header of all packets created at the initial encryption level.
+  bool have_diversification_nonce_;
+  DiversificationNonce diversification_nonce_;
   // Maximum length including headers and encryption (UDP payload length.)
   QuicByteCount max_packet_length_;
   size_t max_plaintext_size_;

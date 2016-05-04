@@ -38,9 +38,9 @@ class BASE_EXPORT Lock {
   Lock();
   ~Lock();
 
-  // NOTE: Although windows critical sections support recursive locks, we do not
-  // allow this, and we will commonly fire a DCHECK() if a thread attempts to
-  // acquire the lock a second time (while already holding it).
+  // NOTE: We do not permit recursive locks and will commonly fire a DCHECK() if
+  // a thread attempts to acquire the lock a second time (while already holding
+  // it).
   void Acquire() {
     lock_.Lock();
     CheckUnheldAndMark();
@@ -61,15 +61,11 @@ class BASE_EXPORT Lock {
   void AssertAcquired() const;
 #endif  // DCHECK_IS_ON()
 
-#if defined(OS_POSIX)
-  // The posix implementation of ConditionVariable needs to be able
-  // to see our lock and tweak our debugging counters, as it releases
-  // and acquires locks inside of pthread_cond_{timed,}wait.
+#if defined(OS_POSIX) || defined(OS_WIN)
+  // Both Windows and POSIX implementations of ConditionVariable need to be
+  // able to see our lock and tweak our debugging counters, as they release and
+  // acquire locks inside of their condition variable APIs.
   friend class ConditionVariable;
-#elif defined(OS_WIN)
-  // The Windows Vista implementation of ConditionVariable needs the
-  // native handle of the critical section.
-  friend class WinVistaCondVar;
 #endif
 
  private:

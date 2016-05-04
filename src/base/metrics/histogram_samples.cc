@@ -82,23 +82,10 @@ HistogramSamples::HistogramSamples(uint64_t id, Metadata* meta)
 
 HistogramSamples::~HistogramSamples() {}
 
-// Despite using atomic operations, the increment/add actions below are *not*
-// atomic! Race conditions may cause loss of samples or even completely corrupt
-// the 64-bit sum on 32-bit machines. This is done intentionally to reduce the
-// cost of these operations that could be executed in performance-significant
-//  points of the code.
-//
-// TODO(bcwhite): Gather quantitative information as to the cost of using
-// proper atomic increments and improve either globally or for those histograms
-// that really need it.
-
 void HistogramSamples::Add(const HistogramSamples& other) {
-  meta_->sum += other.sum();
-
-  HistogramBase::Count old_redundant_count =
-      subtle::NoBarrier_Load(&meta_->redundant_count);
-  subtle::NoBarrier_Store(&meta_->redundant_count,
-      old_redundant_count + other.redundant_count());
+  IncreaseSum(other.sum());
+  subtle::NoBarrier_AtomicIncrement(&meta_->redundant_count,
+                                    other.redundant_count());
   bool success = AddSubtractImpl(other.Iterator().get(), ADD);
   DCHECK(success);
 }
@@ -110,32 +97,26 @@ bool HistogramSamples::AddFromPickle(PickleIterator* iter) {
   if (!iter->ReadInt64(&sum) || !iter->ReadInt(&redundant_count))
     return false;
 
-  meta_->sum += sum;
-
-  HistogramBase::Count old_redundant_count =
-      subtle::NoBarrier_Load(&meta_->redundant_count);
-  subtle::NoBarrier_Store(&meta_->redundant_count,
-                          old_redundant_count + redundant_count);
+  IncreaseSum(sum);
+  subtle::NoBarrier_AtomicIncrement(&meta_->redundant_count,
+                                    redundant_count);
 
   SampleCountPickleIterator pickle_iter(iter);
   return AddSubtractImpl(&pickle_iter, ADD);
 }
 
 void HistogramSamples::Subtract(const HistogramSamples& other) {
-  meta_->sum -= other.sum();
-
-  HistogramBase::Count old_redundant_count =
-      subtle::NoBarrier_Load(&meta_->redundant_count);
-  subtle::NoBarrier_Store(&meta_->redundant_count,
-                          old_redundant_count - other.redundant_count());
+  IncreaseSum(-other.sum());
+  subtle::NoBarrier_AtomicIncrement(&meta_->redundant_count,
+                                    -other.redundant_count());
   bool success = AddSubtractImpl(other.Iterator().get(), SUBTRACT);
   DCHECK(success);
 }
 
 bool HistogramSamples::Serialize(Pickle* pickle) const {
-  if (!pickle->WriteInt64(meta_->sum))
+  if (!pickle->WriteInt64(sum()))
     return false;
-  if (!pickle->WriteInt(subtle::NoBarrier_Load(&meta_->redundant_count)))
+  if (!pickle->WriteInt(redundant_count()))
     return false;
 
   HistogramBase::Sample min;
@@ -153,12 +134,15 @@ bool HistogramSamples::Serialize(Pickle* pickle) const {
 }
 
 void HistogramSamples::IncreaseSum(int64_t diff) {
+#ifdef ARCH_CPU_64_BITS
+  subtle::NoBarrier_AtomicIncrement(&meta_->sum, diff);
+#else
   meta_->sum += diff;
+#endif
 }
 
 void HistogramSamples::IncreaseRedundantCount(HistogramBase::Count diff) {
-  subtle::NoBarrier_Store(&meta_->redundant_count,
-      subtle::NoBarrier_Load(&meta_->redundant_count) + diff);
+  subtle::NoBarrier_AtomicIncrement(&meta_->redundant_count, diff);
 }
 
 SampleCountIterator::~SampleCountIterator() {}

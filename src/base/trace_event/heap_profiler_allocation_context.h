@@ -35,26 +35,50 @@ namespace trace_event {
 //
 // See the design doc (https://goo.gl/4s7v7b) for more details.
 
-using StackFrame = const char*;
+// Represents (pseudo) stack frame. Used in Backtrace class below.
+//
+// Conceptually stack frame is identified by its value, and type is used
+// mostly to properly format the value. Value is expected to be a valid
+// pointer from process' address space.
+struct BASE_EXPORT StackFrame {
+  enum class Type {
+    TRACE_EVENT_NAME,   // const char* string
+    THREAD_NAME,        // const char* thread name
+  };
+
+  static StackFrame FromTraceEventName(const char* name) {
+    return {Type::TRACE_EVENT_NAME, name};
+  }
+  static StackFrame FromThreadName(const char* name) {
+    return {Type::THREAD_NAME, name};
+  }
+
+  Type type;
+  const void* value;
+};
+
+bool BASE_EXPORT operator < (const StackFrame& lhs, const StackFrame& rhs);
+bool BASE_EXPORT operator == (const StackFrame& lhs, const StackFrame& rhs);
+bool BASE_EXPORT operator != (const StackFrame& lhs, const StackFrame& rhs);
 
 struct BASE_EXPORT Backtrace {
-  // Unused backtrace frames are filled with nullptr frames. If the stack is
-  // higher than what can be stored here, the bottom frames are stored. Based
-  // on the data above, a depth of 12 captures the full stack in the vast
-  // majority of the cases.
-  StackFrame frames[12];
+  Backtrace();
+
+  // If the stack is higher than what can be stored here, the bottom frames
+  // (the ones closer to main()) are stored. Based on the data above, a depth
+  // of 12 captures the full stack in the vast majority of the cases.
+  enum { kMaxFrameCount = 12 };
+  StackFrame frames[kMaxFrameCount];
+  size_t frame_count;
 };
 
 bool BASE_EXPORT operator==(const Backtrace& lhs, const Backtrace& rhs);
 
 // The |AllocationContext| is context metadata that is kept for every allocation
 // when heap profiling is enabled. To simplify memory management for book-
-// keeping, this struct has a fixed size. All |const char*|s here must have
-// static lifetime.
+// keeping, this struct has a fixed size.
 struct BASE_EXPORT AllocationContext {
- public:
-  // An allocation context with empty backtrace and unknown type.
-  static AllocationContext Empty();
+  AllocationContext();
 
   Backtrace backtrace;
 
@@ -63,24 +87,26 @@ struct BASE_EXPORT AllocationContext {
   // deep string comparison. In a component build, where a type name can have a
   // string literal in several dynamic libraries, this may distort grouping.
   const char* type_name;
-
- private:
-  friend class AllocationContextTracker;
-
-  // Don't allow uninitialized instances except inside the allocation context
-  // tracker. Except in tests, an |AllocationContext| should only be obtained
-  // from the tracker. In tests, paying the overhead of initializing the struct
-  // to |Empty| and then overwriting the members is not such a big deal.
-  AllocationContext();
 };
 
 bool BASE_EXPORT operator==(const AllocationContext& lhs,
                             const AllocationContext& rhs);
 
+// Struct to store the size and count of the allocations.
+struct AllocationMetrics {
+  size_t size;
+  size_t count;
+};
+
 }  // namespace trace_event
 }  // namespace base
 
 namespace BASE_HASH_NAMESPACE {
+
+template <>
+struct BASE_EXPORT hash<base::trace_event::StackFrame> {
+  size_t operator()(const base::trace_event::StackFrame& frame) const;
+};
 
 template <>
 struct BASE_EXPORT hash<base::trace_event::Backtrace> {

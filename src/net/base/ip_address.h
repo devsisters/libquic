@@ -75,7 +75,7 @@ class NET_EXPORT IPAddress {
   // only checks the address length.
   bool IsValid() const;
 
-  // Returns true if an IP address hostname is in a range reserved by the IANA.
+  // Returns true if the IP is in a range reserved by the IANA.
   // Works with both IPv4 and IPv6 addresses, and only compares against a given
   // protocols's reserved ranges.
   bool IsReserved() const;

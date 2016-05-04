@@ -29,6 +29,48 @@ struct QuicCryptoNegotiatedParameters;
 
 class NET_EXPORT_PRIVATE CryptoUtils {
  public:
+  // Diversification is a utility class that's used to act like a union type.
+  // Values can be created by calling the functions like |NoDiversification|,
+  // below.
+  class Diversification {
+   public:
+    enum Mode {
+      NEVER,  // Key diversification will never be used. Forward secure
+              // crypters will always use this mode.
+
+      PENDING,  // Key diversification will happen when a nonce is later
+                // received. This should only be used by clients initial
+                // decrypters which are waiting on the divesification nonce
+                // from the server.
+
+      NOW,  // Key diversification will happen immediate based on the nonce.
+            // This should only be used by servers initial encrypters.
+    };
+
+    Diversification(const Diversification& diversification) = default;
+
+    static Diversification Never() { return Diversification(NEVER, nullptr); }
+    static Diversification Pending() {
+      return Diversification(PENDING, nullptr);
+    }
+    static Diversification Now(DiversificationNonce* nonce) {
+      return Diversification(NOW, nonce);
+    }
+
+    Mode mode() const { return mode_; }
+    DiversificationNonce* nonce() const {
+      DCHECK_EQ(mode_, NOW);
+      return nonce_;
+    }
+
+   private:
+    Diversification(Mode mode, DiversificationNonce* nonce)
+        : mode_(mode), nonce_(nonce) {}
+
+    Mode mode_;
+    DiversificationNonce* nonce_;
+  };
+
   // Generates the connection nonce. The nonce is formed as:
   //   <4 bytes> current time
   //   <8 bytes> |orbit| (or random if |orbit| is empty)
@@ -56,12 +98,22 @@ class NET_EXPORT_PRIVATE CryptoUtils {
   // server's keys are assigned to |encrypter| or |decrypter|. |server_nonce| is
   // optional and, if non-empty, is mixed into the key derivation.
   // |subkey_secret| will have the same length as |premaster_secret|.
+  //
+  // If the mode of |diversification| is NEVER, the the crypters will be
+  // configured to never perform key diversification. If the mode is
+  // NOW (which is only for servers, then the encrypter will be keyed via a
+  // two-step process that uses the nonce from |diversification|.
+  // If the mode is PENDING (which is only for servres), then the
+  // decrypter will only be keyed to a preliminary state: a call to
+  // |SetDiversificationNonce| with a diversification nonce will be needed to
+  // complete keying.
   static bool DeriveKeys(base::StringPiece premaster_secret,
                          QuicTag aead,
                          base::StringPiece client_nonce,
                          base::StringPiece server_nonce,
                          const std::string& hkdf_input,
                          Perspective perspective,
+                         Diversification diversification,
                          CrypterPair* crypters,
                          std::string* subkey_secret);
 

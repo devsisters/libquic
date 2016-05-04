@@ -7,21 +7,16 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <string>
 
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
+#include "crypto/openssl_util.h"
+#include "crypto/scoped_openssl_types.h"
 #include "net/base/net_export.h"
 #include "net/quic/crypto/key_exchange.h"
 
-#if defined(USE_OPENSSL)
-#include "crypto/openssl_util.h"
-#include "crypto/scoped_openssl_types.h"
-#else
-#include "crypto/ec_private_key.h"
-#include "crypto/scoped_nss_types.h"
-#endif
 
 namespace net {
 
@@ -59,19 +54,11 @@ class NET_EXPORT_PRIVATE P256KeyExchange : public KeyExchange {
     kUncompressedECPointForm = 0x04,
   };
 
-#if defined(USE_OPENSSL)
   // P256KeyExchange takes ownership of |private_key|, and expects
   // |public_key| consists of |kUncompressedP256PointBytes| bytes.
   P256KeyExchange(EC_KEY* private_key, const uint8_t* public_key);
 
   crypto::ScopedEC_KEY private_key_;
-#else
-  // P256KeyExchange takes ownership of |key_pair|, and expects
-  // |public_key| consists of |kUncompressedP256PointBytes| bytes.
-  P256KeyExchange(crypto::ECPrivateKey* key_pair, const uint8_t* public_key);
-
-  scoped_ptr<crypto::ECPrivateKey> key_pair_;
-#endif
   // The public key stored as an uncompressed P-256 point.
   uint8_t public_key_[kUncompressedP256PointBytes];
 

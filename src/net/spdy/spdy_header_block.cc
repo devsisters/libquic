@@ -85,7 +85,7 @@ class SpdyHeaderBlock::Storage {
 
  private:
   // TODO(bnc): As soon as move semantics are allowed, change from naked pointer
-  // to scoped_ptr<>, or better yet, unique_ptr<>.
+  // to std::unique_ptr<>, or better yet, unique_ptr<>.
   struct Block {
     char* data;
     size_t size = 0;
@@ -229,10 +229,10 @@ void SpdyHeaderBlock::AppendHeader(const StringPiece key,
 }
 
 #if 0
-scoped_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
+std::unique_ptr<base::Value> SpdyHeaderBlockNetLogCallback(
     const SpdyHeaderBlock* headers,
     NetLogCaptureMode capture_mode) {
-  scoped_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
   base::DictionaryValue* headers_dict = new base::DictionaryValue();
   for (SpdyHeaderBlock::const_iterator it = headers->begin();
        it != headers->end(); ++it) {

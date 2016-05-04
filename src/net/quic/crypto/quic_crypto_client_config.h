@@ -8,12 +8,12 @@
 #include <stdint.h>
 
 #include <map>
+#include <memory>
 #include <queue>
 #include <string>
 #include <vector>
 
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/quic/crypto/crypto_handshake.h"
@@ -180,10 +180,10 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     // server_config_valid_ to false.
     uint64_t generation_counter_;
 
-    scoped_ptr<ProofVerifyDetails> proof_verify_details_;
+    std::unique_ptr<ProofVerifyDetails> proof_verify_details_;
 
     // scfg contains the cached, parsed value of |server_config|.
-    mutable scoped_ptr<CryptoHandshakeMessage> scfg_;
+    mutable std::unique_ptr<CryptoHandshakeMessage> scfg_;
 
     // TODO(jokulik): Consider using a hash-set as extra book-keeping to ensure
     // that no connection-id is added twice.  Also, consider keeping the server
@@ -234,6 +234,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // signature are placed in the CETV value of the CHLO.
   QuicErrorCode FillClientHello(const QuicServerId& server_id,
                                 QuicConnectionId connection_id,
+                                const QuicVersion actual_version,
                                 const QuicVersion preferred_version,
                                 const CachedState* cached,
                                 QuicWallTime now,
@@ -366,8 +367,8 @@ class NET_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // ".googlevideo.com") of canonical hostnames.
   std::vector<std::string> canonical_suffixes_;
 
-  scoped_ptr<ProofVerifier> proof_verifier_;
-  scoped_ptr<ChannelIDSource> channel_id_source_;
+  std::unique_ptr<ProofVerifier> proof_verifier_;
+  std::unique_ptr<ChannelIDSource> channel_id_source_;
 
   // True if ECDSA should be disabled.
   bool disable_ecdsa_;

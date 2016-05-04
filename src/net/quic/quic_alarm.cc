@@ -22,7 +22,7 @@ void QuicAlarm::Set(QuicTime new_deadline) {
 }
 
 void QuicAlarm::Cancel() {
-  if (FLAGS_quic_only_cancel_set_alarms && !IsSet()) {
+  if (!IsSet()) {
     // Don't try to cancel an alarm that hasn't been set.
     return;
   }

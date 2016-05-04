@@ -453,6 +453,14 @@ EVENT_TYPE(SOCKS_UNEXPECTED_AUTH)
 EVENT_TYPE(SOCKS_UNKNOWN_ADDRESS_TYPE)
 
 // The start/end of an SSL "connect" (aka client handshake).
+// The following parameters are attached to the END event:
+//
+//  {
+//    "version": <String name of the TLS version negotiated>,
+//    "cipher_suite": <Integer code for the cipher suite>,
+//    "is_resumed": <Whether we resumed a session>,
+//    "next_proto": <The next protocol negotiated via ALPN>,
+//  }
 EVENT_TYPE(SSL_CONNECT)
 
 // The start/end of an SSL server handshake (aka "accept").
@@ -1157,6 +1165,30 @@ EVENT_TYPE(HTTP_TRANSACTION_GET_TOKEN_BINDING_KEY)
 //                          applicable>,
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_RESTART_AFTER_ERROR)
+
+// ------------------------------------------------------------------------
+// BidirectionalStream
+// ------------------------------------------------------------------------
+
+// The specified number of bytes were sent on the stream.  Depending on the
+// source of the event, may be logged either once the data is sent, or when it
+// is queued to be sent.
+// The following parameters are attached:
+//   {
+//     "byte_count": <Number of bytes that were just sent>,
+//     "hex_encoded_bytes": <The exact bytes sent, as a hexadecimal string.
+//                           Only present when byte logging is enabled>,
+//   }
+EVENT_TYPE(BIDIRECTIONAL_STREAM_BYTES_SENT)
+
+// The specified number of bytes were received on the stream.
+// The following parameters are attached:
+//   {
+//     "byte_count": <Number of bytes that were just received>,
+//     "hex_encoded_bytes": <The exact bytes received, as a hexadecimal string.
+//                           Only present when byte logging is enabled>,
+//   }
+EVENT_TYPE(BIDIRECTIONAL_STREAM_BYTES_RECEIVED)
 
 // ------------------------------------------------------------------------
 // SpdySession

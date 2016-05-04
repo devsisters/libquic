@@ -28,15 +28,6 @@ class NET_EXPORT_PRIVATE Aes128Gcm12Encrypter : public AeadBaseEncrypter {
   Aes128Gcm12Encrypter();
   ~Aes128Gcm12Encrypter() override;
 
-#if !defined(USE_OPENSSL)
- protected:
-  // AeadBaseEncrypter methods:
-  void FillAeadParams(base::StringPiece nonce,
-                      base::StringPiece associated_data,
-                      size_t auth_tag_size,
-                      AeadParams* aead_params) const override;
-#endif
-
  private:
   DISALLOW_COPY_AND_ASSIGN(Aes128Gcm12Encrypter);
 };

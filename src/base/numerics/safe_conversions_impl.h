@@ -92,17 +92,19 @@ enum RangeConstraint {
 };
 
 // Helper function for coercing an int back to a RangeContraint.
-inline RangeConstraint GetRangeConstraint(int integer_range_constraint) {
-  DCHECK(integer_range_constraint >= RANGE_VALID &&
-         integer_range_constraint <= RANGE_INVALID);
+inline constexpr RangeConstraint GetRangeConstraint(
+    int integer_range_constraint) {
+  // TODO(jschuh): Once we get full C++14 support we want this
+  // assert(integer_range_constraint >= RANGE_VALID &&
+  //        integer_range_constraint <= RANGE_INVALID)
   return static_cast<RangeConstraint>(integer_range_constraint);
 }
 
 // This function creates a RangeConstraint from an upper and lower bound
 // check by taking advantage of the fact that only NaN can be out of range in
 // both directions at once.
-inline RangeConstraint GetRangeConstraint(bool is_in_upper_bound,
-                                   bool is_in_lower_bound) {
+constexpr inline RangeConstraint GetRangeConstraint(bool is_in_upper_bound,
+                                                    bool is_in_lower_bound) {
   return GetRangeConstraint((is_in_upper_bound ? 0 : RANGE_OVERFLOW) |
                             (is_in_lower_bound ? 0 : RANGE_UNDERFLOW));
 }
@@ -132,25 +134,24 @@ template <typename Dst, typename Src>
 struct NarrowingRange {
   typedef typename std::numeric_limits<Src> SrcLimits;
   typedef typename std::numeric_limits<Dst> DstLimits;
+  // The following logic avoids warnings where the max function is
+  // instantiated with invalid values for a bit shift (even though
+  // such a function can never be called).
+  static const int shift = (MaxExponent<Src>::value > MaxExponent<Dst>::value &&
+                            SrcLimits::digits < DstLimits::digits &&
+                            SrcLimits::is_iec559 &&
+                            DstLimits::is_integer)
+                               ? (DstLimits::digits - SrcLimits::digits)
+                               : 0;
 
-  static Dst max() {
-    // The following logic avoids warnings where the max function is
-    // instantiated with invalid values for a bit shift (even though
-    // such a function can never be called).
-    static const int shift =
-        (MaxExponent<Src>::value > MaxExponent<Dst>::value &&
-         SrcLimits::digits < DstLimits::digits && SrcLimits::is_iec559 &&
-         DstLimits::is_integer)
-            ? (DstLimits::digits - SrcLimits::digits)
-            : 0;
-
+  static constexpr Dst max() {
     // We use UINTMAX_C below to avoid compiler warnings about shifting floating
     // points. Since it's a compile time calculation, it shouldn't have any
     // performance impact.
     return DstLimits::max() - static_cast<Dst>((UINTMAX_C(1) << shift) - 1);
   }
 
-  static Dst min() {
+  static constexpr Dst min() {
     return std::numeric_limits<Dst>::is_iec559 ? -DstLimits::max()
                                                : DstLimits::min();
   }
@@ -183,7 +184,7 @@ struct DstRangeRelationToSrcRangeImpl<Dst,
                                       DstSign,
                                       SrcSign,
                                       NUMERIC_RANGE_CONTAINED> {
-  static RangeConstraint Check(Src value) { return RANGE_VALID; }
+  static constexpr RangeConstraint Check(Src value) { return RANGE_VALID; }
 };
 
 // Signed to signed narrowing: Both the upper and lower boundaries may be
@@ -194,7 +195,7 @@ struct DstRangeRelationToSrcRangeImpl<Dst,
                                       INTEGER_REPRESENTATION_SIGNED,
                                       INTEGER_REPRESENTATION_SIGNED,
                                       NUMERIC_RANGE_NOT_CONTAINED> {
-  static RangeConstraint Check(Src value) {
+  static constexpr RangeConstraint Check(Src value) {
     return GetRangeConstraint((value <= NarrowingRange<Dst, Src>::max()),
                               (value >= NarrowingRange<Dst, Src>::min()));
   }
@@ -207,7 +208,7 @@ struct DstRangeRelationToSrcRangeImpl<Dst,
                                       INTEGER_REPRESENTATION_UNSIGNED,
                                       INTEGER_REPRESENTATION_UNSIGNED,
                                       NUMERIC_RANGE_NOT_CONTAINED> {
-  static RangeConstraint Check(Src value) {
+  static constexpr RangeConstraint Check(Src value) {
     return GetRangeConstraint(value <= NarrowingRange<Dst, Src>::max(), true);
   }
 };
@@ -219,7 +220,7 @@ struct DstRangeRelationToSrcRangeImpl<Dst,
                                       INTEGER_REPRESENTATION_SIGNED,
                                       INTEGER_REPRESENTATION_UNSIGNED,
                                       NUMERIC_RANGE_NOT_CONTAINED> {
-  static RangeConstraint Check(Src value) {
+  static constexpr RangeConstraint Check(Src value) {
     return sizeof(Dst) > sizeof(Src)
                ? RANGE_VALID
                : GetRangeConstraint(
@@ -236,7 +237,7 @@ struct DstRangeRelationToSrcRangeImpl<Dst,
                                       INTEGER_REPRESENTATION_UNSIGNED,
                                       INTEGER_REPRESENTATION_SIGNED,
                                       NUMERIC_RANGE_NOT_CONTAINED> {
-  static RangeConstraint Check(Src value) {
+  static constexpr RangeConstraint Check(Src value) {
     return (MaxExponent<Dst>::value >= MaxExponent<Src>::value)
                ? GetRangeConstraint(true, value >= static_cast<Src>(0))
                : GetRangeConstraint(
@@ -246,7 +247,7 @@ struct DstRangeRelationToSrcRangeImpl<Dst,
 };
 
 template <typename Dst, typename Src>
-inline RangeConstraint DstRangeRelationToSrcRange(Src value) {
+inline constexpr RangeConstraint DstRangeRelationToSrcRange(Src value) {
   static_assert(std::numeric_limits<Src>::is_specialized,
                 "Argument must be numeric.");
   static_assert(std::numeric_limits<Dst>::is_specialized,

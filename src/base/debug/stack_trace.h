@@ -22,6 +22,14 @@ struct _EXCEPTION_POINTERS;
 struct _CONTEXT;
 #endif
 
+#if defined(OS_POSIX) && ( \
+    defined(__i386__) || defined(__x86_64__) || \
+    (defined(__arm__) && !defined(__thumb__)))
+#define HAVE_TRACE_STACK_FRAME_POINTERS 1
+#else
+#define HAVE_TRACE_STACK_FRAME_POINTERS 0
+#endif
+
 namespace base {
 namespace debug {
 
@@ -92,6 +100,20 @@ class BASE_EXPORT StackTrace {
   // The number of valid frames in |trace_|.
   size_t count_;
 };
+
+#if HAVE_TRACE_STACK_FRAME_POINTERS
+// Traces the stack by using frame pointers. This function is faster but less
+// reliable than StackTrace. It should work for debug and profiling builds,
+// but not for release builds (although there are some exceptions).
+//
+// Writes at most |max_depth| frames (instruction pointers) into |out_trace|
+// after skipping |skip_initial| frames. Note that the function itself is not
+// added to the trace so |skip_initial| should be 0 in most cases.
+// Returns number of frames written.
+BASE_EXPORT size_t TraceStackFramePointers(const void** out_trace,
+                                           size_t max_depth,
+                                           size_t skip_initial);
+#endif  // HAVE_TRACE_STACK_FRAME_POINTERS
 
 namespace internal {
 

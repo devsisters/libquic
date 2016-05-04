@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "base/logging.h"
+#include "net/spdy/spdy_bug_tracker.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
 
@@ -108,7 +109,7 @@ bool SpdyFrameBuilder::BeginNewFrame(const SpdyFramer& framer,
   if (length_ > 0) {
     // Update length field for previous frame.
     OverwriteLength(framer, length_ - framer.GetPrefixLength(type));
-    DLOG_IF(DFATAL, SpdyConstants::GetFrameMaximumSize(version_) < length_)
+    SPDY_BUG_IF(SpdyConstants::GetFrameMaximumSize(version_) < length_)
         << "Frame length  " << length_
         << " is longer than the maximum allowed length.";
   }

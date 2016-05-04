@@ -50,28 +50,76 @@ class BASE_EXPORT PersistentMemoryAllocator {
  public:
   typedef uint32_t Reference;
 
-  // Internal state information when iterating over memory allocations.
-  class Iterator {
+  // Iterator for going through all iterable memory records in an allocator.
+  // Like the allocator itself, iterators are lock-free and thread-secure.
+  // That means that multiple threads can share an iterator and the same
+  // reference will not be returned twice.
+  //
+  // Iteration, in general, is tolerant of corrupted memory. It will return
+  // what it can and stop only when corruption forces it to. Bad corruption
+  // could cause the same object to be returned many times but it will
+  // eventually quit.
+  class BASE_EXPORT Iterator {
    public:
-    Iterator() : last(0) {}
+    // Constructs an iterator on a given |allocator|, starting at the beginning.
+    // The allocator must live beyond the lifetime of the iterator. This class
+    // has read-only access to the allocator (hence "const") but the returned
+    // references can be used on a read/write version, too.
+    explicit Iterator(const PersistentMemoryAllocator* allocator);
 
-    bool operator==(const Iterator& rhs) const { return last == rhs.last; }
-    bool operator!=(const Iterator& rhs) const { return last != rhs.last; }
+    // As above but resuming from the |starting_after| reference. The first call
+    // to GetNext() will return the next object found after that reference. The
+    // reference must be to an "iterable" object; references to non-iterable
+    // objects (those that never had MakeIterable() called for them) will cause
+    // a run-time error.
+    Iterator(const PersistentMemoryAllocator* allocator,
+             Reference starting_after);
 
-    void clear() { last = 0; }
-    bool is_clear() const { return last == 0; }
+    // Gets the next iterable, storing that type in |type_return|. The actual
+    // return value is a reference to the allocation inside the allocator or
+    // zero if there are no more. GetNext() may still be called again at a
+    // later time to retrieve any new allocations that have been added.
+    Reference GetNext(uint32_t* type_return);
+
+    // Similar to above but gets the next iterable of a specific |type_match|.
+    // This should not be mixed with calls to GetNext() because any allocations
+    // skipped here due to a type mis-match will never be returned by later
+    // calls to GetNext() meaning it's possible to completely miss entries.
+    Reference GetNextOfType(uint32_t type_match);
+
+    // Converts references to objects. This is a convenience method so that
+    // users of the iterator don't need to also have their own pointer to the
+    // allocator over which the iterator runs in order to retrieve objects.
+    // Because the iterator is not read/write, only "const" objects can be
+    // fetched. Non-const objects can be fetched using the reference on a
+    // non-const (external) pointer to the same allocator (or use const_cast
+    // to remove the qualifier).
+    template <typename T>
+    const T* GetAsObject(Reference ref, uint32_t type_id) const {
+      return allocator_->GetAsObject<T>(ref, type_id);
+    }
 
    private:
-    friend class PersistentMemoryAllocator;
+    // Weak-pointer to memory allocator being iterated over.
+    const PersistentMemoryAllocator* allocator_;
 
-    Reference last;
-    uint32_t niter;
+    // The last record that was returned.
+    std::atomic<Reference> last_record_;
+
+    // The number of records found; used for detecting loops.
+    std::atomic<uint32_t> record_count_;
+
+    DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
   // Returned information about the internal state of the heap.
   struct MemoryInfo {
     size_t total;
     size_t free;
+  };
+
+  enum : Reference {
+    kReferenceNull = 0  // A common "null" reference value.
   };
 
   enum : uint32_t {
@@ -212,17 +260,6 @@ class BASE_EXPORT PersistentMemoryAllocator {
   // also make the true amount less than what is reported.
   void GetMemoryInfo(MemoryInfo* meminfo) const;
 
-  // Iterating uses a |state| structure (initialized by CreateIterator) and
-  // returns both the reference to the object as well as the |type_id| of
-  // that object. A zero return value indicates there are currently no more
-  // objects to be found but future attempts can be made without having to
-  // reset the iterator to "first". Creating an iterator |starting_after|
-  // a known iterable object allows "resume" from that point with the next
-  // call to GetNextIterable returning the object after it.
-  void CreateIterator(Iterator* state) const { CreateIterator(state, 0); };
-  void CreateIterator(Iterator* state, Reference starting_after) const;
-  Reference GetNextIterable(Iterator* state, uint32_t* type_id) const;
-
   // If there is some indication that the memory has become corrupted,
   // calling this will attempt to prevent further damage by indicating to
   // all processes that something is not as expected.
@@ -251,7 +288,6 @@ class BASE_EXPORT PersistentMemoryAllocator {
   struct BlockHeader;
   static const uint32_t kAllocAlignment;
   static const Reference kReferenceQueue;
-  static const Reference kReferenceNull;
 
   // The shared metadata is always located at the top of the memory segment.
   // These convenience functions eliminate constant casting of the base

@@ -47,6 +47,8 @@ class NET_EXPORT_PRIVATE TcpCubicSenderBytes : public TcpCubicSenderBase {
   CongestionControlType GetCongestionControlType() const override;
   // End implementation of SendAlgorithmInterface.
 
+  QuicByteCount min_congestion_window() const { return min_congestion_window_; }
+
  protected:
   // TcpCubicSenderBase methods
   void SetCongestionWindowFromBandwidthAndRtt(QuicBandwidth bandwidth,
@@ -90,6 +92,9 @@ class NET_EXPORT_PRIVATE TcpCubicSenderBytes : public TcpCubicSenderBase {
   // Initial maximum TCP congestion window in bytes. This variable can only be
   // set when this algorithm is created.
   const QuicByteCount initial_max_tcp_congestion_window_;
+
+  // The minimum window when exiting slow start with large reduction.
+  QuicByteCount min_slow_start_exit_window_;
 
   DISALLOW_COPY_AND_ASSIGN(TcpCubicSenderBytes);
 };

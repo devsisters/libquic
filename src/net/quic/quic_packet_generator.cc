@@ -209,16 +209,8 @@ bool QuicPacketGenerator::HasPendingFrames() const {
 
 bool QuicPacketGenerator::AddNextPendingFrame() {
   if (should_send_ack_) {
-    if (FLAGS_quic_dont_copy_acks) {
-      should_send_ack_ =
-          !packet_creator_.AddSavedFrame(delegate_->GetUpdatedAckFrame());
-    } else {
-      delegate_->PopulateAckFrame(&pending_ack_frame_);
-      // If we can't this add the frame now, then we still need to do so later.
-      should_send_ack_ =
-          !packet_creator_.AddSavedFrame(QuicFrame(&pending_ack_frame_));
-      // Return success if we have added the frame.
-    }
+    should_send_ack_ =
+        !packet_creator_.AddSavedFrame(delegate_->GetUpdatedAckFrame());
     return !should_send_ack_;
   }
 
@@ -244,6 +236,11 @@ bool QuicPacketGenerator::AddNextPendingFrame() {
 
 void QuicPacketGenerator::StopSendingVersion() {
   packet_creator_.StopSendingVersion();
+}
+
+void QuicPacketGenerator::SetDiversificationNonce(
+    const DiversificationNonce nonce) {
+  packet_creator_.SetDiversificationNonce(nonce);
 }
 
 QuicPacketNumber QuicPacketGenerator::packet_number() const {
@@ -281,10 +278,6 @@ void QuicPacketGenerator::UpdateSequenceNumberLength(
 void QuicPacketGenerator::SetConnectionIdLength(uint32_t length) {
   if (length == 0) {
     packet_creator_.set_connection_id_length(PACKET_0BYTE_CONNECTION_ID);
-  } else if (length == 1) {
-    packet_creator_.set_connection_id_length(PACKET_1BYTE_CONNECTION_ID);
-  } else if (length <= 4) {
-    packet_creator_.set_connection_id_length(PACKET_4BYTE_CONNECTION_ID);
   } else {
     packet_creator_.set_connection_id_length(PACKET_8BYTE_CONNECTION_ID);
   }

@@ -10,7 +10,7 @@
 #include <pk11pub.h>
 #include <plarena.h>
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
 
 namespace crypto {
 
@@ -29,29 +29,33 @@ struct NSSDestroyer1 {
 };
 
 // Define some convenient scopers around NSS pointers.
-typedef scoped_ptr<PK11Context,
-                   NSSDestroyer1<PK11Context, PK11_DestroyContext, PR_TRUE> >
+typedef std::unique_ptr<
+    PK11Context,
+    NSSDestroyer1<PK11Context, PK11_DestroyContext, PR_TRUE>>
     ScopedPK11Context;
-typedef scoped_ptr<PK11SlotInfo, NSSDestroyer<PK11SlotInfo, PK11_FreeSlot> >
+typedef std::unique_ptr<PK11SlotInfo, NSSDestroyer<PK11SlotInfo, PK11_FreeSlot>>
     ScopedPK11Slot;
-typedef scoped_ptr<PK11SlotList, NSSDestroyer<PK11SlotList, PK11_FreeSlotList> >
+typedef std::unique_ptr<PK11SlotList,
+                        NSSDestroyer<PK11SlotList, PK11_FreeSlotList>>
     ScopedPK11SlotList;
-typedef scoped_ptr<PK11SymKey, NSSDestroyer<PK11SymKey, PK11_FreeSymKey> >
+typedef std::unique_ptr<PK11SymKey, NSSDestroyer<PK11SymKey, PK11_FreeSymKey>>
     ScopedPK11SymKey;
-typedef scoped_ptr<SECKEYPublicKey,
-                   NSSDestroyer<SECKEYPublicKey, SECKEY_DestroyPublicKey> >
+typedef std::unique_ptr<SECKEYPublicKey,
+                        NSSDestroyer<SECKEYPublicKey, SECKEY_DestroyPublicKey>>
     ScopedSECKEYPublicKey;
-typedef scoped_ptr<SECKEYPrivateKey,
-                   NSSDestroyer<SECKEYPrivateKey, SECKEY_DestroyPrivateKey> >
+typedef std::unique_ptr<
+    SECKEYPrivateKey,
+    NSSDestroyer<SECKEYPrivateKey, SECKEY_DestroyPrivateKey>>
     ScopedSECKEYPrivateKey;
-typedef scoped_ptr<SECAlgorithmID,
-                   NSSDestroyer1<SECAlgorithmID, SECOID_DestroyAlgorithmID,
-                                 PR_TRUE> >
+typedef std::unique_ptr<
+    SECAlgorithmID,
+    NSSDestroyer1<SECAlgorithmID, SECOID_DestroyAlgorithmID, PR_TRUE>>
     ScopedSECAlgorithmID;
-typedef scoped_ptr<SECItem, NSSDestroyer1<SECItem, SECITEM_FreeItem, PR_TRUE> >
+typedef std::unique_ptr<SECItem,
+                        NSSDestroyer1<SECItem, SECITEM_FreeItem, PR_TRUE>>
     ScopedSECItem;
-typedef scoped_ptr<PLArenaPool,
-                   NSSDestroyer1<PLArenaPool, PORT_FreeArena, PR_FALSE> >
+typedef std::unique_ptr<PLArenaPool,
+                        NSSDestroyer1<PLArenaPool, PORT_FreeArena, PR_FALSE>>
     ScopedPLArenaPool;
 
 }  // namespace crypto

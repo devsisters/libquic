@@ -572,7 +572,7 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define CHECK_GE(val1, val2) CHECK_OP(GE, >=, val1, val2)
 #define CHECK_GT(val1, val2) CHECK_OP(GT, > , val1, val2)
 
-#if defined(NDEBUG)
+#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
 #define ENABLE_DLOG 0
 #else
 #define ENABLE_DLOG 1

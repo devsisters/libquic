@@ -74,12 +74,12 @@
 // For FILETIME in FromFileTime, until it moves to a new converter class.
 // See TODO(iyengar) below.
 #include <windows.h>
-
 #include "base/gtest_prod_util.h"
 #endif
 
 namespace base {
 
+class PlatformThreadHandle;
 class TimeDelta;
 
 // The functions in the time_internal namespace are meant to be used only by the
@@ -749,11 +749,18 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
   // absolutely needed, call WaitUntilInitialized() before this method.
   static ThreadTicks Now();
 
+#if defined(OS_WIN)
+  // Similar to Now() above except this returns thread-specific CPU time for an
+  // arbitrary thread. All comments for Now() method above apply apply to this
+  // method as well.
+  static ThreadTicks GetForThread(const PlatformThreadHandle& thread_handle);
+#endif
+
  private:
   friend class time_internal::TimeBase<ThreadTicks>;
 
-  // Please use Now() to create a new object. This is for internal use
-  // and testing.
+  // Please use Now() or GetForThread() to create a new object. This is for
+  // internal use and testing.
   explicit ThreadTicks(int64_t us) : TimeBase(us) {}
 
 #if defined(OS_WIN)

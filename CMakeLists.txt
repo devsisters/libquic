@@ -91,22 +91,24 @@ set(
 	src/net/quic/quic_crypto_stream.cc
 	src/net/quic/quic_socket_address_coder.cc
 	src/net/quic/quic_utils.cc
+	src/net/quic/quic_header_list.cc
 	src/net/quic/spdy_utils.cc
+	src/net/quic/crypto/aead_base_decrypter.cc
+	src/net/quic/crypto/aead_base_encrypter.cc
+	src/net/quic/crypto/chacha20_poly1305_decrypter.cc
+	src/net/quic/crypto/chacha20_poly1305_encrypter.cc
+	src/net/quic/crypto/aes_128_gcm_12_decrypter.cc
+	src/net/quic/crypto/aes_128_gcm_12_encrypter.cc
+	src/net/quic/crypto/p256_key_exchange.cc
 	src/net/quic/crypto/quic_compressed_certs_cache.cc
 	src/net/quic/crypto/quic_crypto_server_config.cc
 	src/net/quic/crypto/crypto_handshake_message.cc
-	src/net/quic/crypto/p256_key_exchange_openssl.cc
 	src/net/quic/crypto/cert_compressor.cc
 	src/net/quic/crypto/crypto_secret_boxer.cc
-	src/net/quic/crypto/aes_128_gcm_12_encrypter_openssl.cc
 	src/net/quic/crypto/curve25519_key_exchange.cc
-	src/net/quic/crypto/chacha20_poly1305_rfc7539_encrypter_openssl.cc
-	src/net/quic/crypto/chacha20_poly1305_rfc7539_decrypter_openssl.cc
 	src/net/quic/crypto/quic_decrypter.cc
-	src/net/quic/crypto/channel_id_openssl.cc
 	src/net/quic/crypto/null_decrypter.cc
 	src/net/quic/crypto/crypto_server_config_protobuf.cc
-	src/net/quic/crypto/aead_base_decrypter_openssl.cc
 	src/net/quic/crypto/scoped_evp_aead_ctx.cc
 	src/net/quic/crypto/quic_random.cc
 	src/net/quic/crypto/common_cert_set.cc
@@ -115,10 +117,8 @@ set(
 	src/net/quic/crypto/crypto_handshake.cc
 	src/net/quic/crypto/channel_id.cc
 	src/net/quic/crypto/strike_register.cc
-	src/net/quic/crypto/aead_base_encrypter_openssl.cc
 	src/net/quic/crypto/crypto_utils.cc
 	src/net/quic/crypto/local_strike_register_client.cc
-	src/net/quic/crypto/aes_128_gcm_12_decrypter_openssl.cc
 	src/net/quic/crypto/quic_encrypter.cc
 	src/net/quic/crypto/quic_crypto_client_config.cc
 	src/net/quic/crypto/proof_source.cc
@@ -314,16 +314,15 @@ set(
 set(
 	CRYPTO_SOURCES
 
-	src/crypto/curve25519-donna.c
-	src/crypto/curve25519_openssl.cc
+	src/crypto/curve25519.cc
 	src/crypto/hkdf.cc
 	src/crypto/hmac.cc
 	src/crypto/openssl_util.cc
 	src/crypto/hmac_openssl.cc
 	src/crypto/symmetric_key_openssl.cc
-	src/crypto/secure_hash_openssl.cc
 	src/crypto/random.cc
 	src/crypto/secure_util.cc
+	src/crypto/secure_hash.cc
 )
 
 set(

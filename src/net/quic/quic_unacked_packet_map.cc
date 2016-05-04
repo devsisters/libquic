@@ -49,7 +49,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
       packet->has_crypto_handshake == IS_HANDSHAKE;
   TransmissionInfo info(packet->encryption_level, packet->packet_number_length,
                         transmission_type, sent_time, bytes_sent,
-                        has_crypto_handshake, packet->needs_padding);
+                        has_crypto_handshake, packet->num_padding_bytes);
   if (old_packet_number > 0) {
     TransferRetransmissionInfo(old_packet_number, packet_number,
                                transmission_type, &info);
@@ -107,11 +107,11 @@ void QuicUnackedPacketMap::TransferRetransmissionInfo(
     wrapper.ack_listener->OnPacketRetransmitted(wrapper.length);
   }
 
-  // Swap the frames and preserve needs_padding and has_crypto_handshake.
+  // Swap the frames and preserve num_padding_bytes and has_crypto_handshake.
   frames->swap(info->retransmittable_frames);
   info->has_crypto_handshake = transmission_info->has_crypto_handshake;
   transmission_info->has_crypto_handshake = false;
-  info->needs_padding = transmission_info->needs_padding;
+  info->num_padding_bytes = transmission_info->num_padding_bytes;
 
   // Transfer the AckListeners if any are present.
   info->ack_listeners.swap(transmission_info->ack_listeners);
@@ -141,6 +141,7 @@ bool QuicUnackedPacketMap::HasRetransmittableFrames(
 
 void QuicUnackedPacketMap::NackPacket(QuicPacketNumber packet_number,
                                       uint16_t min_nacks) {
+  DCHECK(!FLAGS_quic_simplify_loss_detection);
   DCHECK_GE(packet_number, least_unacked_);
   DCHECK_LT(packet_number, least_unacked_ + unacked_packets_.size());
   unacked_packets_[packet_number - least_unacked_].nack_count = max(

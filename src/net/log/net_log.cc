@@ -23,68 +23,74 @@ namespace {
 // the number of bytes transferred. If the capture mode allows logging byte
 // contents and |byte_count| > 0, then will include the actual bytes. The
 // bytes are hex-encoded, since base::StringValue only supports UTF-8.
-scoped_ptr<base::Value> BytesTransferredCallback(
+std::unique_ptr<base::Value> BytesTransferredCallback(
     int byte_count,
     const char* bytes,
     NetLogCaptureMode capture_mode) {
-  scoped_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
   dict->SetInteger("byte_count", byte_count);
   if (capture_mode.include_socket_bytes() && byte_count > 0)
     dict->SetString("hex_encoded_bytes", base::HexEncode(bytes, byte_count));
   return std::move(dict);
 }
 
-scoped_ptr<base::Value> SourceEventParametersCallback(
+std::unique_ptr<base::Value> SourceEventParametersCallback(
     const NetLog::Source source,
     NetLogCaptureMode /* capture_mode */) {
   if (!source.IsValid())
-    return scoped_ptr<base::Value>();
-  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
+    return std::unique_ptr<base::Value>();
+  std::unique_ptr<base::DictionaryValue> event_params(
+      new base::DictionaryValue());
   source.AddToEventParameters(event_params.get());
   return std::move(event_params);
 }
 
-scoped_ptr<base::Value> NetLogBoolCallback(
+std::unique_ptr<base::Value> NetLogBoolCallback(
     const char* name,
     bool value,
     NetLogCaptureMode /* capture_mode */) {
-  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> event_params(
+      new base::DictionaryValue());
   event_params->SetBoolean(name, value);
   return std::move(event_params);
 }
 
-scoped_ptr<base::Value> NetLogIntCallback(
+std::unique_ptr<base::Value> NetLogIntCallback(
     const char* name,
     int value,
     NetLogCaptureMode /* capture_mode */) {
-  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> event_params(
+      new base::DictionaryValue());
   event_params->SetInteger(name, value);
   return std::move(event_params);
 }
 
-scoped_ptr<base::Value> NetLogInt64Callback(
+std::unique_ptr<base::Value> NetLogInt64Callback(
     const char* name,
     int64_t value,
     NetLogCaptureMode /* capture_mode */) {
-  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> event_params(
+      new base::DictionaryValue());
   event_params->SetString(name, base::Int64ToString(value));
   return std::move(event_params);
 }
 
-scoped_ptr<base::Value> NetLogStringCallback(
+std::unique_ptr<base::Value> NetLogStringCallback(
     const char* name,
     const std::string* value,
     NetLogCaptureMode /* capture_mode */) {
-  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> event_params(
+      new base::DictionaryValue());
   event_params->SetString(name, *value);
   return std::move(event_params);
 }
 
-scoped_ptr<base::Value> NetLogString16Callback(
+std::unique_ptr<base::Value> NetLogString16Callback(
     const char* name,
     const base::string16* value,
     NetLogCaptureMode /* capture_mode */) {
-  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> event_params(
+      new base::DictionaryValue());
   event_params->SetString(name, *value);
   return std::move(event_params);
 }
@@ -105,7 +111,7 @@ bool NetLog::Source::IsValid() const {
 
 void NetLog::Source::AddToEventParameters(
     base::DictionaryValue* event_params) const {
-  scoped_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
   dict->SetInteger("type", static_cast<int>(type));
   dict->SetInteger("id", static_cast<int>(id));
   event_params->Set("source_dependency", std::move(dict));
@@ -137,12 +143,14 @@ bool NetLog::Source::FromEventParameters(base::Value* event_params,
 }
 
 base::Value* NetLog::Entry::ToValue() const {
-  scoped_ptr<base::DictionaryValue> entry_dict(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> entry_dict(
+      new base::DictionaryValue());
 
   entry_dict->SetString("time", TickCountToString(data_->time));
 
   // Set the entry source.
-  scoped_ptr<base::DictionaryValue> source_dict(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> source_dict(
+      new base::DictionaryValue());
   source_dict->SetInteger("id", data_->source.id);
   source_dict->SetInteger("type", static_cast<int>(data_->source.type));
   entry_dict->Set("source", std::move(source_dict));
@@ -153,7 +161,7 @@ base::Value* NetLog::Entry::ToValue() const {
 
   // Set the event-specific parameters.
   if (data_->parameters_callback) {
-    scoped_ptr<base::Value> value(
+    std::unique_ptr<base::Value> value(
         data_->parameters_callback->Run(capture_mode_));
     if (value)
       entry_dict->Set("params", std::move(value));
@@ -162,7 +170,7 @@ base::Value* NetLog::Entry::ToValue() const {
   return entry_dict.release();
 }
 
-scoped_ptr<base::Value> NetLog::Entry::ParametersToValue() const {
+std::unique_ptr<base::Value> NetLog::Entry::ParametersToValue() const {
   if (data_->parameters_callback)
     return data_->parameters_callback->Run(capture_mode_);
   return nullptr;
@@ -298,7 +306,7 @@ const char* NetLog::EventTypeToString(EventType event) {
 
 // static
 base::Value* NetLog::GetEventTypesAsValue() {
-  scoped_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
   for (int i = 0; i < EVENT_COUNT; ++i) {
     dict->SetInteger(EventTypeToString(static_cast<EventType>(i)), i);
   }
@@ -321,7 +329,7 @@ const char* NetLog::SourceTypeToString(SourceType source) {
 
 // static
 base::Value* NetLog::GetSourceTypesAsValue() {
-  scoped_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
   for (int i = 0; i < SOURCE_COUNT; ++i) {
     dict->SetInteger(SourceTypeToString(static_cast<SourceType>(i)), i);
   }

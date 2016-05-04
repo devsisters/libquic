@@ -5,11 +5,22 @@
 #include "net/quic/quic_stream_sequencer_buffer.h"
 
 #include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
 #include "net/quic/quic_bug_tracker.h"
 
 using std::min;
+using std::string;
 
 namespace net {
+
+namespace {
+
+string RangeDebugString(QuicStreamOffset start, QuicStreamOffset end) {
+  return string("[") + base::IntToString(start) + ", " +
+         base::IntToString(end) + ") ";
+}
+
+}  // namespace
 
 QuicStreamSequencerBuffer::Gap::Gap(QuicStreamOffset begin_offset,
                                     QuicStreamOffset end_offset)
@@ -92,12 +103,29 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
   if (offset < current_gap->begin_offset &&
       offset + size > current_gap->begin_offset) {
     // Beginning of new data overlaps data before current gap.
-    *error_details = "Beginning of received data overlaps with buffered data.";
+    *error_details =
+        string("Beginning of received data overlaps with buffered data.\n") +
+        "New frame range " + RangeDebugString(offset, offset + size) +
+        "\n"
+        "Currently received frames: " +
+        ReceivedFramesDebugString() +
+        "\n"
+        "Current gaps: " +
+        GapsDebugString() + "\n";
     return QUIC_OVERLAPPING_STREAM_DATA;
   }
   if (offset + size > current_gap->end_offset) {
     // End of new data overlaps with data after current gap.
-    *error_details = "End of received data overlaps with buffered data.";
+    *error_details =
+        "End of received data overlaps with buffered data.\n"
+        "New frame range " +
+        RangeDebugString(offset, offset + size) +
+        "\n"
+        "Currently received frames: " +
+        ReceivedFramesDebugString() +
+        "\n"
+        "Current gaps: " +
+        GapsDebugString() + "\n";
     return QUIC_OVERLAPPING_STREAM_DATA;
   }
 
@@ -455,6 +483,28 @@ void QuicStreamSequencerBuffer::UpdateFrameArrivalMap(QuicStreamOffset offset) {
       frame_arrival_time_map_.insert(updated);
     }
   }
+}
+
+string QuicStreamSequencerBuffer::GapsDebugString() {
+  string current_gaps_string;
+  for (const Gap& gap : gaps_) {
+    QuicStreamOffset current_gap_begin = gap.begin_offset;
+    QuicStreamOffset current_gap_end = gap.end_offset;
+    current_gaps_string += RangeDebugString(current_gap_begin, current_gap_end);
+  }
+  return current_gaps_string;
+}
+
+string QuicStreamSequencerBuffer::ReceivedFramesDebugString() {
+  string current_frames_string;
+  for (auto it : frame_arrival_time_map_) {
+    QuicStreamOffset current_frame_begin_offset = it.first;
+    QuicStreamOffset current_frame_end_offset =
+        it.second.length + current_frame_begin_offset;
+    current_frames_string +=
+        RangeDebugString(current_frame_begin_offset, current_frame_end_offset);
+  }
+  return current_frames_string;
 }
 
 }  //  namespace net

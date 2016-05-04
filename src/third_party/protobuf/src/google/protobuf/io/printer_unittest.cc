@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -37,6 +37,7 @@
 #include <google/protobuf/io/printer.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
+#include <google/protobuf/stubs/logging.h>
 #include <google/protobuf/stubs/common.h>
 #include <google/protobuf/testing/googletest.h>
 #include <gtest/gtest.h>
@@ -231,7 +232,7 @@ TEST(Printer, Death) {
   EXPECT_DEBUG_DEATH(printer.Print("$unclosed"), "Unclosed variable name");
   EXPECT_DEBUG_DEATH(printer.Outdent(), "without matching Indent");
 }
-#endif  // PROTOBUF__HAS_DEATH_TEST
+#endif  // PROTOBUF_HAS_DEATH_TEST
 
 TEST(Printer, WriteFailurePartial) {
   char buffer[17];

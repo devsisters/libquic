@@ -7,12 +7,12 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <set>
 #include <utility>
 #include <vector>
 
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -213,7 +213,7 @@ class NET_EXPORT_PRIVATE StrikeRegister {
   // internal_nodes_ can't be a scoped_ptr because the type isn't defined in
   // this header.
   InternalNode* internal_nodes_;
-  scoped_ptr<uint8_t[]> external_nodes_;
+  std::unique_ptr<uint8_t[]> external_nodes_;
 
   DISALLOW_COPY_AND_ASSIGN(StrikeRegister);
 };

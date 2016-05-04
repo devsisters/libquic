@@ -8,6 +8,7 @@
 
 #include "base/logging.h"
 #include "net/spdy/hpack/hpack_huffman_decoder.h"
+#include "net/spdy/spdy_bug_tracker.h"
 
 namespace net {
 
@@ -18,7 +19,10 @@ HpackInputStream::HpackInputStream(uint32_t max_string_literal_size,
                                    StringPiece buffer)
     : max_string_literal_size_(max_string_literal_size),
       buffer_(buffer),
-      bit_offset_(0) {}
+      bit_offset_(0),
+      parsed_bytes_(0),
+      parsed_bytes_current_(0),
+      need_more_data_(false) {}
 
 HpackInputStream::~HpackInputStream() {}
 
@@ -27,6 +31,11 @@ bool HpackInputStream::HasMoreData() const {
 }
 
 bool HpackInputStream::MatchPrefixAndConsume(HpackPrefix prefix) {
+  if (buffer_.empty()) {
+    need_more_data_ = true;
+    return false;
+  }
+
   DCHECK_GT(prefix.bit_size, 0u);
   DCHECK_LE(prefix.bit_size, 8u);
 
@@ -45,7 +54,11 @@ bool HpackInputStream::MatchPrefixAndConsume(HpackPrefix prefix) {
 }
 
 bool HpackInputStream::PeekNextOctet(uint8_t* next_octet) {
-  if ((bit_offset_ > 0) || buffer_.empty()) {
+  if (buffer_.empty()) {
+    need_more_data_ = true;
+    return false;
+  }
+  if ((bit_offset_ > 0)) {
     DVLOG(1) << "HpackInputStream::PeekNextOctet bit_offset_=" << bit_offset_;
     return false;
   }
@@ -60,6 +73,7 @@ bool HpackInputStream::DecodeNextOctet(uint8_t* next_octet) {
   }
 
   buffer_.remove_prefix(1);
+  parsed_bytes_current_ += 1;
   return true;
 }
 
@@ -75,7 +89,9 @@ bool HpackInputStream::DecodeNextUint32(uint32_t* I) {
   uint8_t next_marker = (1 << N) - 1;
   uint8_t next_octet = 0;
   if (!DecodeNextOctet(&next_octet)) {
-    DVLOG(1) << "HpackInputStream::DecodeNextUint32 initial octet error";
+    if (!need_more_data_) {
+      DVLOG(1) << "HpackInputStream::DecodeNextUint32 initial octet error";
+    }
     return false;
   }
   *I = next_octet & next_marker;
@@ -85,7 +101,9 @@ bool HpackInputStream::DecodeNextUint32(uint32_t* I) {
   while (has_more && (shift < 32)) {
     uint8_t next_octet = 0;
     if (!DecodeNextOctet(&next_octet)) {
-      DVLOG(1) << "HpackInputStream::DecodeNextUint32 shift=" << shift;
+      if (!need_more_data_) {
+        DVLOG(1) << "HpackInputStream::DecodeNextUint32 shift=" << shift;
+      }
       return false;
     }
     has_more = (next_octet & 0x80) != 0;
@@ -114,23 +132,28 @@ bool HpackInputStream::DecodeNextIdentityString(StringPiece* str) {
   }
 
   if (size > buffer_.size()) {
+    need_more_data_ = true;
     return false;
   }
 
   *str = StringPiece(buffer_.data(), size);
   buffer_.remove_prefix(size);
+  parsed_bytes_current_ += size;
   return true;
 }
 
 bool HpackInputStream::DecodeNextHuffmanString(string* str) {
   uint32_t encoded_size = 0;
   if (!DecodeNextUint32(&encoded_size)) {
-    DVLOG(1) << "HpackInputStream::DecodeNextHuffmanString "
-             << "unable to decode size";
+    if (!need_more_data_) {
+      DVLOG(1) << "HpackInputStream::DecodeNextHuffmanString "
+               << "unable to decode size";
+    }
     return false;
   }
 
   if (encoded_size > buffer_.size()) {
+    need_more_data_ = true;
     DVLOG(1) << "HpackInputStream::DecodeNextHuffmanString " << encoded_size
              << " > " << buffer_.size();
     return false;
@@ -139,6 +162,7 @@ bool HpackInputStream::DecodeNextHuffmanString(string* str) {
   HpackInputStream bounded_reader(max_string_literal_size_,
                                   StringPiece(buffer_.data(), encoded_size));
   buffer_.remove_prefix(encoded_size);
+  parsed_bytes_current_ += encoded_size;
 
   // DecodeString will not append more than |max_string_literal_size_| chars
   // to |str|.
@@ -200,8 +224,8 @@ std::pair<size_t, uint32_t> HpackInputStream::InitializePeekBits() {
         break;
     }
   } else {
-    LOG(DFATAL) << "InitializePeekBits called with non-zero bit_offset_: "
-                << bit_offset_;
+    SPDY_BUG << "InitializePeekBits called with non-zero bit_offset_: "
+             << bit_offset_;
   }
   return std::make_pair(peeked_count, bits);
 }
@@ -214,12 +238,25 @@ void HpackInputStream::ConsumeBits(size_t bit_count) {
     CHECK_GT(buffer_.size(), 0u);
   }
   buffer_.remove_prefix(byte_count);
+  parsed_bytes_current_ += byte_count;
 }
 
 void HpackInputStream::ConsumeByteRemainder() {
   if (bit_offset_ != 0) {
     ConsumeBits(8 - bit_offset_);
   }
+}
+
+uint32_t HpackInputStream::ParsedBytes() const {
+  return parsed_bytes_;
+}
+
+bool HpackInputStream::NeedMoreData() const {
+  return need_more_data_;
+}
+
+void HpackInputStream::MarkCurrentPosition() {
+  parsed_bytes_ = parsed_bytes_current_;
 }
 
 }  // namespace net

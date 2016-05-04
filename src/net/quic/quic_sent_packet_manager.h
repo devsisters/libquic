@@ -8,13 +8,12 @@
 #include <stddef.h>
 
 #include <map>
+#include <memory>
 #include <set>
 #include <utility>
 #include <vector>
 
-#include "base/containers/hash_tables.h"
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/base/linked_hash_map.h"
 #include "net/quic/congestion_control/loss_detection_interface.h"
 #include "net/quic/congestion_control/rtt_stats.h"
@@ -405,8 +404,8 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   NetworkChangeVisitor* network_change_visitor_;
   const QuicPacketCount initial_congestion_window_;
   RttStats rtt_stats_;
-  scoped_ptr<SendAlgorithmInterface> send_algorithm_;
-  scoped_ptr<LossDetectionInterface> loss_algorithm_;
+  std::unique_ptr<SendAlgorithmInterface> send_algorithm_;
+  std::unique_ptr<LossDetectionInterface> loss_algorithm_;
   bool n_connection_simulation_;
 
   // Receiver side buffer in bytes.

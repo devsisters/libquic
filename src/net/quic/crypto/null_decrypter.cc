@@ -25,6 +25,16 @@ bool NullDecrypter::SetNoncePrefix(StringPiece nonce_prefix) {
   return nonce_prefix.empty();
 }
 
+bool NullDecrypter::SetPreliminaryKey(StringPiece key) {
+  QUIC_BUG << "Should not be called";
+  return false;
+}
+
+bool NullDecrypter::SetDiversificationNonce(DiversificationNonce nonce) {
+  QUIC_BUG << "Should not be called";
+  return true;
+}
+
 bool NullDecrypter::DecryptPacket(QuicPathId /*path_id*/,
                                   QuicPacketNumber /*packet_number*/,
                                   StringPiece associated_data,

@@ -28,7 +28,7 @@ bool DetectLowEndDevice() {
     return false;
 
   int ram_size_mb = SysInfo::AmountOfPhysicalMemoryMB();
-  return (ram_size_mb > 0 && ram_size_mb < kLowMemoryDeviceThresholdMB);
+  return (ram_size_mb > 0 && ram_size_mb <= kLowMemoryDeviceThresholdMB);
 }
 
 static LazyInstance<

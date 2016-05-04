@@ -80,7 +80,7 @@ StringIOBuffer::StringIOBuffer(const std::string& s)
   data_ = const_cast<char*>(string_data_.data());
 }
 
-StringIOBuffer::StringIOBuffer(scoped_ptr<std::string> s)
+StringIOBuffer::StringIOBuffer(std::unique_ptr<std::string> s)
     : IOBuffer(static_cast<char*>(NULL)) {
   AssertValidBufferSize(s->size());
   string_data_.swap(*s.get());

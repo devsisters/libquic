@@ -147,12 +147,6 @@ class Histogram::Factory {
 };
 
 HistogramBase* Histogram::Factory::Build() {
-  // Import histograms from known persistent storage. Histograms could have
-  // been added by other processes and they must be fetched and recognized
-  // locally in order to be found by FindHistograms() below. If the persistent
-  // memory segment is not shared between processes, this call does nothing.
-  PersistentHistogramAllocator::ImportGlobalHistograms();
-
   HistogramBase* histogram = StatisticsRecorder::FindHistogram(name_);
   if (!histogram) {
     // To avoid racy destruction at shutdown, the following will be leaked.
@@ -178,8 +172,7 @@ HistogramBase* Histogram::Factory::Build() {
     // the process heap.
     PersistentHistogramAllocator::Reference histogram_ref = 0;
     std::unique_ptr<HistogramBase> tentative_histogram;
-    PersistentHistogramAllocator* allocator =
-        PersistentHistogramAllocator::GetGlobalAllocator();
+    PersistentHistogramAllocator* allocator = GlobalHistogramAllocator::Get();
     if (allocator) {
       tentative_histogram = allocator->AllocateHistogram(
           histogram_type_,
@@ -289,8 +282,8 @@ std::unique_ptr<HistogramBase> Histogram::PersistentCreate(
     HistogramSamples::Metadata* meta,
     HistogramSamples::Metadata* logged_meta) {
   return WrapUnique(new Histogram(name, minimum, maximum, ranges, counts,
-                                        logged_counts, counts_size, meta,
-                                        logged_meta));
+                                  logged_counts, counts_size, meta,
+                                  logged_meta));
 }
 
 // Calculate what range of values are held in each bucket.

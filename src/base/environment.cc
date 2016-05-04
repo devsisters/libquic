@@ -35,9 +35,9 @@ class EnvironmentImpl : public Environment {
     // I.e. HTTP_PROXY may be http_proxy for some users/systems.
     char first_char = variable_name[0];
     std::string alternate_case_var;
-    if (first_char >= 'a' && first_char <= 'z')
+    if (IsAsciiLower(first_char))
       alternate_case_var = ToUpperASCII(variable_name);
-    else if (first_char >= 'A' && first_char <= 'Z')
+    else if (IsAsciiUpper(first_char))
       alternate_case_var = ToLowerASCII(variable_name);
     else
       return false;

@@ -112,9 +112,14 @@ class NET_EXPORT_PRIVATE HpackDecoder {
   // Flag to keep track of having seen the header block start.
   bool header_block_started_;
 
+  // Total bytes have been removed from headers_block_buffer_.
+  // Its value is updated during incremental decoding.
+  uint32_t total_parsed_bytes_;
+
   // Handlers for decoding HPACK opcodes and header representations
   // (or parts thereof). These methods return true on success and
   // false on error.
+  bool DecodeNextOpcodeWrapper(HpackInputStream* input_stream);
   bool DecodeNextOpcode(HpackInputStream* input_stream);
   bool DecodeNextHeaderTableSizeUpdate(HpackInputStream* input_stream);
   bool DecodeNextIndexedHeader(HpackInputStream* input_stream);

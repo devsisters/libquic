@@ -29,15 +29,6 @@ class NET_EXPORT_PRIVATE ChaCha20Poly1305Encrypter : public AeadBaseEncrypter {
   ChaCha20Poly1305Encrypter();
   ~ChaCha20Poly1305Encrypter() override;
 
-#if !defined(USE_OPENSSL)
- protected:
-  // AeadBaseEncrypter methods:
-  void FillAeadParams(base::StringPiece nonce,
-                      base::StringPiece associated_data,
-                      size_t auth_tag_size,
-                      AeadParams* aead_params) const override;
-#endif
-
  private:
   DISALLOW_COPY_AND_ASSIGN(ChaCha20Poly1305Encrypter);
 };

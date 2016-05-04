@@ -69,8 +69,6 @@
 #include "base/macros.h"
 #include "net/quic/quic_protocol.h"
 
-using base::StringPiece;
-
 namespace net {
 
 namespace test {
@@ -209,6 +207,14 @@ class NET_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // |offset| is the byte next read should start from. All frames before it
   // should be removed from the map.
   void UpdateFrameArrivalMap(QuicStreamOffset offset);
+
+  // Return |gaps_| as a std::string: [1024, 1500) [1800, 2048)... for
+  // debugging.
+  std::string GapsDebugString();
+
+  // Return all received frames as a std::string in same format as
+  // GapsDebugString();
+  std::string ReceivedFramesDebugString();
 
   // The maximum total capacity of this buffer in byte, as constructed.
   const size_t max_buffer_capacity_bytes_;

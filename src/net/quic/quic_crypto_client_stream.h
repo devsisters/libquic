@@ -5,8 +5,8 @@
 #ifndef NET_QUIC_QUIC_CRYPTO_CLIENT_STREAM_H_
 #define NET_QUIC_QUIC_CRYPTO_CLIENT_STREAM_H_
 
-#include <stdint.h>
-
+#include <cstdint>
+#include <memory>
 #include <string>
 
 #include "base/macros.h"
@@ -108,7 +108,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStream
     ~ChannelIDSourceCallbackImpl() override;
 
     // ChannelIDSourceCallback interface.
-    void Run(scoped_ptr<ChannelIDKey>* channel_id_key) override;
+    void Run(std::unique_ptr<ChannelIDKey>* channel_id_key) override;
 
     // Cancel causes any future callbacks to be ignored. It must be called on
     // the same thread as the callback will be made on.
@@ -129,7 +129,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStream
     // ProofVerifierCallback interface.
     void Run(bool ok,
              const std::string& error_details,
-             scoped_ptr<ProofVerifyDetails>* details) override;
+             std::unique_ptr<ProofVerifyDetails>* details) override;
 
     // Cancel causes any future callbacks to be ignored. It must be called on
     // the same thread as the callback will be made on.
@@ -239,11 +239,11 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStream
   // These members are used to store the result of an asynchronous channel ID
   // lookup. These members must not be used after
   // STATE_GET_CHANNEL_ID_COMPLETE.
-  scoped_ptr<ChannelIDKey> channel_id_key_;
+  std::unique_ptr<ChannelIDKey> channel_id_key_;
 
   // verify_context_ contains the context object that we pass to asynchronous
   // proof verifications.
-  scoped_ptr<ProofVerifyContext> verify_context_;
+  std::unique_ptr<ProofVerifyContext> verify_context_;
 
   // proof_verify_callback_ contains the callback object that we passed to an
   // asynchronous proof verification. The ProofVerifier owns this object.
@@ -257,7 +257,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStream
   // STATE_VERIFY_PROOF_COMPLETE.
   bool verify_ok_;
   std::string verify_error_details_;
-  scoped_ptr<ProofVerifyDetails> verify_details_;
+  std::unique_ptr<ProofVerifyDetails> verify_details_;
 
   // True if the server responded to a previous CHLO with a stateless
   // reject.  Used for book-keeping between the STATE_RECV_REJ,

@@ -115,12 +115,6 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager
   // Checks if we're still waiting for the packet with |packet_number|.
   virtual bool IsAwaitingPacket(QuicPacketNumber packet_number);
 
-  // Update the |ack_frame| for an outgoing ack.
-  // TODO(ianswett): Deprecate with
-  // gfe2_reloadable_flag_quic_dont_copy_ack_frames.
-  void UpdateReceivedPacketInfo(QuicAckFrame* ack_frame,
-                                QuicTime approximate_now);
-
   // Retrieves a frame containing a QuicAckFrame.  The ack frame may not be
   // changed outside QuicReceivedPacketManager and must be serialized before
   // another packet is received, or it will change.

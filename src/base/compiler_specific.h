@@ -187,4 +187,12 @@
 #endif  // defined(COMPILER_GCC)
 #endif  // !defined(UNLIKELY)
 
+// Compiler feature-detection.
+// clang.llvm.org/docs/LanguageExtensions.html#has-feature-and-has-extension
+#if defined(__has_feature)
+#define HAS_FEATURE(FEATURE) __has_feature(FEATURE)
+#else
+#define HAS_FEATURE(FEATURE) 0
+#endif
+
 #endif  // BASE_COMPILER_SPECIFIC_H_

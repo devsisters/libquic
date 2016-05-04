@@ -288,6 +288,10 @@ BASE_EXPORT bool DevicePathToDriveLetterPath(const FilePath& device_path,
 // be resolved with this function.
 BASE_EXPORT bool NormalizeToNativeFilePath(const FilePath& path,
                                            FilePath* nt_path);
+
+// Given an existing file in |path|, returns whether this file is on a network
+// drive or not. If |path| does not exist, this function returns false.
+BASE_EXPORT bool IsOnNetworkDrive(const base::FilePath& path);
 #endif
 
 // This function will return if the given file is a symlink or not.

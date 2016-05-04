@@ -4,6 +4,8 @@
 
 #include "net/quic/crypto/crypto_handshake_message.h"
 
+#include <memory>
+
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "net/quic/crypto/crypto_framer.h"
@@ -304,7 +306,7 @@ string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
       case kSCFG:
         // nested messages.
         if (!it->second.empty()) {
-          scoped_ptr<CryptoHandshakeMessage> msg(
+          std::unique_ptr<CryptoHandshakeMessage> msg(
               CryptoFramer::ParseMessage(it->second));
           if (msg.get()) {
             ret += "\n";

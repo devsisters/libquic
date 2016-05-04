@@ -7,9 +7,11 @@
 #include <algorithm>
 
 #include <google/protobuf/stubs/common.h>
+#include <google/protobuf/stubs/port.h>
 #include <google/protobuf/stubs/once.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/wire_format_lite_inl.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 // @@protoc_insertion_point(includes)
 
 namespace net {
@@ -54,17 +56,28 @@ struct StaticDescriptorInitializer_source_5faddress_5ftoken_2eproto {
 } static_descriptor_initializer_source_5faddress_5ftoken_2eproto_;
 #endif
 
+namespace {
+
+static void MergeFromFail(int line) GOOGLE_ATTRIBUTE_COLD;
+GOOGLE_ATTRIBUTE_NOINLINE static void MergeFromFail(int line) {
+  GOOGLE_CHECK(false) << __FILE__ << ":" << line;
+}
+
+}  // namespace
+
+
 // ===================================================================
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int SourceAddressToken::kIpFieldNumber;
 const int SourceAddressToken::kTimestampFieldNumber;
 const int SourceAddressToken::kCachedNetworkParametersFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 SourceAddressToken::SourceAddressToken()
-  : ::google::protobuf::MessageLite() {
+  : ::google::protobuf::MessageLite(), _arena_ptr_(NULL) {
   SharedCtor();
+  // @@protoc_insertion_point(constructor:net.SourceAddressToken)
 }
 
 void SourceAddressToken::InitAsDefaultInstance() {
@@ -77,27 +90,33 @@ void SourceAddressToken::InitAsDefaultInstance() {
 }
 
 SourceAddressToken::SourceAddressToken(const SourceAddressToken& from)
-  : ::google::protobuf::MessageLite() {
+  : ::google::protobuf::MessageLite(),
+    _arena_ptr_(NULL) {
   SharedCtor();
   MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:net.SourceAddressToken)
 }
 
 void SourceAddressToken::SharedCtor() {
+  ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
-  ip_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyString());
+  _unknown_fields_.UnsafeSetDefault(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  ip_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   timestamp_ = GOOGLE_LONGLONG(0);
   cached_network_parameters_ = NULL;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 SourceAddressToken::~SourceAddressToken() {
+  // @@protoc_insertion_point(destructor:net.SourceAddressToken)
   SharedDtor();
 }
 
 void SourceAddressToken::SharedDtor() {
-  if (ip_ != &::google::protobuf::internal::GetEmptyString()) {
-    delete ip_;
-  }
+  _unknown_fields_.DestroyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  ip_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   if (this != &default_instance()) {
   #else
@@ -123,16 +142,18 @@ const SourceAddressToken& SourceAddressToken::default_instance() {
 
 SourceAddressToken* SourceAddressToken::default_instance_ = NULL;
 
-SourceAddressToken* SourceAddressToken::New() const {
-  return new SourceAddressToken;
+SourceAddressToken* SourceAddressToken::New(::google::protobuf::Arena* arena) const {
+  SourceAddressToken* n = new SourceAddressToken;
+  if (arena != NULL) {
+    arena->Own(n);
+  }
+  return n;
 }
 
 void SourceAddressToken::Clear() {
-  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+  if (_has_bits_[0 / 32] & 7u) {
     if (has_ip()) {
-      if (ip_ != &::google::protobuf::internal::GetEmptyString()) {
-        ip_->clear();
-      }
+      ip_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
     }
     timestamp_ = GOOGLE_LONGLONG(0);
     if (has_cached_network_parameters()) {
@@ -140,22 +161,31 @@ void SourceAddressToken::Clear() {
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  _unknown_fields_.ClearToEmptyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 
 bool SourceAddressToken::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  while ((tag = input->ReadTag()) != 0) {
+  ::google::protobuf::io::StringOutputStream unknown_fields_string(
+      mutable_unknown_fields());
+  ::google::protobuf::io::CodedOutputStream unknown_fields_stream(
+      &unknown_fields_string);
+  // @@protoc_insertion_point(parse_start:net.SourceAddressToken)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
       // required bytes ip = 1;
       case 1: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+        if (tag == 10) {
           DO_(::google::protobuf::internal::WireFormatLite::ReadBytes(
                 input, this->mutable_ip()));
         } else {
-          goto handle_uninterpreted;
+          goto handle_unusual;
         }
         if (input->ExpectTag(16)) goto parse_timestamp;
         break;
@@ -163,15 +193,14 @@ bool SourceAddressToken::MergePartialFromCodedStream(
 
       // required int64 timestamp = 2;
       case 2: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+        if (tag == 16) {
          parse_timestamp:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::int64, ::google::protobuf::internal::WireFormatLite::TYPE_INT64>(
                  input, &timestamp_)));
           set_has_timestamp();
         } else {
-          goto handle_uninterpreted;
+          goto handle_unusual;
         }
         if (input->ExpectTag(26)) goto parse_cached_network_parameters;
         break;
@@ -179,38 +208,45 @@ bool SourceAddressToken::MergePartialFromCodedStream(
 
       // optional .net.CachedNetworkParameters cached_network_parameters = 3;
       case 3: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+        if (tag == 26) {
          parse_cached_network_parameters:
           DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
                input, mutable_cached_network_parameters()));
         } else {
-          goto handle_uninterpreted;
+          goto handle_unusual;
         }
-        if (input->ExpectAtEnd()) return true;
+        if (input->ExpectAtEnd()) goto success;
         break;
       }
 
       default: {
-      handle_uninterpreted:
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
-          return true;
+          goto success;
         }
-        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag, NULL));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(
+            input, tag, &unknown_fields_stream));
         break;
       }
     }
   }
+success:
+  // @@protoc_insertion_point(parse_success:net.SourceAddressToken)
   return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:net.SourceAddressToken)
+  return false;
 #undef DO_
 }
 
 void SourceAddressToken::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:net.SourceAddressToken)
   // required bytes ip = 1;
   if (has_ip()) {
-    ::google::protobuf::internal::WireFormatLite::WriteBytes(
+    ::google::protobuf::internal::WireFormatLite::WriteBytesMaybeAliased(
       1, this->ip(), output);
   }
 
@@ -222,37 +258,59 @@ void SourceAddressToken::SerializeWithCachedSizes(
   // optional .net.CachedNetworkParameters cached_network_parameters = 3;
   if (has_cached_network_parameters()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessage(
-      3, this->cached_network_parameters(), output);
+      3, *this->cached_network_parameters_, output);
   }
 
+  output->WriteRaw(unknown_fields().data(),
+                   static_cast<int>(unknown_fields().size()));
+  // @@protoc_insertion_point(serialize_end:net.SourceAddressToken)
 }
 
+int SourceAddressToken::RequiredFieldsByteSizeFallback() const {
+  int total_size = 0;
+
+  if (has_ip()) {
+    // required bytes ip = 1;
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::BytesSize(
+        this->ip());
+  }
+
+  if (has_timestamp()) {
+    // required int64 timestamp = 2;
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::Int64Size(
+        this->timestamp());
+  }
+
+  return total_size;
+}
 int SourceAddressToken::ByteSize() const {
   int total_size = 0;
 
-  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+  if (((_has_bits_[0] & 0x00000003) ^ 0x00000003) == 0) {  // All required fields are present.
     // required bytes ip = 1;
-    if (has_ip()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::BytesSize(
-          this->ip());
-    }
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::BytesSize(
+        this->ip());
 
     // required int64 timestamp = 2;
-    if (has_timestamp()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int64Size(
-          this->timestamp());
-    }
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::Int64Size(
+        this->timestamp());
 
-    // optional .net.CachedNetworkParameters cached_network_parameters = 3;
-    if (has_cached_network_parameters()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          this->cached_network_parameters());
-    }
-
+  } else {
+    total_size += RequiredFieldsByteSizeFallback();
   }
+  // optional .net.CachedNetworkParameters cached_network_parameters = 3;
+  if (has_cached_network_parameters()) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+        *this->cached_network_parameters_);
+  }
+
+  total_size += unknown_fields().size();
+
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
@@ -265,10 +323,11 @@ void SourceAddressToken::CheckTypeAndMergeFrom(
 }
 
 void SourceAddressToken::MergeFrom(const SourceAddressToken& from) {
-  GOOGLE_CHECK_NE(&from, this);
+  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_ip()) {
-      set_ip(from.ip());
+      set_has_ip();
+      ip_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.ip_);
     }
     if (from.has_timestamp()) {
       set_timestamp(from.timestamp());
@@ -277,6 +336,7 @@ void SourceAddressToken::MergeFrom(const SourceAddressToken& from) {
       mutable_cached_network_parameters()->::net::CachedNetworkParameters::MergeFrom(from.cached_network_parameters());
     }
   }
+  mutable_unknown_fields()->append(from.unknown_fields());
 }
 
 void SourceAddressToken::CopyFrom(const SourceAddressToken& from) {
@@ -292,50 +352,190 @@ bool SourceAddressToken::IsInitialized() const {
 }
 
 void SourceAddressToken::Swap(SourceAddressToken* other) {
-  if (other != this) {
-    std::swap(ip_, other->ip_);
-    std::swap(timestamp_, other->timestamp_);
-    std::swap(cached_network_parameters_, other->cached_network_parameters_);
-    std::swap(_has_bits_[0], other->_has_bits_[0]);
-    std::swap(_cached_size_, other->_cached_size_);
-  }
+  if (other == this) return;
+  InternalSwap(other);
+}
+void SourceAddressToken::InternalSwap(SourceAddressToken* other) {
+  ip_.Swap(&other->ip_);
+  std::swap(timestamp_, other->timestamp_);
+  std::swap(cached_network_parameters_, other->cached_network_parameters_);
+  std::swap(_has_bits_[0], other->_has_bits_[0]);
+  _unknown_fields_.Swap(&other->_unknown_fields_);
+  std::swap(_cached_size_, other->_cached_size_);
 }
 
 ::std::string SourceAddressToken::GetTypeName() const {
   return "net.SourceAddressToken";
 }
 
+#if PROTOBUF_INLINE_NOT_IN_HEADERS
+// SourceAddressToken
+
+// required bytes ip = 1;
+bool SourceAddressToken::has_ip() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+void SourceAddressToken::set_has_ip() {
+  _has_bits_[0] |= 0x00000001u;
+}
+void SourceAddressToken::clear_has_ip() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+void SourceAddressToken::clear_ip() {
+  ip_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_ip();
+}
+ const ::std::string& SourceAddressToken::ip() const {
+  // @@protoc_insertion_point(field_get:net.SourceAddressToken.ip)
+  return ip_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ void SourceAddressToken::set_ip(const ::std::string& value) {
+  set_has_ip();
+  ip_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:net.SourceAddressToken.ip)
+}
+ void SourceAddressToken::set_ip(const char* value) {
+  set_has_ip();
+  ip_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:net.SourceAddressToken.ip)
+}
+ void SourceAddressToken::set_ip(const void* value, size_t size) {
+  set_has_ip();
+  ip_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:net.SourceAddressToken.ip)
+}
+ ::std::string* SourceAddressToken::mutable_ip() {
+  set_has_ip();
+  // @@protoc_insertion_point(field_mutable:net.SourceAddressToken.ip)
+  return ip_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ ::std::string* SourceAddressToken::release_ip() {
+  clear_has_ip();
+  return ip_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ void SourceAddressToken::set_allocated_ip(::std::string* ip) {
+  if (ip != NULL) {
+    set_has_ip();
+  } else {
+    clear_has_ip();
+  }
+  ip_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ip);
+  // @@protoc_insertion_point(field_set_allocated:net.SourceAddressToken.ip)
+}
+
+// required int64 timestamp = 2;
+bool SourceAddressToken::has_timestamp() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+void SourceAddressToken::set_has_timestamp() {
+  _has_bits_[0] |= 0x00000002u;
+}
+void SourceAddressToken::clear_has_timestamp() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+void SourceAddressToken::clear_timestamp() {
+  timestamp_ = GOOGLE_LONGLONG(0);
+  clear_has_timestamp();
+}
+ ::google::protobuf::int64 SourceAddressToken::timestamp() const {
+  // @@protoc_insertion_point(field_get:net.SourceAddressToken.timestamp)
+  return timestamp_;
+}
+ void SourceAddressToken::set_timestamp(::google::protobuf::int64 value) {
+  set_has_timestamp();
+  timestamp_ = value;
+  // @@protoc_insertion_point(field_set:net.SourceAddressToken.timestamp)
+}
+
+// optional .net.CachedNetworkParameters cached_network_parameters = 3;
+bool SourceAddressToken::has_cached_network_parameters() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+void SourceAddressToken::set_has_cached_network_parameters() {
+  _has_bits_[0] |= 0x00000004u;
+}
+void SourceAddressToken::clear_has_cached_network_parameters() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+void SourceAddressToken::clear_cached_network_parameters() {
+  if (cached_network_parameters_ != NULL) cached_network_parameters_->::net::CachedNetworkParameters::Clear();
+  clear_has_cached_network_parameters();
+}
+const ::net::CachedNetworkParameters& SourceAddressToken::cached_network_parameters() const {
+  // @@protoc_insertion_point(field_get:net.SourceAddressToken.cached_network_parameters)
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  return cached_network_parameters_ != NULL ? *cached_network_parameters_ : *default_instance().cached_network_parameters_;
+#else
+  return cached_network_parameters_ != NULL ? *cached_network_parameters_ : *default_instance_->cached_network_parameters_;
+#endif
+}
+::net::CachedNetworkParameters* SourceAddressToken::mutable_cached_network_parameters() {
+  set_has_cached_network_parameters();
+  if (cached_network_parameters_ == NULL) {
+    cached_network_parameters_ = new ::net::CachedNetworkParameters;
+  }
+  // @@protoc_insertion_point(field_mutable:net.SourceAddressToken.cached_network_parameters)
+  return cached_network_parameters_;
+}
+::net::CachedNetworkParameters* SourceAddressToken::release_cached_network_parameters() {
+  clear_has_cached_network_parameters();
+  ::net::CachedNetworkParameters* temp = cached_network_parameters_;
+  cached_network_parameters_ = NULL;
+  return temp;
+}
+void SourceAddressToken::set_allocated_cached_network_parameters(::net::CachedNetworkParameters* cached_network_parameters) {
+  delete cached_network_parameters_;
+  cached_network_parameters_ = cached_network_parameters;
+  if (cached_network_parameters) {
+    set_has_cached_network_parameters();
+  } else {
+    clear_has_cached_network_parameters();
+  }
+  // @@protoc_insertion_point(field_set_allocated:net.SourceAddressToken.cached_network_parameters)
+}
+
+#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int SourceAddressTokens::kTokensFieldNumber;
-#endif  // !_MSC_VER
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 SourceAddressTokens::SourceAddressTokens()
-  : ::google::protobuf::MessageLite() {
+  : ::google::protobuf::MessageLite(), _arena_ptr_(NULL) {
   SharedCtor();
+  // @@protoc_insertion_point(constructor:net.SourceAddressTokens)
 }
 
 void SourceAddressTokens::InitAsDefaultInstance() {
 }
 
 SourceAddressTokens::SourceAddressTokens(const SourceAddressTokens& from)
-  : ::google::protobuf::MessageLite() {
+  : ::google::protobuf::MessageLite(),
+    _arena_ptr_(NULL) {
   SharedCtor();
   MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:net.SourceAddressTokens)
 }
 
 void SourceAddressTokens::SharedCtor() {
+  ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
+  _unknown_fields_.UnsafeSetDefault(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 SourceAddressTokens::~SourceAddressTokens() {
+  // @@protoc_insertion_point(destructor:net.SourceAddressTokens)
   SharedDtor();
 }
 
 void SourceAddressTokens::SharedDtor() {
+  _unknown_fields_.DestroyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   if (this != &default_instance()) {
   #else
@@ -360,59 +560,85 @@ const SourceAddressTokens& SourceAddressTokens::default_instance() {
 
 SourceAddressTokens* SourceAddressTokens::default_instance_ = NULL;
 
-SourceAddressTokens* SourceAddressTokens::New() const {
-  return new SourceAddressTokens;
+SourceAddressTokens* SourceAddressTokens::New(::google::protobuf::Arena* arena) const {
+  SourceAddressTokens* n = new SourceAddressTokens;
+  if (arena != NULL) {
+    arena->Own(n);
+  }
+  return n;
 }
 
 void SourceAddressTokens::Clear() {
   tokens_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  _unknown_fields_.ClearToEmptyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 
 bool SourceAddressTokens::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  while ((tag = input->ReadTag()) != 0) {
+  ::google::protobuf::io::StringOutputStream unknown_fields_string(
+      mutable_unknown_fields());
+  ::google::protobuf::io::CodedOutputStream unknown_fields_stream(
+      &unknown_fields_string);
+  // @@protoc_insertion_point(parse_start:net.SourceAddressTokens)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
       // repeated .net.SourceAddressToken tokens = 4;
       case 4: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-         parse_tokens:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+        if (tag == 34) {
+          DO_(input->IncrementRecursionDepth());
+         parse_loop_tokens:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtualNoRecursionDepth(
                 input, add_tokens()));
         } else {
-          goto handle_uninterpreted;
+          goto handle_unusual;
         }
-        if (input->ExpectTag(34)) goto parse_tokens;
-        if (input->ExpectAtEnd()) return true;
+        if (input->ExpectTag(34)) goto parse_loop_tokens;
+        input->UnsafeDecrementRecursionDepth();
+        if (input->ExpectAtEnd()) goto success;
         break;
       }
 
       default: {
-      handle_uninterpreted:
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
-          return true;
+          goto success;
         }
-        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag, NULL));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(
+            input, tag, &unknown_fields_stream));
         break;
       }
     }
   }
+success:
+  // @@protoc_insertion_point(parse_success:net.SourceAddressTokens)
   return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:net.SourceAddressTokens)
+  return false;
 #undef DO_
 }
 
 void SourceAddressTokens::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:net.SourceAddressTokens)
   // repeated .net.SourceAddressToken tokens = 4;
-  for (int i = 0; i < this->tokens_size(); i++) {
+  for (unsigned int i = 0, n = this->tokens_size(); i < n; i++) {
     ::google::protobuf::internal::WireFormatLite::WriteMessage(
       4, this->tokens(i), output);
   }
 
+  output->WriteRaw(unknown_fields().data(),
+                   static_cast<int>(unknown_fields().size()));
+  // @@protoc_insertion_point(serialize_end:net.SourceAddressTokens)
 }
 
 int SourceAddressTokens::ByteSize() const {
@@ -426,6 +652,8 @@ int SourceAddressTokens::ByteSize() const {
         this->tokens(i));
   }
 
+  total_size += unknown_fields().size();
+
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
@@ -438,8 +666,9 @@ void SourceAddressTokens::CheckTypeAndMergeFrom(
 }
 
 void SourceAddressTokens::MergeFrom(const SourceAddressTokens& from) {
-  GOOGLE_CHECK_NE(&from, this);
+  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   tokens_.MergeFrom(from.tokens_);
+  mutable_unknown_fields()->append(from.unknown_fields());
 }
 
 void SourceAddressTokens::CopyFrom(const SourceAddressTokens& from) {
@@ -450,24 +679,59 @@ void SourceAddressTokens::CopyFrom(const SourceAddressTokens& from) {
 
 bool SourceAddressTokens::IsInitialized() const {
 
-  for (int i = 0; i < tokens_size(); i++) {
-    if (!this->tokens(i).IsInitialized()) return false;
-  }
+  if (!::google::protobuf::internal::AllAreInitialized(this->tokens())) return false;
   return true;
 }
 
 void SourceAddressTokens::Swap(SourceAddressTokens* other) {
-  if (other != this) {
-    tokens_.Swap(&other->tokens_);
-    std::swap(_has_bits_[0], other->_has_bits_[0]);
-    std::swap(_cached_size_, other->_cached_size_);
-  }
+  if (other == this) return;
+  InternalSwap(other);
+}
+void SourceAddressTokens::InternalSwap(SourceAddressTokens* other) {
+  tokens_.UnsafeArenaSwap(&other->tokens_);
+  std::swap(_has_bits_[0], other->_has_bits_[0]);
+  _unknown_fields_.Swap(&other->_unknown_fields_);
+  std::swap(_cached_size_, other->_cached_size_);
 }
 
 ::std::string SourceAddressTokens::GetTypeName() const {
   return "net.SourceAddressTokens";
 }
 
+#if PROTOBUF_INLINE_NOT_IN_HEADERS
+// SourceAddressTokens
+
+// repeated .net.SourceAddressToken tokens = 4;
+int SourceAddressTokens::tokens_size() const {
+  return tokens_.size();
+}
+void SourceAddressTokens::clear_tokens() {
+  tokens_.Clear();
+}
+const ::net::SourceAddressToken& SourceAddressTokens::tokens(int index) const {
+  // @@protoc_insertion_point(field_get:net.SourceAddressTokens.tokens)
+  return tokens_.Get(index);
+}
+::net::SourceAddressToken* SourceAddressTokens::mutable_tokens(int index) {
+  // @@protoc_insertion_point(field_mutable:net.SourceAddressTokens.tokens)
+  return tokens_.Mutable(index);
+}
+::net::SourceAddressToken* SourceAddressTokens::add_tokens() {
+  // @@protoc_insertion_point(field_add:net.SourceAddressTokens.tokens)
+  return tokens_.Add();
+}
+::google::protobuf::RepeatedPtrField< ::net::SourceAddressToken >*
+SourceAddressTokens::mutable_tokens() {
+  // @@protoc_insertion_point(field_mutable_list:net.SourceAddressTokens.tokens)
+  return &tokens_;
+}
+const ::google::protobuf::RepeatedPtrField< ::net::SourceAddressToken >&
+SourceAddressTokens::tokens() const {
+  // @@protoc_insertion_point(field_list:net.SourceAddressTokens.tokens)
+  return tokens_;
+}
+
+#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // @@protoc_insertion_point(namespace_scope)
 

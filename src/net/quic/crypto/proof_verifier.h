@@ -5,10 +5,10 @@
 #ifndef NET_QUIC_CRYPTO_PROOF_VERIFIER_H_
 #define NET_QUIC_CRYPTO_PROOF_VERIFIER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_types.h"
@@ -48,7 +48,7 @@ class NET_EXPORT_PRIVATE ProofVerifierCallback {
   // calling |release| on it.
   virtual void Run(bool ok,
                    const std::string& error_details,
-                   scoped_ptr<ProofVerifyDetails>* details) = 0;
+                   std::unique_ptr<ProofVerifyDetails>* details) = 0;
 };
 
 // A ProofVerifier checks the signature on a server config, and the certificate
@@ -74,18 +74,19 @@ class NET_EXPORT_PRIVATE ProofVerifier {
   //
   // The signature uses SHA-256 as the hash function and PSS padding in the
   // case of RSA.
-  virtual QuicAsyncStatus VerifyProof(const std::string& hostname,
-                                      const uint16_t port,
-                                      const std::string& server_config,
-                                      QuicVersion quic_version,
-                                      base::StringPiece chlo_hash,
-                                      const std::vector<std::string>& certs,
-                                      const std::string& cert_sct,
-                                      const std::string& signature,
-                                      const ProofVerifyContext* context,
-                                      std::string* error_details,
-                                      scoped_ptr<ProofVerifyDetails>* details,
-                                      ProofVerifierCallback* callback) = 0;
+  virtual QuicAsyncStatus VerifyProof(
+      const std::string& hostname,
+      const uint16_t port,
+      const std::string& server_config,
+      QuicVersion quic_version,
+      base::StringPiece chlo_hash,
+      const std::vector<std::string>& certs,
+      const std::string& cert_sct,
+      const std::string& signature,
+      const ProofVerifyContext* context,
+      std::string* error_details,
+      std::unique_ptr<ProofVerifyDetails>* details,
+      ProofVerifierCallback* callback) = 0;
 };
 
 }  // namespace net

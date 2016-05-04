@@ -7,7 +7,10 @@
 
 #include <stddef.h>
 
+#include <memory>
+
 #include "base/macros.h"
+#include "net/quic/quic_header_list.h"
 #include "net/quic/quic_headers_stream.h"
 #include "net/quic/quic_session.h"
 #include "net/quic/quic_spdy_stream.h"
@@ -29,7 +32,7 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
 
   // Called by |headers_stream_| when headers have been received for a stream.
   virtual void OnStreamHeaders(QuicStreamId stream_id,
-                               StringPiece headers_data);
+                               base::StringPiece headers_data);
   // Called by |headers_stream_| when headers with a priority have been
   // received for this stream.  This method will only be called for server
   // streams.
@@ -42,10 +45,18 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
                                        bool fin,
                                        size_t frame_len);
 
+  // Called by |headers_stream_| when headers have been completely received
+  // for a stream.  |fin| will be true if the fin flag was set in the headers
+  // frame.
+  virtual void OnStreamHeaderList(QuicStreamId stream_id,
+                                  bool fin,
+                                  size_t frame_len,
+                                  const QuicHeaderList& header_list);
+
   // Called by |headers_stream_| when push promise headers have been
   // received for a stream.
   virtual void OnPromiseHeaders(QuicStreamId stream_id,
-                                StringPiece headers_data);
+                                base::StringPiece headers_data);
 
   // Called by |headers_stream_| when push promise headers have been
   // completely received.  |fin| will be true if the fin flag was set
@@ -53,6 +64,14 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   virtual void OnPromiseHeadersComplete(QuicStreamId stream_id,
                                         QuicStreamId promised_stream_id,
                                         size_t frame_len);
+
+  // Called by |headers_stream_| when push promise headers have been
+  // completely received.  |fin| will be true if the fin flag was set
+  // in the headers.
+  virtual void OnPromiseHeaderList(QuicStreamId stream_id,
+                                   QuicStreamId promised_stream_id,
+                                   size_t frame_len,
+                                   const QuicHeaderList& header_list);
 
   // Writes |headers| for the stream |id| to the dedicated headers stream.
   // If |fin| is true, then no more data will be sent for the stream |id|.
@@ -79,6 +98,8 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   // list.
   void UpdateStreamPriority(QuicStreamId id, SpdyPriority new_priority);
 
+  void OnConfigNegotiated() override;
+
  protected:
   // Override CreateIncomingDynamicStream() and CreateOutgoingDynamicStream()
   // with QuicSpdyStream return type to make sure that all data streams are
@@ -98,7 +119,7 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
  private:
   friend class test::QuicSpdySessionPeer;
 
-  scoped_ptr<QuicHeadersStream> headers_stream_;
+  std::unique_ptr<QuicHeadersStream> headers_stream_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicSpdySession);
 };

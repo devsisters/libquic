@@ -22,12 +22,18 @@
 
 namespace net {
 
+namespace test {
+class HpackInputStreamPeer;
+}  // namespace test
+
 typedef std::pair<size_t, uint32_t> InitialPeekResult;
 
 // An HpackInputStream handles all the low-level details of decoding
 // header fields.
 class NET_EXPORT_PRIVATE HpackInputStream {
  public:
+  friend class test::HpackInputStreamPeer;
+
   // |max_string_literal_size| is the largest that any one string
   // literal (header name or header value) can be.
   HpackInputStream(uint32_t max_string_literal_size, base::StringPiece buffer);
@@ -72,14 +78,31 @@ class NET_EXPORT_PRIVATE HpackInputStream {
   // remaining bits in the current byte.
   void ConsumeByteRemainder();
 
-  // Accessors for testing.
+  // Return the total bytes that have been parsed SUCCESSFULLY.
+  uint32_t ParsedBytes() const;
 
-  void SetBitOffsetForTest(size_t bit_offset) { bit_offset_ = bit_offset; }
+  // When incrementally decode the header, need to remember the current
+  // position in the buffer after we successfully decode one opcode.
+  void MarkCurrentPosition();
+
+  // Returning true indicates this instance of HpackInputStream
+  // doesn't have enough data to parse the current opcode, and we
+  // are done with this instance. When more data arrive, a new
+  // HpackInputStream should be created to restart the parsing.
+  bool NeedMoreData() const;
 
  private:
   const uint32_t max_string_literal_size_;
   base::StringPiece buffer_;
   size_t bit_offset_;
+  // Total number of bytes parsed successfully. Only get updated when an
+  // opcode is parsed successfully.
+  uint32_t parsed_bytes_;
+  // Total number of bytes parsed currently. Get updated when an octet,
+  // a number or a string has been parsed successfully. Can point to the
+  // middle of an opcode.
+  uint32_t parsed_bytes_current_;
+  bool need_more_data_;
 
   bool PeekNextOctet(uint8_t* next_octet);
 

@@ -94,7 +94,7 @@ template <> struct MakeIndexSequenceImpl<13> {
   using Type = IndexSequence<0,1,2,3,4,5,6,7,8,9,10,11,12>;
 };
 
-#else  // defined(WIN) && defined(_PREFAST_)
+#else  // defined(OS_WIN) && defined(_PREFAST_)
 
 template <size_t... Ns>
 struct MakeIndexSequenceImpl<0, Ns...> {
@@ -105,7 +105,7 @@ template <size_t N, size_t... Ns>
 struct MakeIndexSequenceImpl<N, Ns...>
     : MakeIndexSequenceImpl<N - 1, N - 1, Ns...> {};
 
-#endif  // defined(WIN) && defined(_PREFAST_)
+#endif  // defined(OS_WIN) && defined(_PREFAST_)
 
 template <size_t N>
 using MakeIndexSequence = typename MakeIndexSequenceImpl<N>::Type;

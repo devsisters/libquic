@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -66,13 +66,27 @@ extern const char kThinSeparator[];
 string ClassName(const Descriptor* descriptor, bool qualified);
 string ClassName(const EnumDescriptor* enum_descriptor, bool qualified);
 
+// Name of the CRTP class template (for use with proto_h).
+// This is a class name, like "ProtoName_InternalBase".
+string DependentBaseClassTemplateName(const Descriptor* descriptor);
+
+// Name of the base class: either the dependent base class (for use with
+// proto_h) or google::protobuf::Message.
 string SuperClassName(const Descriptor* descriptor);
+
+// Returns a string that down-casts from the dependent base class to the
+// derived class.
+string DependentBaseDownCast();
+string DependentBaseConstDownCast();
 
 // Get the (unqualified) name that should be used for this field in C++ code.
 // The name is coerced to lower-case to emulate proto1 behavior.  People
 // should be using lowercase-with-underscores style for proto field names
 // anyway, so normally this just returns field->name().
 string FieldName(const FieldDescriptor* field);
+
+// Get the sanitized name that should be used for the given enum in C++ code.
+string EnumValueName(const EnumValueDescriptor* enum_value);
 
 // Get the unqualified name that should be used for a field's field
 // number constant.
@@ -84,6 +98,20 @@ inline const Descriptor* FieldScope(const FieldDescriptor* field) {
   return field->is_extension() ?
     field->extension_scope() : field->containing_type();
 }
+
+// Returns true if the given 'field_descriptor' has a message type that is
+// a dependency of the file where the field is defined (i.e., the field
+// type is defined in a different file than the message holding the field).
+//
+// This only applies to Message-typed fields. Enum-typed fields may refer
+// to an enum in a dependency; however, enums are specified and
+// forward-declared with an enum-base, so the definition is not required to
+// manipulate the field value.
+bool IsFieldDependent(const FieldDescriptor* field_descriptor);
+
+// Returns the name that should be used for forcing dependent lookup from a
+// dependent base class.
+string DependentTypeName(const FieldDescriptor* field);
 
 // Returns the fully-qualified type name field->message_type().  Usually this
 // is just ClassName(field->message_type(), true);
@@ -103,6 +131,12 @@ const char* PrimitiveTypeName(FieldDescriptor::CppType type);
 // methods of WireFormat.  For example, TYPE_INT32 becomes "Int32".
 const char* DeclaredTypeMethodName(FieldDescriptor::Type type);
 
+// Return the code that evaluates to the number when compiled.
+string Int32ToString(int number);
+
+// Return the code that evaluates to the number when compiled.
+string Int64ToString(int64 number);
+
 // Get code that evaluates to the field's default value.
 string DefaultValue(const FieldDescriptor* field);
 
@@ -115,17 +149,37 @@ string GlobalAddDescriptorsName(const string& filename);
 // Return the name of the AssignDescriptors() function for a given file.
 string GlobalAssignDescriptorsName(const string& filename);
 
+// Return the qualified C++ name for a file level symbol.
+string QualifiedFileLevelSymbol(const string& package, const string& name);
+
 // Return the name of the ShutdownFile() function for a given file.
 string GlobalShutdownFileName(const string& filename);
 
 // Escape C++ trigraphs by escaping question marks to \?
 string EscapeTrigraphs(const string& to_escape);
 
-// Do message classes in this file keep track of unknown fields?
-inline bool HasUnknownFields(const FileDescriptor* file) {
-  return file->options().optimize_for() != FileOptions::LITE_RUNTIME ||
-         file->options().retain_unknown_fields();
+// Escaped function name to eliminate naming conflict.
+string SafeFunctionName(const Descriptor* descriptor,
+                        const FieldDescriptor* field,
+                        const string& prefix);
+
+// Returns true if unknown fields are preseved after parsing.
+inline bool PreserveUnknownFields(const Descriptor* message) {
+  return message->file()->syntax() != FileDescriptor::SYNTAX_PROTO3;
 }
+
+// If PreserveUnknownFields() is true, determines whether unknown
+// fields will be stored in an UnknownFieldSet or a string.
+// If PreserveUnknownFields() is false, this method will not be
+// used.
+inline bool UseUnknownFieldSet(const FileDescriptor* file) {
+  return file->options().optimize_for() != FileOptions::LITE_RUNTIME;
+}
+
+
+// Does the file have any map fields, necessitating the file to include
+// map_field_inl.h and map.h.
+bool HasMapFields(const FileDescriptor* file);
 
 // Does this file have any enum type definitions?
 bool HasEnumDefinitions(const FileDescriptor* file);
@@ -136,7 +190,7 @@ inline bool HasGeneratedMethods(const FileDescriptor* file) {
   return file->options().optimize_for() != FileOptions::CODE_SIZE;
 }
 
-// Do message classes in this file have descriptor and refelction methods?
+// Do message classes in this file have descriptor and reflection methods?
 inline bool HasDescriptorMethods(const FileDescriptor* file) {
   return file->options().optimize_for() != FileOptions::LITE_RUNTIME;
 }
@@ -146,11 +200,6 @@ inline bool HasGenericServices(const FileDescriptor* file) {
   return file->service_count() > 0 &&
          file->options().optimize_for() != FileOptions::LITE_RUNTIME &&
          file->options().cc_generic_services();
-}
-
-// Should string fields in this file verify that their contents are UTF-8?
-inline bool HasUtf8Verification(const FileDescriptor* file) {
-  return file->options().optimize_for() != FileOptions::LITE_RUNTIME;
 }
 
 // Should we generate a separate, super-optimized code path for serializing to
@@ -177,6 +226,60 @@ void PrintHandlingOptionalStaticInitializers(
     io::Printer* printer, const char* with_static_init,
     const char* without_static_init);
 
+
+inline bool IsMapEntryMessage(const Descriptor* descriptor) {
+  return descriptor->options().map_entry();
+}
+
+// Returns true if the field's CPPTYPE is string or message.
+bool IsStringOrMessage(const FieldDescriptor* field);
+
+// For a string field, returns the effective ctype.  If the actual ctype is
+// not supported, returns the default of STRING.
+FieldOptions::CType EffectiveStringCType(const FieldDescriptor* field);
+
+string UnderscoresToCamelCase(const string& input, bool cap_next_letter);
+
+inline bool HasFieldPresence(const FileDescriptor* file) {
+  return file->syntax() != FileDescriptor::SYNTAX_PROTO3;
+}
+
+// Returns true if 'enum' semantics are such that unknown values are preserved
+// in the enum field itself, rather than going to the UnknownFieldSet.
+inline bool HasPreservingUnknownEnumSemantics(const FileDescriptor* file) {
+  return file->syntax() == FileDescriptor::SYNTAX_PROTO3;
+}
+
+inline bool SupportsArenas(const FileDescriptor* file) {
+  return file->options().cc_enable_arenas();
+}
+
+inline bool SupportsArenas(const Descriptor* desc) {
+  return SupportsArenas(desc->file());
+}
+
+inline bool SupportsArenas(const FieldDescriptor* field) {
+  return SupportsArenas(field->file());
+}
+
+bool IsAnyMessage(const FileDescriptor* descriptor);
+bool IsAnyMessage(const Descriptor* descriptor);
+
+bool IsWellKnownMessage(const FileDescriptor* descriptor);
+
+void GenerateUtf8CheckCodeForString(
+    const FieldDescriptor* field,
+    bool for_parse,
+    const map<string, string>& variables,
+    const char* parameters,
+    io::Printer* printer);
+
+void GenerateUtf8CheckCodeForCord(
+    const FieldDescriptor* field,
+    bool for_parse,
+    const map<string, string>& variables,
+    const char* parameters,
+    io::Printer* printer);
 
 }  // namespace cpp
 }  // namespace compiler

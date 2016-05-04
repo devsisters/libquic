@@ -52,11 +52,20 @@ class BASE_EXPORT AllocationContextTracker {
   // if capture is enabled.
   static void SetCurrentThreadName(const char* name);
 
+  // Starts and ends a new ignore scope between which the allocations are
+  // ignored in the heap profiler. A dummy context that short circuits to
+  // "tracing_overhead" is returned for these allocations.
+  void begin_ignore_scope() { ignore_scope_depth_++; }
+  void end_ignore_scope() {
+    if (ignore_scope_depth_)
+      ignore_scope_depth_--;
+  }
+
   // Pushes a frame onto the thread-local pseudo stack.
-  void PushPseudoStackFrame(StackFrame frame);
+  void PushPseudoStackFrame(const char* trace_event_name);
 
   // Pops a frame from the thread-local pseudo stack.
-  void PopPseudoStackFrame(StackFrame frame);
+  void PopPseudoStackFrame(const char* trace_event_name);
 
   // Push and pop current task's context. A stack is used to support nested
   // tasks and the top of the stack will be used in allocation context.
@@ -74,7 +83,7 @@ class BASE_EXPORT AllocationContextTracker {
   static subtle::Atomic32 capture_enabled_;
 
   // The pseudo stack where frames are |TRACE_EVENT| names.
-  std::vector<StackFrame> pseudo_stack_;
+  std::vector<const char*> pseudo_stack_;
 
   // The thread name is used as the first entry in the pseudo stack.
   const char* thread_name_;
@@ -82,6 +91,8 @@ class BASE_EXPORT AllocationContextTracker {
   // Stack of tasks' contexts. Context serves as a different dimension than
   // pseudo stack to cluster allocations.
   std::vector<const char*> task_contexts_;
+
+  uint32_t ignore_scope_depth_;
 
   DISALLOW_COPY_AND_ASSIGN(AllocationContextTracker);
 };

@@ -37,6 +37,7 @@ namespace content {
 class BrowserGpuChannelHostFactory;
 class BrowserGpuMemoryBufferManager;
 class BrowserShutdownProfileDumper;
+class BrowserSurfaceViewManager;
 class BrowserTestBase;
 class NestedMessagePumpAndroid;
 class ScopedAllowWaitForAndroidLayoutTests;
@@ -191,6 +192,7 @@ class BASE_EXPORT ThreadRestrictions {
   // DO NOT ADD ANY OTHER FRIEND STATEMENTS, talk to jam or brettw first.
   // BEGIN ALLOWED USAGE.
   friend class content::BrowserShutdownProfileDumper;
+  friend class content::BrowserSurfaceViewManager;
   friend class content::BrowserTestBase;
   friend class content::NestedMessagePumpAndroid;
   friend class content::ScopedAllowWaitForAndroidLayoutTests;

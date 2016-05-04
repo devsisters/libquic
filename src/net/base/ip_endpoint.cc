@@ -97,7 +97,7 @@ IPEndPoint::IPEndPoint(const IPEndPoint& endpoint) {
 }
 
 AddressFamily IPEndPoint::GetFamily() const {
-  return GetAddressFamily(address_.bytes());
+  return GetAddressFamily(address_);
 }
 
 int IPEndPoint::GetSockAddrFamily() const {

@@ -8,6 +8,7 @@
 #include "net/quic/quic_flags.h"
 #include "net/quic/spdy_utils.h"
 
+using base::StringPiece;
 using std::string;
 
 namespace net {
@@ -78,6 +79,30 @@ void QuicClientSessionBase::OnPromiseHeadersComplete(
     return;
   }
   stream->OnPromiseHeadersComplete(promised_stream_id, frame_len);
+}
+
+void QuicClientSessionBase::OnPromiseHeaderList(
+    QuicStreamId stream_id,
+    QuicStreamId promised_stream_id,
+    size_t frame_len,
+    const QuicHeaderList& header_list) {
+  if (promised_stream_id != kInvalidStreamId &&
+      promised_stream_id <= largest_promised_stream_id_) {
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID,
+        "Received push stream id lesser or equal to the"
+        " last accepted before",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+  largest_promised_stream_id_ = promised_stream_id;
+
+  QuicSpdyStream* stream = GetSpdyDataStream(stream_id);
+  if (!stream) {
+    // It's quite possible to receive headers after a stream has been reset.
+    return;
+  }
+  stream->OnPromiseHeaderList(promised_stream_id, frame_len, header_list);
 }
 
 void QuicClientSessionBase::HandlePromised(QuicStreamId /* associated_id */,

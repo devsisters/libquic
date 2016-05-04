@@ -38,8 +38,6 @@
 
 using base::StringPiece;
 using base::StringPrintf;
-using base::hash_map;
-using base::hash_set;
 using std::list;
 using std::make_pair;
 using std::max;
@@ -71,6 +69,10 @@ const QuicPacketCount kDefaultRetransmittablePacketsBeforeAck = 2;
 const QuicPacketCount kMinReceivedBeforeAckDecimation = 100;
 // Wait for up to 10 retransmittable packets before sending an ack.
 const QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 10;
+// One quarter RTT delay when doing ack decimation.
+const float kAckDecimationDelay = 0.25;
+// One eighth RTT delay when doing ack decimation.
+const float kShortAckDecimationDelay = 0.125;
 
 bool Near(QuicPacketNumber a, QuicPacketNumber b) {
   QuicPacketNumber delta = (a > b) ? a - b : b - a;
@@ -206,6 +208,7 @@ class MtuDiscoveryAckListener : public QuicAckListenerInterface {
 QuicConnection::QuicConnection(QuicConnectionId connection_id,
                                IPEndPoint address,
                                QuicConnectionHelperInterface* helper,
+                               QuicAlarmFactory* alarm_factory,
                                QuicPacketWriter* writer,
                                bool owns_writer,
                                Perspective perspective,
@@ -214,6 +217,7 @@ QuicConnection::QuicConnection(QuicConnectionId connection_id,
               helper->GetClock()->ApproximateNow(),
               perspective),
       helper_(helper),
+      alarm_factory_(alarm_factory),
       per_packet_options_(nullptr),
       writer_(writer),
       owns_writer_(owns_writer),
@@ -246,21 +250,27 @@ QuicConnection::QuicConnection(QuicConnectionId connection_id,
       num_packets_received_since_last_ack_sent_(0),
       stop_waiting_count_(0),
       ack_mode_(TCP_ACKING),
+      ack_decimation_delay_(kAckDecimationDelay),
       delay_setting_retransmission_alarm_(false),
       pending_retransmission_alarm_(false),
       defer_send_in_response_to_packets_(false),
       arena_(),
-      ack_alarm_(helper->CreateAlarm(arena_.New<AckAlarm>(this), &arena_)),
+      ack_alarm_(
+          alarm_factory_->CreateAlarm(arena_.New<AckAlarm>(this), &arena_)),
       retransmission_alarm_(
-          helper->CreateAlarm(arena_.New<RetransmissionAlarm>(this), &arena_)),
-      send_alarm_(helper->CreateAlarm(arena_.New<SendAlarm>(this), &arena_)),
+          alarm_factory_->CreateAlarm(arena_.New<RetransmissionAlarm>(this),
+                                      &arena_)),
+      send_alarm_(
+          alarm_factory_->CreateAlarm(arena_.New<SendAlarm>(this), &arena_)),
       resume_writes_alarm_(
-          helper->CreateAlarm(arena_.New<SendAlarm>(this), &arena_)),
+          alarm_factory_->CreateAlarm(arena_.New<SendAlarm>(this), &arena_)),
       timeout_alarm_(
-          helper->CreateAlarm(arena_.New<TimeoutAlarm>(this), &arena_)),
-      ping_alarm_(helper->CreateAlarm(arena_.New<PingAlarm>(this), &arena_)),
+          alarm_factory_->CreateAlarm(arena_.New<TimeoutAlarm>(this), &arena_)),
+      ping_alarm_(
+          alarm_factory_->CreateAlarm(arena_.New<PingAlarm>(this), &arena_)),
       mtu_discovery_alarm_(
-          helper->CreateAlarm(arena_.New<MtuDiscoveryAlarm>(this), &arena_)),
+          alarm_factory_->CreateAlarm(arena_.New<MtuDiscoveryAlarm>(this),
+                                      &arena_)),
       visitor_(nullptr),
       debug_visitor_(nullptr),
       packet_generator_(connection_id_,
@@ -367,9 +377,16 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kACKD, perspective_)) {
     ack_mode_ = ACK_DECIMATION;
   }
-  if (FLAGS_quic_ack_decimation2 &&
-      config.HasClientSentConnectionOption(kAKD2, perspective_)) {
+  if (config.HasClientSentConnectionOption(kAKD2, perspective_)) {
     ack_mode_ = ACK_DECIMATION_WITH_REORDERING;
+  }
+  if (config.HasClientSentConnectionOption(kAKD3, perspective_)) {
+    ack_mode_ = ACK_DECIMATION;
+    ack_decimation_delay_ = kShortAckDecimationDelay;
+  }
+  if (config.HasClientSentConnectionOption(kAKD4, perspective_)) {
+    ack_mode_ = ACK_DECIMATION_WITH_REORDERING;
+    ack_decimation_delay_ = kShortAckDecimationDelay;
   }
   if (FLAGS_quic_enable_rto_timeout &&
       config.HasClientSentConnectionOption(k5RTO, perspective_)) {
@@ -619,6 +636,7 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
 void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
   last_decrypted_packet_level_ = level;
   last_packet_decrypted_ = true;
+
   // If this packet was foward-secure encrypted and the forward-secure encrypter
   // is not being used, start using it.
   if (encryption_level_ != ENCRYPTION_FORWARD_SECURE &&
@@ -758,6 +776,14 @@ bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
   return connected_;
 }
 
+bool QuicConnection::OnPaddingFrame(const QuicPaddingFrame& frame) {
+  DCHECK(connected_);
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnPaddingFrame(frame);
+  }
+  return true;
+}
+
 bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
   DCHECK(connected_);
   if (debug_visitor_ != nullptr) {
@@ -862,13 +888,11 @@ bool QuicConnection::OnConnectionCloseFrame(
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnConnectionCloseFrame(frame);
   }
-  const string error_details =
-      StringPrintf("CONNECTION_CLOSE_FRAME received for connection: %" PRIu64
-                   " with error: %s %s",
-                   connection_id(), QuicUtils::ErrorToString(frame.error_code),
-                   frame.error_details.c_str());
-  DVLOG(1) << ENDPOINT << error_details;
-  TearDownLocalConnectionState(frame.error_code, error_details,
+  DVLOG(1) << ENDPOINT
+           << "Received ConnectionClose for connection: " << connection_id()
+           << ", with error: " << QuicUtils::ErrorToString(frame.error_code)
+           << " (" << frame.error_details << ")";
+  TearDownLocalConnectionState(frame.error_code, frame.error_details,
                                ConnectionCloseSource::FROM_PEER);
   return connected_;
 }
@@ -994,7 +1018,8 @@ void QuicConnection::MaybeQueueAck(bool was_missing) {
         // Wait the minimum of a quarter min_rtt and the delayed ack time.
         QuicTime::Delta ack_delay = QuicTime::Delta::Min(
             sent_packet_manager_.DelayedAckTime(),
-            sent_packet_manager_.GetRttStats()->min_rtt().Multiply(0.25));
+            sent_packet_manager_.GetRttStats()->min_rtt().Multiply(
+                ack_decimation_delay_));
         ack_alarm_->Set(clock_->ApproximateNow().Add(ack_delay));
       }
     } else {
@@ -1054,11 +1079,6 @@ void QuicConnection::MaybeCloseIfTooManyOutstandingPackets() {
   }
 }
 
-void QuicConnection::PopulateAckFrame(QuicAckFrame* ack) {
-  received_packet_manager_.UpdateReceivedPacketInfo(ack,
-                                                    clock_->ApproximateNow());
-}
-
 const QuicFrame QuicConnection::GetUpdatedAckFrame() {
   return received_packet_manager_.GetUpdatedAckFrame(clock_->ApproximateNow());
 }
@@ -1097,7 +1117,7 @@ void QuicConnection::SendVersionNegotiationPacket() {
   }
   DVLOG(1) << ENDPOINT << "Sending version negotiation packet: {"
            << QuicVersionVectorToString(framer_.supported_versions()) << "}";
-  scoped_ptr<QuicEncryptedPacket> version_packet(
+  std::unique_ptr<QuicEncryptedPacket> version_packet(
       packet_generator_.SerializeVersionNegotiationPacket(
           framer_.supported_versions()));
   WriteResult result = writer_->WritePacket(
@@ -1791,8 +1811,12 @@ void QuicConnection::SendAck() {
 }
 
 void QuicConnection::OnRetransmissionTimeout() {
-  if (!sent_packet_manager_.HasUnackedPackets()) {
-    return;
+  if (FLAGS_quic_always_has_unacked_packets_on_timeout) {
+    DCHECK(sent_packet_manager_.HasUnackedPackets());
+  } else {
+    if (!sent_packet_manager_.HasUnackedPackets()) {
+      return;
+    }
   }
 
   if (close_connection_after_five_rtos_ &&
@@ -1842,6 +1866,11 @@ void QuicConnection::SetEncrypter(EncryptionLevel level,
             sent_packet_manager_.EstimateMaxPacketsInFlight(
                 max_packet_length());
   }
+}
+
+void QuicConnection::SetDiversificationNonce(const DiversificationNonce nonce) {
+  DCHECK_EQ(Perspective::IS_SERVER, perspective_);
+  packet_generator_.SetDiversificationNonce(nonce);
 }
 
 void QuicConnection::SetDefaultEncryptionLevel(EncryptionLevel level) {

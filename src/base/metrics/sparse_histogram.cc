@@ -24,12 +24,6 @@ typedef HistogramBase::Sample Sample;
 // static
 HistogramBase* SparseHistogram::FactoryGet(const std::string& name,
                                            int32_t flags) {
-  // Import histograms from known persistent storage. Histograms could have
-  // been added by other processes and they must be fetched and recognized
-  // locally in order to be found by FindHistograms() below. If the persistent
-  // memory segment is not shared between processes, this call does nothing.
-  PersistentHistogramAllocator::ImportGlobalHistograms();
-
   HistogramBase* histogram = StatisticsRecorder::FindHistogram(name);
   if (!histogram) {
     // Try to create the histogram using a "persistent" allocator. As of
@@ -39,8 +33,7 @@ HistogramBase* SparseHistogram::FactoryGet(const std::string& name,
     // the process heap.
     PersistentMemoryAllocator::Reference histogram_ref = 0;
     std::unique_ptr<HistogramBase> tentative_histogram;
-    PersistentHistogramAllocator* allocator =
-        PersistentHistogramAllocator::GetGlobalAllocator();
+    PersistentHistogramAllocator* allocator = GlobalHistogramAllocator::Get();
     if (allocator) {
       tentative_histogram = allocator->AllocateHistogram(
           SPARSE_HISTOGRAM, name, 0, 0, nullptr, flags, &histogram_ref);
@@ -81,7 +74,7 @@ HistogramBase* SparseHistogram::FactoryGet(const std::string& name,
 
 // static
 std::unique_ptr<HistogramBase> SparseHistogram::PersistentCreate(
-    PersistentMemoryAllocator* allocator,
+    PersistentHistogramAllocator* allocator,
     const std::string& name,
     HistogramSamples::Metadata* meta,
     HistogramSamples::Metadata* logged_meta) {
@@ -172,7 +165,7 @@ SparseHistogram::SparseHistogram(const std::string& name)
       samples_(new SampleMap(HashMetricName(name))),
       logged_samples_(new SampleMap(samples_->id())) {}
 
-SparseHistogram::SparseHistogram(PersistentMemoryAllocator* allocator,
+SparseHistogram::SparseHistogram(PersistentHistogramAllocator* allocator,
                                  const std::string& name,
                                  HistogramSamples::Metadata* meta,
                                  HistogramSamples::Metadata* logged_meta)

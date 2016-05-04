@@ -8,6 +8,8 @@
 #ifndef BASE_BIND_INTERNAL_WIN_H_
 #define BASE_BIND_INTERNAL_WIN_H_
 
+#include <utility>
+
 #include "build/build_config.h"
 
 // In the x64 architecture in Windows, __fastcall, __stdcall, etc, are all
@@ -33,8 +35,9 @@ class RunnableAdapter<R(__stdcall *)(Args...)> {
       : function_(function) {
   }
 
-  R Run(typename CallbackParamTraits<Args>::ForwardType... args) {
-    return function_(args...);
+  template <typename... RunArgs>
+  R Run(RunArgs&&... args) {
+    return function_(std::forward<RunArgs>(args)...);
   }
 
  private:
@@ -53,8 +56,9 @@ class RunnableAdapter<R(__fastcall *)(Args...)> {
       : function_(function) {
   }
 
-  R Run(typename CallbackParamTraits<Args>::ForwardType... args) {
-    return function_(args...);
+  template <typename... RunArgs>
+  R Run(RunArgs&&... args) {
+    return function_(std::forward<RunArgs>(args)...);
   }
 
  private:

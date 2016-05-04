@@ -111,7 +111,13 @@
 
 //------------------------------------------------------------------------------
 // Provide easy general purpose histogram in a macro, just like stats counters.
-// The first four macros use 50 buckets.
+// Most of these macros use 50 buckets, but check the definition for details.
+//
+// All of these macros must be called with |name| as a runtime constant --- it
+// doesn't have to literally be a constant, but it must be the same string on
+// all calls from a particular call site. If this rule is violated,
+// STATIC_HISTOGRAM_POINTER_BLOCK will DCHECK, and if DCHECKS are disabled, the
+// data will be written to the wrong histogram.
 
 #define LOCAL_HISTOGRAM_TIMES(name, sample) LOCAL_HISTOGRAM_CUSTOM_TIMES( \
     name, sample, base::TimeDelta::FromMilliseconds(1), \

@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -32,7 +32,6 @@
 //  Based on original Protocol Buffers design by
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
-#include <set>
 #include <map>
 
 #include <google/protobuf/compiler/cpp/cpp_enum.h>
@@ -45,29 +44,56 @@ namespace protobuf {
 namespace compiler {
 namespace cpp {
 
+namespace {
+// The GOOGLE_ARRAYSIZE constant is the max enum value plus 1. If the max enum value
+// is ::google::protobuf::kint32max, GOOGLE_ARRAYSIZE will overflow. In such cases we should omit the
+// generation of the GOOGLE_ARRAYSIZE constant.
+bool ShouldGenerateArraySize(const EnumDescriptor* descriptor) {
+  int32 max_value = descriptor->value(0)->number();
+  for (int i = 0; i < descriptor->value_count(); i++) {
+    if (descriptor->value(i)->number() > max_value) {
+      max_value = descriptor->value(i)->number();
+    }
+  }
+  return max_value != ::google::protobuf::kint32max;
+}
+}  // namespace
+
 EnumGenerator::EnumGenerator(const EnumDescriptor* descriptor,
                              const Options& options)
   : descriptor_(descriptor),
     classname_(ClassName(descriptor, false)),
-    options_(options) {
+    options_(options),
+    generate_array_size_(ShouldGenerateArraySize(descriptor)) {
 }
 
 EnumGenerator::~EnumGenerator() {}
+
+void EnumGenerator::FillForwardDeclaration(set<string>* enum_names) {
+  if (!options_.proto_h) {
+    return;
+  }
+  enum_names->insert(classname_);
+}
 
 void EnumGenerator::GenerateDefinition(io::Printer* printer) {
   map<string, string> vars;
   vars["classname"] = classname_;
   vars["short_name"] = descriptor_->name();
+  vars["enumbase"] = classname_ + (options_.proto_h ? " : int" : "");
 
-  printer->Print(vars, "enum $classname$ {\n");
+  printer->Print(vars, "enum $enumbase$ {\n");
   printer->Indent();
 
   const EnumValueDescriptor* min_value = descriptor_->value(0);
   const EnumValueDescriptor* max_value = descriptor_->value(0);
 
   for (int i = 0; i < descriptor_->value_count(); i++) {
-    vars["name"] = descriptor_->value(i)->name();
-    vars["number"] = SimpleItoa(descriptor_->value(i)->number());
+    vars["name"] = EnumValueName(descriptor_->value(i));
+    // In C++, an value of -2147483648 gets interpreted as the negative of
+    // 2147483648, and since 2147483648 can't fit in an integer, this produces a
+    // compiler warning.  This works around that issue.
+    vars["number"] = Int32ToString(descriptor_->value(i)->number());
     vars["prefix"] = (descriptor_->containing_type() == NULL) ?
       "" : classname_ + "_";
 
@@ -82,11 +108,20 @@ void EnumGenerator::GenerateDefinition(io::Printer* printer) {
     }
   }
 
+  if (HasPreservingUnknownEnumSemantics(descriptor_->file())) {
+    // For new enum semantics: generate min and max sentinel values equal to
+    // INT32_MIN and INT32_MAX
+    if (descriptor_->value_count() > 0) printer->Print(",\n");
+    printer->Print(vars,
+        "$classname$_$prefix$INT_MIN_SENTINEL_DO_NOT_USE_ = ::google::protobuf::kint32min,\n"
+        "$classname$_$prefix$INT_MAX_SENTINEL_DO_NOT_USE_ = ::google::protobuf::kint32max");
+  }
+
   printer->Outdent();
   printer->Print("\n};\n");
 
-  vars["min_name"] = min_value->name();
-  vars["max_name"] = max_value->name();
+  vars["min_name"] = EnumValueName(min_value);
+  vars["max_name"] = EnumValueName(max_value);
 
   if (options_.dllexport_decl.empty()) {
     vars["dllexport"] = "";
@@ -97,9 +132,13 @@ void EnumGenerator::GenerateDefinition(io::Printer* printer) {
   printer->Print(vars,
     "$dllexport$bool $classname$_IsValid(int value);\n"
     "const $classname$ $prefix$$short_name$_MIN = $prefix$$min_name$;\n"
-    "const $classname$ $prefix$$short_name$_MAX = $prefix$$max_name$;\n"
-    "const int $prefix$$short_name$_ARRAYSIZE = $prefix$$short_name$_MAX + 1;\n"
-    "\n");
+    "const $classname$ $prefix$$short_name$_MAX = $prefix$$max_name$;\n");
+
+  if (generate_array_size_) {
+    printer->Print(vars,
+      "const int $prefix$$short_name$_ARRAYSIZE = "
+      "$prefix$$short_name$_MAX + 1;\n\n");
+  }
 
   if (HasDescriptorMethods(descriptor_->file())) {
     printer->Print(vars,
@@ -121,6 +160,10 @@ void EnumGenerator::GenerateDefinition(io::Printer* printer) {
 
 void EnumGenerator::
 GenerateGetEnumDescriptorSpecializations(io::Printer* printer) {
+  printer->Print(
+      "template <> struct is_proto_enum< $classname$> : ::google::protobuf::internal::true_type "
+      "{};\n",
+      "classname", ClassName(descriptor_, true));
   if (HasDescriptorMethods(descriptor_->file())) {
     printer->Print(
       "template <>\n"
@@ -138,7 +181,7 @@ void EnumGenerator::GenerateSymbolImports(io::Printer* printer) {
   printer->Print(vars, "typedef $classname$ $nested_name$;\n");
 
   for (int j = 0; j < descriptor_->value_count(); j++) {
-    vars["tag"] = descriptor_->value(j)->name();
+    vars["tag"] = EnumValueName(descriptor_->value(j));
     printer->Print(vars,
       "static const $nested_name$ $tag$ = $classname$_$tag$;\n");
   }
@@ -150,9 +193,12 @@ void EnumGenerator::GenerateSymbolImports(io::Printer* printer) {
     "static const $nested_name$ $nested_name$_MIN =\n"
     "  $classname$_$nested_name$_MIN;\n"
     "static const $nested_name$ $nested_name$_MAX =\n"
-    "  $classname$_$nested_name$_MAX;\n"
-    "static const int $nested_name$_ARRAYSIZE =\n"
-    "  $classname$_$nested_name$_ARRAYSIZE;\n");
+    "  $classname$_$nested_name$_MAX;\n");
+  if (generate_array_size_) {
+    printer->Print(vars,
+      "static const int $nested_name$_ARRAYSIZE =\n"
+      "  $classname$_$nested_name$_ARRAYSIZE;\n");
+  }
 
   if (HasDescriptorMethods(descriptor_->file())) {
     printer->Print(vars,
@@ -218,7 +264,7 @@ void EnumGenerator::GenerateMethods(io::Printer* printer) {
        iter != numbers.end(); ++iter) {
     printer->Print(
       "    case $number$:\n",
-      "number", SimpleItoa(*iter));
+      "number", Int32ToString(*iter));
   }
 
   printer->Print(vars,
@@ -239,16 +285,19 @@ void EnumGenerator::GenerateMethods(io::Printer* printer) {
     vars["parent"] = ClassName(descriptor_->containing_type(), false);
     vars["nested_name"] = descriptor_->name();
     for (int i = 0; i < descriptor_->value_count(); i++) {
-      vars["value"] = descriptor_->value(i)->name();
+      vars["value"] = EnumValueName(descriptor_->value(i));
       printer->Print(vars,
         "const $classname$ $parent$::$value$;\n");
     }
     printer->Print(vars,
       "const $classname$ $parent$::$nested_name$_MIN;\n"
-      "const $classname$ $parent$::$nested_name$_MAX;\n"
-      "const int $parent$::$nested_name$_ARRAYSIZE;\n");
+      "const $classname$ $parent$::$nested_name$_MAX;\n");
+    if (generate_array_size_) {
+      printer->Print(vars,
+        "const int $parent$::$nested_name$_ARRAYSIZE;\n");
+    }
 
-    printer->Print("#endif  // _MSC_VER\n");
+    printer->Print("#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900\n");
   }
 }
 

@@ -26,15 +26,16 @@ HpackDecoder::HpackDecoder()
       handler_(nullptr),
       total_header_bytes_(0),
       regular_header_seen_(false),
-      header_block_started_(false) {}
+      header_block_started_(false),
+      total_parsed_bytes_(0) {}
 
 HpackDecoder::~HpackDecoder() {}
 
 bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
                                                  size_t headers_data_length) {
-  decoded_block_.clear();
   if (!header_block_started_) {
     header_block_started_ = true;
+    decoded_block_.clear();
     if (handler_ != nullptr) {
       handler_->OnHeaderBlockStart();
     }
@@ -45,26 +46,44 @@ bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
   }
   headers_block_buffer_.insert(headers_block_buffer_.end(), headers_data,
                                headers_data + headers_data_length);
+
+  // Parse as many data in buffer as possible. And remove the parsed data
+  // from buffer.
+  HpackInputStream input_stream(max_string_literal_size_,
+                                headers_block_buffer_);
+  while (input_stream.HasMoreData()) {
+    if (!DecodeNextOpcodeWrapper(&input_stream)) {
+      if (input_stream.NeedMoreData()) {
+        break;
+      }
+      return false;
+    }
+  }
+  uint32_t parsed_bytes = input_stream.ParsedBytes();
+  DCHECK_GE(headers_block_buffer_.size(), parsed_bytes);
+  headers_block_buffer_.erase(0, parsed_bytes);
+  total_parsed_bytes_ += parsed_bytes;
   return true;
 }
 
 bool HpackDecoder::HandleControlFrameHeadersComplete(size_t* compressed_len) {
-  HpackInputStream input_stream(max_string_literal_size_,
-                                headers_block_buffer_);
   regular_header_seen_ = false;
-  if (compressed_len) {
-    *compressed_len = headers_block_buffer_.size();
+
+  if (compressed_len != nullptr) {
+    *compressed_len = total_parsed_bytes_;
   }
-  while (input_stream.HasMoreData()) {
-    if (!DecodeNextOpcode(&input_stream)) {
-      headers_block_buffer_.clear();
-      return false;
-    }
+
+  // Data in headers_block_buffer_ should have been parsed by
+  // HandleControlFrameHeadersData and removed.
+  if (headers_block_buffer_.size() > 0) {
+    return false;
   }
+
   if (handler_ != nullptr) {
     handler_->OnHeaderBlockEnd(total_header_bytes_);
   }
   headers_block_buffer_.clear();
+  total_parsed_bytes_ = 0;
   header_block_started_ = false;
   handler_ = nullptr;
   return true;
@@ -102,6 +121,15 @@ bool HpackDecoder::HandleHeaderRepresentation(StringPiece name,
     handler_->OnHeader(name, value);
   }
   return true;
+}
+
+bool HpackDecoder::DecodeNextOpcodeWrapper(HpackInputStream* input_stream) {
+  if (DecodeNextOpcode(input_stream)) {
+    // Decoding next opcode succeeds. Mark total bytes parsed successfully.
+    input_stream->MarkCurrentPosition();
+    return true;
+  }
+  return false;
 }
 
 bool HpackDecoder::DecodeNextOpcode(HpackInputStream* input_stream) {

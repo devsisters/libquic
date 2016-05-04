@@ -1,8 +1,28 @@
+diff --git a/src/base/metrics/persistent_histogram_allocator.cc b/src/base/metrics/persistent_histogram_allocator.cc
+index c29aa6f..7fea3ea 100644
+--- a/src/base/metrics/persistent_histogram_allocator.cc
++++ b/src/base/metrics/persistent_histogram_allocator.cc
+@@ -619,6 +619,7 @@ void GlobalHistogramAllocator::CreateWithLocalMemory(
+       WrapUnique(new LocalPersistentMemoryAllocator(size, id, name)))));
+ }
+ 
++#if 0
+ // static
+ void GlobalHistogramAllocator::CreateWithSharedMemory(
+     std::unique_ptr<SharedMemory> memory,
+@@ -653,6 +654,7 @@ void GlobalHistogramAllocator::CreateWithSharedMemoryHandle(
+       WrapUnique(new SharedPersistentMemoryAllocator(
+           std::move(shm), 0, StringPiece(), /*readonly=*/false)))));
+ }
++#endif
+ 
+ // static
+ void GlobalHistogramAllocator::Set(
 diff --git a/src/base/metrics/persistent_histogram_allocator.h b/src/base/metrics/persistent_histogram_allocator.h
-index cbbeed9..5c5b5ce 100644
+index 61fadaf..e949473 100644
 --- a/src/base/metrics/persistent_histogram_allocator.h
 +++ b/src/base/metrics/persistent_histogram_allocator.h
-@@ -10,7 +10,9 @@
+@@ -11,7 +11,9 @@
  #include "base/atomicops.h"
  #include "base/base_export.h"
  #include "base/feature_list.h"
@@ -12,35 +32,19 @@ index cbbeed9..5c5b5ce 100644
  #include "base/metrics/histogram_base.h"
  #include "base/metrics/persistent_memory_allocator.h"
  #include "base/strings/string_piece.h"
-@@ -130,9 +132,11 @@ class BASE_EXPORT PersistentHistogramAllocator {
-       size_t size,
-       uint64_t id,
-       StringPiece name);
-+#if 0
-   static void CreateGlobalAllocatorOnSharedMemory(
-       size_t size,
-       const SharedMemoryHandle& handle);
-+#endif
- 
-   // Import new histograms from the global PersistentHistogramAllocator. It's
-   // possible for other processes to create histograms in the active memory
-diff --git a/src/base/metrics/persistent_histogram_allocator.cc b/src/base/metrics/persistent_histogram_allocator.cc
-index e964336..e942e59 100644
---- a/src/base/metrics/persistent_histogram_allocator.cc
-+++ b/src/base/metrics/persistent_histogram_allocator.cc
-@@ -255,6 +255,7 @@ void PersistentHistogramAllocator::CreateGlobalAllocatorOnLocalMemory(
-       WrapUnique(new LocalPersistentMemoryAllocator(size, id, name)))));
- }
+@@ -369,6 +371,7 @@ class BASE_EXPORT GlobalHistogramAllocator
+   // specified |size| taken from the heap.
+   static void CreateWithLocalMemory(size_t size, uint64_t id, StringPiece name);
  
 +#if 0
- // static
- void PersistentHistogramAllocator::CreateGlobalAllocatorOnSharedMemory(
-     size_t size,
-@@ -270,6 +271,7 @@ void PersistentHistogramAllocator::CreateGlobalAllocatorOnSharedMemory(
-       WrapUnique(new SharedPersistentMemoryAllocator(
-           std::move(shm), 0, StringPiece(), /*readonly=*/false)))));
- }
+   // Create a global allocator using a block of shared |memory| of the
+   // specified |size|. The allocator takes ownership of the shared memory
+   // and releases it upon destruction, though the memory will continue to
+@@ -384,6 +387,7 @@ class BASE_EXPORT GlobalHistogramAllocator
+   // continue to live if other processes have access to it.
+   static void CreateWithSharedMemoryHandle(const SharedMemoryHandle& handle,
+                                            size_t size);
 +#endif
  
- // static
- std::unique_ptr<HistogramBase> PersistentHistogramAllocator::CreateHistogram(
+   // Sets a GlobalHistogramAllocator for globally storing histograms in
+   // a space that can be persisted or shared between processes. There is only

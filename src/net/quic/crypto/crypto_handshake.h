@@ -7,11 +7,11 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/macros.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
 
@@ -94,8 +94,8 @@ static_assert(MAX_FAILURE_REASON <= 32, "failure reason out of sync");
 struct NET_EXPORT_PRIVATE CrypterPair {
   CrypterPair();
   ~CrypterPair();
-  scoped_ptr<QuicEncrypter> encrypter;
-  scoped_ptr<QuicDecrypter> decrypter;
+  std::unique_ptr<QuicEncrypter> encrypter;
+  std::unique_ptr<QuicDecrypter> decrypter;
 };
 
 // Parameters negotiated by the crypto handshake.
@@ -130,7 +130,7 @@ struct NET_EXPORT_PRIVATE QuicCryptoNegotiatedParameters {
   std::vector<std::string> cached_certs;
   // client_key_exchange is used by clients to store the ephemeral KeyExchange
   // for the connection.
-  scoped_ptr<KeyExchange> client_key_exchange;
+  std::unique_ptr<KeyExchange> client_key_exchange;
   // channel_id is set by servers to a ChannelID key when the client correctly
   // proves possession of the corresponding private key. It consists of 32
   // bytes of x coordinate, followed by 32 bytes of y coordinate. Both values

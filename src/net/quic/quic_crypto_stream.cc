@@ -72,7 +72,7 @@ void QuicCryptoStream::SendHandshakeMessage(
   session()->OnCryptoHandshakeMessageSent(message);
   const QuicData& data = message.GetSerialized();
   // TODO(wtc): check the return value.
-  WriteOrBufferData(string(data.data(), data.length()), false, listener);
+  WriteOrBufferData(StringPiece(data.data(), data.length()), false, listener);
 }
 
 bool QuicCryptoStream::ExportKeyingMaterial(StringPiece label,
