@@ -83,7 +83,7 @@ Great effort has been made to make syncing from upstream Chromium sources as
 effortless as possible. See `DEPS` file for all the dependencies. See
 `manage.py` script for actual syncing.
 
-If you want to apply upstream chnages,
+If you want to apply upstream changes,
 
   1. Clone & Checkout chromium upstream.
   2. Build QUIC server: `cd out/Debug; ninja quic_server`
