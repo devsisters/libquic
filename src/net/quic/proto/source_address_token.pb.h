@@ -27,12 +27,11 @@
 #include <google/protobuf/extension_set.h>
 #include "cached_network_parameters.pb.h"
 // @@protoc_insertion_point(includes)
-#include "net/base/net_export.h"
 
 namespace net {
 
 // Internal implementation detail -- do not call these.
-void NET_EXPORT_PRIVATE protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
+void protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
 void protobuf_AssignDesc_source_5faddress_5ftoken_2eproto();
 void protobuf_ShutdownFile_source_5faddress_5ftoken_2eproto();
 
@@ -41,7 +40,7 @@ class SourceAddressTokens;
 
 // ===================================================================
 
-class NET_EXPORT_PRIVATE SourceAddressToken : public ::google::protobuf::MessageLite {
+class SourceAddressToken : public ::google::protobuf::MessageLite {
  public:
   SourceAddressToken();
   virtual ~SourceAddressToken();
@@ -75,7 +74,7 @@ class NET_EXPORT_PRIVATE SourceAddressToken : public ::google::protobuf::Message
   }
   #endif
 
-  GOOGLE_ATTRIBUTE_NOINLINE void Swap(SourceAddressToken* other);
+  void Swap(SourceAddressToken* other);
 
   // implements Message ----------------------------------------------
 
@@ -164,9 +163,9 @@ class NET_EXPORT_PRIVATE SourceAddressToken : public ::google::protobuf::Message
   ::google::protobuf::int64 timestamp_;
   ::net::CachedNetworkParameters* cached_network_parameters_;
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_source_5faddress_5ftoken_2eproto_impl();
+  friend void  protobuf_AddDesc_source_5faddress_5ftoken_2eproto_impl();
   #else
-  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
+  friend void  protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
   #endif
   friend void protobuf_AssignDesc_source_5faddress_5ftoken_2eproto();
   friend void protobuf_ShutdownFile_source_5faddress_5ftoken_2eproto();
@@ -176,7 +175,7 @@ class NET_EXPORT_PRIVATE SourceAddressToken : public ::google::protobuf::Message
 };
 // -------------------------------------------------------------------
 
-class NET_EXPORT_PRIVATE SourceAddressTokens : public ::google::protobuf::MessageLite {
+class SourceAddressTokens : public ::google::protobuf::MessageLite {
  public:
   SourceAddressTokens();
   virtual ~SourceAddressTokens();
@@ -210,7 +209,7 @@ class NET_EXPORT_PRIVATE SourceAddressTokens : public ::google::protobuf::Messag
   }
   #endif
 
-  GOOGLE_ATTRIBUTE_NOINLINE void Swap(SourceAddressTokens* other);
+  void Swap(SourceAddressTokens* other);
 
   // implements Message ----------------------------------------------
 
@@ -272,9 +271,9 @@ class NET_EXPORT_PRIVATE SourceAddressTokens : public ::google::protobuf::Messag
   mutable int _cached_size_;
   ::google::protobuf::RepeatedPtrField< ::net::SourceAddressToken > tokens_;
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_source_5faddress_5ftoken_2eproto_impl();
+  friend void  protobuf_AddDesc_source_5faddress_5ftoken_2eproto_impl();
   #else
-  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
+  friend void  protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
   #endif
   friend void protobuf_AssignDesc_source_5faddress_5ftoken_2eproto();
   friend void protobuf_ShutdownFile_source_5faddress_5ftoken_2eproto();

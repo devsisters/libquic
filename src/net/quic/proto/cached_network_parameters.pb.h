@@ -27,12 +27,11 @@
 #include <google/protobuf/extension_set.h>
 #include <google/protobuf/generated_enum_util.h>
 // @@protoc_insertion_point(includes)
-#include "net/base/net_export.h"
 
 namespace net {
 
 // Internal implementation detail -- do not call these.
-void NET_EXPORT_PRIVATE protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto();
+void protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto();
 void protobuf_AssignDesc_cached_5fnetwork_5fparameters_2eproto();
 void protobuf_ShutdownFile_cached_5fnetwork_5fparameters_2eproto();
 
@@ -42,14 +41,14 @@ enum CachedNetworkParameters_PreviousConnectionState {
   CachedNetworkParameters_PreviousConnectionState_SLOW_START = 0,
   CachedNetworkParameters_PreviousConnectionState_CONGESTION_AVOIDANCE = 1
 };
-NET_EXPORT_PRIVATE bool CachedNetworkParameters_PreviousConnectionState_IsValid(int value);
+bool CachedNetworkParameters_PreviousConnectionState_IsValid(int value);
 const CachedNetworkParameters_PreviousConnectionState CachedNetworkParameters_PreviousConnectionState_PreviousConnectionState_MIN = CachedNetworkParameters_PreviousConnectionState_SLOW_START;
 const CachedNetworkParameters_PreviousConnectionState CachedNetworkParameters_PreviousConnectionState_PreviousConnectionState_MAX = CachedNetworkParameters_PreviousConnectionState_CONGESTION_AVOIDANCE;
 const int CachedNetworkParameters_PreviousConnectionState_PreviousConnectionState_ARRAYSIZE = CachedNetworkParameters_PreviousConnectionState_PreviousConnectionState_MAX + 1;
 
 // ===================================================================
 
-class NET_EXPORT_PRIVATE CachedNetworkParameters : public ::google::protobuf::MessageLite {
+class CachedNetworkParameters : public ::google::protobuf::MessageLite {
  public:
   CachedNetworkParameters();
   virtual ~CachedNetworkParameters();
@@ -83,7 +82,7 @@ class NET_EXPORT_PRIVATE CachedNetworkParameters : public ::google::protobuf::Me
   }
   #endif
 
-  GOOGLE_ATTRIBUTE_NOINLINE void Swap(CachedNetworkParameters* other);
+  void Swap(CachedNetworkParameters* other);
 
   // implements Message ----------------------------------------------
 
@@ -220,9 +219,9 @@ class NET_EXPORT_PRIVATE CachedNetworkParameters : public ::google::protobuf::Me
   ::google::protobuf::int32 previous_connection_state_;
   ::google::protobuf::int64 timestamp_;
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto_impl();
+  friend void  protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto_impl();
   #else
-  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto();
+  friend void  protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto();
   #endif
   friend void protobuf_AssignDesc_cached_5fnetwork_5fparameters_2eproto();
   friend void protobuf_ShutdownFile_cached_5fnetwork_5fparameters_2eproto();

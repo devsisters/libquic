@@ -1,5 +1,5 @@
 diff --git a/src/base/metrics/persistent_memory_allocator.cc b/src/base/metrics/persistent_memory_allocator.cc
-index 1d5df33..5992ead 100644
+index 604971d..e751c07 100644
 --- a/src/base/metrics/persistent_memory_allocator.cc
 +++ b/src/base/metrics/persistent_memory_allocator.cc
 @@ -7,9 +7,13 @@
@@ -16,7 +16,7 @@ index 1d5df33..5992ead 100644
  #include "base/metrics/histogram_macros.h"
  
  namespace {
-@@ -666,6 +670,7 @@ LocalPersistentMemoryAllocator::~LocalPersistentMemoryAllocator() {
+@@ -720,6 +724,7 @@ LocalPersistentMemoryAllocator::~LocalPersistentMemoryAllocator() {
  
  
  //----- SharedPersistentMemoryAllocator ----------------------------------------
@@ -24,7 +24,7 @@ index 1d5df33..5992ead 100644
  
  SharedPersistentMemoryAllocator::SharedPersistentMemoryAllocator(
      std::unique_ptr<SharedMemory> memory,
-@@ -710,5 +715,6 @@ bool FilePersistentMemoryAllocator::IsFileAcceptable(
+@@ -764,5 +769,6 @@ bool FilePersistentMemoryAllocator::IsFileAcceptable(
      const MemoryMappedFile& file) {
    return IsMemoryAcceptable(file.data(), file.length(), 0, true);
  }

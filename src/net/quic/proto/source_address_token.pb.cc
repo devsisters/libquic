@@ -59,7 +59,7 @@ struct StaticDescriptorInitializer_source_5faddress_5ftoken_2eproto {
 namespace {
 
 static void MergeFromFail(int line) GOOGLE_ATTRIBUTE_COLD;
-GOOGLE_ATTRIBUTE_NOINLINE static void MergeFromFail(int line) {
+static void MergeFromFail(int line) {
   GOOGLE_CHECK(false) << __FILE__ << ":" << line;
 }
 

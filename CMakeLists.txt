@@ -151,13 +151,10 @@ set(
 	src/net/quic/quic_crypto_client_stream.cc
 	src/net/quic/quic_server_id.cc
 	src/net/quic/quic_simple_buffer_allocator.cc
-	src/net/quic/proto/cached_network_parameters.pb.cc
-	src/net/quic/proto/source_address_token.pb.cc
 	src/net/quic/quic_stream_sequencer_buffer.cc
 
 	src/net/base/int128.cc
 	src/net/base/escape.cc
-	src/net/base/io_buffer.cc
 	src/net/base/net_errors.cc
 	src/net/base/ip_address.cc
 	src/net/base/ip_address_number.cc
@@ -253,7 +250,6 @@ set(
 	src/base/time/time.cc
 	src/base/synchronization/lock.cc
 	src/base/synchronization/lock_impl_posix.cc
-	src/base/synchronization/condition_variable_posix.cc
 	src/base/strings/sys_string_conversions_posix.cc
 	src/base/strings/string_piece.cc
 	src/base/strings/string_util.cc
@@ -348,10 +344,46 @@ set(
 	src/url/third_party/mozilla/url_parse.cc
 )
 
+set(
+	PROTO_SOURCES
+
+	src/net/quic/proto/cached_network_parameters.proto
+	src/net/quic/proto/source_address_token.proto
+)
+
+find_package(Protobuf REQUIRED)
+
+set(GENERATE_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
+foreach(FIL ${PROTO_SOURCES})
+	get_filename_component(ABS_FIL ${FIL} ABSOLUTE)
+	get_filename_component(ABS_PATH ${ABS_FIL} PATH)
+	get_filename_component(FIL_WE ${FIL} NAME_WE)
+	get_filename_component(DIRC ${FIL} DIRECTORY)
+
+	list(APPEND PROTO_RESULTS "${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.cc")
+	list(APPEND PROTO_RESULTS "${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.h")
+
+	add_custom_command(
+		OUTPUT
+		"${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.cc"
+		"${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.h"
+		COMMAND  ${PROTOBUF_PROTOC_EXECUTABLE}
+		ARGS --cpp_out ${GENERATE_ROOT}/${DIRC} -I${ABS_PATH} ${ABS_FIL}
+		DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC_EXECUTABLE}
+		VERBATIM )
+
+endforeach()
+
+set_source_files_properties(${PROTO_RESUTS} PROPERTIES GENERATED TRUE)
+
+include_directories(${GENERATE_ROOT}/src)
+
 add_library(
 	quic
 	STATIC
 
+	${PROTO_RESULTS}
 	${NET_SOURCES}
 	${BASE_SOURCES}
 	${CRYPTO_SOURCES}

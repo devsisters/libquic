@@ -55,7 +55,7 @@ struct StaticDescriptorInitializer_cached_5fnetwork_5fparameters_2eproto {
 namespace {
 
 static void MergeFromFail(int line) GOOGLE_ATTRIBUTE_COLD;
-GOOGLE_ATTRIBUTE_NOINLINE static void MergeFromFail(int line) {
+static void MergeFromFail(int line) {
   GOOGLE_CHECK(false) << __FILE__ << ":" << line;
 }
 
@@ -165,16 +165,8 @@ CachedNetworkParameters* CachedNetworkParameters::New(::google::protobuf::Arena*
 }
 
 void CachedNetworkParameters::Clear() {
-#if defined(__clang__)
-#define ZR_HELPER_(f) \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
-  __builtin_offsetof(CachedNetworkParameters, f) \
-  _Pragma("clang diagnostic pop")
-#else
 #define ZR_HELPER_(f) reinterpret_cast<char*>(\
   &reinterpret_cast<CachedNetworkParameters*>(16)->f)
-#endif
 
 #define ZR_(first, last) do {\
   ::memset(&first, 0,\
