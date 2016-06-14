@@ -18,9 +18,6 @@ class RttStats;
 
 class NET_EXPORT_PRIVATE LossDetectionInterface {
  public:
-  // Creates a TCP loss detector.
-  static LossDetectionInterface* Create(LossDetectionType loss_type);
-
   virtual ~LossDetectionInterface() {}
 
   virtual LossDetectionType GetLossDetectionType() const = 0;
@@ -30,11 +27,20 @@ class NET_EXPORT_PRIVATE LossDetectionInterface {
       const QuicUnackedPacketMap& unacked_packets,
       QuicTime time,
       const RttStats& rtt_stats,
+      QuicPacketNumber largest_newly_acked,
       SendAlgorithmInterface::CongestionVector* packets_lost) = 0;
 
   // Get the time the LossDetectionAlgorithm wants to re-evaluate losses.
   // Returns QuicTime::Zero if no alarm needs to be set.
   virtual QuicTime GetLossTimeout() const = 0;
+
+  // Called when a |spurious_retransmission| is detected.  The original
+  // transmission must have been caused by DetectLosses.
+  virtual void SpuriousRetransmitDetected(
+      const QuicUnackedPacketMap& unacked_packets,
+      QuicTime time,
+      const RttStats& rtt_stats,
+      QuicPacketNumber spurious_retransmission) = 0;
 };
 
 }  // namespace net

@@ -29,7 +29,9 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session)
       visitor_(nullptr),
       headers_decompressed_(false),
       priority_(kDefaultPriority),
-      trailers_decompressed_(false) {
+      trailers_decompressed_(false),
+      trailers_delivered_(false),
+      avoid_empty_nonfin_writes_(FLAGS_quic_avoid_empty_nonfin_writes) {
   DCHECK_NE(kCryptoStreamId, id);
   // Don't receive any callbacks from the sequencer until headers
   // are complete.
@@ -38,7 +40,9 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session)
 }
 
 QuicSpdyStream::~QuicSpdyStream() {
-  spdy_session_->UnregisterStreamPriority(id());
+  if (spdy_session_ != nullptr) {
+    spdy_session_->UnregisterStreamPriority(id());
+  }
 }
 
 void QuicSpdyStream::CloseWriteSide() {
@@ -86,7 +90,7 @@ void QuicSpdyStream::WriteOrBufferBody(
 }
 
 size_t QuicSpdyStream::WriteTrailers(
-    SpdyHeaderBlock trailer_block,
+    const SpdyHeaderBlock& trailer_block,
     QuicAckListenerInterface* ack_notifier_delegate) {
   if (fin_sent()) {
     QUIC_BUG << "Trailers cannot be sent after a FIN.";
@@ -97,7 +101,8 @@ size_t QuicSpdyStream::WriteTrailers(
   // trailers may be processed out of order at the peer.
   DVLOG(1) << "Inserting trailer: (" << kFinalOffsetHeaderKey << ", "
            << stream_bytes_written() + queued_data_bytes() << ")";
-  trailer_block.insert(std::make_pair(
+  SpdyHeaderBlock trailer_block_with_offset(trailer_block);
+  trailer_block_with_offset.insert(std::make_pair(
       kFinalOffsetHeaderKey,
       base::IntToString(stream_bytes_written() + queued_data_bytes())));
 
@@ -105,7 +110,7 @@ size_t QuicSpdyStream::WriteTrailers(
   // trailers are the last thing to be sent on a stream.
   const bool kFin = true;
   size_t bytes_written = spdy_session_->WriteHeaders(
-      id(), trailer_block, kFin, priority_, ack_notifier_delegate);
+      id(), trailer_block_with_offset, kFin, priority_, ack_notifier_delegate);
   set_fin_sent(kFin);
 
   // Trailers are the last thing to be sent on a stream, but if there is still
@@ -155,6 +160,10 @@ void QuicSpdyStream::MarkHeadersConsumed(size_t bytes_consumed) {
 
 void QuicSpdyStream::MarkTrailersConsumed(size_t bytes_consumed) {
   decompressed_trailers_.erase(0, bytes_consumed);
+}
+
+void QuicSpdyStream::MarkTrailersDelivered() {
+  trailers_delivered_ = true;
 }
 
 void QuicSpdyStream::ConsumeHeaderList() {
@@ -373,11 +382,21 @@ bool QuicSpdyStream::ParseHeaderStatusCode(SpdyHeaderBlock* header,
 bool QuicSpdyStream::FinishedReadingTrailers() const {
   // If no further trailing headers are expected, and the decompressed trailers
   // (if any) have been consumed, then reading of trailers is finished.
-  bool no_more_trailers = fin_received() || trailers_decompressed_;
-  return no_more_trailers && decompressed_trailers_.empty();
+  if (!fin_received()) {
+    return false;
+  } else if (!trailers_decompressed_) {
+    return true;
+  } else {
+    return trailers_delivered_ && decompressed_trailers_.empty();
+  }
 }
 
 SpdyPriority QuicSpdyStream::priority() const {
   return priority_;
 }
+
+void QuicSpdyStream::ClearSession() {
+  spdy_session_ = nullptr;
+}
+
 }  // namespace net

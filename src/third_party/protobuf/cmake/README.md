@@ -28,11 +28,11 @@ Create a folder where protobuf headers/libraries/binaries will be installed afte
 
     C:\Path\to>mkdir install
 
-If *cmake* command is not avaliable from *Command Prompt*, add it to system *PATH* variable:
+If *cmake* command is not available from *Command Prompt*, add it to system *PATH* variable:
 
     C:\Path\to>set PATH=%PATH%;C:\Program Files (x86)\CMake\bin
 
-If *git* command is not avaliable from *Command Prompt*, add it to system *PATH* variable:
+If *git* command is not available from *Command Prompt*, add it to system *PATH* variable:
 
     C:\Path\to>set PATH=%PATH%;C:\Program Files\Git\cmd
 
@@ -157,7 +157,8 @@ And wait for the compilation to finish.
 Testing
 =======
 
-To run unit-tests:
+To run unit-tests, first you must compile protobuf as described above.
+Then run:
 
      C:\Path\to\protobuf\cmake\build\release>nmake check
 
@@ -218,7 +219,7 @@ It sounds not so strange and it works.
 
 This will create the following folders under the *install* location:
   * bin - that contains protobuf *protoc.exe* compiler;
-  * inclue - that contains C++ headers and protobuf *.proto files;
+  * include - that contains C++ headers and protobuf *.proto files;
   * lib - that contains linking libraries and *CMake* configuration files for *protobuf* package.
 
 Now you can if needed:

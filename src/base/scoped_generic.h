@@ -11,7 +11,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/macros.h"
-#include "base/move.h"
 
 namespace base {
 
@@ -54,8 +53,6 @@ namespace base {
 //   typedef ScopedGeneric<int, FooScopedTraits> ScopedFoo;
 template<typename T, typename Traits>
 class ScopedGeneric {
-  DISALLOW_COPY_AND_ASSIGN_WITH_MOVE_FOR_BIND(ScopedGeneric)
-
  private:
   // This must be first since it's used inline below.
   //
@@ -160,6 +157,8 @@ class ScopedGeneric {
       const ScopedGeneric<T2, Traits2>& p2) const;
 
   Data data_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedGeneric);
 };
 
 template<class T, class Traits>

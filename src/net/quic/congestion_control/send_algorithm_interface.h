@@ -23,6 +23,8 @@ namespace net {
 class CachedNetworkParameters;
 class RttStats;
 
+const QuicPacketCount kDefaultMaxCongestionWindowPackets = 2000;
+
 class NET_EXPORT_PRIVATE SendAlgorithmInterface {
  public:
   // A sorted vector of packets.

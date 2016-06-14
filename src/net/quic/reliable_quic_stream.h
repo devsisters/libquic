@@ -169,6 +169,9 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   // stop sending stream-level flow-control updates when this end sends FIN.
   virtual void StopReading();
 
+  // Get peer IP of the lastest packet which connection is dealing/delt with.
+  virtual const IPEndPoint& PeerAddressOfLatestPacket() const;
+
  protected:
   // Sends as much of 'data' to the connection as the connection will consume,
   // and then buffers any remaining data in queued_data_.

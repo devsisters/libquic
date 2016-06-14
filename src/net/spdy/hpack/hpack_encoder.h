@@ -58,6 +58,11 @@ class NET_EXPORT_PRIVATE HpackEncoder {
     return header_table_.settings_size_bound();
   }
 
+  void SetHeaderTableDebugVisitor(
+      std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) {
+    header_table_.set_debug_visitor(std::move(visitor));
+  }
+
  private:
   typedef std::pair<base::StringPiece, base::StringPiece> Representation;
   typedef std::vector<Representation> Representations;

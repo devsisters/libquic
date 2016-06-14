@@ -122,11 +122,11 @@ SpdyHeaderBlock::StringPieceProxy::~StringPieceProxy() {}
 SpdyHeaderBlock::StringPieceProxy& SpdyHeaderBlock::StringPieceProxy::operator=(
     const StringPiece value) {
   if (lookup_result_ == block_->end()) {
-    VLOG(1) << "Inserting: (" << key_ << ", " << value << ")";
+    DVLOG(1) << "Inserting: (" << key_ << ", " << value << ")";
     lookup_result_ =
         block_->insert(std::make_pair(key_, storage_->Write(value))).first;
   } else {
-    VLOG(1) << "Updating key: " << key_ << " with value: " << value;
+    DVLOG(1) << "Updating key: " << key_ << " with value: " << value;
     lookup_result_->second = storage_->Write(value);
   }
   return *this;
@@ -143,8 +143,6 @@ void SpdyHeaderBlock::StringPieceProxy::reserve(size_t size) {
 
 SpdyHeaderBlock::SpdyHeaderBlock() : storage_(new Storage) {}
 
-SpdyHeaderBlock::~SpdyHeaderBlock() {}
-
 SpdyHeaderBlock::SpdyHeaderBlock(const SpdyHeaderBlock& other)
     : storage_(new Storage) {
   storage_->Reserve(min(other.storage_->BytesUsed(), kMaxContiguousAllocation));
@@ -152,6 +150,14 @@ SpdyHeaderBlock::SpdyHeaderBlock(const SpdyHeaderBlock& other)
     AppendHeader(iter.first, iter.second);
   }
 }
+
+SpdyHeaderBlock::SpdyHeaderBlock(SpdyHeaderBlock&& other)
+    : storage_(std::move(other.storage_)) {
+  // |block_| is linked_hash_map, which does not have move constructor.
+  block_.swap(other.block_);
+}
+
+SpdyHeaderBlock::~SpdyHeaderBlock() {}
 
 SpdyHeaderBlock& SpdyHeaderBlock::operator=(const SpdyHeaderBlock& other) {
   clear();
@@ -162,8 +168,16 @@ SpdyHeaderBlock& SpdyHeaderBlock::operator=(const SpdyHeaderBlock& other) {
   return *this;
 }
 
+SpdyHeaderBlock& SpdyHeaderBlock::operator=(SpdyHeaderBlock&& other) {
+  storage_ = std::move(other.storage_);
+  // |block_| is linked_hash_map, which does not have move assignment
+  // operator.
+  block_.swap(other.block_);
+  return *this;
+}
+
 bool SpdyHeaderBlock::operator==(const SpdyHeaderBlock& other) const {
-  return std::equal(begin(), end(), other.begin());
+  return size() == other.size() && std::equal(begin(), end(), other.begin());
 }
 
 bool SpdyHeaderBlock::operator!=(const SpdyHeaderBlock& other) const {
@@ -195,19 +209,25 @@ void SpdyHeaderBlock::insert(
 
 SpdyHeaderBlock::StringPieceProxy SpdyHeaderBlock::operator[](
     const StringPiece key) {
-  VLOG(2) << "Operator[] saw key: " << key;
+  DVLOG(2) << "Operator[] saw key: " << key;
   StringPiece out_key;
   auto iter = block_.find(key);
   if (iter == block_.end()) {
     // We write the key first, to assure that the StringPieceProxy has a
     // reference to a valid StringPiece in its operator=.
     out_key = storage_->Write(key);
-    VLOG(2) << "Key written as: " << hex << static_cast<const void*>(key.data())
-            << ", " << dec << key.size();
+    DVLOG(2) << "Key written as: " << hex
+             << static_cast<const void*>(key.data()) << ", " << dec
+             << key.size();
   } else {
     out_key = iter->first;
   }
   return StringPieceProxy(&block_, storage_.get(), iter, out_key);
+}
+
+StringPiece SpdyHeaderBlock::GetHeader(const StringPiece key) const {
+  auto iter = block_.find(key);
+  return iter == block_.end() ? StringPiece() : iter->second;
 }
 
 void SpdyHeaderBlock::ReplaceOrAppendHeader(const StringPiece key,
@@ -215,10 +235,10 @@ void SpdyHeaderBlock::ReplaceOrAppendHeader(const StringPiece key,
   // TODO(birenroy): Write new value in place of old value, if it fits.
   auto iter = block_.find(key);
   if (iter == block_.end()) {
-    VLOG(1) << "Inserting: (" << key << ", " << value << ")";
+    DVLOG(1) << "Inserting: (" << key << ", " << value << ")";
     AppendHeader(key, value);
   } else {
-    VLOG(1) << "Updating key: " << iter->first << " with value: " << value;
+    DVLOG(1) << "Updating key: " << iter->first << " with value: " << value;
     iter->second = storage_->Write(value);
   }
 }

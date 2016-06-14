@@ -23,6 +23,29 @@ class FilePath;
 
 class BASE_EXPORT MemoryMappedFile {
  public:
+  enum Access {
+    // Mapping a file into memory effectively allows for file I/O on any thread.
+    // The accessing thread could be paused while data from the file is paged
+    // into memory. Worse, a corrupted filesystem could cause a SEGV within the
+    // program instead of just an I/O error.
+    READ_ONLY,
+
+    // This provides read/write access to a file and must be used with care of
+    // the additional subtleties involved in doing so. Though the OS will do
+    // the writing of data on its own time, too many dirty pages can cause
+    // the OS to pause the thread while it writes them out. The pause can
+    // be as much as 1s on some systems.
+    READ_WRITE,
+
+    // This provides read/write access but with the ability to write beyond
+    // the end of the existing file up to a maximum size specified as the
+    // "region". Depending on the OS, the file may or may not be immediately
+    // extended to the maximum size though it won't be loaded in RAM until
+    // needed. Note, however, that the maximum size will still be reserved
+    // in the process address space.
+    READ_WRITE_EXTEND,
+  };
+
   // The default constructor sets all members to invalid/null values.
   MemoryMappedFile();
   ~MemoryMappedFile();
@@ -41,27 +64,37 @@ class BASE_EXPORT MemoryMappedFile {
     int64_t size;
   };
 
-  // Opens an existing file and maps it into memory. Access is restricted to
-  // read only. If this object already points to a valid memory mapped file
-  // then this method will fail and return false. If it cannot open the file,
-  // the file does not exist, or the memory mapping fails, it will return false.
-  // Later we may want to allow the user to specify access.
-  bool Initialize(const FilePath& file_name);
+  // Opens an existing file and maps it into memory. |access| can be read-only
+  // or read/write but not read/write+extend. If this object already points
+  // to a valid memory mapped file then this method will fail and return
+  // false. If it cannot open the file, the file does not exist, or the
+  // memory mapping fails, it will return false.
+  bool Initialize(const FilePath& file_name, Access access);
+  bool Initialize(const FilePath& file_name) {
+    return Initialize(file_name, READ_ONLY);
+  }
 
-  // As above, but works with an already-opened file. MemoryMappedFile takes
-  // ownership of |file| and closes it when done.
-  bool Initialize(File file);
+  // As above, but works with an already-opened file. |access| can be read-only
+  // or read/write but not read/write+extend. MemoryMappedFile takes ownership
+  // of |file| and closes it when done. |file| must have been opened with
+  // permissions suitable for |access|. If the memory mapping fails, it will
+  // return false.
+  bool Initialize(File file, Access access);
+  bool Initialize(File file) {
+    return Initialize(std::move(file), READ_ONLY);
+  }
 
-  // As above, but works with a region of an already-opened file.
-  bool Initialize(File file, const Region& region);
-
-#if defined(OS_WIN)
-  // Opens an existing file and maps it as an image section. Please refer to
-  // the Initialize function above for additional information.
-  bool InitializeAsImageSection(const FilePath& file_name);
-#endif  // OS_WIN
+  // As above, but works with a region of an already-opened file. All forms of
+  // |access| are allowed. If READ_WRITE_EXTEND is specified then |region|
+  // provides the maximum size of the file. If the memory mapping fails, it
+  // return false.
+  bool Initialize(File file, const Region& region, Access access);
+  bool Initialize(File file, const Region& region) {
+    return Initialize(std::move(file), region, READ_ONLY);
+  }
 
   const uint8_t* data() const { return data_; }
+  uint8_t* data() { return data_; }
   size_t length() const { return length_; }
 
   // Is file_ a valid file handle that points to an open, memory mapped file?
@@ -82,7 +115,7 @@ class BASE_EXPORT MemoryMappedFile {
 
   // Map the file to memory, set data_ to that memory address. Return true on
   // success, false on any kind of failure. This is a helper for Initialize().
-  bool MapFileRegionToMemory(const Region& region);
+  bool MapFileRegionToMemory(const Region& region, Access access);
 
   // Closes all open handles.
   void CloseHandles();
@@ -93,7 +126,6 @@ class BASE_EXPORT MemoryMappedFile {
 
 #if defined(OS_WIN)
   win::ScopedHandle file_mapping_;
-  bool image_;  // Map as an image.
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(MemoryMappedFile);

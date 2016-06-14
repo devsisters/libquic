@@ -342,6 +342,8 @@ libprotoc_la_SOURCES =                                         \
   google/protobuf/compiler/java/java_enum_lite.h               \
   google/protobuf/compiler/java/java_extension.cc              \
   google/protobuf/compiler/java/java_extension.h               \
+  google/protobuf/compiler/java/java_extension_lite.cc         \
+  google/protobuf/compiler/java/java_extension_lite.h          \
   google/protobuf/compiler/java/java_field.cc                  \
   google/protobuf/compiler/java/java_field.h                   \
   google/protobuf/compiler/java/java_file.cc                   \
@@ -453,6 +455,7 @@ libprotoc_la_SOURCES =                                         \
   google/protobuf/compiler/csharp/csharp_message.h             \
   google/protobuf/compiler/csharp/csharp_message_field.cc      \
   google/protobuf/compiler/csharp/csharp_message_field.h       \
+  google/protobuf/compiler/csharp/csharp_options.h             \
   google/protobuf/compiler/csharp/csharp_primitive_field.cc    \
   google/protobuf/compiler/csharp/csharp_primitive_field.h     \
   google/protobuf/compiler/csharp/csharp_reflection_class.cc     \
@@ -504,6 +507,8 @@ protoc_inputs =                                                   \
   google/protobuf/unittest_preserve_unknown_enum.proto            \
   google/protobuf/unittest.proto                                  \
   google/protobuf/unittest_proto3_arena.proto                     \
+  google/protobuf/unittest_proto3_arena_lite.proto                     \
+  google/protobuf/unittest_proto3_lite.proto                     \
   google/protobuf/unittest_well_known_types.proto                 \
   google/protobuf/util/internal/testdata/anys.proto               \
   google/protobuf/util/internal/testdata/books.proto              \
@@ -606,6 +611,10 @@ protoc_outputs =                                                  \
   google/protobuf/unittest_preserve_unknown_enum.pb.h             \
   google/protobuf/unittest_proto3_arena.pb.cc                     \
   google/protobuf/unittest_proto3_arena.pb.h                      \
+  google/protobuf/unittest_proto3_arena_lite.pb.cc                     \
+  google/protobuf/unittest_proto3_arena_lite.pb.h                      \
+  google/protobuf/unittest_proto3_lite.pb.cc                     \
+  google/protobuf/unittest_proto3_lite.pb.h                      \
   google/protobuf/unittest_well_known_types.pb.cc                 \
   google/protobuf/unittest_well_known_types.pb.h                  \
   google/protobuf/util/internal/testdata/anys.pb.cc               \
@@ -707,6 +716,8 @@ protobuf_test_SOURCES =                                        \
   google/protobuf/no_field_presence_test.cc                    \
   google/protobuf/preserve_unknown_enum_test.cc                \
   google/protobuf/proto3_arena_unittest.cc                     \
+  google/protobuf/proto3_arena_lite_unittest.cc                     \
+  google/protobuf/proto3_lite_unittest.cc                     \
   google/protobuf/reflection_ops_unittest.cc                   \
   google/protobuf/repeated_field_reflection_unittest.cc        \
   google/protobuf/repeated_field_unittest.cc                   \
@@ -727,6 +738,7 @@ protobuf_test_SOURCES =                                        \
   google/protobuf/compiler/cpp/cpp_unittest.h                  \
   google/protobuf/compiler/cpp/cpp_unittest.cc                 \
   google/protobuf/compiler/cpp/cpp_plugin_unittest.cc          \
+  google/protobuf/compiler/cpp/metadata_test.cc                \
   google/protobuf/compiler/java/java_plugin_unittest.cc        \
   google/protobuf/compiler/java/java_doc_comment_unittest.cc   \
   google/protobuf/compiler/objectivec/objectivec_helpers_unittest.cc \

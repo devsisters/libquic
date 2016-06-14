@@ -80,7 +80,8 @@ class NET_EXPORT_PRIVATE QuicWriteBlockedList {
     }
 
     QuicStreamId id = priority_write_scheduler_.PopNextReadyStream();
-    SpdyPriority priority = priority_write_scheduler_.GetStreamPriority(id);
+    SpdyPriority priority =
+        priority_write_scheduler_.GetStreamPrecedence(id).spdy3_priority();
 
     if (!priority_write_scheduler_.HasReadyStreams()) {
       // If no streams are blocked, don't bother latching.  This stream will be
@@ -98,7 +99,8 @@ class NET_EXPORT_PRIVATE QuicWriteBlockedList {
   }
 
   void RegisterStream(QuicStreamId stream_id, SpdyPriority priority) {
-    priority_write_scheduler_.RegisterStream(stream_id, priority);
+    priority_write_scheduler_.RegisterStream(stream_id,
+                                             SpdyStreamPrecedence(priority));
   }
 
   void UnregisterStream(QuicStreamId stream_id) {
@@ -106,7 +108,8 @@ class NET_EXPORT_PRIVATE QuicWriteBlockedList {
   }
 
   void UpdateStreamPriority(QuicStreamId stream_id, SpdyPriority new_priority) {
-    priority_write_scheduler_.UpdateStreamPriority(stream_id, new_priority);
+    priority_write_scheduler_.UpdateStreamPrecedence(
+        stream_id, SpdyStreamPrecedence(new_priority));
   }
 
   void UpdateBytesForStream(QuicStreamId stream_id, size_t bytes) {

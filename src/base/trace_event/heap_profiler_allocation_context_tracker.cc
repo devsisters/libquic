@@ -8,13 +8,20 @@
 #include <iterator>
 
 #include "base/atomicops.h"
+#include "base/debug/leak_annotations.h"
+#include "base/threading/platform_thread.h"
 #include "base/threading/thread_local_storage.h"
 #include "base/trace_event/heap_profiler_allocation_context.h"
+
+#if defined(OS_LINUX) || defined(OS_ANDROID)
+#include <sys/prctl.h>
+#endif
 
 namespace base {
 namespace trace_event {
 
-subtle::Atomic32 AllocationContextTracker::capture_enabled_ = 0;
+subtle::Atomic32 AllocationContextTracker::capture_mode_ =
+    static_cast<int32_t>(AllocationContextTracker::CaptureMode::DISABLED);
 
 namespace {
 
@@ -30,6 +37,29 @@ ThreadLocalStorage::StaticSlot g_tls_alloc_ctx_tracker = TLS_INITIALIZER;
 // thread exits.
 void DestructAllocationContextTracker(void* alloc_ctx_tracker) {
   delete static_cast<AllocationContextTracker*>(alloc_ctx_tracker);
+}
+
+// Cannot call ThreadIdNameManager::GetName because it holds a lock and causes
+// deadlock when lock is already held by ThreadIdNameManager before the current
+// allocation. Gets the thread name from kernel if available or returns a string
+// with id. This function intenionally leaks the allocated strings since they
+// are used to tag allocations even after the thread dies.
+const char* GetAndLeakThreadName() {
+  char name[16];
+#if defined(OS_LINUX) || defined(OS_ANDROID)
+  // If the thread name is not set, try to get it from prctl. Thread name might
+  // not be set in cases where the thread started before heap profiling was
+  // enabled.
+  int err = prctl(PR_GET_NAME, name);
+  if (!err) {
+    return strdup(name);
+  }
+#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
+
+  // Use tid if we don't have a thread name.
+  snprintf(name, sizeof(name), "%lu",
+           static_cast<unsigned long>(PlatformThread::CurrentId()));
+  return strdup(name);
 }
 
 }  // namespace
@@ -60,21 +90,21 @@ AllocationContextTracker::~AllocationContextTracker() {}
 
 // static
 void AllocationContextTracker::SetCurrentThreadName(const char* name) {
-  if (name && capture_enabled()) {
+  if (name && capture_mode() != CaptureMode::DISABLED) {
     GetInstanceForCurrentThread()->thread_name_ = name;
   }
 }
 
 // static
-void AllocationContextTracker::SetCaptureEnabled(bool enabled) {
+void AllocationContextTracker::SetCaptureMode(CaptureMode mode) {
   // When enabling capturing, also initialize the TLS slot. This does not create
   // a TLS instance yet.
-  if (enabled && !g_tls_alloc_ctx_tracker.initialized())
+  if (mode != CaptureMode::DISABLED && !g_tls_alloc_ctx_tracker.initialized())
     g_tls_alloc_ctx_tracker.Initialize(DestructAllocationContextTracker);
 
-  // Release ordering ensures that when a thread observes |capture_enabled_| to
+  // Release ordering ensures that when a thread observes |capture_mode_| to
   // be true through an acquire load, the TLS slot has been initialized.
-  subtle::Release_Store(&capture_enabled_, enabled);
+  subtle::Release_Store(&capture_mode_, static_cast<int32_t>(mode));
 }
 
 void AllocationContextTracker::PushPseudoStackFrame(
@@ -113,6 +143,12 @@ void AllocationContextTracker::PushCurrentTaskContext(const char* context) {
 }
 
 void AllocationContextTracker::PopCurrentTaskContext(const char* context) {
+  // Guard for stack underflow. If tracing was started with a TRACE_EVENT in
+  // scope, the context was never pushed, so it is possible that pop is called
+  // on an empty stack.
+  if (task_contexts_.empty())
+    return;
+
   DCHECK_EQ(context, task_contexts_.back())
       << "Encountered an unmatched context end";
   task_contexts_.pop_back();
@@ -129,25 +165,75 @@ AllocationContext AllocationContextTracker::GetContextSnapshot() {
     return ctx;
   }
 
-  // Fill the backtrace.
-  {
-    auto backtrace = std::begin(ctx.backtrace.frames);
-    auto backtrace_end = std::end(ctx.backtrace.frames);
+  CaptureMode mode = static_cast<CaptureMode>(
+      subtle::NoBarrier_Load(&capture_mode_));
 
-    // Add the thread name as the first entry
-    if (thread_name_) {
-      *backtrace++ = StackFrame::FromThreadName(thread_name_);
-    }
+  auto backtrace = std::begin(ctx.backtrace.frames);
+  auto backtrace_end = std::end(ctx.backtrace.frames);
 
-    for (const char* event_name: pseudo_stack_) {
-      if (backtrace == backtrace_end) {
+  if (!thread_name_) {
+    // Ignore the string allocation made by GetAndLeakThreadName to avoid
+    // reentrancy.
+    ignore_scope_depth_++;
+    thread_name_ = GetAndLeakThreadName();
+    ANNOTATE_LEAKING_OBJECT_PTR(thread_name_);
+    DCHECK(thread_name_);
+    ignore_scope_depth_--;
+  }
+
+  // Add the thread name as the first entry in pseudo stack.
+  if (thread_name_) {
+    *backtrace++ = StackFrame::FromThreadName(thread_name_);
+  }
+
+  switch (mode) {
+    case CaptureMode::DISABLED:
+      {
         break;
       }
-      *backtrace++ = StackFrame::FromTraceEventName(event_name);
-    }
+    case CaptureMode::PSEUDO_STACK:
+      {
+        for (const char* event_name: pseudo_stack_) {
+          if (backtrace == backtrace_end) {
+            break;
+          }
+          *backtrace++ = StackFrame::FromTraceEventName(event_name);
+        }
+        break;
+      }
+    case CaptureMode::NATIVE_STACK:
+      {
+        // Backtrace contract requires us to return bottom frames, i.e.
+        // from main() and up. Stack unwinding produces top frames, i.e.
+        // from this point and up until main(). We request many frames to
+        // make sure we reach main(), and then copy bottom portion of them.
+        const void* frames[128];
+        static_assert(arraysize(frames) >= Backtrace::kMaxFrameCount,
+                      "not requesting enough frames to fill Backtrace");
+#if HAVE_TRACE_STACK_FRAME_POINTERS && !defined(OS_NACL)
+        size_t frame_count = debug::TraceStackFramePointers(
+            frames,
+            arraysize(frames),
+            1 /* exclude this function from the trace */ );
+#else
+        size_t frame_count = 0;
+        NOTREACHED();
+#endif
 
-    ctx.backtrace.frame_count = backtrace - std::begin(ctx.backtrace.frames);
+        // Copy frames backwards
+        size_t backtrace_capacity = backtrace_end - backtrace;
+        size_t top_frame_index = (backtrace_capacity >= frame_count) ?
+            0 :
+            frame_count - backtrace_capacity;
+        for (size_t i = frame_count; i > top_frame_index;) {
+          const void* frame = frames[--i];
+          *backtrace++ = StackFrame::FromProgramCounter(frame);
+        }
+        break;
+      }
   }
+
+  ctx.backtrace.frame_count = backtrace - std::begin(ctx.backtrace.frames);
 
   // TODO(ssid): Fix crbug.com/594803 to add file name as 3rd dimension
   // (component name) in the heap profiler and not piggy back on the type name.

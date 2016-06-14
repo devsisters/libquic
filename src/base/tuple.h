@@ -2,27 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// A Tuple is a generic templatized container, similar in concept to std::pair
-// and std::tuple.  The convenient MakeTuple() function takes any number of
-// arguments and will construct and return the appropriate Tuple object.  The
-// functions DispatchToMethod and DispatchToFunction take a function pointer or
-// instance and method pointer, and unpack a tuple into arguments to the call.
-//
-// Tuple elements are copied by value, and stored in the tuple.  See the unit
-// tests for more details of how/when the values are copied.
+// Use std::tuple as tuple type. This file contains helper functions for
+// working with std::tuples.
+// The functions DispatchToMethod and DispatchToFunction take a function pointer
+// or instance and method pointer, and unpack a tuple into arguments to the
+// call.
 //
 // Example usage:
 //   // These two methods of creating a Tuple are identical.
-//   Tuple<int, const char*> tuple_a(1, "wee");
-//   Tuple<int, const char*> tuple_b = MakeTuple(1, "wee");
+//   std::tuple<int, const char*> tuple_a(1, "wee");
+//   std::tuple<int, const char*> tuple_b = std::make_tuple(1, "wee");
 //
 //   void SomeFunc(int a, const char* b) { }
 //   DispatchToFunction(&SomeFunc, tuple_a);  // SomeFunc(1, "wee")
 //   DispatchToFunction(
-//       &SomeFunc, MakeTuple(10, "foo"));    // SomeFunc(10, "foo")
+//       &SomeFunc, std::make_tuple(10, "foo"));    // SomeFunc(10, "foo")
 //
 //   struct { void SomeMeth(int a, int b, int c) { } } foo;
-//   DispatchToMethod(&foo, &Foo::SomeMeth, MakeTuple(1, 2, 3));
+//   DispatchToMethod(&foo, &Foo::SomeMeth, std::make_tuple(1, 2, 3));
 //   // foo->SomeMeth(1, 2, 3);
 
 #ifndef BASE_TUPLE_H_
@@ -110,43 +107,6 @@ struct MakeIndexSequenceImpl<N, Ns...>
 template <size_t N>
 using MakeIndexSequence = typename MakeIndexSequenceImpl<N>::Type;
 
-// Tuple -----------------------------------------------------------------------
-//
-// This set of classes is useful for bundling 0 or more heterogeneous data types
-// into a single variable.  The advantage of this is that it greatly simplifies
-// function objects that need to take an arbitrary number of parameters; see
-// RunnableMethod and IPC::MessageWithTuple.
-//
-// Tuple<> is supplied to act as a 'void' type.  It can be used, for example,
-// when dispatching to a function that accepts no arguments (see the
-// Dispatchers below).
-// Tuple<A> is rarely useful.  One such use is when A is non-const ref that you
-// want filled by the dispatchee, and the tuple is merely a container for that
-// output (a "tier").  See MakeRefTuple and its usages.
-
-template <typename... Ts>
-using Tuple = std::tuple<Ts...>;
-
-using std::get;
-
-// Tuple creators -------------------------------------------------------------
-//
-// Helper functions for constructing tuples while inferring the template
-// argument types.
-
-template <typename... Ts>
-inline Tuple<Ts...> MakeTuple(const Ts&... arg) {
-  return Tuple<Ts...>(arg...);
-}
-
-// The following set of helpers make what Boost refers to as "Tiers" - a tuple
-// of references.
-
-template <typename... Ts>
-inline Tuple<Ts&...> MakeRefTuple(Ts&... arg) {
-  return Tuple<Ts&...>(arg...);
-}
-
 // Dispatchers ----------------------------------------------------------------
 //
 // Helper functions that call the given method on an object, with the unpacked
@@ -161,15 +121,15 @@ inline Tuple<Ts&...> MakeRefTuple(Ts&... arg) {
 template <typename ObjT, typename Method, typename... Ts, size_t... Ns>
 inline void DispatchToMethodImpl(const ObjT& obj,
                                  Method method,
-                                 const Tuple<Ts...>& arg,
+                                 const std::tuple<Ts...>& arg,
                                  IndexSequence<Ns...>) {
-  (obj->*method)(internal::Unwrap(get<Ns>(arg))...);
+  (obj->*method)(internal::Unwrap(std::get<Ns>(arg))...);
 }
 
 template <typename ObjT, typename Method, typename... Ts>
 inline void DispatchToMethod(const ObjT& obj,
                              Method method,
-                             const Tuple<Ts...>& arg) {
+                             const std::tuple<Ts...>& arg) {
   DispatchToMethodImpl(obj, method, arg, MakeIndexSequence<sizeof...(Ts)>());
 }
 
@@ -177,13 +137,14 @@ inline void DispatchToMethod(const ObjT& obj,
 
 template <typename Function, typename... Ts, size_t... Ns>
 inline void DispatchToFunctionImpl(Function function,
-                                   const Tuple<Ts...>& arg,
+                                   const std::tuple<Ts...>& arg,
                                    IndexSequence<Ns...>) {
-  (*function)(internal::Unwrap(get<Ns>(arg))...);
+  (*function)(internal::Unwrap(std::get<Ns>(arg))...);
 }
 
 template <typename Function, typename... Ts>
-inline void DispatchToFunction(Function function, const Tuple<Ts...>& arg) {
+inline void DispatchToFunction(Function function,
+                               const std::tuple<Ts...>& arg) {
   DispatchToFunctionImpl(function, arg, MakeIndexSequence<sizeof...(Ts)>());
 }
 
@@ -197,18 +158,19 @@ template <typename ObjT,
           size_t... OutNs>
 inline void DispatchToMethodImpl(const ObjT& obj,
                                  Method method,
-                                 const Tuple<InTs...>& in,
-                                 Tuple<OutTs...>* out,
+                                 const std::tuple<InTs...>& in,
+                                 std::tuple<OutTs...>* out,
                                  IndexSequence<InNs...>,
                                  IndexSequence<OutNs...>) {
-  (obj->*method)(internal::Unwrap(get<InNs>(in))..., &get<OutNs>(*out)...);
+  (obj->*method)(internal::Unwrap(std::get<InNs>(in))...,
+                 &std::get<OutNs>(*out)...);
 }
 
 template <typename ObjT, typename Method, typename... InTs, typename... OutTs>
 inline void DispatchToMethod(const ObjT& obj,
                              Method method,
-                             const Tuple<InTs...>& in,
-                             Tuple<OutTs...>* out) {
+                             const std::tuple<InTs...>& in,
+                             std::tuple<OutTs...>* out) {
   DispatchToMethodImpl(obj, method, in, out,
                        MakeIndexSequence<sizeof...(InTs)>(),
                        MakeIndexSequence<sizeof...(OutTs)>());

@@ -80,7 +80,7 @@ def main():
                 if node.endswith('.h'):
                     for extension in ('.cc', '.mm'):#, '_posix.cc', '_mac.mm', '_linux.cc', '_freebsd.cc'):
                         if os.path.exists(node[:-2] + extension):
-                            print("Append {} from {}".format(node[:-2], autodep))
+                            print("Append {} from {}".format(node[:-2] + extension, autodep))
                             q.append(node[:-2] + extension)
 
     for dep in deps.get("manual_dependency", []):

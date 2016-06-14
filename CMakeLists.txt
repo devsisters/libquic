@@ -71,8 +71,6 @@ set(
 	src/net/quic/quic_packet_generator.cc
 	src/net/quic/quic_flow_controller.cc
 	src/net/quic/quic_connection_stats.cc
-	src/net/quic/quic_fec_group.cc
-	src/net/quic/quic_fec_group_interface.cc
 	src/net/quic/quic_data_writer.cc
 	src/net/quic/quic_data_reader.cc
 	src/net/quic/quic_session.cc
@@ -126,7 +124,6 @@ set(
 	src/net/quic/quic_alarm.cc
 	src/net/quic/quic_sent_entropy_manager.cc
 	src/net/quic/congestion_control/pacing_sender.cc
-	src/net/quic/congestion_control/loss_detection_interface.cc
 	src/net/quic/congestion_control/general_loss_algorithm.cc
 	src/net/quic/congestion_control/send_algorithm_interface.cc
 	src/net/quic/congestion_control/cubic.cc
@@ -152,12 +149,12 @@ set(
 	src/net/quic/quic_server_id.cc
 	src/net/quic/quic_simple_buffer_allocator.cc
 	src/net/quic/quic_stream_sequencer_buffer.cc
+	src/net/quic/quic_server_session_base.cc
 
 	src/net/base/int128.cc
 	src/net/base/escape.cc
 	src/net/base/net_errors.cc
 	src/net/base/ip_address.cc
-	src/net/base/ip_address_number.cc
 	src/net/base/ip_endpoint.cc
 	src/net/base/host_port_pair.cc
 	src/net/base/address_family.cc
@@ -169,8 +166,13 @@ set(
 	src/net/spdy/spdy_frame_builder.cc
 	src/net/spdy/spdy_framer.cc
 	src/net/spdy/spdy_header_block.cc
+	src/net/spdy/spdy_headers_block_parser.cc
+	src/net/spdy/spdy_framer_decoder_adapter.cc
 	src/net/spdy/spdy_protocol.cc
+	src/net/spdy/spdy_flags.cc
 	src/net/spdy/spdy_alt_svc_wire_format.cc
+	src/net/spdy/spdy_pinnable_buffer_piece.cc
+	src/net/spdy/spdy_prefixed_buffer_reader.cc
 	src/net/spdy/hpack/hpack_constants.cc
 	src/net/spdy/hpack/hpack_decoder.cc
 	src/net/spdy/hpack/hpack_encoder.cc
@@ -314,8 +316,7 @@ set(
 	src/crypto/hkdf.cc
 	src/crypto/hmac.cc
 	src/crypto/openssl_util.cc
-	src/crypto/hmac_openssl.cc
-	src/crypto/symmetric_key_openssl.cc
+	src/crypto/symmetric_key.cc
 	src/crypto/random.cc
 	src/crypto/secure_util.cc
 	src/crypto/secure_hash.cc

@@ -85,27 +85,11 @@ bool FLAGS_quic_crypto_server_config_default_has_chacha20 = true;
 // If true, QUIC will use newly refactored TCP sender code.
 bool FLAGS_quic_use_new_tcp_sender = true;
 
-// If true, the QUIC dispatcher will directly send version negotiation packets
-// without needing to create a QUIC session first.
-bool FLAGS_quic_stateless_version_negotiation = true;
-
 // If true, QUIC connections will defer responding to ACKs to their send alarms.
 bool FLAGS_quic_connection_defer_ack_response = true;
 
-// Enable a connection option allowing connections to time out if more than 5
-// consecutive RTOs are sent.
-bool FLAGS_quic_enable_rto_timeout = true;
-
-// Try to use the socket timestamp to determine the time a packet was
-// received instead of Now().
-bool FLAGS_quic_use_socket_timestamp = true;
-
 // Resend 0RTT requests in response to an REJ that re-establishes encryption.
 bool FLAGS_quic_reply_to_rej = true;
-
-// If true, QuicFramer will ignore invalid error codes when processing GoAway,
-// ConnectionClose, and RstStream frames.
-bool FLAGS_quic_ignore_invalid_error_code = true;
 
 // If true, QUIC connections can do bandwidth resumption with an initial window
 // of < 10 packets.
@@ -115,8 +99,54 @@ bool FLAGS_quic_no_lower_bw_resumption_limit = true;
 // the initial flight has been acked.
 bool FLAGS_quic_sslr_limit_reduction = true;
 
-// Simplify QUIC's loss detection by combining time and nack based portions.
-bool FLAGS_quic_simplify_loss_detection = true;
+// If true, QuicWriter avoids calling HttpWriter::Write with 0 bytes when
+// last_data == false.
+bool FLAGS_quic_avoid_empty_nonfin_writes = true;
 
-// If true, do not check HasUnackedPackets on retransmission timeout.
-bool FLAGS_quic_always_has_unacked_packets_on_timeout = true;
+// If true, flow controller may grow the receive window size if necessary.
+bool FLAGS_quic_auto_tune_receive_window = true;
+
+// Add the ability for QUIC's time based loss detection to increase it's
+// threshold after spurious losses.
+bool FLAGS_quic_adaptive_loss_recovery = true;
+
+// If true, enable auto tuning by default (server side).
+bool FLAGS_quic_enable_autotune_by_default = true;
+
+// Use largest acked in the most recent ack instead of largest acked ever in
+// loss recovery.
+bool FLAGS_quic_loss_recovery_use_largest_acked = true;
+
+// Only set one alarm for sending at once, either the send alarm or
+// retransmission alarm.  Disabled because it breaks QUIC time loss detection.
+bool FLAGS_quic_only_one_sending_alarm = false;
+
+// If true, the hash of the CHLO message will be used in the proof generated for
+// an SCUP message.
+bool FLAGS_quic_use_hash_in_scup = true;
+
+// If true, consider receiving crypto frame on non crypto stream as memory
+// corruption.
+bool FLAGS_quic_detect_memory_corrpution = true;
+
+// If true, QUIC public reset packets will have the \"pre-v33\" public header
+// flags.
+bool FLAGS_quic_use_old_public_reset_packets = true;
+
+// Ignore the peer's recieve buffer size and instead set max CWND based on the
+// amount of data the sender is willing to have in flight.
+bool FLAGS_quic_ignore_srbf = false;
+
+// Allow the NPRR connection option which reduces QUIC\'s pacing rate during
+// recovery instead of PRR.
+bool FLAGS_quic_allow_noprr = true;
+
+// If true, multi-packet CHLOs are explicitly disallowed.
+bool FLAGS_quic_disallow_multi_packet_chlo = true;
+
+// Use a write path optimized for StreamFrames.
+bool FLAGS_quic_use_optimized_write_path = true;
+
+// If true, the dispatcher is responsible for generating server designated
+// connection IDs.
+bool FLAGS_quic_dispatcher_creates_id = true;

@@ -130,6 +130,20 @@ class NET_EXPORT_PRIVATE QuicUtils {
       const IPEndPoint& old_address,
       const IPEndPoint& new_address);
 
+  // This converts 'num' bytes of binary to a 2*'num'-character hexadecimal
+  // representation. Return value: 2*'num' characters of ascii std::string.
+  static std::string HexEncode(const char* data, size_t length);
+  static std::string HexEncode(base::StringPiece data);
+
+  // This converts 2*'num' hexadecimal characters to 'num' binary data.
+  // Return value: 'num' bytes of binary data (via the 'to' argument).
+  static std::string HexDecode(const char* data, size_t length);
+  static std::string HexDecode(base::StringPiece data);
+
+  // Converts binary data into an ASCII string. Each character in the resulting
+  // string is preceeded by a space, and replaced with a '.' if not printable.
+  static std::string BinaryToAscii(base::StringPiece binary);
+
  private:
   DISALLOW_COPY_AND_ASSIGN(QuicUtils);
 };

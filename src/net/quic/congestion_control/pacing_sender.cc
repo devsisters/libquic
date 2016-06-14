@@ -4,6 +4,8 @@
 
 #include "net/quic/congestion_control/pacing_sender.h"
 
+#include "net/quic/quic_flags.h"
+
 using std::min;
 
 namespace net {
@@ -14,6 +16,7 @@ PacingSender::PacingSender(SendAlgorithmInterface* sender,
     : sender_(sender),
       alarm_granularity_(alarm_granularity),
       initial_packet_burst_(initial_packet_burst),
+      max_pacing_rate_(QuicBandwidth::Zero()),
       burst_tokens_(initial_packet_burst),
       last_delayed_packet_sent_time_(QuicTime::Zero()),
       ideal_next_packet_send_time_(QuicTime::Zero()),
@@ -41,10 +44,18 @@ void PacingSender::SetMaxCongestionWindow(QuicByteCount max_congestion_window) {
   sender_->SetMaxCongestionWindow(max_congestion_window);
 }
 
+void PacingSender::SetMaxPacingRate(QuicBandwidth max_pacing_rate) {
+  max_pacing_rate_ = max_pacing_rate;
+}
+
 void PacingSender::OnCongestionEvent(bool rtt_updated,
                                      QuicByteCount bytes_in_flight,
                                      const CongestionVector& acked_packets,
                                      const CongestionVector& lost_packets) {
+  if (FLAGS_quic_allow_noprr && !lost_packets.empty()) {
+    // Clear any burst tokens when entering recovery.
+    burst_tokens_ = 0;
+  }
   sender_->OnCongestionEvent(rtt_updated, bytes_in_flight, acked_packets,
                              lost_packets);
 }
@@ -79,7 +90,7 @@ bool PacingSender::OnPacketSent(
   }
   // The next packet should be sent as soon as the current packets has been
   // transferred.
-  QuicTime::Delta delay = sender_->PacingRate().TransferTime(bytes);
+  QuicTime::Delta delay = PacingRate().TransferTime(bytes);
   // If the last send was delayed, and the alarm took a long time to get
   // invoked, allow the connection to make up for lost time.
   if (was_last_send_delayed_) {
@@ -144,6 +155,11 @@ QuicTime::Delta PacingSender::TimeUntilSend(
 }
 
 QuicBandwidth PacingSender::PacingRate() const {
+  if (!max_pacing_rate_.IsZero()) {
+    return QuicBandwidth::FromBitsPerSecond(
+        min(max_pacing_rate_.ToBitsPerSecond(),
+            sender_->PacingRate().ToBitsPerSecond()));
+  }
   return sender_->PacingRate();
 }
 

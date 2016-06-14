@@ -16,8 +16,8 @@ namespace net {
 namespace {
 
 string RangeDebugString(QuicStreamOffset start, QuicStreamOffset end) {
-  return string("[") + base::IntToString(start) + ", " +
-         base::IntToString(end) + ") ";
+  return string("[") + base::Uint64ToString(start) + ", " +
+         base::Uint64ToString(end) + ") ";
 }
 
 }  // namespace
@@ -106,26 +106,21 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
     *error_details =
         string("Beginning of received data overlaps with buffered data.\n") +
         "New frame range " + RangeDebugString(offset, offset + size) +
-        "\n"
-        "Currently received frames: " +
-        ReceivedFramesDebugString() +
-        "\n"
-        "Current gaps: " +
-        GapsDebugString() + "\n";
+        " with first 128 bytes: " +
+        string(data.data(), data.length() < 128 ? data.length() : 128) +
+        "\nCurrently received frames: " + ReceivedFramesDebugString() +
+        "\nCurrent gaps: " + GapsDebugString();
     return QUIC_OVERLAPPING_STREAM_DATA;
   }
   if (offset + size > current_gap->end_offset) {
     // End of new data overlaps with data after current gap.
     *error_details =
-        "End of received data overlaps with buffered data.\n"
-        "New frame range " +
-        RangeDebugString(offset, offset + size) +
-        "\n"
-        "Currently received frames: " +
-        ReceivedFramesDebugString() +
-        "\n"
-        "Current gaps: " +
-        GapsDebugString() + "\n";
+        string("End of received data overlaps with buffered data.\n") +
+        "New frame range " + RangeDebugString(offset, offset + size) +
+        " with first 128 bytes: " +
+        string(data.data(), data.length() < 128 ? data.length() : 128) +
+        "\nCurrently received frames: " + ReceivedFramesDebugString() +
+        "\nCurrent gaps: " + GapsDebugString();
     return QUIC_OVERLAPPING_STREAM_DATA;
   }
 

@@ -126,6 +126,8 @@ std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotSamples() const {
 }
 
 std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotDelta() {
+  DCHECK(!final_delta_created_);
+
   std::unique_ptr<SampleMap> snapshot(new SampleMap(name_hash()));
   base::AutoLock auto_lock(lock_);
   snapshot->Add(*samples_);
@@ -133,6 +135,19 @@ std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotDelta() {
   // Subtract what was previously logged and update that information.
   snapshot->Subtract(*logged_samples_);
   logged_samples_->Add(*snapshot);
+  return std::move(snapshot);
+}
+
+std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotFinalDelta() const {
+  DCHECK(!final_delta_created_);
+  final_delta_created_ = true;
+
+  std::unique_ptr<SampleMap> snapshot(new SampleMap(name_hash()));
+  base::AutoLock auto_lock(lock_);
+  snapshot->Add(*samples_);
+
+  // Subtract what was previously logged and then return.
+  snapshot->Subtract(*logged_samples_);
   return std::move(snapshot);
 }
 
@@ -193,7 +208,6 @@ HistogramBase* SparseHistogram::DeserializeInfoImpl(PickleIterator* iter) {
     return NULL;
   }
 
-  DCHECK(flags & HistogramBase::kIPCSerializationSourceFlag);
   flags &= ~HistogramBase::kIPCSerializationSourceFlag;
 
   return SparseHistogram::FactoryGet(histogram_name, flags);

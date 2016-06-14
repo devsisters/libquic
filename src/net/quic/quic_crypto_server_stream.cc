@@ -16,7 +16,7 @@
 #include "net/quic/quic_config.h"
 #include "net/quic/quic_flags.h"
 #include "net/quic/quic_protocol.h"
-#include "net/quic/quic_session.h"
+#include "net/quic/quic_server_session_base.h"
 
 using base::StringPiece;
 using std::string;
@@ -49,11 +49,15 @@ void ServerHelloNotifier::OnPacketAcked(int acked_bytes,
 
 void ServerHelloNotifier::OnPacketRetransmitted(int /*retransmitted_bytes*/) {}
 
+QuicCryptoServerStreamBase::QuicCryptoServerStreamBase(
+    QuicServerSessionBase* session)
+    : QuicCryptoStream(session) {}
+
 QuicCryptoServerStream::QuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     bool use_stateless_rejects_if_peer_supported,
-    QuicSession* session)
+    QuicServerSessionBase* session)
     : QuicCryptoServerStreamBase(session),
       crypto_config_(crypto_config),
       compressed_certs_cache_(compressed_certs_cache),
@@ -113,6 +117,8 @@ void QuicCryptoServerStream::OnHandshakeMessage(
         "Unexpected handshake message while processing CHLO");
     return;
   }
+
+  CryptoUtils::HashHandshakeMessage(message, &chlo_hash_);
 
   validate_client_hello_cb_ = new ValidateCallback(this);
   crypto_config_->ValidateClientHello(
@@ -234,7 +240,8 @@ void QuicCryptoServerStream::SendServerConfigUpdate(
 
   CryptoHandshakeMessage server_config_update_message;
   if (!crypto_config_->BuildServerConfigUpdateMessage(
-          session()->connection()->version(), previous_source_address_tokens_,
+          session()->connection()->version(), chlo_hash_,
+          previous_source_address_tokens_,
           session()->connection()->self_address().address(),
           session()->connection()->peer_address().address(),
           session()->connection()->clock(),
@@ -376,6 +383,12 @@ void QuicCryptoServerStream::ValidateCallback::RunImpl(
 
 QuicConnectionId QuicCryptoServerStream::GenerateConnectionIdForReject(
     QuicConnectionId connection_id) {
+  // TODO(rch): Remove this method when this flag is removed.
+  if (FLAGS_quic_dispatcher_creates_id) {
+    QuicServerSessionBase* session_base =
+        static_cast<QuicServerSessionBase*>(session());
+    return session_base->GenerateConnectionIdForReject(connection_id);
+  }
   return session()->connection()->random_generator()->RandUint64();
 }
 

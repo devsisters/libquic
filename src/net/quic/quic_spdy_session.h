@@ -78,7 +78,7 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   // If provided, |ack_notifier_delegate| will be registered to be notified when
   // we have seen ACKs for all packets resulting from this call.
   virtual size_t WriteHeaders(QuicStreamId id,
-                              const SpdyHeaderBlock& headers,
+                              SpdyHeaderBlock headers,
                               bool fin,
                               SpdyPriority priority,
                               QuicAckListenerInterface* ack_notifier_delegate);

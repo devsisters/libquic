@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
 #include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_clock.h"
 #include "net/quic/quic_flags.h"
@@ -42,7 +43,7 @@ QuicStreamSequencer::~QuicStreamSequencer() {}
 void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   ++num_frames_received_;
   const QuicStreamOffset byte_offset = frame.offset;
-  const size_t data_len = frame.frame_length;
+  const size_t data_len = frame.data_length;
 
   if (frame.fin) {
     CloseStreamAtOffset(frame.offset + data_len);
@@ -53,12 +54,16 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   size_t bytes_written;
   string error_details;
   QuicErrorCode result = buffered_frames_.OnStreamData(
-      byte_offset, StringPiece(frame.frame_buffer, frame.frame_length),
+      byte_offset, StringPiece(frame.data_buffer, frame.data_length),
       clock_->ApproximateNow(), &bytes_written, &error_details);
   if (result != QUIC_NO_ERROR) {
+    string details = "Stream" + base::Uint64ToString(stream_->id()) + ": " +
+                     QuicUtils::ErrorToString(result) + ": " + error_details +
+                     "\nPeer Address: " +
+                     stream_->PeerAddressOfLatestPacket().ToString();
     DLOG(WARNING) << QuicUtils::ErrorToString(result);
-    DLOG(WARNING) << error_details;
-    stream_->CloseConnectionWithDetails(result, error_details);
+    DLOG(WARNING) << details;
+    stream_->CloseConnectionWithDetails(result, details);
     return;
   }
 

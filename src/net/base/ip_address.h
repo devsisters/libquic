@@ -13,7 +13,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/strings/string_piece.h"
-#include "net/base/ip_address_number.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -25,8 +24,9 @@ class NET_EXPORT IPAddress {
   // Creates a zero-sized, invalid address.
   IPAddress();
 
-  // Creates an IP address from a deprecated IPAddressNumber.
-  explicit IPAddress(const IPAddressNumber& address);
+  // Copies the input address to |ip_address_|. The input is expected to be in
+  // network byte order.
+  explicit IPAddress(const std::vector<uint8_t>& address);
 
   IPAddress(const IPAddress& other);
 
@@ -134,10 +134,6 @@ class NET_EXPORT IPAddress {
 
 using IPAddressList = std::vector<IPAddress>;
 
-// TODO(Martijnc): These utility functions currently forward the calls to
-// the IPAddressNumber implementations. Move the implementations over when
-// the IPAddressNumber migration is complete. https://crbug.com/496258.
-
 // Returns the canonical string representation of an IP address along with its
 // port. For example: "192.168.0.1:99" or "[::1]:80".
 NET_EXPORT std::string IPAddressToStringWithPort(const IPAddress& address,
@@ -186,15 +182,16 @@ NET_EXPORT bool ParseCIDRBlock(const std::string& cidr_literal,
 // Returns true on success, and fills |ip_address| with the numeric value.
 // In other words, |hostname| must be an IPv4 literal, or an IPv6 literal
 // surrounded by brackets as in [::1].
-NET_EXPORT bool ParseURLHostnameToAddress(const std::string& hostname,
+NET_EXPORT bool ParseURLHostnameToAddress(const base::StringPiece& hostname,
                                           IPAddress* ip_address)
     WARN_UNUSED_RESULT;
 
 // Returns number of matching initial bits between the addresses |a1| and |a2|.
-unsigned CommonPrefixLength(const IPAddress& a1, const IPAddress& a2);
+NET_EXPORT unsigned CommonPrefixLength(const IPAddress& a1,
+                                       const IPAddress& a2);
 
 // Computes the number of leading 1-bits in |mask|.
-unsigned MaskPrefixLength(const IPAddress& mask);
+NET_EXPORT unsigned MaskPrefixLength(const IPAddress& mask);
 
 // Checks whether |address| starts with |prefix|. This provides similar
 // functionality as IPAddressMatchesPrefix() but doesn't perform automatic IPv4

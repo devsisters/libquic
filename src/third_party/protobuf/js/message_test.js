@@ -34,34 +34,47 @@ goog.setTestOnly();
 
 goog.require('goog.json');
 goog.require('goog.testing.asserts');
+
+// CommonJS-LoadFromFile: google-protobuf jspb
 goog.require('jspb.Message');
+
+// CommonJS-LoadFromFile: test5_pb proto.jspb.exttest.beta
 goog.require('proto.jspb.exttest.beta.floatingStrField');
+
+// CommonJS-LoadFromFile: test3_pb proto.jspb.exttest
 goog.require('proto.jspb.exttest.floatingMsgField');
+
+// CommonJS-LoadFromFile: test4_pb proto.jspb.exttest
 goog.require('proto.jspb.exttest.floatingMsgFieldTwo');
+
+// CommonJS-LoadFromFile: test_pb proto.jspb.test
 goog.require('proto.jspb.test.CloneExtension');
 goog.require('proto.jspb.test.Complex');
 goog.require('proto.jspb.test.DefaultValues');
 goog.require('proto.jspb.test.Empty');
 goog.require('proto.jspb.test.EnumContainer');
-goog.require('proto.jspb.test.ExtensionMessage');
 goog.require('proto.jspb.test.floatingMsgField');
+goog.require('proto.jspb.test.FloatingPointFields');
 goog.require('proto.jspb.test.floatingStrField');
 goog.require('proto.jspb.test.HasExtensions');
 goog.require('proto.jspb.test.IndirectExtension');
 goog.require('proto.jspb.test.IsExtension');
 goog.require('proto.jspb.test.OptionalFields');
 goog.require('proto.jspb.test.OuterEnum');
-goog.require('proto.jspb.test.simple1');
+goog.require('proto.jspb.test.OuterMessage.Complex');
 goog.require('proto.jspb.test.Simple1');
 goog.require('proto.jspb.test.Simple2');
 goog.require('proto.jspb.test.SpecialCases');
 goog.require('proto.jspb.test.TestClone');
-goog.require('proto.jspb.test.TestExtensionsMessage');
 goog.require('proto.jspb.test.TestGroup');
 goog.require('proto.jspb.test.TestGroup1');
 goog.require('proto.jspb.test.TestMessageWithOneof');
 goog.require('proto.jspb.test.TestReservedNames');
 goog.require('proto.jspb.test.TestReservedNamesExtension');
+
+// CommonJS-LoadFromFile: test2_pb proto.jspb.test
+goog.require('proto.jspb.test.ExtensionMessage');
+goog.require('proto.jspb.test.TestExtensionsMessage');
 
 
 
@@ -140,6 +153,13 @@ describe('Message test suite', function() {
       aRepeatedStringList: []
     }, result);
 
+  });
+
+  it('testNestedComplexMessage', function() {
+    // Instantiate the message and set a unique field, just to ensure that we
+    // are not getting jspb.test.Complex instead.
+    var msg = new proto.jspb.test.OuterMessage.Complex();
+    msg.setInnerComplexField(5);
   });
 
   it('testSpecialCases', function() {
@@ -526,12 +546,6 @@ describe('Message test suite', function() {
     extendable.setExtension(proto.jspb.test.IndirectExtension.str, null);
     assertNull(extendable.getExtension(proto.jspb.test.IndirectExtension.str));
 
-    // These assertions will only work properly in uncompiled mode.
-    // Extension fields defined on proto2 Descriptor messages are filtered out.
-
-    // TODO(haberman): codegen changes to properly ignore descriptor.proto
-    // extensions need to be merged from google3.
-    // assertUndefined(proto.jspb.test.IsExtension['simpleOption']);
 
     // Extension fields with jspb.ignore = true are ignored.
     assertUndefined(proto.jspb.test.IndirectExtension['ignored']);
@@ -889,7 +903,7 @@ describe('Message test suite', function() {
         message.getDefaultOneofACase());
 
     message =
-        new proto.jspb.test.TestMessageWithOneof(new Array(9).concat(567,890));
+        new proto.jspb.test.TestMessageWithOneof(new Array(9).concat(567, 890));
     assertEquals(1234, message.getAone());
     assertEquals(890, message.getAtwo());
     assertEquals(
@@ -918,7 +932,7 @@ describe('Message test suite', function() {
             message.getDefaultOneofBCase());
 
         message = new proto.jspb.test.TestMessageWithOneof(
-            new Array(11).concat(567,890));
+            new Array(11).concat(567, 890));
         assertUndefined(message.getBone());
         assertEquals(890, message.getBtwo());
         assertEquals(
@@ -969,6 +983,28 @@ describe('Message test suite', function() {
         message.getPartialOneofCase());
     assertUndefined(array[2]);
     assertEquals('y', array[4]);
+  });
+
+  it('testFloatingPointFieldsSupportNan', function() {
+    var assertNan = function(x) {
+      assertTrue('Expected ' + x + ' (' + goog.typeOf(x) + ') to be NaN.',
+          goog.isNumber(x) && isNaN(x));
+    };
+
+    var message = new proto.jspb.test.FloatingPointFields([
+      'NaN', 'NaN', ['NaN', 'NaN'], 'NaN',
+      'NaN', 'NaN', ['NaN', 'NaN'], 'NaN'
+    ]);
+    assertNan(message.getOptionalFloatField());
+    assertNan(message.getRequiredFloatField());
+    assertNan(message.getRepeatedFloatFieldList()[0]);
+    assertNan(message.getRepeatedFloatFieldList()[1]);
+    assertNan(message.getDefaultFloatField());
+    assertNan(message.getOptionalDoubleField());
+    assertNan(message.getRequiredDoubleField());
+    assertNan(message.getRepeatedDoubleFieldList()[0]);
+    assertNan(message.getRepeatedDoubleFieldList()[1]);
+    assertNan(message.getDefaultDoubleField());
   });
 
 });

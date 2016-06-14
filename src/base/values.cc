@@ -14,7 +14,6 @@
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/move.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 
@@ -29,8 +28,8 @@ std::unique_ptr<Value> CopyWithoutEmptyChildren(const Value& node);
 // expects |node| to always be non-NULL.
 std::unique_ptr<ListValue> CopyListWithoutEmptyChildren(const ListValue& list) {
   std::unique_ptr<ListValue> copy;
-  for (ListValue::const_iterator it = list.begin(); it != list.end(); ++it) {
-    std::unique_ptr<Value> child_copy = CopyWithoutEmptyChildren(**it);
+  for (const auto& entry : list) {
+    std::unique_ptr<Value> child_copy = CopyWithoutEmptyChildren(*entry);
     if (child_copy) {
       if (!copy)
         copy.reset(new ListValue);
@@ -67,22 +66,6 @@ std::unique_ptr<Value> CopyWithoutEmptyChildren(const Value& node) {
       return node.CreateDeepCopy();
   }
 }
-
-// A small functor for comparing Values for std::find_if and similar.
-class ValueEquals {
- public:
-  // Pass the value against which all consecutive calls of the () operator will
-  // compare their argument to. This Value object must not be destroyed while
-  // the ValueEquals is  in use.
-  explicit ValueEquals(const Value* first) : first_(first) { }
-
-  bool operator ()(const Value* second) const {
-    return first_->Equals(second);
-  }
-
- private:
-  const Value* first_;
-};
 
 }  // namespace
 
@@ -383,18 +366,12 @@ bool DictionaryValue::GetAsDictionary(const DictionaryValue** out_value) const {
 
 bool DictionaryValue::HasKey(const std::string& key) const {
   DCHECK(IsStringUTF8(key));
-  ValueMap::const_iterator current_entry = dictionary_.find(key);
+  auto current_entry = dictionary_.find(key);
   DCHECK((current_entry == dictionary_.end()) || current_entry->second);
   return current_entry != dictionary_.end();
 }
 
 void DictionaryValue::Clear() {
-  ValueMap::iterator dict_iterator = dictionary_.begin();
-  while (dict_iterator != dictionary_.end()) {
-    delete dict_iterator->second;
-    ++dict_iterator;
-  }
-
   dictionary_.clear();
 }
 
@@ -452,16 +429,7 @@ void DictionaryValue::SetString(const std::string& path,
 
 void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
                                               std::unique_ptr<Value> in_value) {
-  Value* bare_ptr = in_value.release();
-  // If there's an existing value here, we need to delete it, because
-  // we own all our children.
-  std::pair<ValueMap::iterator, bool> ins_res =
-      dictionary_.insert(std::make_pair(key, bare_ptr));
-  if (!ins_res.second) {
-    DCHECK_NE(ins_res.first->second, bare_ptr);  // This would be bogus
-    delete ins_res.first->second;
-    ins_res.first->second = bare_ptr;
-  }
+  dictionary_[key] = std::move(in_value);
 }
 
 void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
@@ -645,13 +613,12 @@ bool DictionaryValue::GetList(const std::string& path, ListValue** out_value) {
 bool DictionaryValue::GetWithoutPathExpansion(const std::string& key,
                                               const Value** out_value) const {
   DCHECK(IsStringUTF8(key));
-  ValueMap::const_iterator entry_iterator = dictionary_.find(key);
+  auto entry_iterator = dictionary_.find(key);
   if (entry_iterator == dictionary_.end())
     return false;
 
-  const Value* entry = entry_iterator->second;
   if (out_value)
-    *out_value = entry;
+    *out_value = entry_iterator->second.get();
   return true;
 }
 
@@ -775,15 +742,12 @@ bool DictionaryValue::RemoveWithoutPathExpansion(
     const std::string& key,
     std::unique_ptr<Value>* out_value) {
   DCHECK(IsStringUTF8(key));
-  ValueMap::iterator entry_iterator = dictionary_.find(key);
+  auto entry_iterator = dictionary_.find(key);
   if (entry_iterator == dictionary_.end())
     return false;
 
-  Value* entry = entry_iterator->second;
   if (out_value)
-    out_value->reset(entry);
-  else
-    delete entry;
+    *out_value = std::move(entry_iterator->second);
   dictionary_.erase(entry_iterator);
   return true;
 }
@@ -849,10 +813,9 @@ DictionaryValue::Iterator::~Iterator() {}
 DictionaryValue* DictionaryValue::DeepCopy() const {
   DictionaryValue* result = new DictionaryValue;
 
-  for (ValueMap::const_iterator current_entry(dictionary_.begin());
-       current_entry != dictionary_.end(); ++current_entry) {
-    result->SetWithoutPathExpansion(current_entry->first,
-                                    current_entry->second->DeepCopy());
+  for (const auto& current_entry : dictionary_) {
+    result->SetWithoutPathExpansion(current_entry.first,
+                                    current_entry.second->CreateDeepCopy());
   }
 
   return result;
@@ -904,12 +867,14 @@ ListValue::~ListValue() {
 }
 
 void ListValue::Clear() {
-  for (ValueVector::iterator i(list_.begin()); i != list_.end(); ++i)
-    delete *i;
   list_.clear();
 }
 
 bool ListValue::Set(size_t index, Value* in_value) {
+  return Set(index, WrapUnique(in_value));
+}
+
+bool ListValue::Set(size_t index, std::unique_ptr<Value> in_value) {
   if (!in_value)
     return false;
 
@@ -917,17 +882,13 @@ bool ListValue::Set(size_t index, Value* in_value) {
     // Pad out any intermediate indexes with null settings
     while (index > list_.size())
       Append(CreateNullValue());
-    Append(in_value);
+    Append(std::move(in_value));
   } else {
+    // TODO(dcheng): remove this DCHECK once the raw pointer version is removed?
     DCHECK(list_[index] != in_value);
-    delete list_[index];
-    list_[index] = in_value;
+    list_[index] = std::move(in_value);
   }
   return true;
-}
-
-bool ListValue::Set(size_t index, std::unique_ptr<Value> in_value) {
-  return Set(index, in_value.release());
 }
 
 bool ListValue::Get(size_t index, const Value** out_value) const {
@@ -935,7 +896,7 @@ bool ListValue::Get(size_t index, const Value** out_value) const {
     return false;
 
   if (out_value)
-    *out_value = list_[index];
+    *out_value = list_[index].get();
 
   return true;
 }
@@ -1046,20 +1007,17 @@ bool ListValue::Remove(size_t index, std::unique_ptr<Value>* out_value) {
     return false;
 
   if (out_value)
-    out_value->reset(list_[index]);
-  else
-    delete list_[index];
+    *out_value = std::move(list_[index]);
 
   list_.erase(list_.begin() + index);
   return true;
 }
 
 bool ListValue::Remove(const Value& value, size_t* index) {
-  for (ValueVector::iterator i(list_.begin()); i != list_.end(); ++i) {
-    if ((*i)->Equals(&value)) {
-      size_t previous_index = i - list_.begin();
-      delete *i;
-      list_.erase(i);
+  for (auto it = list_.begin(); it != list_.end(); ++it) {
+    if ((*it)->Equals(&value)) {
+      size_t previous_index = it - list_.begin();
+      list_.erase(it);
 
       if (index)
         *index = previous_index;
@@ -1072,20 +1030,18 @@ bool ListValue::Remove(const Value& value, size_t* index) {
 ListValue::iterator ListValue::Erase(iterator iter,
                                      std::unique_ptr<Value>* out_value) {
   if (out_value)
-    out_value->reset(*iter);
-  else
-    delete *iter;
+    *out_value = std::move(*Storage::iterator(iter));
 
   return list_.erase(iter);
 }
 
 void ListValue::Append(std::unique_ptr<Value> in_value) {
-  Append(in_value.release());
+  list_.push_back(std::move(in_value));
 }
 
 void ListValue::Append(Value* in_value) {
   DCHECK(in_value);
-  list_.push_back(in_value);
+  Append(WrapUnique(in_value));
 }
 
 void ListValue::AppendBoolean(bool in_value) {
@@ -1124,13 +1080,13 @@ void ListValue::AppendStrings(const std::vector<string16>& in_values) {
 
 bool ListValue::AppendIfNotPresent(Value* in_value) {
   DCHECK(in_value);
-  for (ValueVector::const_iterator i(list_.begin()); i != list_.end(); ++i) {
-    if ((*i)->Equals(in_value)) {
+  for (const auto& entry : list_) {
+    if (entry->Equals(in_value)) {
       delete in_value;
       return false;
     }
   }
-  list_.push_back(in_value);
+  list_.emplace_back(in_value);
   return true;
 }
 
@@ -1139,12 +1095,15 @@ bool ListValue::Insert(size_t index, Value* in_value) {
   if (index > list_.size())
     return false;
 
-  list_.insert(list_.begin() + index, in_value);
+  list_.insert(list_.begin() + index, WrapUnique(in_value));
   return true;
 }
 
 ListValue::const_iterator ListValue::Find(const Value& value) const {
-  return std::find_if(list_.begin(), list_.end(), ValueEquals(&value));
+  return std::find_if(list_.begin(), list_.end(),
+                      [&value](const std::unique_ptr<Value>& entry) {
+                        return entry->Equals(&value);
+                      });
 }
 
 void ListValue::Swap(ListValue* other) {
@@ -1166,8 +1125,8 @@ bool ListValue::GetAsList(const ListValue** out_value) const {
 ListValue* ListValue::DeepCopy() const {
   ListValue* result = new ListValue;
 
-  for (ValueVector::const_iterator i(list_.begin()); i != list_.end(); ++i)
-    result->Append((*i)->DeepCopy());
+  for (const auto& entry : list_)
+    result->Append(entry->CreateDeepCopy());
 
   return result;
 }
@@ -1182,11 +1141,11 @@ bool ListValue::Equals(const Value* other) const {
 
   const ListValue* other_list =
       static_cast<const ListValue*>(other);
-  const_iterator lhs_it, rhs_it;
+  Storage::const_iterator lhs_it, rhs_it;
   for (lhs_it = begin(), rhs_it = other_list->begin();
        lhs_it != end() && rhs_it != other_list->end();
        ++lhs_it, ++rhs_it) {
-    if (!(*lhs_it)->Equals(*rhs_it))
+    if (!(*lhs_it)->Equals(rhs_it->get()))
       return false;
   }
   if (lhs_it != end() || rhs_it != other_list->end())

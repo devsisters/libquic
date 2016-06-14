@@ -53,8 +53,9 @@ bool QuicDataReader::ReadUFloat16(uint64_t* result) {
   // hidden bit.
   *result -= exponent << kUFloat16MantissaBits;
   *result <<= exponent;
-  DCHECK_GE(value, 1 << kUFloat16MantissaEffectiveBits);
-  DCHECK_LE(value, kUFloat16MaxValue);
+  DCHECK_GE(*result,
+            static_cast<uint64_t>(1 << kUFloat16MantissaEffectiveBits));
+  DCHECK_LE(*result, kUFloat16MaxValue);
   return true;
 }
 

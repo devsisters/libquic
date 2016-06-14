@@ -70,7 +70,7 @@ class URL_EXPORT GURL {
   // from WebURL without copying the string. When we call this constructor
   // we pass in a temporary std::string, which lets the compiler skip the
   // copy and just move the std::string into the function argument. In the
-  // implementation, we use swap to move the data into the GURL itself,
+  // implementation, we use std::move to move the data into the GURL itself,
   // which means we end up with zero copies.
   GURL(std::string canonical_spec, const url::Parsed& parsed, bool is_valid);
 

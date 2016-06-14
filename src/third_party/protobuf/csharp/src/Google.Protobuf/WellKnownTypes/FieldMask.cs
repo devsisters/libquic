@@ -29,8 +29,8 @@ namespace Google.Protobuf.WellKnownTypes {
             "Z2xlLlByb3RvYnVmLldlbGxLbm93blR5cGVzYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
-          new pbr::GeneratedCodeInfo(null, new pbr::GeneratedCodeInfo[] {
-            new pbr::GeneratedCodeInfo(typeof(global::Google.Protobuf.WellKnownTypes.FieldMask), global::Google.Protobuf.WellKnownTypes.FieldMask.Parser, new[]{ "Paths" }, null, null, null)
+          new pbr::GeneratedClrTypeInfo(null, new pbr::GeneratedClrTypeInfo[] {
+            new pbr::GeneratedClrTypeInfo(typeof(global::Google.Protobuf.WellKnownTypes.FieldMask), global::Google.Protobuf.WellKnownTypes.FieldMask.Parser, new[]{ "Paths" }, null, null, null)
           }));
     }
     #endregion
@@ -69,7 +69,7 @@ namespace Google.Protobuf.WellKnownTypes {
   ///      z: 8
   ///
   ///  The result will not contain specific values for fields x,y and z
-  ///  (there value will be set to the default, and omitted in proto text
+  ///  (their value will be set to the default, and omitted in proto text
   ///  output):
   ///
   ///      f {
@@ -86,7 +86,7 @@ namespace Google.Protobuf.WellKnownTypes {
   ///  operation applies to all fields (as if a FieldMask of all fields
   ///  had been specified).
   ///
-  ///  Note that a field mask does not necessarily applies to the
+  ///  Note that a field mask does not necessarily apply to the
   ///  top-level response message. In case of a REST get operation, the
   ///  field mask applies directly to the response, but in case of a REST
   ///  list operation, the mask instead applies to each individual message
@@ -159,6 +159,33 @@ namespace Google.Protobuf.WellKnownTypes {
   ///      {
   ///        mask: "user.displayName,photo"
   ///      }
+  ///
+  ///  # Field Masks and Oneof Fields
+  ///
+  ///  Field masks treat fields in oneofs just as regular fields. Consider the
+  ///  following message:
+  ///
+  ///      message SampleMessage {
+  ///        oneof test_oneof {
+  ///          string name = 4;
+  ///          SubMessage sub_message = 9;
+  ///        }
+  ///      }
+  ///
+  ///  The field mask can be:
+  ///
+  ///      mask {
+  ///        paths: "name"
+  ///      }
+  ///
+  ///  Or:
+  ///
+  ///      mask {
+  ///        paths: "sub_message"
+  ///      }
+  ///
+  ///  Note that oneof type names ("test_oneof" in this case) cannot be used in
+  ///  paths.
   /// </summary>
   [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
   public sealed partial class FieldMask : pb::IMessage<FieldMask> {

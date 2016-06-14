@@ -43,6 +43,7 @@
 #include <google/protobuf/compiler/csharp/csharp_helpers.h>
 #include <google/protobuf/compiler/csharp/csharp_message.h>
 #include <google/protobuf/compiler/csharp/csharp_names.h>
+#include <google/protobuf/compiler/csharp/csharp_options.h>
 #include <google/protobuf/compiler/csharp/csharp_reflection_class.h>
 
 namespace google {
@@ -50,8 +51,9 @@ namespace protobuf {
 namespace compiler {
 namespace csharp {
 
-ReflectionClassGenerator::ReflectionClassGenerator(const FileDescriptor* file)
-    : SourceGeneratorBase(file),
+ReflectionClassGenerator::ReflectionClassGenerator(const FileDescriptor* file,
+                                                   const Options* options)
+    : SourceGeneratorBase(file, options),
       file_(file) {
   namespace_ = GetFileNamespace(file);
   reflectionClassname_ = GetReflectionClassUnqualifiedName(file);
@@ -72,7 +74,7 @@ void ReflectionClassGenerator::Generate(io::Printer* printer) {
   if (file_->enum_type_count() > 0) {
     printer->Print("#region Enums\n");
     for (int i = 0; i < file_->enum_type_count(); i++) {
-      EnumGenerator enumGenerator(file_->enum_type(i));
+      EnumGenerator enumGenerator(file_->enum_type(i), this->options());
       enumGenerator.Generate(printer);
     }
     printer->Print("#endregion\n");
@@ -83,7 +85,7 @@ void ReflectionClassGenerator::Generate(io::Printer* printer) {
   if (file_->message_type_count() > 0) {
     printer->Print("#region Messages\n");
     for (int i = 0; i < file_->message_type_count(); i++) {
-      MessageGenerator messageGenerator(file_->message_type(i));
+      MessageGenerator messageGenerator(file_->message_type(i), this->options());
       messageGenerator.Generate(printer);
     }
     printer->Print("#endregion\n");
@@ -182,7 +184,7 @@ void ReflectionClassGenerator::WriteDescriptor(io::Printer* printer) {
     }
   }
   printer->Print("},\n"
-      "    new pbr::GeneratedCodeInfo(");
+      "    new pbr::GeneratedClrTypeInfo(");
   // Specify all the generated code information, recursively.
   if (file_->enum_type_count() > 0) {
       printer->Print("new[] {");
@@ -195,7 +197,7 @@ void ReflectionClassGenerator::WriteDescriptor(io::Printer* printer) {
       printer->Print("null, ");
   }
   if (file_->message_type_count() > 0) {
-      printer->Print("new pbr::GeneratedCodeInfo[] {\n");
+      printer->Print("new pbr::GeneratedClrTypeInfo[] {\n");
       printer->Indent();
       printer->Indent();
       printer->Indent();
@@ -232,7 +234,7 @@ void ReflectionClassGenerator::WriteGeneratedCodeInfo(const Descriptor* descript
     return;
   }
   // Generated message type
-  printer->Print("new pbr::GeneratedCodeInfo(typeof($type_name$), $type_name$.Parser, ", "type_name", GetClassName(descriptor));
+  printer->Print("new pbr::GeneratedClrTypeInfo(typeof($type_name$), $type_name$.Parser, ", "type_name", GetClassName(descriptor));
   
   // Fields
   if (descriptor->field_count() > 0) {
@@ -273,7 +275,7 @@ void ReflectionClassGenerator::WriteGeneratedCodeInfo(const Descriptor* descript
   // Nested types
   if (descriptor->nested_type_count() > 0) {
       // Need to specify array type explicitly here, as all elements may be null. 
-      printer->Print("new pbr::GeneratedCodeInfo[] { ");
+      printer->Print("new pbr::GeneratedClrTypeInfo[] { ");
       for (int i = 0; i < descriptor->nested_type_count(); i++) {
           WriteGeneratedCodeInfo(descriptor->nested_type(i), printer, i == descriptor->nested_type_count() - 1);
       }

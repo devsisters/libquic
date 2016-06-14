@@ -12,7 +12,6 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/stl_util.h"
-#include "base/strings/string_number_conversions.h"
 #include "crypto/hkdf.h"
 #include "crypto/secure_hash.h"
 #include "net/base/ip_address.h"
@@ -389,7 +388,7 @@ CryptoHandshakeMessage* QuicCryptoServerConfig::AddConfig(
     if (configs_.find(config->id) != configs_.end()) {
       LOG(WARNING) << "Failed to add config because another with the same "
                       "server config id already exists: "
-                   << base::HexEncode(config->id.data(), config->id.size());
+                   << QuicUtils::HexEncode(config->id);
       return nullptr;
     }
 
@@ -448,11 +447,10 @@ bool QuicCryptoServerConfig::SetConfigs(
 
       ConfigMap::iterator it = configs_.find(config->id);
       if (it != configs_.end()) {
-        VLOG(1) << "Keeping scid: "
-                << base::HexEncode(config->id.data(), config->id.size())
+        VLOG(1) << "Keeping scid: " << QuicUtils::HexEncode(config->id)
                 << " orbit: "
-                << base::HexEncode(reinterpret_cast<const char*>(config->orbit),
-                                   kOrbitSize)
+                << QuicUtils::HexEncode(
+                       reinterpret_cast<const char*>(config->orbit), kOrbitSize)
                 << " new primary_time " << config->primary_time.ToUNIXSeconds()
                 << " old primary_time "
                 << it->second->primary_time.ToUNIXSeconds() << " new priority "
@@ -462,11 +460,10 @@ bool QuicCryptoServerConfig::SetConfigs(
         it->second->priority = config->priority;
         new_configs.insert(*it);
       } else {
-        VLOG(1) << "Adding scid: "
-                << base::HexEncode(config->id.data(), config->id.size())
+        VLOG(1) << "Adding scid: " << QuicUtils::HexEncode(config->id)
                 << " orbit: "
-                << base::HexEncode(reinterpret_cast<const char*>(config->orbit),
-                                   kOrbitSize)
+                << QuicUtils::HexEncode(
+                       reinterpret_cast<const char*>(config->orbit), kOrbitSize)
                 << " primary_time " << config->primary_time.ToUNIXSeconds()
                 << " priority " << config->priority;
         new_configs.insert(std::make_pair(config->id, config));
@@ -951,7 +948,7 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
     primary_config_ = new_primary;
     new_primary->is_primary = true;
     DVLOG(1) << "New primary config.  orbit: "
-             << base::HexEncode(
+             << QuicUtils::HexEncode(
                     reinterpret_cast<const char*>(primary_config_->orbit),
                     kOrbitSize);
     if (primary_config_changed_cb_.get() != nullptr) {
@@ -970,11 +967,10 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
   primary_config_ = new_primary;
   new_primary->is_primary = true;
   DVLOG(1) << "New primary config.  orbit: "
-           << base::HexEncode(
+           << QuicUtils::HexEncode(
                   reinterpret_cast<const char*>(primary_config_->orbit),
                   kOrbitSize)
-           << " scid: " << base::HexEncode(primary_config_->id.data(),
-                                           primary_config_->id.size());
+           << " scid: " << QuicUtils::HexEncode(primary_config_->id);
   next_config_promotion_time_ = QuicWallTime::Zero();
   if (primary_config_changed_cb_.get() != nullptr) {
     primary_config_changed_cb_->Run(primary_config_->id);
@@ -1013,8 +1009,7 @@ void QuicCryptoServerConfig::EvaluateClientHello(
   HandshakeFailureReason source_address_token_error = MAX_FAILURE_REASON;
   StringPiece srct;
   if (client_hello.GetStringPiece(kSourceAddressTokenTag, &srct)) {
-    Config& config =
-        requested_config != nullptr ? *requested_config : *primary_config;
+    Config& config = requested_config ? *requested_config : *primary_config;
     source_address_token_error =
         ParseSourceAddressToken(config, srct, &info->source_address_tokens);
 
@@ -1165,6 +1160,7 @@ void QuicCryptoServerConfig::EvaluateClientHello(
 
 bool QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
     QuicVersion version,
+    StringPiece chlo_hash,
     const SourceAddressTokens& previous_source_address_tokens,
     const IPAddress& server_ip,
     const IPAddress& client_ip,
@@ -1186,12 +1182,22 @@ bool QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
   scoped_refptr<ProofSource::Chain> chain;
   string signature;
   string cert_sct;
-  if (!proof_source_->GetProof(server_ip, params.sni,
-                               primary_config_->serialized, version,
-                               params.client_nonce, params.x509_ecdsa_supported,
-                               &chain, &signature, &cert_sct)) {
-    DVLOG(1) << "Server: failed to get proof.";
-    return false;
+  if (FLAGS_quic_use_hash_in_scup) {
+    if (!proof_source_->GetProof(server_ip, params.sni,
+                                 primary_config_->serialized, version,
+                                 chlo_hash, params.x509_ecdsa_supported, &chain,
+                                 &signature, &cert_sct)) {
+      DVLOG(1) << "Server: failed to get proof.";
+      return false;
+    }
+  } else {
+    if (!proof_source_->GetProof(
+            server_ip, params.sni, primary_config_->serialized, version,
+            params.client_nonce, params.x509_ecdsa_supported, &chain,
+            &signature, &cert_sct)) {
+      DVLOG(1) << "Server: failed to get proof.";
+      return false;
+    }
   }
 
   const string compressed = CompressChain(

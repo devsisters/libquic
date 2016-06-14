@@ -1,10 +1,10 @@
 diff --git a/src/base/metrics/persistent_memory_allocator.cc b/src/base/metrics/persistent_memory_allocator.cc
-index 604971d..e751c07 100644
+index dfa408f..0f32ad1 100644
 --- a/src/base/metrics/persistent_memory_allocator.cc
 +++ b/src/base/metrics/persistent_memory_allocator.cc
-@@ -7,9 +7,13 @@
- #include <assert.h>
- #include <algorithm>
+@@ -13,9 +13,13 @@
+ #include <sys/mman.h>
+ #endif
  
 +#if 0
  #include "base/files/memory_mapped_file.h"
@@ -16,7 +16,7 @@ index 604971d..e751c07 100644
  #include "base/metrics/histogram_macros.h"
  
  namespace {
-@@ -720,6 +724,7 @@ LocalPersistentMemoryAllocator::~LocalPersistentMemoryAllocator() {
+@@ -777,6 +781,7 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
  
  
  //----- SharedPersistentMemoryAllocator ----------------------------------------
@@ -24,10 +24,10 @@ index 604971d..e751c07 100644
  
  SharedPersistentMemoryAllocator::SharedPersistentMemoryAllocator(
      std::unique_ptr<SharedMemory> memory,
-@@ -764,5 +769,6 @@ bool FilePersistentMemoryAllocator::IsFileAcceptable(
-     const MemoryMappedFile& file) {
-   return IsMemoryAcceptable(file.data(), file.length(), 0, true);
+@@ -826,5 +831,6 @@ bool FilePersistentMemoryAllocator::IsFileAcceptable(
+   return IsMemoryAcceptable(file.data(), file.length(), 0, read_only);
  }
+ #endif  // !defined(OS_NACL)
 +#endif
  
  }  // namespace base

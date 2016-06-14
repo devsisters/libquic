@@ -32,6 +32,11 @@
 
 #include <google/protobuf/pyext/map_container.h>
 
+#include <memory>
+#ifndef _SHARED_PTR_H
+#include <google/protobuf/stubs/shared_ptr.h>
+#endif
+
 #include <google/protobuf/stubs/logging.h>
 #include <google/protobuf/stubs/common.h>
 #include <google/protobuf/stubs/scoped_ptr.h>
@@ -70,7 +75,7 @@ class MapReflectionFriend {
 struct MapIterator {
   PyObject_HEAD;
 
-  scoped_ptr< ::google::protobuf::MapIterator> iter;
+  google::protobuf::scoped_ptr< ::google::protobuf::MapIterator> iter;
 
   // A pointer back to the container, so we can notice changes to the version.
   // We own a ref on this.
@@ -395,7 +400,12 @@ PyObject *NewScalarMapContainer(
     return NULL;
   }
 
+#if PY_MAJOR_VERSION >= 3
+  ScopedPyObjectPtr obj(PyType_GenericAlloc(
+        reinterpret_cast<PyTypeObject *>(ScalarMapContainer_Type), 0));
+#else
   ScopedPyObjectPtr obj(PyType_GenericAlloc(&ScalarMapContainer_Type, 0));
+#endif
   if (obj.get() == NULL) {
     return PyErr_Format(PyExc_RuntimeError,
                         "Could not allocate new container.");
@@ -510,12 +520,6 @@ static void ScalarMapDealloc(PyObject* _self) {
   Py_TYPE(_self)->tp_free(_self);
 }
 
-static PyMappingMethods ScalarMapMappingMethods = {
-  MapReflectionFriend::Length,             // mp_length
-  MapReflectionFriend::ScalarMapGetItem,   // mp_subscript
-  MapReflectionFriend::ScalarMapSetItem,   // mp_ass_subscript
-};
-
 static PyMethodDef ScalarMapMethods[] = {
   { "__contains__", MapReflectionFriend::Contains, METH_O,
     "Tests whether a key is a member of the map." },
@@ -532,44 +536,71 @@ static PyMethodDef ScalarMapMethods[] = {
   {NULL, NULL},
 };
 
-PyTypeObject ScalarMapContainer_Type = {
-  PyVarObject_HEAD_INIT(&PyType_Type, 0)
-  FULL_MODULE_NAME ".ScalarMapContainer",  //  tp_name
-  sizeof(MapContainer),                //  tp_basicsize
-  0,                                   //  tp_itemsize
-  ScalarMapDealloc,                    //  tp_dealloc
-  0,                                   //  tp_print
-  0,                                   //  tp_getattr
-  0,                                   //  tp_setattr
-  0,                                   //  tp_compare
-  0,                                   //  tp_repr
-  0,                                   //  tp_as_number
-  0,                                   //  tp_as_sequence
-  &ScalarMapMappingMethods,            //  tp_as_mapping
-  0,                                   //  tp_hash
-  0,                                   //  tp_call
-  0,                                   //  tp_str
-  0,                                   //  tp_getattro
-  0,                                   //  tp_setattro
-  0,                                   //  tp_as_buffer
-  Py_TPFLAGS_DEFAULT,                  //  tp_flags
-  "A scalar map container",            //  tp_doc
-  0,                                   //  tp_traverse
-  0,                                   //  tp_clear
-  0,                                   //  tp_richcompare
-  0,                                   //  tp_weaklistoffset
-  MapReflectionFriend::GetIterator,    //  tp_iter
-  0,                                   //  tp_iternext
-  ScalarMapMethods,                    //  tp_methods
-  0,                                   //  tp_members
-  0,                                   //  tp_getset
-  0,                                   //  tp_base
-  0,                                   //  tp_dict
-  0,                                   //  tp_descr_get
-  0,                                   //  tp_descr_set
-  0,                                   //  tp_dictoffset
-  0,                                   //  tp_init
-};
+#if PY_MAJOR_VERSION >= 3
+  static PyType_Slot ScalarMapContainer_Type_slots[] = {
+      {Py_tp_dealloc, (void *)ScalarMapDealloc},
+      {Py_mp_length, (void *)MapReflectionFriend::Length},
+      {Py_mp_subscript, (void *)MapReflectionFriend::ScalarMapGetItem},
+      {Py_mp_ass_subscript, (void *)MapReflectionFriend::ScalarMapSetItem},
+      {Py_tp_methods, (void *)ScalarMapMethods},
+      {Py_tp_iter, (void *)MapReflectionFriend::GetIterator},
+      {0, 0},
+  };
+
+  PyType_Spec ScalarMapContainer_Type_spec = {
+      FULL_MODULE_NAME ".ScalarMapContainer",
+      sizeof(MapContainer),
+      0,
+      Py_TPFLAGS_DEFAULT,
+      ScalarMapContainer_Type_slots
+  };
+  PyObject *ScalarMapContainer_Type;
+#else
+  static PyMappingMethods ScalarMapMappingMethods = {
+    MapReflectionFriend::Length,             // mp_length
+    MapReflectionFriend::ScalarMapGetItem,   // mp_subscript
+    MapReflectionFriend::ScalarMapSetItem,   // mp_ass_subscript
+  };
+
+  PyTypeObject ScalarMapContainer_Type = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    FULL_MODULE_NAME ".ScalarMapContainer",  //  tp_name
+    sizeof(MapContainer),                //  tp_basicsize
+    0,                                   //  tp_itemsize
+    ScalarMapDealloc,                    //  tp_dealloc
+    0,                                   //  tp_print
+    0,                                   //  tp_getattr
+    0,                                   //  tp_setattr
+    0,                                   //  tp_compare
+    0,                                   //  tp_repr
+    0,                                   //  tp_as_number
+    0,                                   //  tp_as_sequence
+    &ScalarMapMappingMethods,            //  tp_as_mapping
+    0,                                   //  tp_hash
+    0,                                   //  tp_call
+    0,                                   //  tp_str
+    0,                                   //  tp_getattro
+    0,                                   //  tp_setattro
+    0,                                   //  tp_as_buffer
+    Py_TPFLAGS_DEFAULT,                  //  tp_flags
+    "A scalar map container",            //  tp_doc
+    0,                                   //  tp_traverse
+    0,                                   //  tp_clear
+    0,                                   //  tp_richcompare
+    0,                                   //  tp_weaklistoffset
+    MapReflectionFriend::GetIterator,    //  tp_iter
+    0,                                   //  tp_iternext
+    ScalarMapMethods,                    //  tp_methods
+    0,                                   //  tp_members
+    0,                                   //  tp_getset
+    0,                                   //  tp_base
+    0,                                   //  tp_dict
+    0,                                   //  tp_descr_get
+    0,                                   //  tp_descr_set
+    0,                                   //  tp_dictoffset
+    0,                                   //  tp_init
+  };
+#endif
 
 
 // MessageMap //////////////////////////////////////////////////////////////////
@@ -584,8 +615,7 @@ static PyObject* GetCMessage(MessageMapContainer* self, Message* message) {
   PyObject* ret = PyDict_GetItem(self->message_dict, key.get());
 
   if (ret == NULL) {
-    CMessage* cmsg = cmessage::NewEmptyMessage(self->subclass_init,
-                                               message->GetDescriptor());
+    CMessage* cmsg = cmessage::NewEmptyMessage(self->message_class);
     ret = reinterpret_cast<PyObject*>(cmsg);
 
     if (cmsg == NULL) {
@@ -608,12 +638,17 @@ static PyObject* GetCMessage(MessageMapContainer* self, Message* message) {
 
 PyObject* NewMessageMapContainer(
     CMessage* parent, const google::protobuf::FieldDescriptor* parent_field_descriptor,
-    PyObject* concrete_class) {
+    CMessageClass* message_class) {
   if (!CheckFieldBelongsToMessage(parent_field_descriptor, parent->message)) {
     return NULL;
   }
 
+#if PY_MAJOR_VERSION >= 3
+  PyObject* obj = PyType_GenericAlloc(
+        reinterpret_cast<PyTypeObject *>(MessageMapContainer_Type), 0);
+#else
   PyObject* obj = PyType_GenericAlloc(&MessageMapContainer_Type, 0);
+#endif
   if (obj == NULL) {
     return PyErr_Format(PyExc_RuntimeError,
                         "Could not allocate new container.");
@@ -638,8 +673,8 @@ PyObject* NewMessageMapContainer(
                         "Could not allocate message dict.");
   }
 
-  Py_INCREF(concrete_class);
-  self->subclass_init = concrete_class;
+  Py_INCREF(message_class);
+  self->message_class = message_class;
 
   if (self->key_field_descriptor == NULL ||
       self->value_field_descriptor == NULL) {
@@ -732,14 +767,9 @@ static void MessageMapDealloc(PyObject* _self) {
   MessageMapContainer* self = GetMessageMap(_self);
   self->owner.reset();
   Py_DECREF(self->message_dict);
+  Py_DECREF(self->message_class);
   Py_TYPE(_self)->tp_free(_self);
 }
-
-static PyMappingMethods MessageMapMappingMethods = {
-  MapReflectionFriend::Length,              // mp_length
-  MapReflectionFriend::MessageMapGetItem,   // mp_subscript
-  MapReflectionFriend::MessageMapSetItem,   // mp_ass_subscript
-};
 
 static PyMethodDef MessageMapMethods[] = {
   { "__contains__", (PyCFunction)MapReflectionFriend::Contains, METH_O,
@@ -759,44 +789,72 @@ static PyMethodDef MessageMapMethods[] = {
   {NULL, NULL},
 };
 
-PyTypeObject MessageMapContainer_Type = {
-  PyVarObject_HEAD_INIT(&PyType_Type, 0)
-  FULL_MODULE_NAME ".MessageMapContainer",  //  tp_name
-  sizeof(MessageMapContainer),         //  tp_basicsize
-  0,                                   //  tp_itemsize
-  MessageMapDealloc,                   //  tp_dealloc
-  0,                                   //  tp_print
-  0,                                   //  tp_getattr
-  0,                                   //  tp_setattr
-  0,                                   //  tp_compare
-  0,                                   //  tp_repr
-  0,                                   //  tp_as_number
-  0,                                   //  tp_as_sequence
-  &MessageMapMappingMethods,           //  tp_as_mapping
-  0,                                   //  tp_hash
-  0,                                   //  tp_call
-  0,                                   //  tp_str
-  0,                                   //  tp_getattro
-  0,                                   //  tp_setattro
-  0,                                   //  tp_as_buffer
-  Py_TPFLAGS_DEFAULT,                  //  tp_flags
-  "A map container for message",       //  tp_doc
-  0,                                   //  tp_traverse
-  0,                                   //  tp_clear
-  0,                                   //  tp_richcompare
-  0,                                   //  tp_weaklistoffset
-  MapReflectionFriend::GetIterator,    //  tp_iter
-  0,                                   //  tp_iternext
-  MessageMapMethods,                   //  tp_methods
-  0,                                   //  tp_members
-  0,                                   //  tp_getset
-  0,                                   //  tp_base
-  0,                                   //  tp_dict
-  0,                                   //  tp_descr_get
-  0,                                   //  tp_descr_set
-  0,                                   //  tp_dictoffset
-  0,                                   //  tp_init
-};
+#if PY_MAJOR_VERSION >= 3
+  static PyType_Slot MessageMapContainer_Type_slots[] = {
+      {Py_tp_dealloc, (void *)MessageMapDealloc},
+      {Py_mp_length, (void *)MapReflectionFriend::Length},
+      {Py_mp_subscript, (void *)MapReflectionFriend::MessageMapGetItem},
+      {Py_mp_ass_subscript, (void *)MapReflectionFriend::MessageMapSetItem},
+      {Py_tp_methods, (void *)MessageMapMethods},
+      {Py_tp_iter, (void *)MapReflectionFriend::GetIterator},
+      {0, 0}
+  };
+
+  PyType_Spec MessageMapContainer_Type_spec = {
+      FULL_MODULE_NAME ".MessageMapContainer",
+      sizeof(MessageMapContainer),
+      0,
+      Py_TPFLAGS_DEFAULT,
+      MessageMapContainer_Type_slots
+  };
+
+  PyObject *MessageMapContainer_Type;
+#else
+  static PyMappingMethods MessageMapMappingMethods = {
+    MapReflectionFriend::Length,              // mp_length
+    MapReflectionFriend::MessageMapGetItem,   // mp_subscript
+    MapReflectionFriend::MessageMapSetItem,   // mp_ass_subscript
+  };
+
+  PyTypeObject MessageMapContainer_Type = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    FULL_MODULE_NAME ".MessageMapContainer",  //  tp_name
+    sizeof(MessageMapContainer),         //  tp_basicsize
+    0,                                   //  tp_itemsize
+    MessageMapDealloc,                   //  tp_dealloc
+    0,                                   //  tp_print
+    0,                                   //  tp_getattr
+    0,                                   //  tp_setattr
+    0,                                   //  tp_compare
+    0,                                   //  tp_repr
+    0,                                   //  tp_as_number
+    0,                                   //  tp_as_sequence
+    &MessageMapMappingMethods,           //  tp_as_mapping
+    0,                                   //  tp_hash
+    0,                                   //  tp_call
+    0,                                   //  tp_str
+    0,                                   //  tp_getattro
+    0,                                   //  tp_setattro
+    0,                                   //  tp_as_buffer
+    Py_TPFLAGS_DEFAULT,                  //  tp_flags
+    "A map container for message",       //  tp_doc
+    0,                                   //  tp_traverse
+    0,                                   //  tp_clear
+    0,                                   //  tp_richcompare
+    0,                                   //  tp_weaklistoffset
+    MapReflectionFriend::GetIterator,    //  tp_iter
+    0,                                   //  tp_iternext
+    MessageMapMethods,                   //  tp_methods
+    0,                                   //  tp_members
+    0,                                   //  tp_getset
+    0,                                   //  tp_base
+    0,                                   //  tp_dict
+    0,                                   //  tp_descr_get
+    0,                                   //  tp_descr_set
+    0,                                   //  tp_dictoffset
+    0,                                   //  tp_init
+  };
+#endif
 
 // MapIterator /////////////////////////////////////////////////////////////////
 

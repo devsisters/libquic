@@ -107,6 +107,11 @@ NET_ERROR(UPLOAD_STREAM_REWIND_NOT_SUPPORTED, -25)
 // been shut down.
 NET_ERROR(CONTEXT_SHUT_DOWN, -26)
 
+// The request failed because the response was delivered along with requirements
+// which are not met ('X-Frame-Options' and 'Content-Security-Policy' ancestor
+// checks, for instance).
+NET_ERROR(BLOCKED_BY_RESPONSE, -27)
+
 // A connection was closed (corresponding to a TCP FIN).
 NET_ERROR(CONNECTION_CLOSED, -100)
 

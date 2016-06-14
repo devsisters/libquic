@@ -53,11 +53,13 @@ void TcpCubicSenderPackets::SetCongestionWindowFromBandwidthAndRtt(
       bandwidth.ToBytesPerPeriod(rtt) / kDefaultTCPMSS;
   if (FLAGS_quic_no_lower_bw_resumption_limit) {
     // Limit new CWND to be in the range [1, kMaxCongestionWindow].
-    congestion_window_ = max(min_congestion_window_,
-                             min(new_congestion_window, kMaxCongestionWindow));
+    congestion_window_ =
+        max(min_congestion_window_,
+            min(new_congestion_window, kMaxResumptionCongestionWindow));
   } else {
-    congestion_window_ = max(min(new_congestion_window, kMaxCongestionWindow),
-                             kMinCongestionWindowForBandwidthResumption);
+    congestion_window_ =
+        max(min(new_congestion_window, kMaxResumptionCongestionWindow),
+            kMinCongestionWindowForBandwidthResumption);
   }
 }
 
@@ -78,6 +80,7 @@ void TcpCubicSenderPackets::SetNumEmulatedConnections(int num_connections) {
 
 void TcpCubicSenderPackets::SetMaxCongestionWindow(
     QuicByteCount max_congestion_window) {
+  DCHECK(!FLAGS_quic_ignore_srbf);
   max_tcp_congestion_window_ = max_congestion_window / kDefaultTCPMSS;
 }
 
@@ -115,7 +118,9 @@ void TcpCubicSenderPackets::OnPacketLost(QuicPacketNumber packet_number,
     ++stats_->slowstart_packets_lost;
   }
 
-  prr_.OnPacketLost(bytes_in_flight);
+  if (!no_prr_) {
+    prr_.OnPacketLost(bytes_in_flight);
+  }
 
   // TODO(jri): Separate out all of slow start into a separate class.
   if (slow_start_large_reduction_ && InSlowStart()) {

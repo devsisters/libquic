@@ -44,7 +44,7 @@ bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
     const struct sockaddr_in* addr =
         reinterpret_cast<const struct sockaddr_in*>(sock_addr);
     *address = reinterpret_cast<const uint8_t*>(&addr->sin_addr);
-    *address_len = kIPv4AddressSize;
+    *address_len = IPAddress::kIPv4AddressSize;
     if (port)
       *port = base::NetToHost16(addr->sin_port);
     return true;
@@ -56,7 +56,7 @@ bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
     const struct sockaddr_in6* addr =
         reinterpret_cast<const struct sockaddr_in6*>(sock_addr);
     *address = reinterpret_cast<const uint8_t*>(&addr->sin6_addr);
-    *address_len = kIPv6AddressSize;
+    *address_len = IPAddress::kIPv6AddressSize;
     if (port)
       *port = base::NetToHost16(addr->sin6_port);
     return true;
@@ -84,10 +84,6 @@ IPEndPoint::IPEndPoint() : port_(0) {}
 
 IPEndPoint::~IPEndPoint() {}
 
-IPEndPoint::IPEndPoint(const IPAddressNumber& address, uint16_t port)
-    : address_(address), port_(port) {
-}
-
 IPEndPoint::IPEndPoint(const IPAddress& address, uint16_t port)
     : address_(address), port_(port) {}
 
@@ -102,9 +98,9 @@ AddressFamily IPEndPoint::GetFamily() const {
 
 int IPEndPoint::GetSockAddrFamily() const {
   switch (address_.size()) {
-    case kIPv4AddressSize:
+    case IPAddress::kIPv4AddressSize:
       return AF_INET;
-    case kIPv6AddressSize:
+    case IPAddress::kIPv6AddressSize:
       return AF_INET6;
     default:
       NOTREACHED() << "Bad IP address";
@@ -117,7 +113,7 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
   DCHECK(address);
   DCHECK(address_length);
   switch (address_.size()) {
-    case kIPv4AddressSize: {
+    case IPAddress::kIPv4AddressSize: {
       if (*address_length < kSockaddrInSize)
         return false;
       *address_length = kSockaddrInSize;
@@ -125,10 +121,11 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       memset(addr, 0, sizeof(struct sockaddr_in));
       addr->sin_family = AF_INET;
       addr->sin_port = base::HostToNet16(port_);
-      memcpy(&addr->sin_addr, &address_.bytes()[0], kIPv4AddressSize);
+      memcpy(&addr->sin_addr, address_.bytes().data(),
+             IPAddress::kIPv4AddressSize);
       break;
     }
-    case kIPv6AddressSize: {
+    case IPAddress::kIPv6AddressSize: {
       if (*address_length < kSockaddrIn6Size)
         return false;
       *address_length = kSockaddrIn6Size;
@@ -137,7 +134,8 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       memset(addr6, 0, sizeof(struct sockaddr_in6));
       addr6->sin6_family = AF_INET6;
       addr6->sin6_port = base::HostToNet16(port_);
-      memcpy(&addr6->sin6_addr, &address_.bytes()[0], kIPv6AddressSize);
+      memcpy(&addr6->sin6_addr, address_.bytes().data(),
+             IPAddress::kIPv6AddressSize);
       break;
     }
     default:
@@ -164,7 +162,7 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* sock_addr,
 }
 
 std::string IPEndPoint::ToString() const {
-  return IPAddressToStringWithPort(address_.bytes(), port_);
+  return IPAddressToStringWithPort(address_, port_);
 }
 
 std::string IPEndPoint::ToStringWithoutPort() const {

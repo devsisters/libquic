@@ -64,7 +64,7 @@
     <NoStdLib>true</NoStdLib>
     <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
     <SignAssembly>True</SignAssembly>
-    <AssemblyOriginatorKeyFile>C:\keys\Google.Protobuf.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>..\..\keys\Google.Protobuf.snk</AssemblyOriginatorKeyFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
@@ -85,6 +85,7 @@
     <Compile Include="Compatibility\TypeExtensions.cs" />
     <Compile Include="FieldCodec.cs" />
     <Compile Include="FrameworkPortability.cs" />
+    <Compile Include="ICustomDiagnosticMessage.cs" />
     <Compile Include="IDeepCloneable.cs" />
     <Compile Include="InvalidJsonException.cs" />
     <Compile Include="JsonFormatter.cs" />
@@ -108,7 +109,7 @@
     <Compile Include="Reflection\FieldDescriptor.cs" />
     <Compile Include="Reflection\FieldType.cs" />
     <Compile Include="Reflection\FileDescriptor.cs" />
-    <Compile Include="Reflection\GeneratedCodeInfo.cs" />
+    <Compile Include="Reflection\GeneratedClrTypeInfo.cs" />
     <Compile Include="Reflection\IDescriptor.cs" />
     <Compile Include="Reflection\IFieldAccessor.cs" />
     <Compile Include="Reflection\MapFieldAccessor.cs" />
@@ -116,13 +117,14 @@
     <Compile Include="Reflection\MethodDescriptor.cs" />
     <Compile Include="Reflection\OneofAccessor.cs" />
     <Compile Include="Reflection\OneofDescriptor.cs" />
+    <Compile Include="Reflection\OriginalNameAttribute.cs" />
     <Compile Include="Reflection\PackageDescriptor.cs" />
     <Compile Include="Reflection\PartialClasses.cs" />
     <Compile Include="Reflection\ReflectionUtil.cs" />
     <Compile Include="Reflection\RepeatedFieldAccessor.cs" />
     <Compile Include="Reflection\ServiceDescriptor.cs" />
     <Compile Include="Reflection\SingleFieldAccessor.cs" />
-    <Compile Include="Preconditions.cs" />
+    <Compile Include="ProtoPreconditions.cs" />
     <Compile Include="Reflection\TypeRegistry.cs" />
     <Compile Include="WellKnownTypes\Any.cs" />
     <Compile Include="WellKnownTypes\AnyPartial.cs" />
@@ -131,6 +133,7 @@
     <Compile Include="WellKnownTypes\DurationPartial.cs" />
     <Compile Include="WellKnownTypes\Empty.cs" />
     <Compile Include="WellKnownTypes\FieldMask.cs" />
+    <Compile Include="WellKnownTypes\FieldMaskPartial.cs" />
     <Compile Include="WellKnownTypes\SourceContext.cs" />
     <Compile Include="WellKnownTypes\Struct.cs" />
     <Compile Include="WellKnownTypes\TimeExtensions.cs" />

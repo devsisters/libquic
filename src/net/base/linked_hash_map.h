@@ -224,6 +224,19 @@ class linked_hash_map {
     return list_.size();
   }
 
+  template <typename... Args>
+  std::pair<iterator, bool> emplace(Args&&... args) {
+    ListType node_donor;
+    auto node_pos =
+        node_donor.emplace(node_donor.end(), std::forward<Args>(args)...);
+    const auto& k = node_pos->first;
+    auto ins = map_.insert({k, node_pos});
+    if (!ins.second)
+      return {ins.first->second, false};
+    list_.splice(list_.end(), node_donor, node_pos);
+    return {ins.first->second, true};
+  }
+
   void swap(linked_hash_map& other) {
     map_.swap(other.map_);
     list_.swap(other.list_);

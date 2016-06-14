@@ -41,7 +41,8 @@ TcpCubicSenderBase::TcpCubicSenderBase(const QuicClock* clock,
       largest_sent_at_last_cutback_(0),
       min4_mode_(false),
       last_cutback_exited_slowstart_(false),
-      slow_start_large_reduction_(false) {}
+      slow_start_large_reduction_(false),
+      no_prr_(false) {}
 
 TcpCubicSenderBase::~TcpCubicSenderBase() {}
 
@@ -83,6 +84,11 @@ void TcpCubicSenderBase::SetFromConfig(const QuicConfig& config,
         ContainsQuicTag(config.ReceivedConnectionOptions(), kSSLR)) {
       // Slow Start Fast Exit experiment.
       slow_start_large_reduction_ = true;
+    }
+    if (FLAGS_quic_allow_noprr && config.HasReceivedConnectionOptions() &&
+        ContainsQuicTag(config.ReceivedConnectionOptions(), kNPRR)) {
+      // Use unity pacing instead of PRR.
+      no_prr_ = true;
     }
   }
 }
@@ -139,8 +145,10 @@ void TcpCubicSenderBase::OnPacketAcked(QuicPacketNumber acked_packet_number,
   largest_acked_packet_number_ =
       max(acked_packet_number, largest_acked_packet_number_);
   if (InRecovery()) {
-    // PRR is used when in recovery.
-    prr_.OnPacketAcked(acked_bytes);
+    if (!no_prr_) {
+      // PRR is used when in recovery.
+      prr_.OnPacketAcked(acked_bytes);
+    }
     return;
   }
   MaybeIncreaseCwnd(acked_packet_number, acked_bytes, bytes_in_flight);
@@ -176,7 +184,7 @@ bool TcpCubicSenderBase::OnPacketSent(
 QuicTime::Delta TcpCubicSenderBase::TimeUntilSend(
     QuicTime /* now */,
     QuicByteCount bytes_in_flight) const {
-  if (InRecovery()) {
+  if (!no_prr_ && InRecovery()) {
     // PRR is used when in recovery.
     return prr_.TimeUntilSend(GetCongestionWindow(), bytes_in_flight,
                               GetSlowStartThreshold());
@@ -200,7 +208,8 @@ QuicBandwidth TcpCubicSenderBase::PacingRate() const {
   }
   const QuicBandwidth bandwidth =
       QuicBandwidth::FromBytesAndTimeDelta(GetCongestionWindow(), srtt);
-  return bandwidth.Scale(InSlowStart() ? 2 : 1.25);
+  return bandwidth.Scale(InSlowStart() ? 2
+                                       : (no_prr_ && InRecovery() ? 1 : 1.25));
 }
 
 QuicBandwidth TcpCubicSenderBase::BandwidthEstimate() const {

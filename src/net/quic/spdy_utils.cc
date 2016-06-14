@@ -11,6 +11,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
@@ -119,18 +120,22 @@ bool SpdyUtils::CopyAndValidateHeaders(const QuicHeaderList& header_list,
       return false;
     }
 
-    if (std::any_of(name.begin(), name.end(), base::IsAsciiUpper<char>)) {
-      DLOG(ERROR) << "Malformed header: Header name " << name
-                  << " contains upper-case characters.";
-      return false;
+    auto iter = headers->find(name);
+    if (iter == headers->end()) {
+      (*headers)[name] = p.second;
+    } else {
+      // This header had multiple values, so it must be reconstructed.
+      StringPiece v = iter->second;
+      string s(v.data(), v.length());
+      if (name == "cookie") {
+        // Obeys section 8.1.2.5 in RFC 7540 for cookie reconstruction.
+        s.append("; ");
+      } else {
+        StringPiece("\0", 1).AppendToString(&s);
+      }
+      s.append(p.second);
+      headers->ReplaceOrAppendHeader(name, s);
     }
-
-    if (headers->find(name) != headers->end()) {
-      DLOG(ERROR) << "Duplicate header '" << name << "' found.";
-      return false;
-    }
-
-    (*headers)[name] = p.second;
   }
 
   if (ContainsKey(*headers, "content-length")) {

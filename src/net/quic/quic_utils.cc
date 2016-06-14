@@ -297,6 +297,8 @@ const char* QuicUtils::ErrorToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_CONNECTION_MIGRATION_NON_MIGRATABLE_STREAM);
     RETURN_STRING_LITERAL(QUIC_TOO_MANY_RTOS);
     RETURN_STRING_LITERAL(QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA);
+    RETURN_STRING_LITERAL(QUIC_MAYBE_CORRUPTED_MEMORY);
+    RETURN_STRING_LITERAL(QUIC_CRYPTO_CHLO_TOO_LARGE);
     RETURN_STRING_LITERAL(QUIC_LAST_ERROR);
     // Intentionally have no default case, so we'll break the build
     // if we add errors and don't put them here.
@@ -528,6 +530,44 @@ PeerAddressChangeType QuicUtils::DetermineAddressChangeType(
   }
 
   return UNSPECIFIED_CHANGE;
+}
+
+string QuicUtils::HexEncode(const char* data, size_t length) {
+  return HexEncode(StringPiece(data, length));
+}
+
+string QuicUtils::HexEncode(StringPiece data) {
+  return ::base::HexEncode(data.data(), data.size());
+}
+
+string QuicUtils::HexDecode(const char* data, size_t length) {
+  return HexDecode(StringPiece(data, length));
+}
+
+string QuicUtils::HexDecode(StringPiece data) {
+  if (data.empty())
+    return "";
+  std::vector<uint8_t> v;
+  if (!base::HexStringToBytes(data.as_string(), &v))
+    return "";
+  string out;
+  if (!v.empty())
+    out.assign(reinterpret_cast<const char*>(&v[0]), v.size());
+  return out;
+}
+
+string QuicUtils::BinaryToAscii(StringPiece binary) {
+  string out = "";
+  for (const unsigned char c : binary) {
+    // Leading space.
+    out += " ";
+    if (isprint(c)) {
+      out += c;
+    } else {
+      out += '.';
+    }
+  }
+  return out;
 }
 
 }  // namespace net

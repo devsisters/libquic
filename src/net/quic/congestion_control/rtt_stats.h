@@ -12,6 +12,7 @@
 #include <algorithm>
 
 #include "base/macros.h"
+#include "net/quic/congestion_control/windowed_filter.h"
 #include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_time.h"
@@ -37,9 +38,9 @@ class NET_EXPORT_PRIVATE RttStats {
   // it's larger.
   void ExpireSmoothedMetrics();
 
-  // Forces RttStats to sample a new recent min rtt within the next
+  // Forces RttStats to sample a new windowed min rtt within the next
   // |num_samples| UpdateRtt calls.
-  void SampleNewRecentMinRtt(uint32_t num_samples);
+  void SampleNewWindowedMinRtt(uint32_t num_samples);
 
   // Called when connection migrates and rtt measurement needs to be reset.
   void OnConnectionMigration();
@@ -47,6 +48,9 @@ class NET_EXPORT_PRIVATE RttStats {
   // Returns the EWMA smoothed RTT for the connection.
   // May return Zero if no valid updates have occurred.
   QuicTime::Delta smoothed_rtt() const { return smoothed_rtt_; }
+
+  // Returns the EWMA smoothed RTT prior to the most recent RTT sample.
+  QuicTime::Delta previous_srtt() const { return previous_srtt_; }
 
   int64_t initial_rtt_us() const { return initial_rtt_us_; }
 
@@ -67,49 +71,35 @@ class NET_EXPORT_PRIVATE RttStats {
   // May return Zero if no valid updates have occurred.
   QuicTime::Delta min_rtt() const { return min_rtt_; }
 
-  // Returns the min_rtt since SampleNewRecentMinRtt has been called, or the
-  // min_rtt for the entire connection if SampleNewMinRtt was never called.
-  QuicTime::Delta recent_min_rtt() const { return recent_min_rtt_.rtt; }
-
   QuicTime::Delta mean_deviation() const { return mean_deviation_; }
 
-  // Sets how old a recent min rtt sample can be.
-  void set_recent_min_rtt_window(QuicTime::Delta recent_min_rtt_window) {
-    recent_min_rtt_window_ = recent_min_rtt_window;
-  }
+  QuicTime::Delta WindowedMinRtt() { return windowed_min_rtt_.GetBest(); }
 
  private:
   friend class test::RttStatsPeer;
 
-  // Used to track a sampled RTT window.
-  struct RttSample {
-    RttSample() : rtt(QuicTime::Delta::Zero()), time(QuicTime::Zero()) {}
-    RttSample(QuicTime::Delta rtt, QuicTime time) : rtt(rtt), time(time) {}
-
-    QuicTime::Delta rtt;
-    QuicTime time;  // Time the rtt sample was recorded.
-  };
-
-  // Implements the resampling algorithm and the windowed min rtt algorithm.
-  void UpdateRecentMinRtt(QuicTime::Delta rtt_sample, QuicTime now);
+  // Updates the windowed min rtt. Also forces a new windowed_min_rtt sample,
+  // if set by a call to SampleNewWindowedMinRtt() above.
+  void UpdateWindowedMinRtt(QuicTime::Delta rtt_sample, QuicTime now);
 
   QuicTime::Delta latest_rtt_;
   QuicTime::Delta min_rtt_;
   QuicTime::Delta smoothed_rtt_;
+  QuicTime::Delta previous_srtt_;
   // Mean RTT deviation during this session.
   // Approximation of standard deviation, the error is roughly 1.25 times
   // larger than the standard deviation, for a normally distributed signal.
   QuicTime::Delta mean_deviation_;
   int64_t initial_rtt_us_;
 
-  RttSample new_min_rtt_;
-  uint32_t num_min_rtt_samples_remaining_;
+  // Variables used to force a new windowed_min_rtt measurement within
+  // num_samples_for_forced_min_.
+  QuicTime::Delta forced_windowed_min_rtt_;
+  QuicTime forced_windowed_min_rtt_time_;
+  uint32_t num_samples_for_forced_min_;
 
-  // State variables for Kathleen Nichols MinRTT algorithm.
-  QuicTime::Delta recent_min_rtt_window_;
-  RttSample recent_min_rtt_;      // a in the windowed algorithm.
-  RttSample half_window_rtt_;     // b in the sampled algorithm.
-  RttSample quarter_window_rtt_;  // c in the sampled algorithm.
+  // Windowed min_rtt.
+  WindowedFilter<QuicTime::Delta, MinFilter<QuicTime::Delta>> windowed_min_rtt_;
 
   DISALLOW_COPY_AND_ASSIGN(RttStats);
 };

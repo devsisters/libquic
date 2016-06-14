@@ -13,12 +13,6 @@
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
 
-#if defined(NACL_WIN64)
-// See comments for crypto_nacl_win64 in crypto.gyp.
-// Must test for NACL_WIN64 before OS_WIN since former is a subset of latter.
-#include "crypto/scoped_capi_types.h"
-#endif
-
 namespace crypto {
 
 // Wraps a platform-specific symmetric key and allows it to be held in a
@@ -57,11 +51,7 @@ class CRYPTO_EXPORT SymmetricKey {
   // size for use with |algorithm|. The caller owns the returned SymmetricKey.
   static SymmetricKey* Import(Algorithm algorithm, const std::string& raw_key);
 
-#if defined(NACL_WIN64)
-  HCRYPTKEY key() const { return key_.get(); }
-#else
   const std::string& key() { return key_; }
-#endif
 
   // Extracts the raw key from the platform specific data.
   // Warning: |raw_key| holds the raw key as bytes and thus must be handled
@@ -69,24 +59,8 @@ class CRYPTO_EXPORT SymmetricKey {
   bool GetRawKey(std::string* raw_key);
 
  private:
-#if defined(NACL_WIN64)
-  SymmetricKey(HCRYPTPROV provider, HCRYPTKEY key,
-               const void* key_data, size_t key_size_in_bytes);
-
-  ScopedHCRYPTPROV provider_;
-  ScopedHCRYPTKEY key_;
-
-  // Contains the raw key, if it is known during initialization and when it
-  // is likely that the associated |provider_| will be unable to export the
-  // |key_|. This is the case of HMAC keys when the key size exceeds 16 bytes
-  // when using the default RSA provider.
-  // TODO(rsleevi): See if KP_EFFECTIVE_KEYLEN is the reason why CryptExportKey
-  // fails with NTE_BAD_KEY/NTE_BAD_LEN
-  std::string raw_key_;
-#else
   SymmetricKey() {}
   std::string key_;
-#endif
 
   DISALLOW_COPY_AND_ASSIGN(SymmetricKey);
 };

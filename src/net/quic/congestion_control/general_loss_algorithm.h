@@ -29,23 +29,38 @@ class NET_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   ~GeneralLossAlgorithm() override {}
 
   LossDetectionType GetLossDetectionType() const override;
-  void SetLossDetectionType(LossDetectionType loss_type) {
-    loss_type_ = loss_type;
-  }
+  void SetLossDetectionType(LossDetectionType loss_type);
 
-  // Uses |largest_observed| and time to decide when packets are lost.
+  // Uses |largest_acked| and time to decide when packets are lost.
   void DetectLosses(
       const QuicUnackedPacketMap& unacked_packets,
       QuicTime time,
       const RttStats& rtt_stats,
+      QuicPacketNumber largest_newly_acked,
       SendAlgorithmInterface::CongestionVector* packets_lost) override;
 
   // Returns a non-zero value when the early retransmit timer is active.
   QuicTime GetLossTimeout() const override;
 
+  // Increases the loss detection threshold for time loss detection.
+  void SpuriousRetransmitDetected(
+      const QuicUnackedPacketMap& unacked_packets,
+      QuicTime time,
+      const RttStats& rtt_stats,
+      QuicPacketNumber spurious_retransmission) override;
+
+  int reordering_shift() const { return reordering_shift_; }
+
  private:
   LossDetectionType loss_type_;
   QuicTime loss_detection_timeout_;
+  // Largest sent packet when a spurious retransmit is detected.
+  // Prevents increasing the reordering threshold multiple times per epoch.
+  QuicPacketNumber largest_sent_on_spurious_retransmit_;
+  // Fraction of a max(SRTT, latest_rtt) to permit reordering before declaring
+  // loss.  Fraction calculated by shifting max(SRTT, latest_rtt) to the right
+  // by reordering_shift.
+  int reordering_shift_;
 
   DISALLOW_COPY_AND_ASSIGN(GeneralLossAlgorithm);
 };

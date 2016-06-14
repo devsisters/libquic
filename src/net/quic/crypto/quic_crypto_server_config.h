@@ -297,6 +297,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // |cached_network_params| is optional, and can be nullptr.
   bool BuildServerConfigUpdateMessage(
       QuicVersion version,
+      base::StringPiece chlo_hash,
       const SourceAddressTokens& previous_source_address_tokens,
       const IPAddress& server_ip,
       const IPAddress& client_ip,

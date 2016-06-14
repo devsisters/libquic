@@ -141,6 +141,10 @@ class BASE_EXPORT FeatureList {
   // struct, which is checked in builds with DCHECKs enabled.
   static bool IsEnabled(const Feature& feature);
 
+  // Returns the field trial associated with the given |feature|. Must only be
+  // called after the singleton instance has been registered via SetInstance().
+  static FieldTrial* GetFieldTrial(const Feature& feature);
+
   // Splits a comma-separated string containing feature names into a vector.
   static std::vector<std::string> SplitFeatureListString(
       const std::string& input);
@@ -199,6 +203,12 @@ class BASE_EXPORT FeatureList {
   // public FeatureList::IsEnabled() static function on the global singleton.
   // Requires the FeatureList to have already been fully initialized.
   bool IsFeatureEnabled(const Feature& feature);
+
+  // Returns the field trial associated with the given |feature|. This is
+  // invoked by the public FeatureList::GetFieldTrial() static function on the
+  // global singleton. Requires the FeatureList to have already been fully
+  // initialized.
+  base::FieldTrial* GetAssociatedFieldTrial(const Feature& feature);
 
   // For each feature name in comma-separated list of strings |feature_list|,
   // registers an override with the specified |overridden_state|. Also, will

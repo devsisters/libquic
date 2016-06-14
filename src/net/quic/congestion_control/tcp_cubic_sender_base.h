@@ -25,6 +25,9 @@ namespace net {
 
 class RttStats;
 
+// Maximum window to allow when doing bandwidth resumption.
+const QuicPacketCount kMaxResumptionCongestionWindow = 200;
+
 namespace test {
 class TcpCubicSenderBasePeer;
 }  // namespace test
@@ -139,6 +142,9 @@ class NET_EXPORT_PRIVATE TcpCubicSenderBase : public SendAlgorithmInterface {
 
   // When true, exit slow start with large cutback of congestion window.
   bool slow_start_large_reduction_;
+
+  // When true, use unity pacing instead of PRR.
+  bool no_prr_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TcpCubicSenderBase);

@@ -10,6 +10,11 @@
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/log/net_log.h"
+#include "net/spdy/spdy_header_block.h"
+
+namespace base {
+class ListValue;
+}  // namespace base
 
 namespace net {
 
@@ -25,6 +30,11 @@ NET_EXPORT_PRIVATE std::string ElideHeaderValueForNetLog(
 NET_EXPORT_PRIVATE std::string ElideGoAwayDebugDataForNetLog(
     NetLogCaptureMode capture_mode,
     base::StringPiece debug_data);
+
+// Given a SpdyHeaderBlock, return its base::ListValue representation.
+std::unique_ptr<base::ListValue> ElideSpdyHeaderBlockForNetLog(
+    const SpdyHeaderBlock& headers,
+    NetLogCaptureMode capture_mode);
 
 }  // namespace net
 

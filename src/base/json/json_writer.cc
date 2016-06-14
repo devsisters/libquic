@@ -127,9 +127,7 @@ bool JSONWriter::BuildJSONString(const Value& node, size_t depth) {
       bool first_value_has_been_output = false;
       bool result = node.GetAsList(&list);
       DCHECK(result);
-      for (ListValue::const_iterator it = list->begin(); it != list->end();
-           ++it) {
-        const Value* value = *it;
+      for (const auto& value : *list) {
         if (omit_binary_values_ && value->GetType() == Value::TYPE_BINARY)
           continue;
 

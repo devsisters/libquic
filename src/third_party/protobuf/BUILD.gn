@@ -70,6 +70,7 @@ protobuf_lite_sources = [
   "src/google/protobuf/stubs/atomicops_internals_mips_gcc.h",
   "src/google/protobuf/stubs/atomicops_internals_pnacl.h",
   "src/google/protobuf/stubs/atomicops_internals_power.h",
+  "src/google/protobuf/stubs/atomicops_internals_ppc_gcc.h",
   "src/google/protobuf/stubs/atomicops_internals_solaris.h",
   "src/google/protobuf/stubs/atomicops_internals_tsan.h",
   "src/google/protobuf/stubs/atomicops_internals_x86_gcc.cc",
@@ -131,6 +132,7 @@ if (is_win) {
     "/wd4305",  # double to float truncation
     "/wd4355",  # 'this' used in base member initializer list
     "/wd4506",  # no definition for inline function (protobuf issue #240)
+    "/wd4715",  # not all control paths return a value (fixed in trunk)
   ]
 }
 
@@ -306,6 +308,10 @@ source_set("protobuf_full") {
     "src/google/protobuf/wrappers.pb.h",
   ]
 
+  deps = [
+    "//build/config/sanitizers:deps",
+  ]
+
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [
     "//build/config/compiler:no_chromium_code",
@@ -329,7 +335,10 @@ source_set("protobuf_full") {
 
 # Only compile the compiler for the host architecture.
 if (current_toolchain == host_toolchain) {
-  executable("protoc") {
+  # protoc compiler is separated into protoc library and executable targets to
+  # support protoc plugins that need to link libprotoc, but not the main()
+  # itself. See src/google/protobuf/compiler/plugin.h
+  source_set("protoc_lib") {
     sources = [
       "src/google/protobuf/compiler/code_generator.cc",
       "src/google/protobuf/compiler/code_generator.h",
@@ -380,6 +389,7 @@ if (current_toolchain == host_toolchain) {
       "src/google/protobuf/compiler/csharp/csharp_message.h",
       "src/google/protobuf/compiler/csharp/csharp_message_field.cc",
       "src/google/protobuf/compiler/csharp/csharp_message_field.h",
+      "src/google/protobuf/compiler/csharp/csharp_options.h",
       "src/google/protobuf/compiler/csharp/csharp_primitive_field.cc",
       "src/google/protobuf/compiler/csharp/csharp_primitive_field.h",
       "src/google/protobuf/compiler/csharp/csharp_reflection_class.cc",
@@ -408,6 +418,8 @@ if (current_toolchain == host_toolchain) {
       "src/google/protobuf/compiler/java/java_enum_lite.h",
       "src/google/protobuf/compiler/java/java_extension.cc",
       "src/google/protobuf/compiler/java/java_extension.h",
+      "src/google/protobuf/compiler/java/java_extension_lite.cc",
+      "src/google/protobuf/compiler/java/java_extension_lite.h",
       "src/google/protobuf/compiler/java/java_field.cc",
       "src/google/protobuf/compiler/java/java_field.h",
       "src/google/protobuf/compiler/java/java_file.cc",
@@ -476,7 +488,6 @@ if (current_toolchain == host_toolchain) {
       "src/google/protobuf/compiler/javanano/javanano_primitive_field.h",
       "src/google/protobuf/compiler/js/js_generator.cc",
       "src/google/protobuf/compiler/js/js_generator.h",
-      "src/google/protobuf/compiler/main.cc",
       "src/google/protobuf/compiler/objectivec/objectivec_enum.cc",
       "src/google/protobuf/compiler/objectivec/objectivec_enum.h",
       "src/google/protobuf/compiler/objectivec/objectivec_enum_field.cc",
@@ -528,16 +539,31 @@ if (current_toolchain == host_toolchain) {
       configs -= [ "//build/config/win:lean_and_mean" ]
     }
 
+    public_configs = [ ":protobuf_config" ]
+
+    cflags = protobuf_lite_cflags
+
+    public_deps = [
+      ":protobuf_full",
+    ]
+  }
+
+  executable("protoc") {
+    sources = [
+      "src/google/protobuf/compiler/main.cc",
+    ]
+
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+
     cflags = protobuf_lite_cflags
 
     deps = [
-      ":protobuf_full",
-      "//build/config/sanitizers:deps",
+      ":protoc_lib",
 
       # Default manifest on Windows (a no-op elsewhere).
       "//build/win:default_exe_manifest",
     ]
-    deps += [ "//build/config/sanitizers:deps" ]
   }
 }
 

@@ -36,6 +36,8 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
                uint32_t initial_packet_burst);
   ~PacingSender() override;
 
+  void SetMaxPacingRate(QuicBandwidth max_pacing_rate);
+
   // SendAlgorithmInterface methods.
   void SetFromConfig(const QuicConfig& config,
                      Perspective perspective) override;
@@ -74,6 +76,9 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
   // Configured maximum size of the burst coming out of quiescence.  The burst
   // is never larger than the current CWND in packets.
   const uint32_t initial_packet_burst_;
+  // If not QuicBandidth::Zero, the maximum rate the PacingSender will use.
+  QuicBandwidth max_pacing_rate_;
+
   // Number of unpaced packets to be sent before packets are delayed.
   uint32_t burst_tokens_;
   // Send time of the last packet considered delayed.

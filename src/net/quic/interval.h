@@ -61,7 +61,9 @@
 #define NET_QUIC_INTERVAL_H_
 
 #include <stddef.h>
+
 #include <algorithm>
+#include <functional>
 #include <ostream>
 #include <string>
 #include <utility>

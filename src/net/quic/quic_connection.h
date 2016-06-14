@@ -36,7 +36,6 @@
 #include "net/quic/quic_alarm.h"
 #include "net/quic/quic_alarm_factory.h"
 #include "net/quic/quic_blocked_writer_interface.h"
-#include "net/quic/quic_fec_group.h"
 #include "net/quic/quic_framer.h"
 #include "net/quic/quic_one_block_arena.h"
 #include "net/quic/quic_packet_creator.h"
@@ -45,7 +44,7 @@
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_received_packet_manager.h"
 #include "net/quic/quic_sent_entropy_manager.h"
-#include "net/quic/quic_sent_packet_manager.h"
+#include "net/quic/quic_sent_packet_manager_interface.h"
 #include "net/quic/quic_time.h"
 #include "net/quic/quic_types.h"
 
@@ -162,12 +161,13 @@ class NET_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 // points.  Implementations must not mutate the state of the connection
 // as a result of these callbacks.
 class NET_EXPORT_PRIVATE QuicConnectionDebugVisitor
-    : public QuicSentPacketManager::DebugDelegate {
+    : public QuicSentPacketManagerInterface::DebugDelegate {
  public:
   ~QuicConnectionDebugVisitor() override {}
 
   // Called when a packet has been sent.
   virtual void OnPacketSent(const SerializedPacket& serialized_packet,
+                            QuicPathId original_path_id,
                             QuicPacketNumber original_packet_number,
                             TransmissionType transmission_type,
                             QuicTime sent_time) {}
@@ -327,6 +327,9 @@ class NET_EXPORT_PRIVATE QuicConnection
       const CachedNetworkParameters& cached_network_params,
       bool max_bandwidth_resumption);
 
+  // Called by the Session when a max pacing rate for the connection is needed.
+  virtual void SetMaxPacingRate(QuicBandwidth max_pacing_rate);
+
   // Sets the number of active streams on the connection for congestion control.
   void SetNumOpenStreams(size_t num_streams);
 
@@ -457,8 +460,7 @@ class NET_EXPORT_PRIVATE QuicConnection
                             ConnectionCloseSource source) override;
 
   // QuicSentPacketManager::NetworkChangeVisitor
-  void OnCongestionWindowChange() override;
-  void OnRttChange() override;
+  void OnCongestionChange() override;
   void OnPathDegrading() override;
 
   // Called by the crypto stream when the handshake completes. In the server's
@@ -472,7 +474,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   }
   void set_debug_visitor(QuicConnectionDebugVisitor* debug_visitor) {
     debug_visitor_ = debug_visitor;
-    sent_packet_manager_.set_debug_delegate(debug_visitor);
+    sent_packet_manager_->SetDebugDelegate(debug_visitor);
   }
   // Used in Chromium, but not internally.
   void set_creator_debug_delegate(QuicPacketCreator::DebugDelegate* visitor) {
@@ -589,8 +591,8 @@ class NET_EXPORT_PRIVATE QuicConnection
   }
 
   // Returns the underlying sent packet manager.
-  const QuicSentPacketManager& sent_packet_manager() const {
-    return sent_packet_manager_;
+  const QuicSentPacketManagerInterface& sent_packet_manager() const {
+    return *sent_packet_manager_;
   }
 
   bool CanWrite(HasRetransmittableData retransmittable);
@@ -653,7 +655,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   // Return the id of the cipher of the primary decrypter of the framer.
   uint32_t cipher_id() const { return framer_.decrypter()->cipher_id(); }
 
-  std::vector<QuicEncryptedPacket*>* termination_packets() {
+  std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets() {
     return termination_packets_.get();
   }
 
@@ -672,26 +674,30 @@ class NET_EXPORT_PRIVATE QuicConnection
 
   EncryptionLevel encryption_level() const { return encryption_level_; }
 
+  const IPEndPoint& last_packet_source_address() const {
+    return last_packet_source_address_;
+  }
+
  protected:
+  // Calls cancel() on all the alarms owned by this connection.
+  void CancelAllAlarms();
+
   // Send a packet to the peer, and takes ownership of the packet if the packet
   // cannot be written immediately.
   virtual void SendOrQueuePacket(SerializedPacket* packet);
 
-  // Called after a packet is received from a new peer address and is
-  // decrypted. Starts validation of peer's address change.
-  virtual void StartPeerMigration(PeerAddressChangeType peer_migration_type);
+  // Called after a packet is received from a new peer address on existing
+  // |path_id| and is decrypted. Starts validation of peer's address change.
+  virtual void StartPeerMigration(QuicPathId path_id,
+                                  PeerAddressChangeType peer_migration_type);
 
-  // Called when a peer migration is validated.
-  virtual void OnPeerMigrationValidated();
+  // Called when a peer address migration is validated on |path_id|.
+  virtual void OnPeerMigrationValidated(QuicPathId path_id);
 
   // Selects and updates the version of the protocol being used by selecting a
   // version from |available_versions| which is also supported. Returns true if
   // such a version exists, false otherwise.
   bool SelectMutualVersion(const QuicVersionVector& available_versions);
-
-  const IPEndPoint& last_packet_source_address() const {
-    return last_packet_source_address_;
-  }
 
   // Returns the current per-packet options for the connection.
   PerPacketOptions* per_packet_options() { return per_packet_options_; }
@@ -790,9 +796,9 @@ class NET_EXPORT_PRIVATE QuicConnection
   // the most recently received packet was formerly missing.
   void MaybeQueueAck(bool was_missing);
 
-  // Gets the least unacked packet number, which is the next packet number
-  // to be sent if there are no outstanding packets.
-  QuicPacketNumber GetLeastUnacked() const;
+  // Gets the least unacked packet number of |path_id|, which is the next packet
+  // number to be sent if there are no outstanding packets.
+  QuicPacketNumber GetLeastUnacked(QuicPathId path_id) const;
 
   // Sets the timeout alarm to the appropriate value, if any.
   void SetTimeoutAlarm();
@@ -834,6 +840,11 @@ class NET_EXPORT_PRIVATE QuicConnection
   // safely done until the packet is validated. Returns true if packet can be
   // handled, false otherwise.
   bool ProcessValidatedPacket(const QuicPacketHeader& header);
+
+  // Consider receiving crypto frame on non crypto stream as memory corruption.
+  bool MaybeConsiderAsMemoryCorruption(const QuicStreamFrame& frame);
+
+  const QuicTime::Delta DelayedAckTime();
 
   QuicFramer framer_;
   QuicConnectionHelperInterface* helper_;  // Not owned.
@@ -908,7 +919,8 @@ class NET_EXPORT_PRIVATE QuicConnection
   bool save_crypto_packets_as_termination_packets_;
 
   // Contains the connection close packets if the connection has been closed.
-  std::unique_ptr<std::vector<QuicEncryptedPacket*>> termination_packets_;
+  std::unique_ptr<std::vector<std::unique_ptr<QuicEncryptedPacket>>>
+      termination_packets_;
 
   // Determines whether or not a connection close packet is sent to the peer
   // after idle timeout due to lack of network activity.
@@ -961,6 +973,8 @@ class NET_EXPORT_PRIVATE QuicConnection
   QuicArenaScopedPtr<QuicAlarm> send_alarm_;
   // An alarm that is scheduled when the connection can still write and there
   // may be more data to send.
+  // TODO(ianswett): Remove resume_writes_alarm when deprecating
+  // FLAGS_quic_only_one_sending_alarm
   QuicArenaScopedPtr<QuicAlarm> resume_writes_alarm_;
   // An alarm that fires when the connection may have timed out.
   QuicArenaScopedPtr<QuicAlarm> timeout_alarm_;
@@ -1002,7 +1016,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   // Sent packet manager which tracks the status of packets sent by this
   // connection and contains the send and receive algorithms to determine when
   // to send packets.
-  QuicSentPacketManager sent_packet_manager_;
+  std::unique_ptr<QuicSentPacketManagerInterface> sent_packet_manager_;
 
   // The state of connection in version negotiation finite state machine.
   QuicVersionNegotiationState version_negotiation_state_;

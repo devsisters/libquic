@@ -3,7 +3,7 @@
 
 # START #
 {
-    "chromium_revision": "192da0f866b250d8a674a7dd400ff2a5b6a01ac8",
+    "chromium_revision": "53.0.2762.0",
     "dependency_exclude": [
         "zconf.h",
         "modp_b64.h",
@@ -15,6 +15,7 @@
         "base/feature_list.h",
         "base/metrics/field_trial.h",
         "base/sys_info.h",
+        "base/files/important_file_writer.h",
         "net/ssl/ssl_info.h",
         "net/base/host_port_pair.h",
         "net/base/registry_controlled_domains/registry_controlled_domain.h"
@@ -66,8 +67,6 @@
                 "net/base/host_port_pair.cc",
                 "net/quic/quic_simple_buffer_allocator.h",
                 "net/quic/quic_simple_buffer_allocator.cc",
-                "crypto/hmac_openssl.cc",
-                "crypto/symmetric_key_openssl.cc",
                 "base/memory/scoped_vector.h",
                 "third_party/modp_b64/modp_b64_data.h",
                 "base/mac/mach_logging.cc",

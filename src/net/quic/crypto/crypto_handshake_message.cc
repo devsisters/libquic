@@ -331,7 +331,7 @@ string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
     if (!done) {
       // If there's no specific format for this tag, or the value is invalid,
       // then just use hex.
-      ret += "0x" + base::HexEncode(it->second.data(), it->second.size());
+      ret += "0x" + QuicUtils::HexEncode(it->second);
     }
     ret += "\n";
   }

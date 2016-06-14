@@ -100,6 +100,13 @@ message Complex {
   repeated string a_repeated_string = 7;
 }
 
+message OuterMessage {
+  // Make sure this doesn't conflict with the other Complex message.
+  message Complex {
+    optional int32 inner_complex_field = 1;
+  }
+}
+
 message IsExtension {
   extend HasExtensions {
     optional IsExtension ext_field = 100;
@@ -136,6 +143,17 @@ message DefaultValues {
   optional Enum enum_field = 4 [default=E1];
   optional string empty_field = 6 [default=""];
   optional bytes bytes_field = 8 [default="moo"]; // Base64 encoding is "bW9v"
+}
+
+message FloatingPointFields {
+  optional float optional_float_field = 1;
+  required float required_float_field = 2;
+  repeated float repeated_float_field = 3;
+  optional float default_float_field = 4 [default = 2.0];
+  optional double optional_double_field = 5;
+  required double required_double_field = 6;
+  repeated double repeated_double_field = 7;
+  optional double default_double_field = 8 [default = 2.0];
 }
 
 message TestClone {

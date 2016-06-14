@@ -152,8 +152,9 @@ class NET_EXPORT NetLog {
     DISALLOW_COPY_AND_ASSIGN(Entry);
   };
 
-  // An observer, that must ensure its own thread safety, for events
-  // being added to a NetLog.
+  // An observer that is notified of entries added to the NetLog. The
+  // "ThreadSafe" prefix of the name emphasizes that this observer may be
+  // called from different threads then the one which added it as an observer.
   class NET_EXPORT ThreadSafeObserver {
    public:
     // Constructs an observer that wants to see network events, with
@@ -163,24 +164,32 @@ class NET_EXPORT NetLog {
     // Observers will be called on the same thread an entry is added on,
     // and are responsible for ensuring their own thread safety.
     //
-    // Observers must stop watching a NetLog before either the Observer or the
+    // Observers must stop watching a NetLog before either the observer or the
     // NetLog is destroyed.
     ThreadSafeObserver();
 
     // Returns the capture mode for events this observer wants to
-    // receive.  Must not be called when not watching a NetLog.
+    // receive. It is only valid to call this while observing a NetLog.
     NetLogCaptureMode capture_mode() const;
 
-    // Returns the NetLog we are currently watching, if any.  Returns NULL
-    // otherwise.
+    // Returns the NetLog being watched, or nullptr if there is none.
     NetLog* net_log() const;
 
-    // This method will be called on the thread that the event occurs on.  It
-    // is the responsibility of the observer to handle it in a thread safe
-    // manner.
+    // This method is called whenever an entry (event) was added to the NetLog
+    // being watched.
     //
-    // It is illegal for an Observer to call any NetLog or
-    // NetLog::Observer functions in response to a call to OnAddEntry.
+    // OnAddEntry() is invoked on the thread which generated the NetLog entry,
+    // which may be different from the thread that added this observer.
+    //
+    // Whenever OnAddEntry() is invoked, the NetLog's mutex is held. The
+    // consequences of this are:
+    //
+    //   * OnAddEntry() will never be called concurrently -- implementations
+    //     can rely on this to avoid needing their own synchronization.
+    //
+    //   * It is illegal for an observer to call back into the NetLog, or the
+    //     observer itself, as this can result in deadlock or violating
+    //     expectations of non re-entrancy into ThreadSafeObserver.
     virtual void OnAddEntry(const Entry& entry) = 0;
 
    protected:
@@ -280,6 +289,7 @@ class NET_EXPORT NetLog {
   // Warning: |name| and |value| must remain valid for the life of the callback.
   static ParametersCallback StringCallback(const char* name,
                                            const std::string* value);
+  static ParametersCallback StringCallback(const char* name, const char* value);
 
   // Same as above, but takes in a UTF16 string.
   static ParametersCallback StringCallback(const char* name,

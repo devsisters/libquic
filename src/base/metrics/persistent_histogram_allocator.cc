@@ -6,6 +6,9 @@
 
 #include <memory>
 
+#if 0
+#include "base/files/important_file_writer.h"
+#endif
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
@@ -15,6 +18,7 @@
 #include "base/metrics/persistent_sample_map.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/metrics/statistics_recorder.h"
+#include "base/pickle.h"
 #include "base/synchronization/lock.h"
 
 // TODO(bcwhite): Order these methods to match the header file. The current
@@ -45,7 +49,7 @@ enum : uint32_t {
 // GlobalHistogramAllocator objects) are explicitly forbidden from doing
 // anything essential at exit anyway due to the fact that they depend on data
 // managed elsewhere and which could be destructed first.
-GlobalHistogramAllocator* g_allocator;
+GlobalHistogramAllocator* g_allocator = nullptr;
 
 // Take an array of range boundaries and create a proper BucketRanges object
 // which is returned to the caller. A return of nullptr indicates that the
@@ -479,7 +483,53 @@ void PersistentHistogramAllocator::FinalizeHistogram(Reference ref,
   // two to be created. The allocator does not support releasing the
   // acquired memory so just change the type to be empty.
   else
-    memory_allocator_->SetType(ref, 0);
+    memory_allocator_->ChangeType(ref, 0, kTypeIdHistogram);
+}
+
+void PersistentHistogramAllocator::MergeHistogramToStatisticsRecorder(
+    HistogramBase* histogram) {
+  // This should never be called on the global histogram allocator as objects
+  // created there are already within the global statistics recorder.
+  DCHECK_NE(g_allocator, this);
+  DCHECK(histogram);
+
+  HistogramBase* existing =
+      StatisticsRecorder::FindHistogram(histogram->histogram_name());
+  if (!existing) {
+    // Adding the passed histogram to the SR would cause a problem if the
+    // allocator that holds it eventually goes away. Instead, create a new
+    // one from a serialized version and then add the data to it. Future
+    // merges won't need to do this step since FindHistogram() will locate
+    // the one created here.
+    base::Pickle pickle;
+    if (!histogram->SerializeInfo(&pickle)) {
+      // Pickling should never fail but if it does, no real harm is done.
+      // The data won't be merged but it also won't be recorded as merged
+      // so a future try, if successful, will get what was missed. If it
+      // continues to fail, some metric data will be lost but that is
+      // better than crashing.
+      NOTREACHED();
+      return;
+    }
+
+    PickleIterator iter(pickle);
+    existing = DeserializeHistogramInfo(&iter);
+    if (!existing) {
+      // Un-pickling should similarly never fail.
+      NOTREACHED();
+      return;
+    }
+
+    // Make sure there is no "serialization" flag set.
+    DCHECK_EQ(0,
+              existing->flags() & HistogramBase::kIPCSerializationSourceFlag);
+
+    // Record the newly created histogram in the SR.
+    existing = StatisticsRecorder::RegisterOrDeleteDuplicate(existing);
+  }
+
+  // Merge the delta from the passed object to the one in the SR.
+  existing->AddSamples(*histogram->SnapshotDelta());
 }
 
 PersistentSampleMapRecords* PersistentHistogramAllocator::UseSampleMapRecords(
@@ -709,6 +759,40 @@ GlobalHistogramAllocator::ReleaseForTesting() {
   g_allocator = nullptr;
   return WrapUnique(histogram_allocator);
 };
+
+void GlobalHistogramAllocator::SetPersistentLocation(const FilePath& location) {
+  persistent_location_ = location;
+}
+
+bool GlobalHistogramAllocator::WriteToPersistentLocation() {
+#if 0
+#if defined(OS_NACL)
+  // NACL doesn't support file operations, including ImportantFileWriter.
+  NOTREACHED();
+  return false;
+#else
+  // Stop if no destination is set.
+  if (persistent_location_.empty()) {
+    NOTREACHED() << "Could not write \"" << Name() << "\" persistent histograms"
+                 << " to file because no location was set.";
+    return false;
+  }
+
+  StringPiece contents(static_cast<const char*>(data()), used());
+  if (!ImportantFileWriter::WriteFileAtomically(persistent_location_,
+                                                contents)) {
+    LOG(ERROR) << "Could not write \"" << Name() << "\" persistent histograms"
+               << " to file: " << persistent_location_.value();
+    return false;
+  }
+
+  return true;
+#endif
+#else
+  // libquic does not support this
+  return false;
+#endif
+}
 
 GlobalHistogramAllocator::GlobalHistogramAllocator(
     std::unique_ptr<PersistentMemoryAllocator> memory)

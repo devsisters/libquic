@@ -299,7 +299,13 @@ void ConformanceTestSuite::RunValidInputTest(
         return;
       }
 
-      GOOGLE_CHECK(test_message.ParseFromString(binary_protobuf));
+      if (!test_message.ParseFromString(binary_protobuf)) {
+        ReportFailure(test_name, request, response,
+                      "INTERNAL ERROR: internal JSON->protobuf transcode "
+                      "yielded unparseable proto.");
+        return;
+      }
+
       break;
     }
 
@@ -356,6 +362,8 @@ void ConformanceTestSuite::ExpectParseFailureForProto(
   RunTest(effective_test_name, request, &response);
   if (response.result_case() == ConformanceResponse::kParseError) {
     ReportSuccess(effective_test_name);
+  } else if (response.result_case() == ConformanceResponse::kSkipped) {
+    ReportSkip(effective_test_name, request, response);
   } else {
     ReportFailure(effective_test_name, request, response,
                   "Should have failed to parse, but didn't.");
@@ -408,6 +416,11 @@ void ConformanceTestSuite::RunValidJsonTestWithValidator(
 
   RunTest(effective_test_name, request, &response);
 
+  if (response.result_case() == ConformanceResponse::kSkipped) {
+    ReportSkip(effective_test_name, request, response);
+    return;
+  }
+
   if (response.result_case() != ConformanceResponse::kJsonPayload) {
     ReportFailure(effective_test_name, request, response,
                   "Expected JSON payload but got type %d.",
@@ -444,6 +457,8 @@ void ConformanceTestSuite::ExpectParseFailureForJson(
   RunTest(effective_test_name, request, &response);
   if (response.result_case() == ConformanceResponse::kParseError) {
     ReportSuccess(effective_test_name);
+  } else if (response.result_case() == ConformanceResponse::kSkipped) {
+    ReportSkip(effective_test_name, request, response);
   } else {
     ReportFailure(effective_test_name, request, response,
                   "Should have failed to parse, but didn't.");
@@ -466,6 +481,8 @@ void ConformanceTestSuite::ExpectSerializeFailureForJson(
   RunTest(effective_test_name, request, &response);
   if (response.result_case() == ConformanceResponse::kSerializeError) {
     ReportSuccess(effective_test_name);
+  } else if (response.result_case() == ConformanceResponse::kSkipped) {
+    ReportSkip(effective_test_name, request, response);
   } else {
     ReportFailure(effective_test_name, request, response,
                   "Should have failed to serialize, but didn't.");
@@ -1967,9 +1984,6 @@ bool ConformanceTestSuite::RunSuite(ConformanceTestRunner* runner,
                 "These tests succeeded, even though they were listed in "
                 "the failure list.  Remove them from the failure list");
 
-  CheckSetEmpty(skipped_,
-                "These tests were skipped (probably because support for some "
-                "features is not implemented)");
   if (verbose_) {
     CheckSetEmpty(skipped_,
                   "These tests were skipped (probably because support for some "

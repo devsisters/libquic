@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -27,6 +28,28 @@ class HpackHeaderTablePeer;
 class NET_EXPORT_PRIVATE HpackHeaderTable {
  public:
   friend class test::HpackHeaderTablePeer;
+
+  // Debug visitor my be used to extract debug/internal information
+  // about the HpackHeaderTable as it operates.
+  //
+  // Most HpackHeaderTable implementations do not need to bother with
+  // this interface at all.
+  class DebugVisitorInterface {
+   public:
+    virtual ~DebugVisitorInterface() {}
+
+    // |OnNewEntry()| and |OnUseEntry()| can be used together to
+    // gather data about the distribution of time intervals between
+    // creation and reference of entries in the dynamic table.  The
+    // data is desired to sanity check a proposed extension to HPACK
+    // for QUIC that would eliminate inter-stream head of line
+    // blocking (due to standard HPACK).  The visitor should return
+    // the current time from |OnNewEntry()|, which will be passed
+    // to |OnUseEntry()| each time that particular entry is used to
+    // emit an indexed representation.
+    virtual int64_t OnNewEntry(const HpackEntry& entry) = 0;
+    virtual void OnUseEntry(const HpackEntry& entry) = 0;
+  };
 
   // HpackHeaderTable takes advantage of the deque property that references
   // remain valid, so long as insertions & deletions are at the head & tail.
@@ -98,6 +121,10 @@ class NET_EXPORT_PRIVATE HpackHeaderTable {
 
   void DebugLogTableState() const;
 
+  void set_debug_visitor(std::unique_ptr<DebugVisitorInterface> visitor) {
+    debug_visitor_ = std::move(visitor);
+  }
+
  private:
   // Returns number of evictions required to enter |name| & |value|.
   size_t EvictionCountForEntry(base::StringPiece name,
@@ -138,6 +165,8 @@ class NET_EXPORT_PRIVATE HpackHeaderTable {
   // Total number of table insertions which have occurred. Referenced by
   // IndexOf() for determination of an HpackEntry's table index.
   size_t total_insertions_;
+
+  std::unique_ptr<DebugVisitorInterface> debug_visitor_;
 
   DISALLOW_COPY_AND_ASSIGN(HpackHeaderTable);
 };

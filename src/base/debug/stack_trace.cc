@@ -11,6 +11,12 @@
 
 #include "base/macros.h"
 
+#if HAVE_TRACE_STACK_FRAME_POINTERS && defined(OS_ANDROID)
+#include <pthread.h>
+#include "base/process/process_handle.h"
+#include "base/threading/platform_thread.h"
+#endif
+
 namespace base {
 namespace debug {
 
@@ -47,6 +53,44 @@ std::string StackTrace::ToString() const {
 
 #if HAVE_TRACE_STACK_FRAME_POINTERS
 
+#if defined(OS_ANDROID)
+
+static uintptr_t GetStackEnd() {
+  // Bionic reads proc/maps on every call to pthread_getattr_np() when called
+  // from the main thread. So we need to cache end of stack in that case to get
+  // acceptable performance.
+  // For all other threads pthread_getattr_np() is fast enough as it just reads
+  // values from its pthread_t argument.
+  static uintptr_t main_stack_end = 0;
+
+  bool is_main_thread = GetCurrentProcId() == PlatformThread::CurrentId();
+
+  if (is_main_thread && main_stack_end) {
+    return main_stack_end;
+  }
+
+  uintptr_t stack_begin = 0;
+  size_t stack_size = 0;
+  pthread_attr_t attributes;
+  int error = pthread_getattr_np(pthread_self(), &attributes);
+  if (!error) {
+    error = pthread_attr_getstack(
+        &attributes,
+        reinterpret_cast<void**>(&stack_begin),
+        &stack_size);
+    pthread_attr_destroy(&attributes);
+  }
+  DCHECK(!error);
+
+  uintptr_t stack_end = stack_begin + stack_size;
+  if (is_main_thread) {
+    main_stack_end = stack_end;
+  }
+  return stack_end;
+}
+
+#endif  // defined(OS_ANDROID)
+
 size_t TraceStackFramePointers(const void** out_trace,
                                size_t max_depth,
                                size_t skip_initial) {
@@ -55,6 +99,10 @@ size_t TraceStackFramePointers(const void** out_trace,
   // be valid.
   uintptr_t sp = reinterpret_cast<uintptr_t>(__builtin_frame_address(0));
 
+#if defined(OS_ANDROID)
+  uintptr_t stack_end = GetStackEnd();
+#endif
+
   size_t depth = 0;
   while (depth < max_depth) {
 #if defined(__arm__) && defined(__GNUC__) && !defined(__clang__)
@@ -62,6 +110,13 @@ size_t TraceStackFramePointers(const void** out_trace,
     // https://llvm.org/bugs/show_bug.cgi?id=18505 - LLVM generates
     // x86-compatible frame, while GCC needs adjustment.
     sp -= sizeof(uintptr_t);
+#endif
+
+#if defined(OS_ANDROID)
+    // Both sp[0] and s[1] must be valid.
+    if (sp + 2 * sizeof(uintptr_t) > stack_end) {
+      break;
+    }
 #endif
 
     if (skip_initial != 0) {

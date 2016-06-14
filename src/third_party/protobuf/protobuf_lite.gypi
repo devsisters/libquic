@@ -37,6 +37,7 @@
     'src/google/protobuf/stubs/atomicops_internals_mips_gcc.h',
     'src/google/protobuf/stubs/atomicops_internals_pnacl.h',
     'src/google/protobuf/stubs/atomicops_internals_power.h',
+    'src/google/protobuf/stubs/atomicops_internals_ppc_gcc.h',
     'src/google/protobuf/stubs/atomicops_internals_solaris.h',
     'src/google/protobuf/stubs/atomicops_internals_tsan.h',
     'src/google/protobuf/stubs/atomicops_internals_x86_gcc.cc',

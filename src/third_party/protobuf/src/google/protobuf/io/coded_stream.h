@@ -117,7 +117,7 @@
   #if !defined(PROTOBUF_DISABLE_LITTLE_ENDIAN_OPT_FOR_TEST)
     #define PROTOBUF_LITTLE_ENDIAN 1
   #endif
-  #if _MSC_VER >= 1300
+  #if _MSC_VER >= 1300 && !defined(__INTEL_COMPILER)
     // If MSVC has "/RTCc" set, it will complain about truncating casts at
     // runtime.  This file contains some intentional truncating casts.
     #pragma runtime_checks("c", off)
@@ -666,6 +666,7 @@ class LIBPROTOBUF_EXPORT CodedOutputStream {
  public:
   // Create an CodedOutputStream that writes to the given ZeroCopyOutputStream.
   explicit CodedOutputStream(ZeroCopyOutputStream* output);
+  CodedOutputStream(ZeroCopyOutputStream* output, bool do_eager_refresh);
 
   // Destroy the CodedOutputStream and position the underlying
   // ZeroCopyOutputStream immediately after the last byte written.
@@ -1135,7 +1136,7 @@ inline void CodedOutputStream::WriteVarint32(uint32 value) {
     // this write won't cross the end, so we can skip the checks.
     uint8* target = buffer_;
     uint8* end = WriteVarint32ToArray(value, target);
-    int size = end - target;
+    int size = static_cast<int>(end - target);
     Advance(size);
   } else {
     WriteVarint32SlowPath(value);
@@ -1285,9 +1286,9 @@ inline bool CodedInputStream::IsFlat() const {
 }  // namespace protobuf
 
 
-#if defined(_MSC_VER) && _MSC_VER >= 1300
+#if _MSC_VER >= 1300 && !defined(__INTEL_COMPILER)
   #pragma runtime_checks("c", restore)
-#endif  // _MSC_VER
+#endif  // _MSC_VER && !defined(__INTEL_COMPILER)
 
 }  // namespace google
 #endif  // GOOGLE_PROTOBUF_IO_CODED_STREAM_H__

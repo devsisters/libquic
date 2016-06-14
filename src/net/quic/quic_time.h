@@ -106,6 +106,8 @@ class NET_EXPORT_PRIVATE QuicTime {
     base::TimeDelta delta_;
     friend inline bool operator==(QuicTime::Delta lhs, QuicTime::Delta rhs);
     friend inline bool operator<(QuicTime::Delta lhs, QuicTime::Delta rhs);
+    friend inline QuicTime::Delta operator<<(QuicTime::Delta lhs, size_t rhs);
+    friend inline QuicTime::Delta operator>>(QuicTime::Delta lhs, size_t rhs);
 
     // Highest number of microseconds that DateTimeOffset can hold.
     static const int64_t kQuicInfiniteTimeUs = INT64_C(0x7fffffffffffffff) / 10;
@@ -234,6 +236,13 @@ inline bool operator<=(QuicTime::Delta lhs, QuicTime::Delta rhs) {
 inline bool operator>=(QuicTime::Delta lhs, QuicTime::Delta rhs) {
   return !(lhs < rhs);
 }
+inline QuicTime::Delta operator<<(QuicTime::Delta lhs, size_t rhs) {
+  return QuicTime::Delta(lhs.time_offset_ << rhs);
+}
+inline QuicTime::Delta operator>>(QuicTime::Delta lhs, size_t rhs) {
+  return QuicTime::Delta(lhs.time_offset_ >> rhs);
+}
+
 // Non-member relational operators for QuicTime.
 inline bool operator==(QuicTime lhs, QuicTime rhs) {
   return lhs.time_ == rhs.time_;

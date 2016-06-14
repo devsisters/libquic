@@ -92,9 +92,11 @@ int64_t ComputeThreadTicks() {
   MACH_DCHECK(kr == KERN_SUCCESS, kr) << "thread_info";
 
   base::CheckedNumeric<int64_t> absolute_micros(
-      thread_info_data.user_time.seconds);
+      thread_info_data.user_time.seconds +
+      thread_info_data.system_time.seconds);
   absolute_micros *= base::Time::kMicrosecondsPerSecond;
-  absolute_micros += thread_info_data.user_time.microseconds;
+  absolute_micros += (thread_info_data.user_time.microseconds +
+                      thread_info_data.system_time.microseconds);
   return absolute_micros.ValueOrDie();
 #endif  // defined(OS_IOS)
 }

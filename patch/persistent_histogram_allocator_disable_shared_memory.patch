@@ -1,8 +1,18 @@
 diff --git a/src/base/metrics/persistent_histogram_allocator.cc b/src/base/metrics/persistent_histogram_allocator.cc
-index c29aa6f..7fea3ea 100644
+index 7e41943..afe9638 100644
 --- a/src/base/metrics/persistent_histogram_allocator.cc
 +++ b/src/base/metrics/persistent_histogram_allocator.cc
-@@ -619,6 +619,7 @@ void GlobalHistogramAllocator::CreateWithLocalMemory(
+@@ -6,7 +6,9 @@
+ 
+ #include <memory>
+ 
++#if 0
+ #include "base/files/important_file_writer.h"
++#endif
+ #include "base/lazy_instance.h"
+ #include "base/logging.h"
+ #include "base/memory/ptr_util.h"
+@@ -667,6 +669,7 @@ void GlobalHistogramAllocator::CreateWithLocalMemory(
        WrapUnique(new LocalPersistentMemoryAllocator(size, id, name)))));
  }
  
@@ -10,7 +20,7 @@ index c29aa6f..7fea3ea 100644
  // static
  void GlobalHistogramAllocator::CreateWithSharedMemory(
      std::unique_ptr<SharedMemory> memory,
-@@ -653,6 +654,7 @@ void GlobalHistogramAllocator::CreateWithSharedMemoryHandle(
+@@ -701,6 +704,7 @@ void GlobalHistogramAllocator::CreateWithSharedMemoryHandle(
        WrapUnique(new SharedPersistentMemoryAllocator(
            std::move(shm), 0, StringPiece(), /*readonly=*/false)))));
  }
@@ -18,8 +28,27 @@ index c29aa6f..7fea3ea 100644
  
  // static
  void GlobalHistogramAllocator::Set(
+@@ -761,6 +765,7 @@ void GlobalHistogramAllocator::SetPersistentLocation(const FilePath& location) {
+ }
+ 
+ bool GlobalHistogramAllocator::WriteToPersistentLocation() {
++#if 0
+ #if defined(OS_NACL)
+   // NACL doesn't support file operations, including ImportantFileWriter.
+   NOTREACHED();
+@@ -783,6 +788,10 @@ bool GlobalHistogramAllocator::WriteToPersistentLocation() {
+ 
+   return true;
+ #endif
++#else
++  // libquic does not support this
++  return false;
++#endif
+ }
+ 
+ GlobalHistogramAllocator::GlobalHistogramAllocator(
 diff --git a/src/base/metrics/persistent_histogram_allocator.h b/src/base/metrics/persistent_histogram_allocator.h
-index 61fadaf..e949473 100644
+index 82c6bbc..59c4edc 100644
 --- a/src/base/metrics/persistent_histogram_allocator.h
 +++ b/src/base/metrics/persistent_histogram_allocator.h
 @@ -11,7 +11,9 @@
@@ -32,7 +61,7 @@ index 61fadaf..e949473 100644
  #include "base/metrics/histogram_base.h"
  #include "base/metrics/persistent_memory_allocator.h"
  #include "base/strings/string_piece.h"
-@@ -369,6 +371,7 @@ class BASE_EXPORT GlobalHistogramAllocator
+@@ -376,6 +378,7 @@ class BASE_EXPORT GlobalHistogramAllocator
    // specified |size| taken from the heap.
    static void CreateWithLocalMemory(size_t size, uint64_t id, StringPiece name);
  
@@ -40,7 +69,7 @@ index 61fadaf..e949473 100644
    // Create a global allocator using a block of shared |memory| of the
    // specified |size|. The allocator takes ownership of the shared memory
    // and releases it upon destruction, though the memory will continue to
-@@ -384,6 +387,7 @@ class BASE_EXPORT GlobalHistogramAllocator
+@@ -391,6 +394,7 @@ class BASE_EXPORT GlobalHistogramAllocator
    // continue to live if other processes have access to it.
    static void CreateWithSharedMemoryHandle(const SharedMemoryHandle& handle,
                                             size_t size);

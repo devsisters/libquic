@@ -215,6 +215,37 @@ class NET_EXPORT_PRIVATE QuicFixedTagVector : public QuicConfigValue {
   bool has_receive_values_;
 };
 
+// Stores IPEndPoint from CHLO or SHLO messages that are not negotiated.
+class QuicFixedIPEndPoint : public QuicConfigValue {
+ public:
+  QuicFixedIPEndPoint(QuicTag tag, QuicConfigPresence presence);
+  ~QuicFixedIPEndPoint() override;
+
+  bool HasSendValue() const;
+
+  const IPEndPoint& GetSendValue() const;
+
+  void SetSendValue(const IPEndPoint& value);
+
+  bool HasReceivedValue() const;
+
+  const IPEndPoint& GetReceivedValue() const;
+
+  void SetReceivedValue(const IPEndPoint& value);
+
+  void ToHandshakeMessage(CryptoHandshakeMessage* out) const override;
+
+  QuicErrorCode ProcessPeerHello(const CryptoHandshakeMessage& peer_hello,
+                                 HelloType hello_type,
+                                 std::string* error_details) override;
+
+ private:
+  IPEndPoint send_value_;
+  bool has_send_value_;
+  IPEndPoint receive_value_;
+  bool has_receive_value_;
+};
+
 // QuicConfig contains non-crypto configuration options that are negotiated in
 // the crypto handshake.
 class NET_EXPORT_PRIVATE QuicConfig {
@@ -339,6 +370,13 @@ class NET_EXPORT_PRIVATE QuicConfig {
 
   bool DisableConnectionMigration() const;
 
+  void SetAlternateServerAddressToSend(
+      const IPEndPoint& alternate_server_address);
+
+  bool HasReceivedAlternateServerAddress() const;
+
+  const IPEndPoint& ReceivedAlternateServerAddress() const;
+
   bool negotiated() const;
 
   // ToHandshakeMessage serialises the settings in this object as a series of
@@ -384,6 +422,7 @@ class NET_EXPORT_PRIVATE QuicConfig {
   QuicFixedUint32 initial_session_flow_control_window_bytes_;
 
   // Socket receive buffer in bytes.
+  // TODO(ianswett): Deprecate once QUIC_VERSION_34 is deprecated.
   QuicFixedUint32 socket_receive_buffer_;
 
   // Whether to support multipath for this connection.
@@ -391,6 +430,9 @@ class NET_EXPORT_PRIVATE QuicConfig {
 
   // Whether tell peer not to attempt connection migration.
   QuicFixedUint32 connection_migration_disabled_;
+
+  // An alternate server address the client could connect to.
+  QuicFixedIPEndPoint alternate_server_address_;
 };
 
 }  // namespace net

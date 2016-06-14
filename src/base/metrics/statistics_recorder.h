@@ -26,6 +26,8 @@
 #include "base/metrics/histogram_base.h"
 #include "base/strings/string_piece.h"
 
+class SubprocessMetricsProviderTest;
+
 namespace base {
 
 class BucketRanges;
@@ -170,7 +172,15 @@ class BASE_EXPORT StatisticsRecorder {
   // memory is being released.
   static void ForgetHistogramForTesting(base::StringPiece name);
 
-  // Reset any global instance of the statistics-recorder that was created
+  // Creates a local StatisticsRecorder object for testing purposes. All new
+  // histograms will be registered in it until it is destructed or pushed
+  // aside for the lifetime of yet another SR object. The destruction of the
+  // returned object will re-activate the previous one. Always release SR
+  // objects in the opposite order to which they're created.
+  static std::unique_ptr<StatisticsRecorder> CreateTemporaryForTesting()
+      WARN_UNUSED_RESULT;
+
+  // Resets any global instance of the statistics-recorder that was created
   // by a call to Initialize().
   static void UninitializeForTesting();
 
@@ -185,15 +195,6 @@ class BASE_EXPORT StatisticsRecorder {
   typedef std::map<uint32_t, std::list<const BucketRanges*>*> RangesMap;
 
   friend struct DefaultLazyInstanceTraits<StatisticsRecorder>;
-  friend class HistogramBaseTest;
-  friend class HistogramSnapshotManagerTest;
-  friend class HistogramTest;
-  friend class JsonPrefStoreTest;
-  friend class SharedHistogramTest;
-  friend class SparseHistogramTest;
-  friend class StatisticsRecorderTest;
-  FRIEND_TEST_ALL_PREFIXES(HistogramDeltaSerializationTest,
-                           DeserializeHistogramAndAddSamples);
 
   // Imports histograms from global persistent memory. The global lock must
   // not be held during this call.

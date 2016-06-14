@@ -6,7 +6,6 @@
 
 #include "base/json/json_parser.h"
 #include "base/logging.h"
-#include "base/memory/ptr_util.h"
 #include "base/values.h"
 
 namespace base {
@@ -44,15 +43,15 @@ JSONReader::~JSONReader() {
 }
 
 // static
-std::unique_ptr<Value> JSONReader::Read(const StringPiece& json) {
+std::unique_ptr<Value> JSONReader::Read(StringPiece json) {
   internal::JSONParser parser(JSON_PARSE_RFC);
-  return WrapUnique(parser.Parse(json));
+  return parser.Parse(json);
 }
 
 // static
-std::unique_ptr<Value> JSONReader::Read(const StringPiece& json, int options) {
+std::unique_ptr<Value> JSONReader::Read(StringPiece json, int options) {
   internal::JSONParser parser(options);
-  return WrapUnique(parser.Parse(json));
+  return parser.Parse(json);
 }
 
 
@@ -107,8 +106,8 @@ std::string JSONReader::ErrorCodeToString(JsonParseError error_code) {
   }
 }
 
-std::unique_ptr<Value> JSONReader::ReadToValue(const std::string& json) {
-  return WrapUnique(parser_->Parse(json));
+std::unique_ptr<Value> JSONReader::ReadToValue(StringPiece json) {
+  return parser_->Parse(json);
 }
 
 JSONReader::JsonParseError JSONReader::error_code() const {

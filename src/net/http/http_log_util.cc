@@ -7,6 +7,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/values.h"
 #include "net/http/http_auth_challenge_tokenizer.h"
 #include "net/http/http_auth_scheme.h"
 #include "net/http/http_util.h"
@@ -85,6 +86,20 @@ std::string ElideGoAwayDebugDataForNetLog(NetLogCaptureMode capture_mode,
 
   return std::string("[") + base::SizeTToString(debug_data.size()) +
          std::string(" bytes were stripped]");
+}
+
+std::unique_ptr<base::ListValue> ElideSpdyHeaderBlockForNetLog(
+    const SpdyHeaderBlock& headers,
+    NetLogCaptureMode capture_mode) {
+  std::unique_ptr<base::ListValue> headers_list(new base::ListValue());
+  for (SpdyHeaderBlock::const_iterator it = headers.begin();
+       it != headers.end(); ++it) {
+    headers_list->AppendString(
+        it->first.as_string() + ": " +
+        ElideHeaderValueForNetLog(capture_mode, it->first.as_string(),
+                                  it->second.as_string()));
+  }
+  return headers_list;
 }
 
 }  // namespace net

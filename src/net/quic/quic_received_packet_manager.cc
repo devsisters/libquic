@@ -151,17 +151,23 @@ void QuicReceivedPacketManager::RecordPacketReceived(
     ack_frame_.received_packet_times.clear();
   }
   ack_frame_updated_ = true;
-  // Adds the range of packet numbers from max(largest observed + 1, least
-  // awaiting ack) up to packet_number not including packet_number.
-  ack_frame_.missing_packets.Add(
-      max(ack_frame_.largest_observed + 1, peer_least_packet_awaiting_ack_),
-      packet_number);
+  if (ack_frame_.missing) {
+    // Adds the range of packet numbers from max(largest observed + 1, least
+    // awaiting ack) up to packet_number not including packet_number.
+    ack_frame_.packets.Add(
+        max(ack_frame_.largest_observed + 1, peer_least_packet_awaiting_ack_),
+        packet_number);
+  } else {
+    ack_frame_.packets.Add(header.packet_number);
+  }
 
   if (ack_frame_.largest_observed > packet_number) {
-    // We've gotten one of the out of order packets - remove it from our
-    // "missing packets" list.
-    DVLOG(1) << "Removing " << packet_number << " from missing list";
-    ack_frame_.missing_packets.Remove(packet_number);
+    if (ack_frame_.missing) {
+      // We've gotten one of the out of order packets - remove it from our
+      // "missing packets" list.
+      DVLOG(1) << "Removing " << packet_number << " from missing list";
+      ack_frame_.packets.Remove(packet_number);
+    }
 
     // Record how out of order stats.
     ++stats_->packets_reordered;
@@ -177,19 +183,27 @@ void QuicReceivedPacketManager::RecordPacketReceived(
     ack_frame_.largest_observed = packet_number;
     time_largest_observed_ = receipt_time;
   }
-  entropy_tracker_.RecordPacketEntropyHash(packet_number, header.entropy_hash);
+  if (ack_frame_.missing) {
+    entropy_tracker_.RecordPacketEntropyHash(packet_number,
+                                             header.entropy_hash);
+  }
 
   ack_frame_.received_packet_times.push_back(
       std::make_pair(packet_number, receipt_time));
 }
 
 bool QuicReceivedPacketManager::IsMissing(QuicPacketNumber packet_number) {
-  return ack_frame_.missing_packets.Contains(packet_number);
+  if (ack_frame_.missing) {
+    return ack_frame_.packets.Contains(packet_number);
+  }
+  return packet_number < ack_frame_.largest_observed &&
+         !ack_frame_.packets.Contains(packet_number);
 }
 
 bool QuicReceivedPacketManager::IsAwaitingPacket(
     QuicPacketNumber packet_number) {
-  return ::net::IsAwaitingPacket(ack_frame_, packet_number);
+  return ::net::IsAwaitingPacket(ack_frame_, packet_number,
+                                 peer_least_packet_awaiting_ack_);
 }
 
 namespace {
@@ -208,7 +222,9 @@ struct isTooLarge {
 const QuicFrame QuicReceivedPacketManager::GetUpdatedAckFrame(
     QuicTime approximate_now) {
   ack_frame_updated_ = false;
-  ack_frame_.entropy_hash = EntropyHash(ack_frame_.largest_observed);
+  if (ack_frame_.missing) {
+    ack_frame_.entropy_hash = EntropyHash(ack_frame_.largest_observed);
+  }
 
   if (time_largest_observed_ == QuicTime::Zero()) {
     // We have received no packets.
@@ -243,43 +259,61 @@ QuicPacketEntropyHash QuicReceivedPacketManager::EntropyHash(
 
 bool QuicReceivedPacketManager::DontWaitForPacketsBefore(
     QuicPacketNumber least_unacked) {
-  return ack_frame_.missing_packets.RemoveUpTo(least_unacked);
+  peer_least_packet_awaiting_ack_ = least_unacked;
+  return ack_frame_.packets.RemoveUpTo(least_unacked);
 }
 
 void QuicReceivedPacketManager::UpdatePacketInformationSentByPeer(
     const QuicStopWaitingFrame& stop_waiting) {
-  // ValidateAck() should fail if peer_least_packet_awaiting_ack_ shrinks.
+  // ValidateAck() should fail if peer_least_packet_awaiting_ack shrinks.
   DCHECK_LE(peer_least_packet_awaiting_ack_, stop_waiting.least_unacked);
   if (stop_waiting.least_unacked > peer_least_packet_awaiting_ack_) {
-    bool missed_packets = DontWaitForPacketsBefore(stop_waiting.least_unacked);
-    if (missed_packets) {
-      DVLOG(1) << "Updating entropy hashed since we missed packets";
-      // There were some missing packets that we won't ever get now. Recalculate
-      // the received entropy hash.
-      entropy_tracker_.SetCumulativeEntropyUpTo(stop_waiting.least_unacked,
-                                                stop_waiting.entropy_hash);
-      // Ack frame gets updated because missing packets are updated because of
-      // stop waiting frame.
+    bool packets_updated = DontWaitForPacketsBefore(stop_waiting.least_unacked);
+    if (packets_updated) {
+      if (ack_frame_.missing) {
+        DVLOG(1) << "Updating entropy hashed since we missed packets";
+        // There were some missing packets that we won't ever get now.
+        // Recalculate the received entropy hash.
+        entropy_tracker_.SetCumulativeEntropyUpTo(stop_waiting.least_unacked,
+                                                  stop_waiting.entropy_hash);
+      }
+      // Ack frame gets updated because packets set is updated because of stop
+      // waiting frame.
       ack_frame_updated_ = true;
     }
-    peer_least_packet_awaiting_ack_ = stop_waiting.least_unacked;
   }
-  DCHECK(ack_frame_.missing_packets.Empty() ||
-         ack_frame_.missing_packets.Min() >= peer_least_packet_awaiting_ack_);
+  DCHECK(ack_frame_.packets.Empty() ||
+         ack_frame_.packets.Min() >= peer_least_packet_awaiting_ack_);
 }
 
 bool QuicReceivedPacketManager::HasMissingPackets() const {
-  return !ack_frame_.missing_packets.Empty();
+  if (ack_frame_.missing) {
+    return !ack_frame_.packets.Empty();
+  }
+
+  return ack_frame_.packets.NumIntervals() > 1 ||
+         (!ack_frame_.packets.Empty() &&
+          ack_frame_.packets.Min() >
+              max(QuicPacketNumber(1), peer_least_packet_awaiting_ack_));
 }
 
 bool QuicReceivedPacketManager::HasNewMissingPackets() const {
-  return !ack_frame_.missing_packets.Empty() &&
-         (ack_frame_.largest_observed - ack_frame_.missing_packets.Max()) <=
-             kMaxPacketsAfterNewMissing;
+  if (ack_frame_.missing) {
+    return !ack_frame_.packets.Empty() &&
+           (ack_frame_.largest_observed - ack_frame_.packets.Max()) <=
+               kMaxPacketsAfterNewMissing;
+  }
+
+  return HasMissingPackets() &&
+         ack_frame_.packets.LastIntervalLength() <= kMaxPacketsAfterNewMissing;
 }
 
 size_t QuicReceivedPacketManager::NumTrackedPackets() const {
   return entropy_tracker_.size();
+}
+
+void QuicReceivedPacketManager::SetVersion(QuicVersion version) {
+  ack_frame_.missing = version <= QUIC_VERSION_33;
 }
 
 bool QuicReceivedPacketManager::ack_frame_updated() const {

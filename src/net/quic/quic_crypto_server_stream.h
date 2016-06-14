@@ -23,7 +23,7 @@ class CachedNetworkParameters;
 class CryptoHandshakeMessage;
 class QuicCryptoServerConfig;
 class QuicCryptoServerStreamBase;
-class QuicSession;
+class QuicServerSessionBase;
 
 namespace test {
 class CryptoTestUtils;
@@ -53,8 +53,7 @@ class NET_EXPORT_PRIVATE ServerHelloNotifier : public QuicAckListenerInterface {
 // various code and test refactoring.
 class NET_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
  public:
-  explicit QuicCryptoServerStreamBase(QuicSession* session)
-      : QuicCryptoStream(session) {}
+  explicit QuicCryptoServerStreamBase(QuicServerSessionBase* session);
   ~QuicCryptoServerStreamBase() override {}
 
   // Cancel any outstanding callbacks, such as asynchronous validation of client
@@ -95,7 +94,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStream
   QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
                          QuicCompressedCertsCache* compressed_certs_cache,
                          bool use_stateless_rejects_if_peer_supported,
-                         QuicSession* session);
+                         QuicServerSessionBase* session);
   ~QuicCryptoServerStream() override;
 
   // From QuicCryptoServerStreamBase
@@ -175,6 +174,10 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStream
   // Server's certificate chain and signature of the server config, as provided
   // by ProofSource::GetProof.
   QuicCryptoProof crypto_proof_;
+
+  // Hash of the last received CHLO message which can be used for generating
+  // server config update messages.
+  std::string chlo_hash_;
 
   // Pointer to the active callback that will receive the result of
   // the client hello validation request and forward it to

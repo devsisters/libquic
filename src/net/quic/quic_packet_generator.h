@@ -98,6 +98,15 @@ class NET_EXPORT_PRIVATE QuicPacketGenerator {
                                bool fin,
                                QuicAckListenerInterface* listener);
 
+  // Sends as many data only packets as allowed by the send algorithm and the
+  // available iov.
+  // This path does not support FEC, padding, or bundling pending frames.
+  QuicConsumedData ConsumeDataFastPath(QuicStreamId id,
+                                       const QuicIOVector& iov,
+                                       QuicStreamOffset offset,
+                                       bool fin,
+                                       QuicAckListenerInterface* listener);
+
   // Generates an MTU discovery packet of specified size.
   void GenerateMtuDiscoveryPacket(QuicByteCount target_mtu,
                                   QuicAckListenerInterface* listener);

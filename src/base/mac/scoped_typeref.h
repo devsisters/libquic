@@ -53,7 +53,7 @@ class ScopedTypeRef {
  public:
   typedef T element_type;
 
-  ScopedTypeRef(
+  explicit ScopedTypeRef(
       T object = Traits::InvalidValue(),
       base::scoped_policy::OwnershipPolicy policy = base::scoped_policy::ASSUME)
       : object_(object) {
@@ -67,12 +67,10 @@ class ScopedTypeRef {
       object_ = Traits::Retain(object_);
   }
 
-  // Without this, passing a ScopedTypeRef<A,TraitsX> to construct a
-  // ScopedTypeRef<A,TraitsY> would automatically cast down to an A, and then
-  // ASSUME ownership of A, when a retain is what was needed.
-  template<typename OtherTraits>
-  ScopedTypeRef(const ScopedTypeRef<T, OtherTraits>& that_with_other_traits)
-      : object_(that_with_other_traits.get()) {
+  // This allows passing an object to a function that takes its superclass.
+  template <typename R, typename RTraits>
+  explicit ScopedTypeRef(const ScopedTypeRef<R, RTraits>& that_as_subclass)
+      : object_(that_as_subclass.get()) {
     if (object_)
       object_ = Traits::Retain(object_);
   }

@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <memory>
 #include <string>
 
 #include "base/base_export.h"
@@ -50,7 +51,7 @@ class BASE_EXPORT JSONParser {
 
   // Parses the input string according to the set options and returns the
   // result as a Value owned by the caller.
-  Value* Parse(const StringPiece& input);
+  std::unique_ptr<Value> Parse(StringPiece input);
 
   // Returns the error code.
   JSONReader::JsonParseError error_code() const;

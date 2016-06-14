@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/move.h"
+#include "base/macros.h"
 #include "base/stl_util.h"
 
 // ScopedVector wraps a vector deleting the elements from its
@@ -21,8 +21,6 @@
 // we have support for moveable types inside containers).
 template <class T>
 class ScopedVector {
-  MOVE_ONLY_TYPE_FOR_CPP_03(ScopedVector)
-
  public:
   typedef typename std::vector<T*>::allocator_type allocator_type;
   typedef typename std::vector<T*>::size_type size_type;
@@ -142,6 +140,8 @@ class ScopedVector {
 
  private:
   std::vector<T*> v_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedVector);
 };
 
 #endif  // BASE_MEMORY_SCOPED_VECTOR_H_

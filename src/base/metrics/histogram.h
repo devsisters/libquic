@@ -204,6 +204,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
   void AddCount(Sample value, int count) override;
   std::unique_ptr<HistogramSamples> SnapshotSamples() const override;
   std::unique_ptr<HistogramSamples> SnapshotDelta() override;
+  std::unique_ptr<HistogramSamples> SnapshotFinalDelta() const override;
   void AddSamples(const HistogramSamples& samples) override;
   bool AddSamplesFromPickle(base::PickleIterator* iter) override;
   void WriteHTMLGraph(std::string* output) const override;
@@ -312,6 +313,10 @@ class BASE_EXPORT Histogram : public HistogramBase {
 
   // Also keep a previous uploaded state for calculating deltas.
   std::unique_ptr<HistogramSamples> logged_samples_;
+
+  // Flag to indicate if PrepareFinalDelta has been previously called. It is
+  // used to DCHECK that a final delta is not created multiple times.
+  mutable bool final_delta_created_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(Histogram);
 };

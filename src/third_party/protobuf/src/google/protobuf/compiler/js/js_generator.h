@@ -67,6 +67,13 @@ struct GeneratorOptions {
   bool error_on_name_conflict;
   // Enable binary-format support?
   bool binary;
+  // What style of imports should be used.
+  enum ImportStyle {
+    IMPORT_CLOSURE,    // goog.require()
+    IMPORT_COMMONJS,   // require()
+    IMPORT_BROWSER,    // no import statements
+    IMPORT_ES6,        // import { member } from ''
+  } import_style;
 
   GeneratorOptions()
       : add_require_for_enums(false),
@@ -75,7 +82,8 @@ struct GeneratorOptions {
         namespace_prefix(""),
         library(""),
         error_on_name_conflict(false),
-        binary(false) {}
+        binary(false),
+        import_style(IMPORT_CLOSURE) {}
 
   bool ParseFromOptions(
       const vector< pair< string, string > >& options,
@@ -111,6 +119,10 @@ class LIBPROTOC_EXPORT Generator : public CodeGenerator {
                     io::Printer* printer,
                     const vector<const FileDescriptor*>& file,
                     std::set<string>* provided) const;
+  void FindProvidesForFile(const GeneratorOptions& options,
+                           io::Printer* printer,
+                           const FileDescriptor* file,
+                           std::set<string>* provided) const;
   void FindProvidesForMessage(const GeneratorOptions& options,
                               io::Printer* printer,
                               const Descriptor* desc,
@@ -134,19 +146,19 @@ class LIBPROTOC_EXPORT Generator : public CodeGenerator {
                         io::Printer* printer) const;
 
   // Generate goog.requires() calls.
-  void GenerateRequires(const GeneratorOptions& options,
-                        io::Printer* printer,
-                        const vector<const FileDescriptor*>& file,
-                        std::set<string>* provided) const;
-  void GenerateRequires(const GeneratorOptions& options,
+  void GenerateRequiresForLibrary(const GeneratorOptions& options,
+                                  io::Printer* printer,
+                                  const vector<const FileDescriptor*>& files,
+                                  std::set<string>* provided) const;
+  void GenerateRequiresForMessage(const GeneratorOptions& options,
                         io::Printer* printer,
                         const Descriptor* desc,
                         std::set<string>* provided) const;
   // For extension fields at file scope.
-  void GenerateRequires(const GeneratorOptions& options,
-                        io::Printer* printer,
-                        const vector<const FieldDescriptor*>& fields,
-                        std::set<string>* provided) const;
+  void GenerateRequiresForExtensions(
+      const GeneratorOptions& options, io::Printer* printer,
+      const vector<const FieldDescriptor*>& fields,
+      std::set<string>* provided) const;
   void GenerateRequiresImpl(const GeneratorOptions& options,
                             io::Printer* printer,
                             std::set<string>* required,
@@ -167,6 +179,10 @@ class LIBPROTOC_EXPORT Generator : public CodeGenerator {
                                 const FieldDescriptor* field,
                                 std::set<string>* required,
                                 std::set<string>* forwards) const;
+
+  void GenerateFile(const GeneratorOptions& options,
+                    io::Printer* printer,
+                    const FileDescriptor* file) const;
 
   // Generate definitions for all message classes and enums in all files,
   // processing the files in dependence order.

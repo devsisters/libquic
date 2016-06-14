@@ -59,7 +59,9 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(
     QuicStreamOffset offset,
     bool fin,
     QuicAckListenerInterface* listener) {
-  bool has_handshake = id == kCryptoStreamId;
+  bool has_handshake = (id == kCryptoStreamId);
+  QUIC_BUG_IF(has_handshake && fin)
+      << "Handshake packets should never send a fin";
   // To make reasoning about crypto frames easier, we don't combine them with
   // other retransmittable frames in a single packet.
   const bool flush =
@@ -91,7 +93,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(
     }
 
     // A stream frame is created and added.
-    size_t bytes_consumed = frame.stream_frame->frame_length;
+    size_t bytes_consumed = frame.stream_frame->data_length;
     if (listener != nullptr) {
       packet_creator_.AddAckListener(listener, bytes_consumed);
     }
@@ -121,6 +123,30 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(
 
   DCHECK(InBatchMode() || !packet_creator_.HasPendingFrames());
   return QuicConsumedData(total_bytes_consumed, fin_consumed);
+}
+
+QuicConsumedData QuicPacketGenerator::ConsumeDataFastPath(
+    QuicStreamId id,
+    const QuicIOVector& iov,
+    QuicStreamOffset offset,
+    bool fin,
+    QuicAckListenerInterface* listener) {
+  DCHECK_NE(id, kCryptoStreamId);
+  size_t total_bytes_consumed = 0;
+  while (total_bytes_consumed < iov.total_length &&
+         delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA,
+                                         NOT_HANDSHAKE)) {
+    // Serialize and encrypt the packet.
+    ALIGNAS(64) char encrypted_buffer[kMaxPacketSize];
+    size_t bytes_consumed = 0;
+    packet_creator_.CreateAndSerializeStreamFrame(
+        id, iov, total_bytes_consumed, offset + total_bytes_consumed, fin,
+        listener, encrypted_buffer, kMaxPacketSize, &bytes_consumed);
+    total_bytes_consumed += bytes_consumed;
+  }
+
+  return QuicConsumedData(total_bytes_consumed,
+                          fin && (total_bytes_consumed == iov.total_length));
 }
 
 void QuicPacketGenerator::GenerateMtuDiscoveryPacket(

@@ -12,6 +12,7 @@
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
+#include "base/files/file_path.h"
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
@@ -126,6 +127,10 @@ class BASE_EXPORT PersistentMemoryAllocator {
     kTypeIdAny = 0  // Match any type-id inside GetAsObject().
   };
 
+  // This is the standard file extension (suitable for being passed to the
+  // AddExtension() method of base::FilePath) for dumps of persistent memory.
+  static const base::FilePath::CharType kFileExtension[];
+
   // The allocator operates on any arbitrary block of memory. Creation and
   // persisting or sharing of that block with another process is the
   // responsibility of the caller. The allocator needs to know only the
@@ -191,6 +196,7 @@ class BASE_EXPORT PersistentMemoryAllocator {
   // not guarantee consistency. Use with care. Do not write.
   const void* data() const { return const_cast<const char*>(mem_base_); }
   size_t length() const { return mem_size_; }
+  size_t size() const { return mem_size_; }
   size_t used() const;
 
   // Get an object referenced by a |ref|. For safety reasons, the |type_id|
@@ -235,9 +241,11 @@ class BASE_EXPORT PersistentMemoryAllocator {
 
   // Access the internal "type" of an object. This generally isn't necessary
   // but can be used to "clear" the type and so effectively mark it as deleted
-  // even though the memory stays valid and allocated.
+  // even though the memory stays valid and allocated. Changing the type is
+  // an atomic compare/exchange and so requires knowing the existing value.
+  // It will return false if the existing type is not what is expected.
   uint32_t GetType(Reference ref) const;
-  void SetType(Reference ref, uint32_t type_id);
+  bool ChangeType(Reference ref, uint32_t to_type_id, uint32_t from_type_id);
 
   // Reserve space in the memory segment of the desired |size| and |type_id|.
   // A return value of zero indicates the allocation failed, otherwise the
@@ -348,6 +356,14 @@ class BASE_EXPORT LocalPersistentMemoryAllocator
   ~LocalPersistentMemoryAllocator() override;
 
  private:
+  // Allocates a block of local memory of the specified |size|, ensuring that
+  // the memory will not be physically allocated until accessed and will read
+  // as zero when that happens.
+  static void* AllocateLocalMemory(size_t size);
+
+  // Deallocates a block of local |memory| of the specified |size|.
+  static void DeallocateLocalMemory(void* memory, size_t size);
+
   DISALLOW_COPY_AND_ASSIGN(LocalPersistentMemoryAllocator);
 };
 
@@ -379,28 +395,34 @@ class BASE_EXPORT SharedPersistentMemoryAllocator
 };
 
 
+#if !defined(OS_NACL)  // NACL doesn't support any kind of file access in build.
 // This allocator takes a memory-mapped file object and performs allocation
-// from it. The allocator takes ownership of the file object. Only read access
-// is provided due to limitions of the MemoryMappedFile class.
+// from it. The allocator takes ownership of the file object.
 class BASE_EXPORT FilePersistentMemoryAllocator
     : public PersistentMemoryAllocator {
  public:
+  // A |max_size| of zero will use the length of the file as the maximum
+  // size. The |file| object must have been already created with sufficient
+  // permissions (read, read/write, or read/write/extend).
   FilePersistentMemoryAllocator(std::unique_ptr<MemoryMappedFile> file,
+                                size_t max_size,
                                 uint64_t id,
-                                base::StringPiece name);
+                                base::StringPiece name,
+                                bool read_only);
   ~FilePersistentMemoryAllocator() override;
 
   // Ensure that the file isn't so invalid that it won't crash when passing it
   // to the allocator. This doesn't guarantee the file is valid, just that it
   // won't cause the program to abort. The existing IsCorrupt() call will handle
   // the rest.
-  static bool IsFileAcceptable(const MemoryMappedFile& file);
+  static bool IsFileAcceptable(const MemoryMappedFile& file, bool read_only);
 
  private:
   std::unique_ptr<MemoryMappedFile> mapped_file_;
 
   DISALLOW_COPY_AND_ASSIGN(FilePersistentMemoryAllocator);
 };
+#endif  // !defined(OS_NACL)
 
 }  // namespace base
 

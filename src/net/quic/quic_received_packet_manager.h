@@ -140,6 +140,9 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager
   // Returns the number of packets being tracked in the EntropyTracker.
   size_t NumTrackedPackets() const;
 
+  // Sets the mode of packets set of ack_frame_ based on |version|.
+  void SetVersion(QuicVersion version);
+
   QuicPacketNumber peer_least_packet_awaiting_ack() {
     return peer_least_packet_awaiting_ack_;
   }

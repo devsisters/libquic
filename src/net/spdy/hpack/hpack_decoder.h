@@ -73,6 +73,15 @@ class NET_EXPORT_PRIVATE HpackDecoder {
   // a SpdyHeadersHandlerInterface.
   const SpdyHeaderBlock& decoded_block() { return decoded_block_; }
 
+  void SetHeaderTableDebugVisitor(
+      std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) {
+    header_table_.set_debug_visitor(std::move(visitor));
+  }
+
+  void set_max_decode_buffer_size_bytes(size_t max_decode_buffer_size_bytes) {
+    max_decode_buffer_size_bytes_ = max_decode_buffer_size_bytes;
+  }
+
  private:
   // Adds the header representation to |decoded_block_|, applying the
   // following rules:
@@ -116,11 +125,16 @@ class NET_EXPORT_PRIVATE HpackDecoder {
   // Its value is updated during incremental decoding.
   uint32_t total_parsed_bytes_;
 
+  // How much encoded data this decoder is willing to buffer.
+  // Defaults to 256 KB.
+  size_t max_decode_buffer_size_bytes_ = kMaxDecodeBufferSize;
+
   // Handlers for decoding HPACK opcodes and header representations
   // (or parts thereof). These methods return true on success and
   // false on error.
   bool DecodeNextOpcodeWrapper(HpackInputStream* input_stream);
   bool DecodeNextOpcode(HpackInputStream* input_stream);
+  bool DecodeAtMostTwoHeaderTableSizeUpdates(HpackInputStream* input_stream);
   bool DecodeNextHeaderTableSizeUpdate(HpackInputStream* input_stream);
   bool DecodeNextIndexedHeader(HpackInputStream* input_stream);
   bool DecodeNextLiteralHeader(HpackInputStream* input_stream,

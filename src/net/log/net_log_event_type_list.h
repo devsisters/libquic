@@ -1170,6 +1170,15 @@ EVENT_TYPE(HTTP_TRANSACTION_RESTART_AFTER_ERROR)
 // BidirectionalStream
 // ------------------------------------------------------------------------
 
+// Marks the creation/destruction of a net::BidirectionalStream.
+// The following parameters are attached:
+//   {
+//      "url": <The URL being used>,
+//      "method": <The HTTP method being used>,
+//      "headers": <The list of header:value pairs>,
+//   }
+EVENT_TYPE(BIDIRECTIONAL_STREAM_ALIVE)
+
 // The specified number of bytes were sent on the stream.  Depending on the
 // source of the event, may be logged either once the data is sent, or when it
 // is queued to be sent.
@@ -1189,6 +1198,20 @@ EVENT_TYPE(BIDIRECTIONAL_STREAM_BYTES_SENT)
 //                           Only present when byte logging is enabled>,
 //   }
 EVENT_TYPE(BIDIRECTIONAL_STREAM_BYTES_RECEIVED)
+
+// This event is sent for receiving headers on the stream.
+// The following parameters are attached:
+//   {
+//     "headers": <The list of header:value pairs>,
+//   }
+EVENT_TYPE(BIDIRECTIONAL_STREAM_RECV_HEADERS)
+
+// This event is sent for receiving trailers on the stream.
+// The following parameters are attached:
+//   {
+//     "headers": <The list of header:value pairs>,
+//   }
+EVENT_TYPE(BIDIRECTIONAL_STREAM_RECV_TRAILERS)
 
 // ------------------------------------------------------------------------
 // SpdySession
@@ -1882,6 +1905,31 @@ EVENT_TYPE(QUIC_CHROMIUM_CLIENT_STREAM_READ_RESPONSE_HEADERS)
 EVENT_TYPE(QUIC_CHROMIUM_CLIENT_STREAM_READ_RESPONSE_TRAILERS)
 
 // ------------------------------------------------------------------------
+// QuicConnectionMigration
+// ------------------------------------------------------------------------
+
+// Records that QUIC connection migration has been triggered.
+//  {
+//     "trigger": <The reason for the migration attempt>
+//  }
+EVENT_TYPE(QUIC_CONNECTION_MIGRATION_TRIGGERED)
+
+// Records that a QUIC connection migration attempt of the session
+// identified by connection_id failed.
+//  {
+//     "connection_id": <Connection ID of the session>
+//     "reason": <Failure reason>
+//  }
+EVENT_TYPE(QUIC_CONNECTION_MIGRATION_FAILURE)
+
+// Records that a QUIC connection migration attempt of the session
+// identified by connection_id succeeded.
+//  {
+//     "connection_id": <Connection ID of the session>
+//  }
+EVENT_TYPE(QUIC_CONNECTION_MIGRATION_SUCCESS)
+
+// ------------------------------------------------------------------------
 // HttpStreamParser
 // ------------------------------------------------------------------------
 
@@ -2008,6 +2056,19 @@ EVENT_TYPE(SERVICE_WORKER_ERROR_KILLED_WITH_BLOB)
 // finishes responding with a stream.
 EVENT_TYPE(SERVICE_WORKER_ERROR_KILLED_WITH_STREAM)
 
+// This event is emitted when a request to be forwarded to a Service Worker has
+// request body blobs, and it may be necessary to wait for them to finish
+// construction. The END phase event parameter is:
+//   {
+//     "success": Whether the request blobs finished construction successfully.
+//   }
+EVENT_TYPE(SERVICE_WORKER_WAITING_FOR_REQUEST_BODY_BLOB)
+
+// This event is emitted when a request failed to be forwarded to a Service
+// Worker, because it had a request body with a blob that failed to be
+// constructed.
+EVENT_TYPE(SERVICE_WORKER_ERROR_REQUEST_BODY_BLOB_FAILED)
+
 // ------------------------------------------------------------------------
 // Global events
 // ------------------------------------------------------------------------
@@ -2042,6 +2103,58 @@ EVENT_TYPE(NETWORK_CHANGED)
 //     <other>:                      <See DnsConfig>
 //   }
 EVENT_TYPE(DNS_CONFIG_CHANGED)
+
+// This event is emitted whenever NetworkChangeNotifier determines that a
+// network has connected and network-specific information is available
+// (i.e. the NetworkChangeNotifier::NetworkHandle of the network is known).
+//   {
+//     "changed_network_handle":        <Network handle>
+//     "changed_network_type":          <Type of network>
+//     "default_active_network_handle": <Network handle of default network>
+//     "current_active_networks":       <Mapping from network handle to network
+//                                       type, containing entries for all active
+//                                       networks.>
+//   }
+EVENT_TYPE(SPECIFIC_NETWORK_CONNECTED)
+
+// This event is emitted whenever NetworkChangeNotifier determines that a
+// network has disconnected and network-specific information is available
+// (i.e. the NetworkChangeNotifier::NetworkHandle of the network is known).
+//   {
+//     "changed_network_handle":        <Network handle>
+//     "changed_network_type":          <Type of network>
+//     "default_active_network_handle": <Network handle of default network>
+//     "current_active_networks":       <Mapping from network handle to network
+//                                       type, containing entries for all active
+//                                       networks.>
+//   }
+EVENT_TYPE(SPECIFIC_NETWORK_DISCONNECTED)
+
+// This event is emitted whenever NetworkChangeNotifier determines that a
+// network is soon to disconnect and network-specific information is available
+// (i.e. the NetworkChangeNotifier::NetworkHandle of the network is known).
+//   {
+//     "changed_network_handle":        <Network handle>
+//     "changed_network_type":          <Type of network>
+//     "default_active_network_handle": <Network handle of default network>
+//     "current_active_networks":       <Mapping from network handle to network
+//                                       type, containing entries for all active
+//                                       networks.>
+//   }
+EVENT_TYPE(SPECIFIC_NETWORK_SOON_TO_DISCONNECT)
+
+// This event is emitted whenever NetworkChangeNotifier determines that a
+// network has become the default and network-specific information is available
+// (i.e. the NetworkChangeNotifier::NetworkHandle of the network is known).
+//   {
+//     "changed_network_handle":        <Network handle>
+//     "changed_network_type":          <Type of network>
+//     "default_active_network_handle": <Network handle of default network>
+//     "current_active_networks":       <Mapping from network handle to network
+//                                       type, containing entries for all active
+//                                       networks.>
+//   }
+EVENT_TYPE(SPECIFIC_NETWORK_MADE_DEFAULT)
 
 // ------------------------------------------------------------------------
 // Exponential back-off throttling events

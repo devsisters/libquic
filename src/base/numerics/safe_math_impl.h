@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <climits>
 #include <cmath>
 #include <cstdlib>
 #include <limits>
@@ -89,7 +90,7 @@ template <typename Integer>
 struct PositionOfSignBit {
   static const typename std::enable_if<std::numeric_limits<Integer>::is_integer,
                                        size_t>::type value =
-      8 * sizeof(Integer) - 1;
+      CHAR_BIT * sizeof(Integer) - 1;
 };
 
 // This is used for UnsignedAbs, where we need to support floating-point
@@ -114,7 +115,7 @@ struct UnsignedOrFloatForSize<Numeric, false, true> {
 // Helper templates for integer manipulations.
 
 template <typename T>
-bool HasSignBit(T x) {
+constexpr bool HasSignBit(T x) {
   // Cast to unsigned since right shift on signed is undefined.
   return !!(static_cast<typename UnsignedIntegerForSize<T>::type>(x) >>
             PositionOfSignBit<T>::value);
@@ -122,8 +123,8 @@ bool HasSignBit(T x) {
 
 // This wrapper undoes the standard integer promotions.
 template <typename T>
-T BinaryComplement(T x) {
-  return ~x;
+constexpr T BinaryComplement(T x) {
+  return static_cast<T>(~x);
 }
 
 // Here are the actual portable checked integer math implementations.
@@ -138,15 +139,16 @@ CheckedAdd(T x, T y, RangeConstraint* validity) {
   typedef typename UnsignedIntegerForSize<T>::type UnsignedDst;
   UnsignedDst ux = static_cast<UnsignedDst>(x);
   UnsignedDst uy = static_cast<UnsignedDst>(y);
-  UnsignedDst uresult = ux + uy;
+  UnsignedDst uresult = static_cast<UnsignedDst>(ux + uy);
   // Addition is valid if the sign of (x + y) is equal to either that of x or
   // that of y.
   if (std::numeric_limits<T>::is_signed) {
-    if (HasSignBit(BinaryComplement((uresult ^ ux) & (uresult ^ uy))))
+    if (HasSignBit(BinaryComplement(
+            static_cast<UnsignedDst>((uresult ^ ux) & (uresult ^ uy))))) {
       *validity = RANGE_VALID;
-    else  // Direction of wrap is inverse of result sign.
+    } else {  // Direction of wrap is inverse of result sign.
       *validity = HasSignBit(uresult) ? RANGE_OVERFLOW : RANGE_UNDERFLOW;
-
+    }
   } else {  // Unsigned is either valid or overflow.
     *validity = BinaryComplement(x) >= y ? RANGE_VALID : RANGE_OVERFLOW;
   }
@@ -161,15 +163,16 @@ CheckedSub(T x, T y, RangeConstraint* validity) {
   typedef typename UnsignedIntegerForSize<T>::type UnsignedDst;
   UnsignedDst ux = static_cast<UnsignedDst>(x);
   UnsignedDst uy = static_cast<UnsignedDst>(y);
-  UnsignedDst uresult = ux - uy;
+  UnsignedDst uresult = static_cast<UnsignedDst>(ux - uy);
   // Subtraction is valid if either x and y have same sign, or (x-y) and x have
   // the same sign.
   if (std::numeric_limits<T>::is_signed) {
-    if (HasSignBit(BinaryComplement((uresult ^ ux) & (ux ^ uy))))
+    if (HasSignBit(BinaryComplement(
+            static_cast<UnsignedDst>((uresult ^ ux) & (ux ^ uy))))) {
       *validity = RANGE_VALID;
-    else  // Direction of wrap is inverse of result sign.
+    } else {  // Direction of wrap is inverse of result sign.
       *validity = HasSignBit(uresult) ? RANGE_OVERFLOW : RANGE_UNDERFLOW;
-
+    }
   } else {  // Unsigned is either valid or underflow.
     *validity = x >= y ? RANGE_VALID : RANGE_UNDERFLOW;
   }
@@ -200,7 +203,8 @@ typename std::enable_if<std::numeric_limits<T>::is_integer &&
 CheckedMul(T x, T y, RangeConstraint* validity) {
   // If either side is zero then the result will be zero.
   if (!x || !y) {
-    return RANGE_VALID;
+    *validity = RANGE_VALID;
+    return static_cast<T>(0);
 
   } else if (x > 0) {
     if (y > 0)
@@ -219,7 +223,7 @@ CheckedMul(T x, T y, RangeConstraint* validity) {
           y >= std::numeric_limits<T>::max() / x ? RANGE_VALID : RANGE_OVERFLOW;
   }
 
-  return x * y;
+  return static_cast<T>(x * y);
 }
 
 template <typename T>
@@ -231,7 +235,7 @@ CheckedMul(T x, T y, RangeConstraint* validity) {
   *validity = (y == 0 || x <= std::numeric_limits<T>::max() / y)
                   ? RANGE_VALID
                   : RANGE_OVERFLOW;
-  return x * y;
+  return static_cast<T>(x * y);
 }
 
 // Division just requires a check for an invalid negation on signed min/-1.
@@ -248,7 +252,7 @@ T CheckedDiv(T x,
   }
 
   *validity = RANGE_VALID;
-  return x / y;
+  return static_cast<T>(x / y);
 }
 
 template <typename T>
@@ -257,7 +261,7 @@ typename std::enable_if<std::numeric_limits<T>::is_integer &&
                         T>::type
 CheckedMod(T x, T y, RangeConstraint* validity) {
   *validity = y > 0 ? RANGE_VALID : RANGE_INVALID;
-  return x % y;
+  return static_cast<T>(x % y);
 }
 
 template <typename T>
@@ -266,7 +270,7 @@ typename std::enable_if<std::numeric_limits<T>::is_integer &&
                         T>::type
 CheckedMod(T x, T y, RangeConstraint* validity) {
   *validity = RANGE_VALID;
-  return x % y;
+  return static_cast<T>(x % y);
 }
 
 template <typename T>
@@ -277,7 +281,7 @@ CheckedNeg(T value, RangeConstraint* validity) {
   *validity =
       value != std::numeric_limits<T>::min() ? RANGE_VALID : RANGE_OVERFLOW;
   // The negation of signed min is min, so catch that one.
-  return -value;
+  return static_cast<T>(-value);
 }
 
 template <typename T>
@@ -328,7 +332,7 @@ typename std::enable_if<std::numeric_limits<T>::is_integer &&
                         T>::type
 CheckedUnsignedAbs(T value) {
   // T is unsigned, so |value| must already be positive.
-  return value;
+  return static_cast<T>(value);
 }
 
 // These are the floating point stubs that the compiler needs to see. Only the
@@ -338,7 +342,7 @@ CheckedUnsignedAbs(T value) {
   typename std::enable_if<std::numeric_limits<T>::is_iec559, T>::type \
       Checked##NAME(T, T, RangeConstraint*) {                         \
     NOTREACHED();                                                     \
-    return 0;                                                         \
+    return static_cast<T>(0);                                         \
   }
 
 BASE_FLOAT_ARITHMETIC_STUBS(Add)
@@ -353,14 +357,14 @@ template <typename T>
 typename std::enable_if<std::numeric_limits<T>::is_iec559, T>::type CheckedNeg(
     T value,
     RangeConstraint*) {
-  return -value;
+  return static_cast<T>(-value);
 }
 
 template <typename T>
 typename std::enable_if<std::numeric_limits<T>::is_iec559, T>::type CheckedAbs(
     T value,
     RangeConstraint*) {
-  return std::abs(value);
+  return static_cast<T>(std::abs(value));
 }
 
 // Floats carry around their validity state with them, but integers do not. So,
@@ -390,7 +394,7 @@ template <typename T>
 class CheckedNumericState<T, NUMERIC_INTEGER> {
  private:
   T value_;
-  RangeConstraint validity_;
+  RangeConstraint validity_ : CHAR_BIT;  // Actually requires only two bits.
 
  public:
   template <typename Src, NumericRepresentation type>
@@ -485,27 +489,16 @@ class CheckedNumericState<T, NUMERIC_FLOATING> {
   T value() const { return value_; }
 };
 
-// For integers less than 128-bit and floats 32-bit or larger, we can distil
-// C/C++ arithmetic promotions down to two simple rules:
-// 1. The type with the larger maximum exponent always takes precedence.
-// 2. The resulting type must be promoted to at least an int.
-// The following template specializations implement that promotion logic.
-enum ArithmeticPromotionCategory {
-  LEFT_PROMOTION,
-  RIGHT_PROMOTION,
-  DEFAULT_PROMOTION
-};
+// For integers less than 128-bit and floats 32-bit or larger, we have the type
+// with the larger maximum exponent take precedence.
+enum ArithmeticPromotionCategory { LEFT_PROMOTION, RIGHT_PROMOTION };
 
 template <typename Lhs,
           typename Rhs = Lhs,
           ArithmeticPromotionCategory Promotion =
               (MaxExponent<Lhs>::value > MaxExponent<Rhs>::value)
-                  ? (MaxExponent<Lhs>::value > MaxExponent<int>::value
-                         ? LEFT_PROMOTION
-                         : DEFAULT_PROMOTION)
-                  : (MaxExponent<Rhs>::value > MaxExponent<int>::value
-                         ? RIGHT_PROMOTION
-                         : DEFAULT_PROMOTION) >
+                  ? LEFT_PROMOTION
+                  : RIGHT_PROMOTION>
 struct ArithmeticPromotion;
 
 template <typename Lhs, typename Rhs>
@@ -516,11 +509,6 @@ struct ArithmeticPromotion<Lhs, Rhs, LEFT_PROMOTION> {
 template <typename Lhs, typename Rhs>
 struct ArithmeticPromotion<Lhs, Rhs, RIGHT_PROMOTION> {
   typedef Rhs type;
-};
-
-template <typename Lhs, typename Rhs>
-struct ArithmeticPromotion<Lhs, Rhs, DEFAULT_PROMOTION> {
-  typedef int type;
 };
 
 // We can statically check if operations on the provided types can wrap, so we

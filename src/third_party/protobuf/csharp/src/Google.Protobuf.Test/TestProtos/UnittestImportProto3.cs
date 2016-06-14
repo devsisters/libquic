@@ -33,8 +33,8 @@ namespace Google.Protobuf.TestProtos {
             "Mw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.TestProtos.UnittestImportPublicProto3Reflection.Descriptor, },
-          new pbr::GeneratedCodeInfo(new[] {typeof(global::Google.Protobuf.TestProtos.ImportEnum), }, new pbr::GeneratedCodeInfo[] {
-            new pbr::GeneratedCodeInfo(typeof(global::Google.Protobuf.TestProtos.ImportMessage), global::Google.Protobuf.TestProtos.ImportMessage.Parser, new[]{ "D" }, null, null, null)
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Google.Protobuf.TestProtos.ImportEnum), }, new pbr::GeneratedClrTypeInfo[] {
+            new pbr::GeneratedClrTypeInfo(typeof(global::Google.Protobuf.TestProtos.ImportMessage), global::Google.Protobuf.TestProtos.ImportMessage.Parser, new[]{ "D" }, null, null, null)
           }));
     }
     #endregion
@@ -42,10 +42,10 @@ namespace Google.Protobuf.TestProtos {
   }
   #region Enums
   public enum ImportEnum {
-    IMPORT_ENUM_UNSPECIFIED = 0,
-    IMPORT_FOO = 7,
-    IMPORT_BAR = 8,
-    IMPORT_BAZ = 9,
+    [pbr::OriginalName("IMPORT_ENUM_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("IMPORT_FOO")] ImportFoo = 7,
+    [pbr::OriginalName("IMPORT_BAR")] ImportBar = 8,
+    [pbr::OriginalName("IMPORT_BAZ")] ImportBaz = 9,
   }
 
   #endregion

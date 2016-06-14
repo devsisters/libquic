@@ -231,6 +231,12 @@ void PickleSizer::AddBytes(int length) {
   payload_size_ += bits::Align(length, sizeof(uint32_t));
 }
 
+void PickleSizer::AddAttachment() {
+  // From IPC::Message::WriteAttachment
+  AddBool();
+  AddInt();
+}
+
 template <size_t length> void PickleSizer::AddBytesStatic() {
   DCHECK_LE(length, static_cast<size_t>(std::numeric_limits<int>::max()));
   AddBytes(length);

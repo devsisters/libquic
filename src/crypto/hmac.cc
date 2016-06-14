@@ -4,24 +4,28 @@
 
 #include "crypto/hmac.h"
 
+#include <openssl/hmac.h>
 #include <stddef.h>
 
 #include <algorithm>
-#include <memory>
 
 #include "base/logging.h"
+#include "base/stl_util.h"
+#include "crypto/openssl_util.h"
 #include "crypto/secure_util.h"
 #include "crypto/symmetric_key.h"
 
 namespace crypto {
 
-bool HMAC::Init(SymmetricKey* key) {
-  std::string raw_key;
-  bool result = key->GetRawKey(&raw_key) && Init(raw_key);
-  // Zero out key copy.  This might get optimized away, but one can hope.
-  // Using std::string to store key info at all is a larger problem.
-  std::fill(raw_key.begin(), raw_key.end(), 0);
-  return result;
+HMAC::HMAC(HashAlgorithm hash_alg) : hash_alg_(hash_alg), initialized_(false) {
+  // Only SHA-1 and SHA-256 hash algorithms are supported now.
+  DCHECK(hash_alg_ == SHA1 || hash_alg_ == SHA256);
+}
+
+HMAC::~HMAC() {
+  // Zero out key copy.
+  key_.assign(key_.size(), 0);
+  STLClearObject(&key_);
 }
 
 size_t HMAC::DigestLength() const {
@@ -34,6 +38,35 @@ size_t HMAC::DigestLength() const {
       NOTREACHED();
       return 0;
   }
+}
+
+bool HMAC::Init(const unsigned char* key, size_t key_length) {
+  // Init must not be called more than once on the same HMAC object.
+  DCHECK(!initialized_);
+  initialized_ = true;
+  key_.assign(key, key + key_length);
+  return true;
+}
+
+bool HMAC::Init(SymmetricKey* key) {
+  std::string raw_key;
+  bool result = key->GetRawKey(&raw_key) && Init(raw_key);
+  // Zero out key copy.  This might get optimized away, but one can hope.
+  // Using std::string to store key info at all is a larger problem.
+  std::fill(raw_key.begin(), raw_key.end(), 0);
+  return result;
+}
+
+bool HMAC::Sign(const base::StringPiece& data,
+                unsigned char* digest,
+                size_t digest_length) const {
+  DCHECK(initialized_);
+
+  ScopedOpenSSLSafeSizeBuffer<EVP_MAX_MD_SIZE> result(digest, digest_length);
+  return !!::HMAC(hash_alg_ == SHA1 ? EVP_sha1() : EVP_sha256(),
+                  key_.data(), key_.size(),
+                  reinterpret_cast<const unsigned char*>(data.data()),
+                  data.size(), result.safe_buffer(), NULL);
 }
 
 bool HMAC::Verify(const base::StringPiece& data,

@@ -134,6 +134,7 @@ class BASE_EXPORT PickleSizer {
   void AddString16(const StringPiece16& value);
   void AddData(int length);
   void AddBytes(int length);
+  void AddAttachment();
 
  private:
   // Just like AddBytes() but with a compile-time size for performance.

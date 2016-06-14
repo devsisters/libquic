@@ -26,8 +26,6 @@ class NET_EXPORT IPEndPoint {
  public:
   IPEndPoint();
   ~IPEndPoint();
-  // DEPRECATED(crbug.com/496258): Use the ctor that takes IPAddress instead.
-  IPEndPoint(const IPAddressNumber& address, uint16_t port);
   IPEndPoint(const IPAddress& address, uint16_t port);
   IPEndPoint(const IPEndPoint& endpoint);
 

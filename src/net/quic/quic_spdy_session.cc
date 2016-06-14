@@ -4,6 +4,8 @@
 
 #include "net/quic/quic_spdy_session.h"
 
+#include <utility>
+
 #include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_headers_stream.h"
 
@@ -16,7 +18,16 @@ QuicSpdySession::QuicSpdySession(QuicConnection* connection,
                                  const QuicConfig& config)
     : QuicSession(connection, config) {}
 
-QuicSpdySession::~QuicSpdySession() {}
+QuicSpdySession::~QuicSpdySession() {
+  // Set the streams' session pointers in closed and dynamic stream lists
+  // to null to avoid subsequent use of this session.
+  for (auto const& stream : *closed_streams()) {
+    static_cast<QuicSpdyStream*>(stream)->ClearSession();
+  }
+  for (auto const& kv : dynamic_streams()) {
+    static_cast<QuicSpdyStream*>(kv.second)->ClearSession();
+  }
+}
 
 void QuicSpdySession::Initialize() {
   QuicSession::Initialize();
@@ -78,11 +89,11 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
 
 size_t QuicSpdySession::WriteHeaders(
     QuicStreamId id,
-    const SpdyHeaderBlock& headers,
+    SpdyHeaderBlock headers,
     bool fin,
     SpdyPriority priority,
     QuicAckListenerInterface* ack_notifier_delegate) {
-  return headers_stream_->WriteHeaders(id, headers, fin, priority,
+  return headers_stream_->WriteHeaders(id, std::move(headers), fin, priority,
                                        ack_notifier_delegate);
 }
 

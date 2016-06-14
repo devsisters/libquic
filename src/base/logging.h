@@ -11,10 +11,13 @@
 #include <cstring>
 #include <sstream>
 #include <string>
+#include <type_traits>
+#include <utility>
 
 #include "base/base_export.h"
 #include "base/debug/debugger.h"
 #include "base/macros.h"
+#include "base/template_util.h"
 #include "build/build_config.h"
 
 //
@@ -448,10 +451,10 @@ class CheckOpResult {
 // We make sure CHECK et al. always evaluates their arguments, as
 // doing CHECK(FunctionWithSideEffect()) is a common idiom.
 
-#if defined(OFFICIAL_BUILD) && defined(NDEBUG) && !defined(OS_ANDROID)
+#if defined(OFFICIAL_BUILD) && defined(NDEBUG)
 
 // Make all CHECK functions discard their log strings to reduce code
-// bloat for official release builds (except Android).
+// bloat, and improve performance, for official release builds.
 
 // TODO(akalin): This would be more valuable if there were some way to
 // remove BreakDebugger() from the backtrace, perhaps by turning it
@@ -463,7 +466,7 @@ class CheckOpResult {
 
 #define CHECK_OP(name, op, val1, val2) CHECK((val1) op (val2))
 
-#else
+#else  // !(OFFICIAL_BUILD && NDEBUG)
 
 #if defined(_PREFAST_) && defined(OS_WIN)
 // Use __analysis_assume to tell the VC++ static analysis engine that
@@ -511,7 +514,31 @@ class CheckOpResult {
   else                                                                         \
     logging::LogMessage(__FILE__, __LINE__, true_if_passed.message()).stream()
 
-#endif
+#endif  // !(OFFICIAL_BUILD && NDEBUG)
+
+// This formats a value for a failing CHECK_XX statement.  Ordinarily,
+// it uses the definition for operator<<, with a few special cases below.
+template <typename T>
+inline typename std::enable_if<
+    base::internal::SupportsOstreamOperator<const T&>::value,
+    void>::type
+MakeCheckOpValueString(std::ostream* os, const T& v) {
+  (*os) << v;
+}
+
+// We need overloads for enums that don't support operator<<.
+// (i.e. scoped enums where no operator<< overload was declared).
+template <typename T>
+inline typename std::enable_if<
+    !base::internal::SupportsOstreamOperator<const T&>::value &&
+        std::is_enum<T>::value,
+    void>::type
+MakeCheckOpValueString(std::ostream* os, const T& v) {
+  (*os) << static_cast<typename base::underlying_type<T>::type>(v);
+}
+
+// We need an explicit overload for std::nullptr_t.
+BASE_EXPORT void MakeCheckOpValueString(std::ostream* os, std::nullptr_t p);
 
 // Build the error message string.  This is separate from the "Impl"
 // function template because it is not performance critical and so can
@@ -520,7 +547,11 @@ class CheckOpResult {
 template<class t1, class t2>
 std::string* MakeCheckOpString(const t1& v1, const t2& v2, const char* names) {
   std::ostringstream ss;
-  ss << names << " (" << v1 << " vs. " << v2 << ")";
+  ss << names << " (";
+  MakeCheckOpValueString(&ss, v1);
+  ss << " vs. ";
+  MakeCheckOpValueString(&ss, v2);
+  ss << ")";
   std::string* msg = new std::string(ss.str());
   return msg;
 }
@@ -714,9 +745,10 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 // for example:
 //   DCHECK_EQ(string("abc")[1], 'b');
 //
-// WARNING: These may not compile correctly if one of the arguments is a pointer
-// and the other is NULL. To work around this, simply static_cast NULL to the
-// type of the desired pointer.
+// WARNING: These don't compile correctly if one of the arguments is a pointer
+// and the other is NULL.  In new code, prefer nullptr instead.  To
+// work around this for C++98, simply static_cast NULL to the type of the
+// desired pointer.
 
 #define DCHECK_EQ(val1, val2) DCHECK_OP(EQ, ==, val1, val2)
 #define DCHECK_NE(val1, val2) DCHECK_OP(NE, !=, val1, val2)

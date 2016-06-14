@@ -101,9 +101,7 @@ GURL::GURL(const char* canonical_spec,
 }
 
 GURL::GURL(std::string canonical_spec, const url::Parsed& parsed, bool is_valid)
-    : is_valid_(is_valid),
-      parsed_(parsed) {
-  spec_.swap(canonical_spec);
+    : spec_(std::move(canonical_spec)), is_valid_(is_valid), parsed_(parsed) {
   InitializeFromCanonicalSpec();
 }
 

@@ -29,9 +29,9 @@ namespace trace_event {
 // memory used for tracing and accuracy. Measurements done on a prototype
 // revealed that:
 //
-// - In 60 percent of the cases, stack depth <= 7.
-// - In 87 percent of the cases, stack depth <= 9.
-// - In 95 percent of the cases, stack depth <= 11.
+// - In 60 percent of the cases, pseudo stack depth <= 7.
+// - In 87 percent of the cases, pseudo stack depth <= 9.
+// - In 95 percent of the cases, pseudo stack depth <= 11.
 //
 // See the design doc (https://goo.gl/4s7v7b) for more details.
 
@@ -44,6 +44,7 @@ struct BASE_EXPORT StackFrame {
   enum class Type {
     TRACE_EVENT_NAME,   // const char* string
     THREAD_NAME,        // const char* thread name
+    PROGRAM_COUNTER,    // as returned by stack tracing (e.g. by StackTrace)
   };
 
   static StackFrame FromTraceEventName(const char* name) {
@@ -51,6 +52,9 @@ struct BASE_EXPORT StackFrame {
   }
   static StackFrame FromThreadName(const char* name) {
     return {Type::THREAD_NAME, name};
+  }
+  static StackFrame FromProgramCounter(const void* pc) {
+    return {Type::PROGRAM_COUNTER, pc};
   }
 
   Type type;
@@ -65,9 +69,9 @@ struct BASE_EXPORT Backtrace {
   Backtrace();
 
   // If the stack is higher than what can be stored here, the bottom frames
-  // (the ones closer to main()) are stored. Based on the data above, a depth
-  // of 12 captures the full stack in the vast majority of the cases.
-  enum { kMaxFrameCount = 12 };
+  // (the ones closer to main()) are stored. Depth of 12 is enough for most
+  // pseudo traces (see above), but not for native traces, where we need more.
+  enum { kMaxFrameCount = 24 };
   StackFrame frames[kMaxFrameCount];
   size_t frame_count;
 };

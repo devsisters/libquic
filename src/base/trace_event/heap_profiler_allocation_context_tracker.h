@@ -9,6 +9,7 @@
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
+#include "base/debug/stack_trace.h"
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/trace_event/heap_profiler_allocation_context.h"
@@ -23,24 +24,30 @@ namespace trace_event {
 // details.
 class BASE_EXPORT AllocationContextTracker {
  public:
-  // Globally enables capturing allocation context.
-  // TODO(ruuda): Should this be replaced by |EnableCapturing| in the future?
-  // Or at least have something that guards agains enable -> disable -> enable?
-  static void SetCaptureEnabled(bool enabled);
+  enum class CaptureMode: int32_t {
+    DISABLED,       // Don't capture anything
+    PSEUDO_STACK,   // GetContextSnapshot() returns pseudo stack trace
+    NATIVE_STACK    // GetContextSnapshot() returns native (real) stack trace
+  };
 
-  // Returns whether capturing allocation context is enabled globally.
-  inline static bool capture_enabled() {
+  // Globally sets capturing mode.
+  // TODO(primiano): How to guard against *_STACK -> DISABLED -> *_STACK?
+  static void SetCaptureMode(CaptureMode mode);
+
+  // Returns global capturing mode.
+  inline static CaptureMode capture_mode() {
     // A little lag after heap profiling is enabled or disabled is fine, it is
     // more important that the check is as cheap as possible when capturing is
     // not enabled, so do not issue a memory barrier in the fast path.
-    if (subtle::NoBarrier_Load(&capture_enabled_) == 0)
-      return false;
+    if (subtle::NoBarrier_Load(&capture_mode_) ==
+            static_cast<int32_t>(CaptureMode::DISABLED))
+      return CaptureMode::DISABLED;
 
     // In the slow path, an acquire load is required to pair with the release
-    // store in |SetCaptureEnabled|. This is to ensure that the TLS slot for
+    // store in |SetCaptureMode|. This is to ensure that the TLS slot for
     // the thread-local allocation context tracker has been initialized if
-    // |capture_enabled| returns true.
-    return subtle::Acquire_Load(&capture_enabled_) != 0;
+    // |capture_mode| returns something other than DISABLED.
+    return static_cast<CaptureMode>(subtle::Acquire_Load(&capture_mode_));
   }
 
   // Returns the thread-local instance, creating one if necessary. Returns
@@ -80,7 +87,7 @@ class BASE_EXPORT AllocationContextTracker {
  private:
   AllocationContextTracker();
 
-  static subtle::Atomic32 capture_enabled_;
+  static subtle::Atomic32 capture_mode_;
 
   // The pseudo stack where frames are |TRACE_EVENT| names.
   std::vector<const char*> pseudo_stack_;

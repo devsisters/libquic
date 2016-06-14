@@ -34,14 +34,14 @@ HpackDecoder::~HpackDecoder() {}
 bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
                                                  size_t headers_data_length) {
   if (!header_block_started_) {
-    header_block_started_ = true;
     decoded_block_.clear();
     if (handler_ != nullptr) {
       handler_->OnHeaderBlockStart();
     }
   }
   size_t new_size = headers_block_buffer_.size() + headers_data_length;
-  if (new_size > kMaxDecodeBufferSize) {
+  if (max_decode_buffer_size_bytes_ > 0 &&
+      new_size > max_decode_buffer_size_bytes_) {
     return false;
   }
   headers_block_buffer_.insert(headers_block_buffer_.end(), headers_data,
@@ -51,6 +51,14 @@ bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
   // from buffer.
   HpackInputStream input_stream(max_string_literal_size_,
                                 headers_block_buffer_);
+
+  // If this is the start of the header block, process table size updates.
+  if (!header_block_started_) {
+    if (!DecodeAtMostTwoHeaderTableSizeUpdates(&input_stream)) {
+      return false;
+    }
+    input_stream.MarkCurrentPosition();
+  }
   while (input_stream.HasMoreData()) {
     if (!DecodeNextOpcodeWrapper(&input_stream)) {
       if (input_stream.NeedMoreData()) {
@@ -63,6 +71,7 @@ bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
   DCHECK_GE(headers_block_buffer_.size(), parsed_bytes);
   headers_block_buffer_.erase(0, parsed_bytes);
   total_parsed_bytes_ += parsed_bytes;
+  header_block_started_ = true;
   return true;
 }
 
@@ -152,10 +161,34 @@ bool HpackDecoder::DecodeNextOpcode(HpackInputStream* input_stream) {
   }
   // Implements 7.3: Header Table Size Update.
   if (input_stream->MatchPrefixAndConsume(kHeaderTableSizeUpdateOpcode)) {
-    return DecodeNextHeaderTableSizeUpdate(input_stream);
+    // Header table size updates cannot appear mid-block.
+    return false;
   }
   // Unrecognized opcode.
   return false;
+}
+
+// Process 0, 1, or 2 Table Size Updates.
+bool HpackDecoder::DecodeAtMostTwoHeaderTableSizeUpdates(
+    HpackInputStream* input_stream) {
+  // Implements 7.3: Header Table Size Update.
+  if (input_stream->HasMoreData() &&
+      input_stream->MatchPrefixAndConsume(kHeaderTableSizeUpdateOpcode)) {
+    // One table size update, decode it.
+    if (DecodeNextHeaderTableSizeUpdate(input_stream)) {
+      // Check for a second table size update.
+      if (input_stream->HasMoreData() &&
+          input_stream->MatchPrefixAndConsume(kHeaderTableSizeUpdateOpcode)) {
+        // Second update found, return the result of decode.
+        return DecodeNextHeaderTableSizeUpdate(input_stream);
+      }
+    } else {
+      // Decoding the first table size update failed.
+      return false;
+    }
+  }
+  // No table size updates in this block.
+  return true;
 }
 
 bool HpackDecoder::DecodeNextHeaderTableSizeUpdate(

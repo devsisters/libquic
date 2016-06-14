@@ -109,6 +109,10 @@ void QuicFlowController::MaybeIncreaseMaxWindowSize() {
   // upper bound).  For simplicity this algorithm is deliberately asymmetric, in
   // that it may increase window size but never decreases.
 
+  if (!FLAGS_quic_auto_tune_receive_window) {
+    return;
+  }
+
   // Keep track of timing between successive window updates.
   QuicTime now = connection_->clock()->ApproximateNow();
   QuicTime prev = prev_window_update_time_;

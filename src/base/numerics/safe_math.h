@@ -6,8 +6,11 @@
 #define BASE_NUMERICS_SAFE_MATH_H_
 
 #include <stddef.h>
+
+#include <limits>
 #include <type_traits>
 
+#include "base/logging.h"
 #include "base/numerics/safe_math_impl.h"
 
 namespace base {
@@ -45,6 +48,9 @@ namespace internal {
 //     Do stuff...
 template <typename T>
 class CheckedNumeric {
+  static_assert(std::is_arithmetic<T>::value,
+                "CheckedNumeric<T>: T must be a numeric type.");
+
  public:
   typedef T type;
 
@@ -62,7 +68,7 @@ class CheckedNumeric {
   // This is not an explicit constructor because we implicitly upgrade regular
   // numerics to CheckedNumerics to make them easier to use.
   template <typename Src>
-  CheckedNumeric(Src value)
+  CheckedNumeric(Src value)  // NOLINT(runtime/explicit)
       : state_(value) {
     static_assert(std::numeric_limits<Src>::is_specialized,
                   "Argument must be numeric.");
@@ -71,7 +77,7 @@ class CheckedNumeric {
   // This is not an explicit constructor because we want a seamless conversion
   // from StrictNumeric types.
   template <typename Src>
-  CheckedNumeric(StrictNumeric<Src> value)
+  CheckedNumeric(StrictNumeric<Src> value)  // NOLINT(runtime/explicit)
       : state_(static_cast<Src>(value)) {
   }
 
@@ -232,10 +238,9 @@ class CheckedNumeric {
           lhs.ValueUnsafe() OP rhs.ValueUnsafe(),                             \
           GetRangeConstraint(rhs.validity() | lhs.validity()));               \
     RangeConstraint validity = RANGE_VALID;                                   \
-    T result = static_cast<T>(Checked##NAME(                                  \
-        static_cast<Promotion>(lhs.ValueUnsafe()),                            \
-        static_cast<Promotion>(rhs.ValueUnsafe()),                            \
-        &validity));                                                          \
+    T result = static_cast<T>(                                                \
+        Checked##NAME(static_cast<Promotion>(lhs.ValueUnsafe()),              \
+                      static_cast<Promotion>(rhs.ValueUnsafe()), &validity)); \
     return CheckedNumeric<Promotion>(                                         \
         result,                                                               \
         GetRangeConstraint(validity | lhs.validity() | rhs.validity()));      \
@@ -261,7 +266,9 @@ class CheckedNumeric {
         OP CheckedNumeric<Promotion>::cast(rhs);                              \
   }                                                                           \
   /* Binary arithmetic operator for left CheckedNumeric and right numeric. */ \
-  template <typename T, typename Src>                                         \
+  template <typename T, typename Src,                                         \
+            typename std::enable_if<std::is_arithmetic<Src>::value>::type* =  \
+                nullptr>                                                      \
   CheckedNumeric<typename ArithmeticPromotion<T, Src>::type> operator OP(     \
       const CheckedNumeric<T>& lhs, Src rhs) {                                \
     typedef typename ArithmeticPromotion<T, Src>::type Promotion;             \
@@ -271,8 +278,10 @@ class CheckedNumeric {
     return CheckedNumeric<Promotion>::cast(lhs)                               \
         OP CheckedNumeric<Promotion>::cast(rhs);                              \
   }                                                                           \
-  /* Binary arithmetic operator for right numeric and left CheckedNumeric. */ \
-  template <typename T, typename Src>                                         \
+  /* Binary arithmetic operator for left numeric and right CheckedNumeric. */ \
+  template <typename T, typename Src,                                         \
+            typename std::enable_if<std::is_arithmetic<Src>::value>::type* =  \
+                nullptr>                                                      \
   CheckedNumeric<typename ArithmeticPromotion<T, Src>::type> operator OP(     \
       Src lhs, const CheckedNumeric<T>& rhs) {                                \
     typedef typename ArithmeticPromotion<T, Src>::type Promotion;             \
