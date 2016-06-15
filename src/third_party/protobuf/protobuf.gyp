@@ -25,47 +25,6 @@
             ],
           },
         }],
-        ['OS=="ios" and "<(GENERATOR)"=="xcode" and "<(GENERATOR_FLAVOR)"!="ninja"', {
-          'variables': {
-            'ninja_output_dir': 'ninja-protoc',
-            'ninja_product_dir':
-              '<(DEPTH)/xcodebuild/<(ninja_output_dir)/<(CONFIGURATION_NAME)',
-            # Gyp to rerun
-            're_run_targets': [
-              'third_party/protobuf/protobuf.gyp',
-            ],
-          },
-          'targets': [
-            {
-              # On iOS, generating protoc is done via two actions: (1) compiling
-              # the executable with ninja, and (2) copying the executable into a
-              # location that is shared with other projects. These actions are
-              # separated into two targets in order to be able to specify that the
-              # second action should not run until the first action finishes (since
-              # the ordering of multiple actions in one target is defined only by
-              # inputs and outputs, and it's impossible to set correct inputs for
-              # the ninja build, so setting all the inputs and outputs isn't an
-              # option). The first target is given here; the second target is the
-              # normal protoc target under the condition that "OS==iOS".
-              'target_name': 'compile_protoc',
-              'type': 'none',
-              'toolsets': ['host'],
-              'includes': ['../../build/ios/mac_build.gypi'],
-              'actions': [
-                {
-                  'action_name': 'compile protoc',
-                  'inputs': [],
-                  'outputs': [],
-                  'action': [
-                    '<@(ninja_cmd)',
-                    'protoc',
-                  ],
-                  'message': 'Generating the C++ protocol buffers compiler',
-                },
-              ],
-            },
-          ],
-        }],
       ],
       'targets': [
         # The "lite" lib is about 1/7th the size of the heavy lib,
@@ -451,42 +410,16 @@
         },
         {
           'target_name': 'protoc',
-          'conditions': [
-            ['OS!="ios" or "<(GENERATOR)"!="xcode" or "<(GENERATOR_FLAVOR)"=="ninja"', {
-              'type': 'executable',
-              'toolsets': ['host'],
-              'sources': [
-                "src/google/protobuf/compiler/main.cc",
-              ],
-              'dependencies': [
-                'protoc_lib',
-              ],
-              'include_dirs': [
-                'src',
-              ],
-            }, {  # else, OS=="ios" and "<(GENERATOR)"=="xcode" and "<(GENERATOR_FLAVOR)"!="ninja"
-              'type': 'none',
-              'toolsets': ['host'],
-              'dependencies': [
-                'compile_protoc',
-              ],
-              'actions': [
-                {
-                  'action_name': 'copy protoc',
-                  'inputs': [
-                    '<(ninja_product_dir)/protoc',
-                  ],
-                  'outputs': [
-                    '<(PRODUCT_DIR)/protoc',
-                  ],
-                  'action': [
-                    'cp',
-                    '<(ninja_product_dir)/protoc',
-                    '<(PRODUCT_DIR)/protoc',
-                  ],
-                },
-              ],
-            }],
+          'type': 'executable',
+          'toolsets': ['host'],
+          'sources': [
+            "src/google/protobuf/compiler/main.cc",
+          ],
+          'dependencies': [
+            'protoc_lib',
+          ],
+          'include_dirs': [
+            'src',
           ],
         },
         {

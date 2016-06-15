@@ -211,7 +211,7 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
 }
 
 // static
-Time Time::FromExploded(bool is_local, const Exploded& exploded) {
+bool Time::FromExploded(bool is_local, const Exploded& exploded, Time* time) {
   struct tm timestruct;
   timestruct.tm_sec    = exploded.second;
   timestruct.tm_min    = exploded.minute;
@@ -301,8 +301,26 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
   }
 
   // Adjust from Unix (1970) to Windows (1601) epoch.
-  return Time((milliseconds * kMicrosecondsPerMillisecond) +
-      kWindowsEpochDeltaMicroseconds);
+  base::Time converted_time =
+      Time((milliseconds * kMicrosecondsPerMillisecond) +
+           kWindowsEpochDeltaMicroseconds);
+
+  // If |exploded.day_of_month| is set to 31 on a 28-30 day month, it will
+  // return the first day of the next month. Thus round-trip the time and
+  // compare the initial |exploded| with |utc_to_exploded| time.
+  base::Time::Exploded to_exploded;
+  if (!is_local)
+    converted_time.UTCExplode(&to_exploded);
+  else
+    converted_time.LocalExplode(&to_exploded);
+
+  if (ExplodedMostlyEquals(to_exploded, exploded)) {
+    *time = converted_time;
+    return true;
+  }
+
+  *time = Time(0);
+  return false;
 }
 
 // TimeTicks ------------------------------------------------------------------

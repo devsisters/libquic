@@ -88,9 +88,10 @@ bool PacingSender::OnPacketSent(
     ideal_next_packet_send_time_ = QuicTime::Zero();
     return in_flight;
   }
-  // The next packet should be sent as soon as the current packets has been
-  // transferred.
-  QuicTime::Delta delay = PacingRate().TransferTime(bytes);
+  // The next packet should be sent as soon as the current packet has been
+  // transferred.  PacingRate is based on bytes in flight including this packet.
+  QuicTime::Delta delay =
+      PacingRate(bytes_in_flight + bytes).TransferTime(bytes);
   // If the last send was delayed, and the alarm took a long time to get
   // invoked, allow the connection to make up for lost time.
   if (was_last_send_delayed_) {
@@ -154,13 +155,13 @@ QuicTime::Delta PacingSender::TimeUntilSend(
   return QuicTime::Delta::Zero();
 }
 
-QuicBandwidth PacingSender::PacingRate() const {
+QuicBandwidth PacingSender::PacingRate(QuicByteCount bytes_in_flight) const {
   if (!max_pacing_rate_.IsZero()) {
     return QuicBandwidth::FromBitsPerSecond(
         min(max_pacing_rate_.ToBitsPerSecond(),
-            sender_->PacingRate().ToBitsPerSecond()));
+            sender_->PacingRate(bytes_in_flight).ToBitsPerSecond()));
   }
-  return sender_->PacingRate();
+  return sender_->PacingRate(bytes_in_flight);
 }
 
 QuicBandwidth PacingSender::BandwidthEstimate() const {

@@ -411,6 +411,19 @@ string QuicUtils::StringToHexASCIIDump(StringPiece in_buffer) {
   return s;
 }
 
+string QuicUtils::PeerAddressChangeTypeToString(PeerAddressChangeType type) {
+  switch (type) {
+    RETURN_STRING_LITERAL(NO_CHANGE);
+    RETURN_STRING_LITERAL(PORT_CHANGE);
+    RETURN_STRING_LITERAL(IPV4_SUBNET_CHANGE);
+    RETURN_STRING_LITERAL(IPV4_TO_IPV6_CHANGE);
+    RETURN_STRING_LITERAL(IPV6_TO_IPV4_CHANGE);
+    RETURN_STRING_LITERAL(IPV6_TO_IPV6_CHANGE);
+    RETURN_STRING_LITERAL(UNSPECIFIED_CHANGE);
+  }
+  return "INVALID_PEER_ADDRESS_CHANGE_TYPE";
+}
+
 // static
 void QuicUtils::DeleteFrames(QuicFrames* frames) {
   for (QuicFrame& frame : *frames) {

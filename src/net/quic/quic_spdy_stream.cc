@@ -30,8 +30,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session)
       headers_decompressed_(false),
       priority_(kDefaultPriority),
       trailers_decompressed_(false),
-      trailers_delivered_(false),
-      avoid_empty_nonfin_writes_(FLAGS_quic_avoid_empty_nonfin_writes) {
+      trailers_delivered_(false) {
   DCHECK_NE(kCryptoStreamId, id);
   // Don't receive any callbacks from the sequencer until headers
   // are complete.

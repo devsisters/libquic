@@ -29,7 +29,6 @@ class QuicPacketCreatorPeer;
 }
 
 class QuicRandom;
-class QuicRandomBoolSource;
 
 class NET_EXPORT_PRIVATE QuicPacketCreator {
  public:
@@ -230,6 +229,30 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
  private:
   friend class test::QuicPacketCreatorPeer;
 
+  // A QuicRandom wrapper that gets a bucket of entropy and distributes it
+  // bit-by-bit. Replenishes the bucket as needed. Not thread-safe. Expose this
+  // class if single bit randomness is needed elsewhere.
+  class QuicRandomBoolSource {
+   public:
+    // random: Source of entropy. Not owned.
+    explicit QuicRandomBoolSource(QuicRandom* random);
+
+    ~QuicRandomBoolSource();
+
+    // Returns the next random bit from the bucket.
+    bool RandBool();
+
+   private:
+    // Source of entropy.
+    QuicRandom* random_;
+    // Stored random bits.
+    uint64_t bit_bucket_;
+    // The next available bit has "1" in the mask. Zero means empty bucket.
+    uint64_t bit_mask_;
+
+    DISALLOW_COPY_AND_ASSIGN(QuicRandomBoolSource);
+  };
+
   static bool ShouldRetransmit(const QuicFrame& frame);
 
   // Converts a raw payload to a frame which fits into the current open
@@ -290,7 +313,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator {
   DebugDelegate* debug_delegate_;
   QuicFramer* framer_;
 
-  std::unique_ptr<QuicRandomBoolSource> random_bool_source_;
+  QuicRandomBoolSource random_bool_source_;
   QuicBufferAllocator* const buffer_allocator_;
 
   // Controls whether version should be included while serializing the packet.

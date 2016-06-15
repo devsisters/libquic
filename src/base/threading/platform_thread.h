@@ -180,6 +180,10 @@ class BASE_EXPORT PlatformThread {
   // |thread_handle|.
   static void Join(PlatformThreadHandle thread_handle);
 
+  // Detaches and releases the thread handle. The thread is no longer joinable
+  // and |thread_handle| is invalidated after this call.
+  static void Detach(PlatformThreadHandle thread_handle);
+
   // Toggles the current thread's priority at runtime. A thread may not be able
   // to raise its priority back up after lowering it if the process does not
   // have a proper permission, e.g. CAP_SYS_NICE on Linux. A thread may not be

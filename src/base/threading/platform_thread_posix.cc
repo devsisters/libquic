@@ -209,6 +209,11 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
   CHECK_EQ(0, pthread_join(thread_handle.platform_handle(), NULL));
 }
 
+// static
+void PlatformThread::Detach(PlatformThreadHandle thread_handle) {
+  CHECK_EQ(0, pthread_detach(thread_handle.platform_handle()));
+}
+
 // Mac has its own Set/GetCurrentThreadPriority() implementations.
 #if !defined(OS_MACOSX)
 

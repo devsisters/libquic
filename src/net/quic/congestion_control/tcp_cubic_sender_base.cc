@@ -26,6 +26,7 @@ namespace {
 const QuicByteCount kMaxBurstBytes = 3 * kDefaultTCPMSS;
 const float kRenoBeta = 0.7f;               // Reno backoff factor.
 const uint32_t kDefaultNumConnections = 2;  // N-connection emulation.
+const float kRateBasedExtraCwnd = 1.5f;     // CWND for rate based sending.
 }  // namespace
 
 TcpCubicSenderBase::TcpCubicSenderBase(const QuicClock* clock,
@@ -42,6 +43,7 @@ TcpCubicSenderBase::TcpCubicSenderBase(const QuicClock* clock,
       min4_mode_(false),
       last_cutback_exited_slowstart_(false),
       slow_start_large_reduction_(false),
+      rate_based_sending_(false),
       no_prr_(false) {}
 
 TcpCubicSenderBase::~TcpCubicSenderBase() {}
@@ -89,6 +91,12 @@ void TcpCubicSenderBase::SetFromConfig(const QuicConfig& config,
         ContainsQuicTag(config.ReceivedConnectionOptions(), kNPRR)) {
       // Use unity pacing instead of PRR.
       no_prr_ = true;
+    }
+    if (FLAGS_quic_rate_based_sending &&
+        config.HasReceivedConnectionOptions() &&
+        ContainsQuicTag(config.ReceivedConnectionOptions(), kRATE)) {
+      // Rate based sending experiment
+      rate_based_sending_ = true;
     }
   }
 }
@@ -195,10 +203,15 @@ QuicTime::Delta TcpCubicSenderBase::TimeUntilSend(
   if (min4_mode_ && bytes_in_flight < 4 * kDefaultTCPMSS) {
     return QuicTime::Delta::Zero();
   }
+  if (rate_based_sending_ &&
+      GetCongestionWindow() * kRateBasedExtraCwnd > bytes_in_flight) {
+    return QuicTime::Delta::Zero();
+  }
   return QuicTime::Delta::Infinite();
 }
 
-QuicBandwidth TcpCubicSenderBase::PacingRate() const {
+QuicBandwidth TcpCubicSenderBase::PacingRate(
+    QuicByteCount bytes_in_flight) const {
   // We pace at twice the rate of the underlying sender's bandwidth estimate
   // during slow start and 1.25x during congestion avoidance to ensure pacing
   // doesn't prevent us from filling the window.
@@ -208,6 +221,11 @@ QuicBandwidth TcpCubicSenderBase::PacingRate() const {
   }
   const QuicBandwidth bandwidth =
       QuicBandwidth::FromBytesAndTimeDelta(GetCongestionWindow(), srtt);
+  if (rate_based_sending_ && bytes_in_flight > GetCongestionWindow()) {
+    // Rate based sending allows sending more than CWND, but reduces the pacing
+    // rate when the bytes in flight is more than the CWND to 75% of bandwidth.
+    return bandwidth.Scale(0.75);
+  }
   return bandwidth.Scale(InSlowStart() ? 2
                                        : (no_prr_ && InRecovery() ? 1 : 1.25));
 }

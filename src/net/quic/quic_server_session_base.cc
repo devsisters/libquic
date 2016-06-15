@@ -202,6 +202,13 @@ QuicConnectionId QuicServerSessionBase::GenerateConnectionIdForReject(
   return helper_->GenerateConnectionIdForReject(connection_id);
 }
 
+bool QuicServerSessionBase::CanAcceptClientHello(
+    const CryptoHandshakeMessage& message,
+    string* error_details) {
+  return helper_->CanAcceptClientHello(message, connection()->self_address(),
+                                       error_details);
+}
+
 bool QuicServerSessionBase::ShouldCreateIncomingDynamicStream(QuicStreamId id) {
   if (!connection()->connected()) {
     QUIC_BUG << "ShouldCreateIncomingDynamicStream called when disconnected";

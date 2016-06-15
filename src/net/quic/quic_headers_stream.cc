@@ -172,6 +172,8 @@ class QuicHeadersStream::SpdyFramerVisitor
       return;
     }
 
+    // TODO(mpw): avoid down-conversion and plumb SpdyStreamPrecedence through
+    // QuicHeadersStream.
     SpdyPriority priority =
         has_priority ? Http2WeightToSpdy3Priority(weight) : 0;
     stream_->OnHeaders(stream_id, has_priority, priority, fin);

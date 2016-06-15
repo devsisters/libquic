@@ -85,7 +85,7 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
       QuicByteCount bytes_in_flight) const = 0;
 
   // The pacing rate of the send algorithm.  May be zero if the rate is unknown.
-  virtual QuicBandwidth PacingRate() const = 0;
+  virtual QuicBandwidth PacingRate(QuicByteCount bytes_in_flight) const = 0;
 
   // What's the current estimated bandwidth in bytes per second.
   // Returns 0 when it does not have an estimate.

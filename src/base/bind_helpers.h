@@ -170,6 +170,10 @@
 #include "build/build_config.h"
 
 namespace base {
+
+template <typename T>
+struct IsWeakReceiver;
+
 namespace internal {
 
 // Use the Substitution Failure Is Not An Error (SFINAE) trick to inspect T
@@ -459,15 +463,10 @@ T Unwrap(PassedWrapper<T>& o) {
 // The first argument should be the type of the object that will be received by
 // the method.
 template <bool IsMethod, typename... Args>
-struct IsWeakMethod : public std::false_type {};
+struct IsWeakMethod : std::false_type {};
 
 template <typename T, typename... Args>
-struct IsWeakMethod<true, WeakPtr<T>, Args...> : public std::true_type {};
-
-template <typename T, typename... Args>
-struct IsWeakMethod<true, ConstRefWrapper<WeakPtr<T>>, Args...>
-    : public std::true_type {};
-
+struct IsWeakMethod<true, T, Args...> : IsWeakReceiver<T> {};
 
 // Packs a list of types to hold them in a single type.
 template <typename... Types>
@@ -626,6 +625,26 @@ template<typename T>
 void DeletePointer(T* obj) {
   delete obj;
 }
+
+// An injection point to control |this| pointer behavior on a method invocation.
+// If IsWeakReceiver<> is true_type for |T| and |T| is used for a receiver of a
+// method, base::Bind cancels the method invocation if the receiver is tested as
+// false.
+// E.g. Foo::bar() is not called:
+//   struct Foo : base::SupportsWeakPtr<Foo> {
+//     void bar() {}
+//   };
+//
+//   WeakPtr<Foo> oo = nullptr;
+//   base::Bind(&Foo::bar, oo).Run();
+template <typename T>
+struct IsWeakReceiver : std::false_type {};
+
+template <typename T>
+struct IsWeakReceiver<internal::ConstRefWrapper<T>> : IsWeakReceiver<T> {};
+
+template <typename T>
+struct IsWeakReceiver<WeakPtr<T>> : std::true_type {};
 
 }  // namespace base
 

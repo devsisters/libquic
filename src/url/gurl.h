@@ -394,6 +394,10 @@ class URL_EXPORT GURL {
 
   // Returns the inner URL of a nested URL (currently only non-null for
   // filesystem URLs).
+  //
+  // TODO(mmenke): inner_url().spec() currently returns the same value as
+  // caling spec() on the GURL itself. This should be fixed.
+  // See https://crbug.com/619596
   const GURL* inner_url() const {
     return inner_url_.get();
   }

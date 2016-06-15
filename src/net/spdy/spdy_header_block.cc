@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/values.h"
+#include "net/base/arena.h"
 #include "net/http/http_log_util.h"
 
 using base::StringPiece;
@@ -24,84 +25,38 @@ using std::string;
 namespace net {
 namespace {
 
-// SpdyHeaderBlock::Storage uses a small initial block in case we only have a
-// minimal set of headers.
-const size_t kInitialStorageBlockSize = 512;
-
 // SpdyHeaderBlock::Storage allocates blocks of this size by default.
 const size_t kDefaultStorageBlockSize = 2048;
 
-// When copying a SpdyHeaderBlock, the new block will allocate at most this
-// much memory for the initial contiguous block.
-const size_t kMaxContiguousAllocation = 16 * 1024;
-
 }  // namespace
 
-// This class provides a backing store for StringPieces. It uses a sequence of
-// large, contiguous blocks. It has the property that StringPieces that refer
-// to data in Storage are never invalidated until the Storage is deleted.
+// This class provides a backing store for StringPieces. It previously used
+// custom allocation logic, but now uses an UnsafeArena instead. It has the
+// property that StringPieces that refer to data in Storage are never
+// invalidated until the Storage is deleted or Clear() is called.
 //
 // Write operations always append to the last block. If there is not enough
 // space to perform the write, a new block is allocated, and any unused space
 // is wasted.
 class SpdyHeaderBlock::Storage {
  public:
-  Storage() : bytes_used_(0) {}
+  Storage() : arena_(kDefaultStorageBlockSize) {}
   ~Storage() { Clear(); }
 
-  void Reserve(size_t additional_space) {
-    if (blocks_.empty()) {
-      AllocBlock(max(additional_space, kInitialStorageBlockSize));
-    } else {
-      const Block& last = blocks_.back();
-      if (last.size - last.used < additional_space) {
-        AllocBlock(max(additional_space, kDefaultStorageBlockSize));
-      }
-    }
-  }
-
   StringPiece Write(const StringPiece s) {
-    Reserve(s.size());
-    Block* last = &blocks_.back();
-    memcpy(last->data + last->used, s.data(), s.size());
-    StringPiece out(last->data + last->used, s.size());
-    VLOG(3) << "Write result: " << hex
-            << reinterpret_cast<const void*>(out.data()) << ", " << dec
-            << out.size();
-    last->used += s.size();
-    bytes_used_ += s.size();
-    return out;
+    return StringPiece(arena_.Memdup(s.data(), s.size()), s.size());
   }
 
-  void Clear() {
-    while (!blocks_.empty()) {
-      delete[] blocks_.back().data;
-      blocks_.pop_back();
-    }
-    bytes_used_ = 0;
+  // If |s| points to the most recent allocation from arena_, the arena will
+  // reclaim the memory. Otherwise, this method is a no-op.
+  void Rewind(const StringPiece s) {
+    arena_.Free(const_cast<char*>(s.data()), s.size());
   }
 
-  size_t BytesUsed() const { return bytes_used_; }
+  void Clear() { arena_.Reset(); }
 
  private:
-  // TODO(bnc): As soon as move semantics are allowed, change from naked pointer
-  // to std::unique_ptr<>, or better yet, unique_ptr<>.
-  struct Block {
-    char* data;
-    size_t size = 0;
-    size_t used = 0;
-
-    Block(char* data, size_t s) : data(data), size(s), used(0) {}
-  };
-
-  void AllocBlock(size_t size) {
-    blocks_.push_back(Block(new char[size], size));
-  }
-
-  std::vector<Block> blocks_;
-  size_t bytes_used_;
-
-  DISALLOW_COPY_AND_ASSIGN(Storage);
+  UnsafeArena arena_;
 };
 
 SpdyHeaderBlock::StringPieceProxy::StringPieceProxy(
@@ -112,12 +67,38 @@ SpdyHeaderBlock::StringPieceProxy::StringPieceProxy(
     : block_(block),
       storage_(storage),
       lookup_result_(lookup_result),
-      key_(key) {}
+      key_(key),
+      valid_(true) {}
 
-SpdyHeaderBlock::StringPieceProxy::StringPieceProxy(
-    const StringPieceProxy& other) = default;
+SpdyHeaderBlock::StringPieceProxy::StringPieceProxy(StringPieceProxy&& other)
+    : block_(other.block_),
+      storage_(other.storage_),
+      lookup_result_(other.lookup_result_),
+      key_(other.key_),
+      valid_(true) {
+  other.valid_ = false;
+}
 
-SpdyHeaderBlock::StringPieceProxy::~StringPieceProxy() {}
+SpdyHeaderBlock::StringPieceProxy& SpdyHeaderBlock::StringPieceProxy::operator=(
+    SpdyHeaderBlock::StringPieceProxy&& other) {
+  block_ = other.block_;
+  storage_ = other.storage_;
+  lookup_result_ = other.lookup_result_;
+  key_ = other.key_;
+  valid_ = true;
+  other.valid_ = false;
+  return *this;
+}
+
+SpdyHeaderBlock::StringPieceProxy::~StringPieceProxy() {
+  // If the StringPieceProxy is destroyed while lookup_result_ == block_->end(),
+  // the assignment operator was never used, and the block's Storage can
+  // reclaim the memory used by the key. This makes lookup-only access to
+  // SpdyHeaderBlock through operator[] memory-neutral.
+  if (valid_ && lookup_result_ == block_->end()) {
+    storage_->Rewind(key_);
+  }
+}
 
 SpdyHeaderBlock::StringPieceProxy& SpdyHeaderBlock::StringPieceProxy::operator=(
     const StringPiece value) {
@@ -137,15 +118,10 @@ SpdyHeaderBlock::StringPieceProxy::operator StringPiece() const {
                                            : lookup_result_->second;
 }
 
-void SpdyHeaderBlock::StringPieceProxy::reserve(size_t size) {
-  storage_->Reserve(size);
-}
-
 SpdyHeaderBlock::SpdyHeaderBlock() : storage_(new Storage) {}
 
 SpdyHeaderBlock::SpdyHeaderBlock(const SpdyHeaderBlock& other)
     : storage_(new Storage) {
-  storage_->Reserve(min(other.storage_->BytesUsed(), kMaxContiguousAllocation));
   for (auto iter : other) {
     AppendHeader(iter.first, iter.second);
   }
@@ -161,7 +137,6 @@ SpdyHeaderBlock::~SpdyHeaderBlock() {}
 
 SpdyHeaderBlock& SpdyHeaderBlock::operator=(const SpdyHeaderBlock& other) {
   clear();
-  storage_->Reserve(min(other.storage_->BytesUsed(), kMaxContiguousAllocation));
   for (auto iter : other) {
     AppendHeader(iter.first, iter.second);
   }

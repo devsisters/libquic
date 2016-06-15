@@ -71,6 +71,8 @@ class NET_EXPORT_PRIVATE QuicSentPacketManagerInterface {
   // Sets max pacing rate of the default path.
   virtual void SetMaxPacingRate(QuicBandwidth max_pacing_rate) = 0;
 
+  // Indicates the handshake has completed, so no handshake packets need to be
+  // retransmitted.
   virtual void SetHandshakeConfirmed() = 0;
 
   virtual void OnIncomingAck(const QuicAckFrame& ack_frame,

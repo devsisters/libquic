@@ -295,11 +295,7 @@ QuicServerConfigProtobuf* QuicCryptoServerConfig::GenerateConfig(
   } else {
     msg.SetTaglist(kKEXS, kC255, 0);
   }
-  if (FLAGS_quic_crypto_server_config_default_has_chacha20) {
-    msg.SetTaglist(kAEAD, kAESG, kCC20, 0);
-  } else {
-    msg.SetTaglist(kAEAD, kAESG, 0);
-  }
+  msg.SetTaglist(kAEAD, kAESG, kCC20, 0);
   msg.SetStringPiece(kPUBS, encoded_public_values);
 
   if (options.expiry_time.IsZero()) {
@@ -1047,10 +1043,6 @@ void QuicCryptoServerConfig::EvaluateClientHello(
   if (source_address_token_error != HANDSHAKE_OK) {
     info->reject_reasons.push_back(source_address_token_error);
     // No valid source address token.
-    if (FLAGS_use_early_return_when_verifying_chlo) {
-      helper.ValidationComplete(QUIC_NO_ERROR, "");
-      return;
-    }
     found_error = true;
   }
 
@@ -1080,10 +1072,6 @@ void QuicCryptoServerConfig::EvaluateClientHello(
     // Invalid client nonce.
     LOG(ERROR) << "Invalid client nonce: " << client_hello.DebugString();
     DVLOG(1) << "Invalid client nonce.";
-    if (FLAGS_use_early_return_when_verifying_chlo) {
-      helper.ValidationComplete(QUIC_NO_ERROR, "");
-      return;
-    }
     found_error = true;
   }
 

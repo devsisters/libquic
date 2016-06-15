@@ -317,13 +317,13 @@ template <>
 struct InvokeHelper<true, void> {
   template <typename Runnable, typename BoundWeakPtr, typename... RunArgs>
   static void MakeItSo(Runnable&& runnable,
-                       BoundWeakPtr weak_ptr,
+                       BoundWeakPtr&& weak_ptr,
                        RunArgs&&... args) {
-    if (!weak_ptr.get()) {
+    if (!weak_ptr) {
       return;
     }
     std::forward<Runnable>(runnable).Run(
-        weak_ptr.get(), std::forward<RunArgs>(args)...);
+        std::forward<BoundWeakPtr>(weak_ptr), std::forward<RunArgs>(args)...);
   }
 };
 

@@ -101,6 +101,9 @@ class NET_EXPORT_PRIVATE QuicUtils {
   // "0x0020:  7fe2 0800 6bcb 0bc6 806e                 ....k....n\n"
   static std::string StringToHexASCIIDump(base::StringPiece in_buffer);
 
+  // Returns PeerAddressChangeType as a std::string.
+  static std::string PeerAddressChangeTypeToString(PeerAddressChangeType type);
+
   static char* AsChars(unsigned char* data) {
     return reinterpret_cast<char*>(data);
   }

@@ -34,7 +34,7 @@ int64_t ComputeCurrentTicks() {
   struct timeval boottime;
   int mib[2] = {CTL_KERN, KERN_BOOTTIME};
   size_t size = sizeof(boottime);
-  int kr = sysctl(mib, arraysize(mib), &boottime, &size, NULL, 0);
+  int kr = sysctl(mib, arraysize(mib), &boottime, &size, nullptr, 0);
   DCHECK_EQ(KERN_SUCCESS, kr);
   base::TimeDelta time_difference = base::Time::Now() -
       (base::Time::FromTimeT(boottime.tv_sec) +
@@ -168,7 +168,7 @@ Time Time::NowFromSystemTime() {
 }
 
 // static
-Time Time::FromExploded(bool is_local, const Exploded& exploded) {
+bool Time::FromExploded(bool is_local, const Exploded& exploded, Time* time) {
   base::ScopedCFTypeRef<CFTimeZoneRef> time_zone(
       is_local
           ? CFTimeZoneCopySystem()
@@ -184,8 +184,28 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
       exploded.day_of_month, exploded.hour, exploded.minute, exploded.second,
       exploded.millisecond);
   CFAbsoluteTime seconds = absolute_time + kCFAbsoluteTimeIntervalSince1970;
-  return Time(static_cast<int64_t>(seconds * kMicrosecondsPerSecond) +
-              kWindowsEpochDeltaMicroseconds);
+
+  base::Time converted_time =
+      Time(static_cast<int64_t>(seconds * kMicrosecondsPerSecond) +
+           kWindowsEpochDeltaMicroseconds);
+
+  // If |exploded.day_of_month| is set to 31
+  // on a 28-30 day month, it will return the first day of the next month.
+  // Thus round-trip the time and compare the initial |exploded| with
+  // |utc_to_exploded| time.
+  base::Time::Exploded to_exploded;
+  if (!is_local)
+    converted_time.UTCExplode(&to_exploded);
+  else
+    converted_time.LocalExplode(&to_exploded);
+
+  if (ExplodedMostlyEquals(to_exploded, exploded)) {
+    *time = converted_time;
+    return true;
+  }
+
+  *time = Time(0);
+  return false;
 }
 
 void Time::Explode(bool is_local, Exploded* exploded) const {

@@ -52,7 +52,7 @@ bool FLAGS_quic_enable_multipath = false;
 bool FLAGS_quic_require_handshake_confirmation = false;
 
 // If true, Cubic's epoch is shifted when the sender is application-limited.
-bool FLAGS_shift_quic_cubic_epoch_when_app_limited = true;
+bool FLAGS_shift_quic_cubic_epoch_when_app_limited = false;
 
 // If true, QUIC will measure head of line (HOL) blocking due between
 // streams due to packet losses on the headers stream.  The
@@ -99,10 +99,6 @@ bool FLAGS_quic_no_lower_bw_resumption_limit = true;
 // the initial flight has been acked.
 bool FLAGS_quic_sslr_limit_reduction = true;
 
-// If true, QuicWriter avoids calling HttpWriter::Write with 0 bytes when
-// last_data == false.
-bool FLAGS_quic_avoid_empty_nonfin_writes = true;
-
 // If true, flow controller may grow the receive window size if necessary.
 bool FLAGS_quic_auto_tune_receive_window = true;
 
@@ -135,7 +131,7 @@ bool FLAGS_quic_use_old_public_reset_packets = true;
 
 // Ignore the peer's recieve buffer size and instead set max CWND based on the
 // amount of data the sender is willing to have in flight.
-bool FLAGS_quic_ignore_srbf = false;
+bool FLAGS_quic_ignore_srbf = true;
 
 // Allow the NPRR connection option which reduces QUIC\'s pacing rate during
 // recovery instead of PRR.
@@ -150,3 +146,20 @@ bool FLAGS_quic_use_optimized_write_path = true;
 // If true, the dispatcher is responsible for generating server designated
 // connection IDs.
 bool FLAGS_quic_dispatcher_creates_id = true;
+
+// If true, checks if the CHLO is acceptable as a matter of policy.
+bool FLAGS_quic_enable_chlo_policy = true;
+
+// If true, ignore QUIC data frames of length 0 for flow control.
+bool FLAGS_quic_ignore_zero_length_frames = true;
+
+// If true, replace ServerHelloNotifier with a check to see if a decrypted
+// packet is forward secure.
+bool FLAGS_quic_no_shlo_listener = true;
+
+// If true, queued retransmission packets, because of write blocked
+// socket, are always sent once the socket gets unblocked
+bool FLAGS_quic_always_write_queued_retransmissions = true;
+
+// Adds a RATE connection option to do rate based sending.
+bool FLAGS_quic_rate_based_sending = true;

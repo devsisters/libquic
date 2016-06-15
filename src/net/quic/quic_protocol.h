@@ -81,7 +81,7 @@ const QuicPacketCount kMinCongestionWindowForBandwidthResumption = 10;
 const QuicPacketCount kMaxTrackedPackets = 10000;
 
 // Default size of the socket receive buffer in bytes.
-const QuicByteCount kDefaultSocketReceiveBuffer = 256 * 1024;
+const QuicByteCount kDefaultSocketReceiveBuffer = 1024 * 1024;
 // Minimum size of the socket receive buffer in bytes.
 // Smaller values are ignored.
 const QuicByteCount kMinSocketReceiveBuffer = 16 * 1024;
@@ -865,10 +865,6 @@ struct NET_EXPORT_PRIVATE QuicStreamFrame {
 };
 static_assert(sizeof(QuicStreamFrame) <= 64,
               "Keep the QuicStreamFrame size to a cacheline.");
-// TODO(ianswett): Re-evaluate the trade-offs of hash_set vs set when framing
-// is finalized.
-typedef std::set<QuicPacketNumber> PacketNumberSet;
-typedef std::list<QuicPacketNumber> PacketNumberList;
 
 typedef std::vector<std::pair<QuicPacketNumber, QuicTime>> PacketTimeVector;
 
@@ -902,7 +898,6 @@ class NET_EXPORT_PRIVATE PacketNumberQueue {
                              const QuicPacketNumber*,
                              const QuicPacketNumber&> {
    public:
-    explicit const_iterator(PacketNumberSet::const_iterator set_iter);
     const_iterator(
         IntervalSet<QuicPacketNumber>::const_iterator interval_set_iter,
         QuicPacketNumber first,

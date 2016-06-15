@@ -21,6 +21,7 @@
 
 namespace base {
 
+class FilePath;
 class PersistentSampleMapRecords;
 class PersistentSparseHistogramDataManager;
 
@@ -254,7 +255,14 @@ class BASE_EXPORT PersistentHistogramAllocator {
   // StatisticsRecorder, updating the "logged" samples within the passed
   // object so that repeated merges are allowed. Don't call this on a "global"
   // allocator because histograms created there will already be in the SR.
-  void MergeHistogramToStatisticsRecorder(HistogramBase* histogram);
+  void MergeHistogramDeltaToStatisticsRecorder(HistogramBase* histogram);
+
+  // As above but merge the "final" delta. No update of "logged" samples is
+  // done which means it can operate on read-only objects. It's essential,
+  // however, not to call this more than once or those final samples will
+  // get recorded again.
+  void MergeHistogramFinalDeltaToStatisticsRecorder(
+      const HistogramBase* histogram);
 
   // Returns the object that manages the persistent-sample-map records for a
   // given |id|. Only one |user| of this data is allowed at a time. This does
@@ -340,6 +348,12 @@ class BASE_EXPORT PersistentHistogramAllocator {
   std::unique_ptr<HistogramBase> CreateHistogram(
       PersistentHistogramData* histogram_data_ptr);
 
+  // Gets or creates an object in the global StatisticsRecorder matching
+  // the |histogram| passed. Null is returned if one was not found and
+  // one could not be created.
+  HistogramBase* GetOrCreateStatisticsRecorderHistogram(
+      const HistogramBase* histogram);
+
   // Record the result of a histogram creation.
   static void RecordCreateHistogramResult(CreateHistogramResultType result);
 
@@ -377,6 +391,17 @@ class BASE_EXPORT GlobalHistogramAllocator
   // Create a global allocator using an internal block of memory of the
   // specified |size| taken from the heap.
   static void CreateWithLocalMemory(size_t size, uint64_t id, StringPiece name);
+
+#if !defined(OS_NACL)
+  // Create a global allocator by memory-mapping a |file|. If the file does
+  // not exist, it will be created with the specified |size|. If the file does
+  // exist, the allocator will use and add to its contents, ignoring the passed
+  // size in favor of the existing size.
+  static void CreateWithFile(const FilePath& file_path,
+                             size_t size,
+                             uint64_t id,
+                             StringPiece name);
+#endif
 
 #if 0
   // Create a global allocator using a block of shared |memory| of the

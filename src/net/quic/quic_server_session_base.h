@@ -65,6 +65,13 @@ class NET_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
     // be returned with a stateless reject.
     virtual QuicConnectionId GenerateConnectionIdForReject(
         QuicConnectionId connection_id) const = 0;
+
+    // Returns true if |message|, which was received on |self_address| is
+    // acceptable according to the visitor's policy. Otherwise, returns false
+    // and populates |error_details|.
+    virtual bool CanAcceptClientHello(const CryptoHandshakeMessage& message,
+                                      const IPEndPoint& self_address,
+                                      std::string* error_details) const = 0;
   };
 
   // |crypto_config| must outlive the session.
@@ -106,6 +113,10 @@ class NET_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
   // Delegates to the helper's GenerateConnectionIdForReject method.
   QuicConnectionId GenerateConnectionIdForReject(
       QuicConnectionId connection_id);
+
+  // Delegates to the helper's CanAcceptClientHello method.
+  bool CanAcceptClientHello(const CryptoHandshakeMessage& message,
+                            std::string* error_details);
 
  protected:
   // QuicSession methods(override them with return type of QuicSpdyStream*):

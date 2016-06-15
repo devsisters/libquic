@@ -50,6 +50,10 @@ class BASE_EXPORT SysInfo {
   // or -1 on failure.
   static int64_t AmountOfFreeDiskSpace(const FilePath& path);
 
+  // Return the total disk space in bytes on the volume containing |path|, or -1
+  // on failure.
+  static int64_t AmountOfTotalDiskSpace(const FilePath& path);
+
   // Returns system uptime.
   static TimeDelta Uptime();
 
@@ -92,12 +96,6 @@ class BASE_EXPORT SysInfo {
   // Return the smallest amount of memory (in bytes) which the VM system will
   // allocate.
   static size_t VMAllocationGranularity();
-
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
-  // Returns the maximum SysV shared memory segment size, or zero if there is no
-  // limit.
-  static uint64_t MaxSharedMemorySize();
-#endif  // defined(OS_POSIX) && !defined(OS_MACOSX)
 
 #if defined(OS_CHROMEOS)
   typedef std::map<std::string, std::string> LsbReleaseMap;

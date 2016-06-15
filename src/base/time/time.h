@@ -56,6 +56,7 @@
 #include <limits>
 
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
 #include "base/numerics/safe_math.h"
 #include "build/build_config.h"
 
@@ -311,6 +312,12 @@ class TimeBase {
   // Returns true if this object represents the maximum time.
   bool is_max() const { return us_ == std::numeric_limits<int64_t>::max(); }
 
+  // Returns the maximum time, which should be greater than any reasonable time
+  // with which we might compare it.
+  static TimeClass Max() {
+    return TimeClass(std::numeric_limits<int64_t>::max());
+  }
+
   // For serializing only. Use FromInternalValue() to reconstitute. Please don't
   // use this and do arithmetic on it, as it is more error prone than using the
   // provided operators.
@@ -438,10 +445,6 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   // times are increasing, or that two calls to Now() won't be the same.
   static Time Now();
 
-  // Returns the maximum time, which should be greater than any reasonable time
-  // with which we might compare it.
-  static Time Max();
-
   // Returns the current time. Same as Now() except that this function always
   // uses system time so that there are no discrepancies between the returned
   // time and system time even on virtual environments including our test bot.
@@ -519,11 +522,29 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
 
   // Converts an exploded structure representing either the local time or UTC
   // into a Time class.
+  // TODO(maksims): Get rid of these in favor of the methods below when
+  // all the callers stop using these ones.
   static Time FromUTCExploded(const Exploded& exploded) {
-    return FromExploded(false, exploded);
+    base::Time time;
+    ignore_result(FromUTCExploded(exploded, &time));
+    return time;
   }
   static Time FromLocalExploded(const Exploded& exploded) {
-    return FromExploded(true, exploded);
+    base::Time time;
+    ignore_result(FromLocalExploded(exploded, &time));
+    return time;
+  }
+
+  // Converts an exploded structure representing either the local time or UTC
+  // into a Time class. Returns false on a failure when, for example, a day of
+  // month is set to 31 on a 28-30 day month.
+  static bool FromUTCExploded(const Exploded& exploded,
+                              Time* time) WARN_UNUSED_RESULT {
+    return FromExploded(false, exploded, time);
+  }
+  static bool FromLocalExploded(const Exploded& exploded,
+                                Time* time) WARN_UNUSED_RESULT {
+    return FromExploded(true, exploded, time);
   }
 
   // Converts a string representation of time to a Time object.
@@ -564,8 +585,12 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   void Explode(bool is_local, Exploded* exploded) const;
 
   // Unexplodes a given time assuming the source is either local time
-  // |is_local = true| or UTC |is_local = false|.
-  static Time FromExploded(bool is_local, const Exploded& exploded);
+  // |is_local = true| or UTC |is_local = false|. Function returns false on
+  // failure and sets |time| to Time(0). Otherwise returns true and sets |time|
+  // to non-exploded time.
+  static bool FromExploded(bool is_local,
+                           const Exploded& exploded,
+                           Time* time) WARN_UNUSED_RESULT;
 
   // Converts a string representation of time to a Time object.
   // An example of a time string which is converted is as below:-
@@ -577,6 +602,9 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static bool FromStringInternal(const char* time_string,
                                  bool is_local,
                                  Time* parsed_time);
+
+  // Comparison does not consider |day_of_week| when doing the operation.
+  static bool ExplodedMostlyEquals(const Exploded& lhs, const Exploded& rhs);
 };
 
 // static

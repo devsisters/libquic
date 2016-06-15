@@ -43,6 +43,7 @@ bool HasFixedTag(const CryptoHandshakeMessage& message) {
 
 void ServerHelloNotifier::OnPacketAcked(int acked_bytes,
                                         QuicTime::Delta ack_delay_time) {
+  DCHECK(!FLAGS_quic_no_shlo_listener);
   // The SHLO is sent in one packet.
   server_stream_->OnServerHelloAcked();
 }
@@ -212,7 +213,9 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
   // HANDSHAKE_MODE in the sent packet manager.
   scoped_refptr<ServerHelloNotifier> server_hello_notifier(
       new ServerHelloNotifier(this));
-  SendHandshakeMessage(reply, server_hello_notifier.get());
+  SendHandshakeMessage(reply, FLAGS_quic_no_shlo_listener
+                                  ? nullptr
+                                  : server_hello_notifier.get());
 
   session()->connection()->SetEncrypter(
       ENCRYPTION_FORWARD_SECURE,
@@ -336,6 +339,13 @@ QuicErrorCode QuicCryptoServerStream::ProcessClientHello(
     CryptoHandshakeMessage* reply,
     DiversificationNonce* out_diversification_nonce,
     string* error_details) {
+  QuicServerSessionBase* session_base =
+      static_cast<QuicServerSessionBase*>(session());
+  if (FLAGS_quic_enable_chlo_policy &&
+      !session_base->CanAcceptClientHello(message, error_details)) {
+    return QUIC_HANDSHAKE_FAILED;
+  }
+
   if (!result.info.server_nonce.empty()) {
     ++num_handshake_messages_with_server_nonces_;
   }

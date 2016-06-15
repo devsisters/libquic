@@ -192,9 +192,6 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
   // use of the spdy_session_ member.
   void ClearSession();
 
-  // Latched value of --quic_avoid_empty_nonfin_writes.
-  bool avoid_empty_nonfin_writes() const { return avoid_empty_nonfin_writes_; }
-
  protected:
   // Called by OnStreamHeadersComplete depending on which type (initial or
   // trailing) headers are expected next.
@@ -243,8 +240,6 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
   std::string decompressed_trailers_;
   // The parsed trailers received from the peer.
   SpdyHeaderBlock received_trailers_;
-
-  bool avoid_empty_nonfin_writes_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicSpdyStream);
 };

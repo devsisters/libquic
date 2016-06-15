@@ -565,7 +565,8 @@ bool QuicSentPacketManager::OnPacketSent(
       << "Cannot send empty packets.";
 
   if (delegate_ == nullptr && original_packet_number != 0) {
-    if (!pending_retransmissions_.erase(original_packet_number)) {
+    if (!pending_retransmissions_.erase(original_packet_number) &&
+        !FLAGS_quic_always_write_queued_retransmissions) {
       QUIC_BUG << "Expected packet number to be in "
                << "pending_retransmissions_.  packet_number: "
                << original_packet_number;

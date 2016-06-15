@@ -25,39 +25,6 @@ using std::vector;
 
 namespace net {
 
-// A QuicRandom wrapper that gets a bucket of entropy and distributes it
-// bit-by-bit. Replenishes the bucket as needed. Not thread-safe. Expose this
-// class if single bit randomness is needed elsewhere.
-class QuicRandomBoolSource {
- public:
-  // random: Source of entropy. Not owned.
-  explicit QuicRandomBoolSource(QuicRandom* random)
-      : random_(random), bit_bucket_(0), bit_mask_(0) {}
-
-  ~QuicRandomBoolSource() {}
-
-  // Returns the next random bit from the bucket.
-  bool RandBool() {
-    if (bit_mask_ == 0) {
-      bit_bucket_ = random_->RandUint64();
-      bit_mask_ = 1;
-    }
-    bool result = ((bit_bucket_ & bit_mask_) != 0);
-    bit_mask_ <<= 1;
-    return result;
-  }
-
- private:
-  // Source of entropy.
-  QuicRandom* random_;
-  // Stored random bits.
-  uint64_t bit_bucket_;
-  // The next available bit has "1" in the mask. Zero means empty bucket.
-  uint64_t bit_mask_;
-
-  DISALLOW_COPY_AND_ASSIGN(QuicRandomBoolSource);
-};
-
 QuicPacketCreator::QuicPacketCreator(QuicConnectionId connection_id,
                                      QuicFramer* framer,
                                      QuicRandom* random_generator,
@@ -66,7 +33,7 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId connection_id,
     : delegate_(delegate),
       debug_delegate_(nullptr),
       framer_(framer),
-      random_bool_source_(new QuicRandomBoolSource(random_generator)),
+      random_bool_source_(random_generator),
       buffer_allocator_(buffer_allocator),
       send_version_in_packet_(framer->perspective() == Perspective::IS_CLIENT),
       send_path_id_in_packet_(false),
@@ -596,7 +563,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   header->path_id = packet_.path_id;
   header->packet_number = ++packet_.packet_number;
   header->public_header.packet_number_length = packet_.packet_number_length;
-  header->entropy_flag = random_bool_source_->RandBool();
+  header->entropy_flag = random_bool_source_.RandBool();
 }
 
 bool QuicPacketCreator::ShouldRetransmit(const QuicFrame& frame) {
@@ -708,6 +675,22 @@ void QuicPacketCreator::SetCurrentPath(
 bool QuicPacketCreator::IncludeNonceInPublicHeader() {
   return have_diversification_nonce_ &&
          packet_.encryption_level == ENCRYPTION_INITIAL;
+}
+
+QuicPacketCreator::QuicRandomBoolSource::QuicRandomBoolSource(
+    QuicRandom* random)
+    : random_(random), bit_bucket_(0), bit_mask_(0) {}
+
+QuicPacketCreator::QuicRandomBoolSource::~QuicRandomBoolSource() {}
+
+bool QuicPacketCreator::QuicRandomBoolSource::RandBool() {
+  if (bit_mask_ == 0) {
+    bit_bucket_ = random_->RandUint64();
+    bit_mask_ = 1;
+  }
+  bool result = ((bit_bucket_ & bit_mask_) != 0);
+  bit_mask_ <<= 1;
+  return result;
 }
 
 }  // namespace net

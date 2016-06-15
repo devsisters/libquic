@@ -382,7 +382,9 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
       case ACK_FRAME:
         if (quic_version_ <= QUIC_VERSION_33) {
           if (!AppendAckFrameAndTypeByte(header, *frame.ack_frame, &writer)) {
-            QUIC_BUG << "AppendAckFrameAndTypeByte failed";
+            QUIC_BUG << "AppendAckFrameAndTypeByte failed"
+                     << " header: " << header
+                     << " ack_fame: " << *frame.ack_frame;
             return 0;
           }
         } else {
@@ -2188,6 +2190,7 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicPacketHeader& header,
   type_byte |= kQuicFrameTypeAckMask;
 
   if (!writer->WriteUInt8(type_byte)) {
+    QUIC_BUG << "type byte failed";
     return false;
   }
 
@@ -2210,11 +2213,15 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicPacketHeader& header,
   }
 
   if (!writer->WriteUInt8(ack_entropy_hash)) {
+    QUIC_BUG << "hash failed.";
     return false;
   }
 
   if (!AppendPacketSequenceNumber(largest_observed_length, ack_largest_observed,
                                   writer)) {
+    QUIC_BUG << "AppendPacketSequenceNumber failed. "
+             << "largest_observed_length: " << largest_observed_length
+             << " ack_largest_observed: " << ack_largest_observed;
     return false;
   }
 
@@ -2225,12 +2232,14 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicPacketHeader& header,
   }
 
   if (!writer->WriteUFloat16(ack_delay_time_us)) {
+    QUIC_BUG << "ack delay time failed.";
     return false;
   }
 
   // Timestamp goes at the end of the required fields.
   if (!truncated) {
     if (!AppendTimestampToAckFrame(frame, writer)) {
+      QUIC_BUG << "AppendTimestampToAckFrame failed";
       return false;
     }
   }
@@ -2242,6 +2251,8 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicPacketHeader& header,
   const uint8_t num_missing_ranges =
       static_cast<uint8_t>(min(ack_info.nack_ranges.size(), max_num_ranges));
   if (!writer->WriteBytes(&num_missing_ranges, 1)) {
+    QUIC_BUG << "num_missing_ranges failed: "
+             << static_cast<uint32_t>(num_missing_ranges);
     return false;
   }
 
@@ -2253,10 +2264,15 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicPacketHeader& header,
         last_sequence_written - (ack_iter->first + ack_iter->second);
     if (!AppendPacketSequenceNumber(missing_packet_number_length, missing_delta,
                                     writer)) {
+      QUIC_BUG << "AppendPacketSequenceNumber failed: "
+               << "missing_packet_number_length: "
+               << missing_packet_number_length << " missing_delta "
+               << missing_delta;
       return false;
     }
     if (!AppendPacketSequenceNumber(PACKET_1BYTE_PACKET_NUMBER,
                                     ack_iter->second, writer)) {
+      QUIC_BUG << "AppendPacketSequenceNumber failed";
       return false;
     }
     // Subtract 1 so a missing_delta of 0 means an adjacent range.
@@ -2273,6 +2289,7 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicPacketHeader& header,
   // FEC is not supported.
   uint8_t num_revived_packets = 0;
   if (!writer->WriteBytes(&num_revived_packets, 1)) {
+    QUIC_BUG << "num_revived_packets failed: " << num_revived_packets;
     return false;
   }
 

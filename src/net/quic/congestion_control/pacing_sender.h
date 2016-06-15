@@ -59,7 +59,7 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
   void OnConnectionMigration() override;
   QuicTime::Delta TimeUntilSend(QuicTime now,
                                 QuicByteCount bytes_in_flight) const override;
-  QuicBandwidth PacingRate() const override;
+  QuicBandwidth PacingRate(QuicByteCount bytes_in_flight) const override;
   QuicBandwidth BandwidthEstimate() const override;
   QuicTime::Delta RetransmissionDelay() const override;
   QuicByteCount GetCongestionWindow() const override;

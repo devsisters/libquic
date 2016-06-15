@@ -161,6 +161,7 @@ set(
 	src/net/base/port_util.cc
 	src/net/base/url_util.cc
 	src/net/base/parse_number.cc
+	src/net/base/arena.cc
 
 	src/net/spdy/spdy_frame_reader.cc
 	src/net/spdy/spdy_frame_builder.cc
