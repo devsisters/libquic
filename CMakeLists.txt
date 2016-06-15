@@ -353,29 +353,39 @@ set(
 	src/net/quic/proto/source_address_token.proto
 )
 
-find_package(Protobuf REQUIRED)
+find_package(Protobuf 3)
 
-set(GENERATE_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+if(Protobuf_FOUND)
+	set(GENERATE_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
-foreach(FIL ${PROTO_SOURCES})
-	get_filename_component(ABS_FIL ${FIL} ABSOLUTE)
-	get_filename_component(ABS_PATH ${ABS_FIL} PATH)
-	get_filename_component(FIL_WE ${FIL} NAME_WE)
-	get_filename_component(DIRC ${FIL} DIRECTORY)
+	foreach(FIL ${PROTO_SOURCES})
+		get_filename_component(ABS_FIL ${FIL} ABSOLUTE)
+		get_filename_component(ABS_PATH ${ABS_FIL} PATH)
+		get_filename_component(FIL_WE ${FIL} NAME_WE)
+		get_filename_component(DIRC ${FIL} DIRECTORY)
 
-	list(APPEND PROTO_RESULTS "${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.cc")
-	list(APPEND PROTO_RESULTS "${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.h")
+		list(APPEND PROTO_RESULTS "${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.cc")
+		list(APPEND PROTO_RESULTS "${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.h")
 
-	add_custom_command(
-		OUTPUT
-		"${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.cc"
-		"${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.h"
-		COMMAND  ${PROTOBUF_PROTOC_EXECUTABLE}
-		ARGS --cpp_out ${GENERATE_ROOT}/${DIRC} -I${ABS_PATH} ${ABS_FIL}
-		DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC_EXECUTABLE}
-		VERBATIM )
+		add_custom_command(
+			OUTPUT
+			"${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.cc"
+			"${GENERATE_ROOT}/${DIRC}/${FIL_WE}.pb.h"
+			COMMAND  ${PROTOBUF_PROTOC_EXECUTABLE}
+			ARGS --cpp_out ${GENERATE_ROOT}/${DIRC} -I${ABS_PATH} ${ABS_FIL}
+			DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC_EXECUTABLE}
+			VERBATIM )
+	endforeach()
+else()
+	set(
+		PROTO_RESULTS
 
-endforeach()
+		src/net/quic/proto/cached_network_parameters.pb.cc
+		src/net/quic/proto/source_address_token.pb.cc
+	)
+
+	message("Cannot find protobuf")
+endif()
 
 set_source_files_properties(${PROTO_RESUTS} PROPERTIES GENERATED TRUE)
 
