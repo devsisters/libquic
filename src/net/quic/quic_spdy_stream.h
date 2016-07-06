@@ -120,7 +120,7 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
 
   // Writes the headers contained in |header_block| to the dedicated
   // headers stream.
-  virtual size_t WriteHeaders(const SpdyHeaderBlock& header_block,
+  virtual size_t WriteHeaders(SpdyHeaderBlock header_block,
                               bool fin,
                               QuicAckListenerInterface* ack_notifier_delegate);
 
@@ -131,7 +131,7 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
 
   // Writes the trailers contained in |trailer_block| to the dedicated
   // headers stream. Trailers will always have the FIN set.
-  virtual size_t WriteTrailers(const SpdyHeaderBlock& trailer_block,
+  virtual size_t WriteTrailers(SpdyHeaderBlock trailer_block,
                                QuicAckListenerInterface* ack_notifier_delegate);
 
   // Marks |bytes_consumed| of the headers data as consumed.
@@ -155,7 +155,8 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
 
   // Returns true if header contains a valid 3-digit status and parse the status
   // code to |status_code|.
-  bool ParseHeaderStatusCode(SpdyHeaderBlock* header, int* status_code) const;
+  bool ParseHeaderStatusCode(const SpdyHeaderBlock& header,
+                             int* status_code) const;
 
   // Returns true when all data has been read from the peer, including the fin.
   bool IsDoneReading() const;

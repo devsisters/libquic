@@ -8,8 +8,10 @@
 #include "build/build_config.h"
 
 #if defined(OS_POSIX)
+#include <errno.h>
 #include <unistd.h>
 
+#include "base/debug/alias.h"
 #include "base/posix/eintr_wrapper.h"
 #endif
 
@@ -27,7 +29,15 @@ void ScopedFDCloseTraits::Free(int fd) {
   // Chrome relies on being able to "drop" such access.
   // It's especially problematic on Linux with the setuid sandbox, where
   // a single open directory would bypass the entire security model.
-  PCHECK(0 == IGNORE_EINTR(close(fd)));
+  int ret = IGNORE_EINTR(close(fd));
+
+  // TODO(davidben): Remove this once it's been determined whether
+  // https://crbug.com/603354 is caused by EBADF or a network filesystem
+  // returning some other error.
+  int close_errno = errno;
+  base::debug::Alias(&close_errno);
+
+  PCHECK(0 == ret);
 }
 
 #endif  // OS_POSIX

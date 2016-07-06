@@ -21,7 +21,7 @@ QuicSpdySession::QuicSpdySession(QuicConnection* connection,
 QuicSpdySession::~QuicSpdySession() {
   // Set the streams' session pointers in closed and dynamic stream lists
   // to null to avoid subsequent use of this session.
-  for (auto const& stream : *closed_streams()) {
+  for (auto* stream : *closed_streams()) {
     static_cast<QuicSpdyStream*>(stream)->ClearSession();
   }
   for (auto const& kv : dynamic_streams()) {

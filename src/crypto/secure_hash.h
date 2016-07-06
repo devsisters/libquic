@@ -7,6 +7,8 @@
 
 #include <stddef.h>
 
+#include <memory>
+
 #include "base/macros.h"
 #include "crypto/crypto_export.h"
 
@@ -21,7 +23,7 @@ class CRYPTO_EXPORT SecureHash {
   };
   virtual ~SecureHash() {}
 
-  static SecureHash* Create(Algorithm type);
+  static std::unique_ptr<SecureHash> Create(Algorithm type);
 
   virtual void Update(const void* input, size_t len) = 0;
   virtual void Finish(void* output, size_t len) = 0;
@@ -30,7 +32,7 @@ class CRYPTO_EXPORT SecureHash {
   // Create a clone of this SecureHash. The returned clone and this both
   // represent the same hash state. But from this point on, calling
   // Update()/Finish() on either doesn't affect the state of the other.
-  virtual SecureHash* Clone() const = 0;
+  virtual std::unique_ptr<SecureHash> Clone() const = 0;
 
  protected:
   SecureHash() {}

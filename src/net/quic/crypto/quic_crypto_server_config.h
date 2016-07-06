@@ -247,6 +247,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // validate_chlo_result: Output from the asynchronous call to
   //     ValidateClientHello.  Contains the client hello message and
   //     information about it.
+  // reject_only: Only generate rejections, not server hello messages.
   // connection_id: the ConnectionId for the connection, which is used in key
   //     derivation.
   // server_ip: the IP address of the server. The IP address may be used for
@@ -273,6 +274,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // error_details: used to store a std::string describing any error.
   QuicErrorCode ProcessClientHello(
       const ValidateClientHelloResultCallback::Result& validate_chlo_result,
+      bool reject_only,
       QuicConnectionId connection_id,
       const IPAddress& server_ip,
       const IPEndPoint& client_address,

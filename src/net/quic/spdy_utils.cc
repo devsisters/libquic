@@ -53,8 +53,8 @@ bool SpdyUtils::ParseHeaders(const char* data,
         base::SplitString(content_length_header, base::StringPiece("\0", 1),
                           base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     for (const string& value : values) {
-      int new_value;
-      if (!base::StringToInt(value, &new_value) || new_value < 0) {
+      int64_t new_value;
+      if (!base::StringToInt64(value, &new_value) || new_value < 0) {
         return false;
       }
       if (*content_length < 0) {
@@ -145,8 +145,8 @@ bool SpdyUtils::CopyAndValidateHeaders(const QuicHeaderList& header_list,
         base::SplitString(content_length_header, base::StringPiece("\0", 1),
                           base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     for (const string& value : values) {
-      int new_value;
-      if (!base::StringToInt(value, &new_value) || new_value < 0) {
+      int64_t new_value;
+      if (!base::StringToInt64(value, &new_value) || new_value < 0) {
         DLOG(ERROR) << "Content length was either unparseable or negative.";
         return false;
       }

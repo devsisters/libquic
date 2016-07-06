@@ -69,6 +69,13 @@ class BASE_EXPORT CommandLine {
   // object and the behavior will be the same as Posix systems (only hyphens
   // begin switches, everything else will be an arg).
   static void set_slash_is_not_a_switch();
+
+  // Normally when the CommandLine singleton is initialized it gets the command
+  // line via the GetCommandLineW API and then uses the shell32 API
+  // CommandLineToArgvW to parse the command line and convert it back to
+  // argc and argv. Tests who don't want this dependency on shell32 and need
+  // to honor the arguments passed in should use this function.
+  static void InitUsingArgvForTesting(int argc, const char* const* argv);
 #endif
 
   // Initialize the current process CommandLine singleton. On Windows, ignores

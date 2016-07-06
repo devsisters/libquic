@@ -290,6 +290,15 @@ class NET_EXPORT_PRIVATE QuicConfig {
 
   uint32_t MaxStreamsPerConnection() const;
 
+  void SetMaxIncomingDynamicStreamsToSend(
+      uint32_t max_incoming_dynamic_streams);
+
+  uint32_t GetMaxIncomingDynamicStreamsToSend();
+
+  bool HasReceivedMaxIncomingDynamicStreams();
+
+  uint32_t ReceivedMaxIncomingDynamicStreams();
+
   void set_max_time_before_crypto_handshake(
       QuicTime::Delta max_time_before_crypto_handshake) {
     max_time_before_crypto_handshake_ = max_time_before_crypto_handshake;
@@ -410,7 +419,10 @@ class NET_EXPORT_PRIVATE QuicConfig {
   // Whether to use silent close.  Defaults to 0 (false) and is otherwise true.
   QuicNegotiableUint32 silent_close_;
   // Maximum number of streams that the connection can support.
+  // TODO(rjshade): Remove when removing QUIC_VERSION_34
   QuicNegotiableUint32 max_streams_per_connection_;
+  // Maximum number of incoming dynamic streams that the connection can support.
+  QuicFixedUint32 max_incoming_dynamic_streams_;
   // The number of bytes required for the connection ID.
   QuicFixedUint32 bytes_for_connection_id_;
   // Initial round trip time estimate in microseconds.

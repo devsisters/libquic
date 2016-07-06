@@ -37,6 +37,7 @@
 
 namespace base {
 
+class Environment;
 class Time;
 
 //-----------------------------------------------------------------------------
@@ -198,6 +199,11 @@ BASE_EXPORT bool GetPosixFilePermissions(const FilePath& path, int* mode);
 // Sets the permission of the given |path|. If |path| is symbolic link, sets
 // the permission of a file which the symlink points to.
 BASE_EXPORT bool SetPosixFilePermissions(const FilePath& path, int mode);
+
+// Returns true iff |executable| can be found in any directory specified by the
+// environment variable in |env|.
+BASE_EXPORT bool ExecutableExistsInPath(Environment* env,
+                                        const FilePath::StringType& executable);
 
 #endif  // OS_POSIX
 

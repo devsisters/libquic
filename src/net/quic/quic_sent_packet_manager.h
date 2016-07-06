@@ -391,6 +391,8 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager
   SendAlgorithmInterface::CongestionVector packets_lost_;
   // Largest newly acknowledged packet.
   QuicPacketNumber largest_newly_acked_;
+  // Largest packet in bytes ever acknowledged.
+  QuicPacketLength largest_mtu_acked_;
 
   // Set to true after the crypto handshake has successfully completed. After
   // this is true we no longer use HANDSHAKE_MODE, and further frames sent on

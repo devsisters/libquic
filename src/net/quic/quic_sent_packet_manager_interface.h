@@ -54,6 +54,9 @@ class NET_EXPORT_PRIVATE QuicSentPacketManagerInterface {
     // TODO(jri): With multipath, this method should probably have a path_id
     // parameter, and should maybe result in the path being marked as inactive.
     virtual void OnPathDegrading() = 0;
+
+    // Called when the Path MTU may have increased.
+    virtual void OnPathMtuIncreased(QuicPacketLength packet_size) = 0;
   };
 
   virtual ~QuicSentPacketManagerInterface() {}

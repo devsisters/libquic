@@ -197,6 +197,17 @@ void CommandLine::set_slash_is_not_a_switch() {
   DCHECK_EQ(wcscmp(kSwitchPrefixes[arraysize(kSwitchPrefixes) - 1], L"/"), 0);
   switch_prefix_count = arraysize(kSwitchPrefixes) - 1;
 }
+
+// static
+void CommandLine::InitUsingArgvForTesting(int argc, const char* const* argv) {
+  DCHECK(!current_process_commandline_);
+  current_process_commandline_ = new CommandLine(NO_PROGRAM);
+  // On Windows we need to convert the command line arguments to string16.
+  base::CommandLine::StringVector argv_vector;
+  for (int i = 0; i < argc; ++i)
+    argv_vector.push_back(UTF8ToUTF16(argv[i]));
+  current_process_commandline_->InitFromArgv(argv_vector);
+}
 #endif
 
 // static

@@ -66,10 +66,6 @@ class NET_EXPORT_PRIVATE CryptoHandshakeMessage {
 
   const QuicTagValueMap& tag_value_map() const { return tag_value_map_; }
 
-  // SetTaglist sets an element with the given tag to contain a list of tags,
-  // passed as varargs. The argument list must be terminated with a 0 element.
-  void SetTaglist(QuicTag tag, ...);
-
   void SetStringPiece(QuicTag tag, base::StringPiece value);
 
   // Erase removes a tag/value, if present, from the message.

@@ -1898,18 +1898,24 @@ bool QuicFramer::DecryptPayload(QuicDataReader* encrypted_reader,
       alternative_decrypter_->SetDiversificationNonce(
           *header.public_header.nonce);
     }
+    bool try_alternative_decryption = true;
     if (alternative_decrypter_level_ == ENCRYPTION_INITIAL) {
       if (perspective_ == Perspective::IS_CLIENT &&
           quic_version_ > QUIC_VERSION_32) {
-        DCHECK(header.public_header.nonce != nullptr);
+        if (header.public_header.nonce == nullptr) {
+          // Can not use INITIAL decryption without a diversification nonce.
+          try_alternative_decryption = false;
+        }
       } else {
         DCHECK(header.public_header.nonce == nullptr);
       }
     }
 
-    success = alternative_decrypter_->DecryptPacket(
-        header.path_id, header.packet_number, associated_data, encrypted,
-        decrypted_buffer, decrypted_length, buffer_length);
+    if (try_alternative_decryption) {
+      success = alternative_decrypter_->DecryptPacket(
+          header.path_id, header.packet_number, associated_data, encrypted,
+          decrypted_buffer, decrypted_length, buffer_length);
+    }
     if (success) {
       visitor_->OnDecryptedPacket(alternative_decrypter_level_);
       if (alternative_decrypter_latch_) {
@@ -2491,8 +2497,10 @@ bool QuicFramer::AppendStopWaitingFrame(const QuicPacketHeader& header,
   if (least_unacked_delta >> length_shift > 0) {
     QUIC_BUG << "packet_number_length "
              << header.public_header.packet_number_length
-             << " is too small for least_unacked_delta: "
-             << least_unacked_delta;
+             << " is too small for least_unacked_delta: " << least_unacked_delta
+             << " packet_number:" << header.packet_number
+             << " least_unacked:" << frame.least_unacked
+             << " version:" << quic_version_;
     return false;
   }
   if (!AppendPacketSequenceNumber(header.public_header.packet_number_length,

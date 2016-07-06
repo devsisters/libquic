@@ -541,6 +541,9 @@ EVENT_TYPE(SSL_WRITE_ERROR)
 //     "version_before": <SSL version before the fallback>,
 //     "version_after": <SSL version after the fallback>,
 //   }
+//
+// TODO(davidben): Remove this event and the corresponding log_view_painter.js
+// logic in M56.
 EVENT_TYPE(SSL_VERSION_FALLBACK)
 
 // An SSL connection needs to be retried with more cipher suites because the
@@ -631,7 +634,7 @@ EVENT_TYPE(SIGNED_CERTIFICATE_TIMESTAMPS_RECEIVED)
 //
 // Where each SCT is an object:
 // {
-//    "origin": <one of: "embedded_in_certificate", "tls_extension", "ocsp">,
+//    "origin": <one of: "Embedded in certificate", "tls_extension", "ocsp">,
 //    "version": <numeric version>,
 //    "log_id": <base64-encoded log id>,
 //    "timestamp": <numeric timestamp in milliseconds since the Unix epoch>,
@@ -2096,6 +2099,44 @@ EVENT_TYPE(SERVICE_WORKER_WAITING_FOR_REQUEST_BODY_BLOB)
 // Worker, because it had a request body with a blob that failed to be
 // constructed.
 EVENT_TYPE(SERVICE_WORKER_ERROR_REQUEST_BODY_BLOB_FAILED)
+
+// The start/end of dispatching a fetch event to a service worker. This includes
+// waiting for the worker to activate and starting the worker if neccessary.
+//
+// The BEGIN phase consists of the following parameters:
+// {
+//   "event_type": A string indicating the type of fetch event. Generally it is
+//   either a fetch or foreignfetch event; fetch events are additionally
+//   categorized by resource type.
+// }
+//
+// For the END phase, the following parameters are attached. No parameters are
+// attached when cancelled:
+// {
+//   "status": The ServiceWorkerStatusCode as a string.
+//   "has_response": True if the service worker provided a response to the fetch
+//   event. False means to fall back to network.
+// }
+EVENT_TYPE(SERVICE_WORKER_DISPATCH_FETCH_EVENT)
+
+// Measures the time waiting for a service worker to go from ACTIVATING to
+// ACTIVATED.
+EVENT_TYPE(SERVICE_WORKER_WAIT_FOR_ACTIVATION)
+
+// The start/end of starting a service worker.
+// For the END phase, the following parameters are attached:
+// {
+//   "status": The ServiceWorkerStatusCode as a string. Only present on failure.
+// }
+EVENT_TYPE(SERVICE_WORKER_START_WORKER)
+
+// The start/end of dispatching a fetch event to an activated, running service
+// worker.
+// For the END phase, the following parameters are attached:
+// {
+//   "status": The ServiceWorkerStatusCode as a string. Only present on failure.
+// }
+EVENT_TYPE(SERVICE_WORKER_FETCH_EVENT)
 
 // ------------------------------------------------------------------------
 // Global events

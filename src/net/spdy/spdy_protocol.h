@@ -725,7 +725,6 @@ class NET_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
   void SetHeader(base::StringPiece name, base::StringPiece value) {
     header_block_[name] = value;
   }
-  SpdyHeaderBlock* mutable_header_block() { return &header_block_; }
 
  protected:
   SpdyFrameWithHeaderBlockIR(SpdyStreamId stream_id,

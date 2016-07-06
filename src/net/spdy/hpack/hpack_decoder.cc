@@ -22,14 +22,22 @@ const char kCookieKey[] = "cookie";
 }  // namespace
 
 HpackDecoder::HpackDecoder()
-    : max_string_literal_size_(kDefaultMaxStringLiteralSize),
-      handler_(nullptr),
+    : handler_(nullptr),
       total_header_bytes_(0),
-      regular_header_seen_(false),
       header_block_started_(false),
       total_parsed_bytes_(0) {}
 
 HpackDecoder::~HpackDecoder() {}
+
+void HpackDecoder::ApplyHeaderTableSizeSetting(size_t size_setting) {
+  header_table_.SetSettingsHeaderTableSize(size_setting);
+}
+
+void HpackDecoder::HandleControlFrameHeadersStart(
+    SpdyHeadersHandlerInterface* handler) {
+  handler_ = handler;
+  total_header_bytes_ = 0;
+}
 
 bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
                                                  size_t headers_data_length) {
@@ -49,8 +57,7 @@ bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
 
   // Parse as many data in buffer as possible. And remove the parsed data
   // from buffer.
-  HpackInputStream input_stream(max_string_literal_size_,
-                                headers_block_buffer_);
+  HpackInputStream input_stream(headers_block_buffer_);
 
   // If this is the start of the header block, process table size updates.
   if (!header_block_started_) {
@@ -76,8 +83,6 @@ bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
 }
 
 bool HpackDecoder::HandleControlFrameHeadersComplete(size_t* compressed_len) {
-  regular_header_seen_ = false;
-
   if (compressed_len != nullptr) {
     *compressed_len = total_parsed_bytes_;
   }
@@ -98,20 +103,23 @@ bool HpackDecoder::HandleControlFrameHeadersComplete(size_t* compressed_len) {
   return true;
 }
 
+const SpdyHeaderBlock& HpackDecoder::decoded_block() {
+  return decoded_block_;
+}
+
+void HpackDecoder::SetHeaderTableDebugVisitor(
+    std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) {
+  header_table_.set_debug_visitor(std::move(visitor));
+}
+
+void HpackDecoder::set_max_decode_buffer_size_bytes(
+    size_t max_decode_buffer_size_bytes) {
+  max_decode_buffer_size_bytes_ = max_decode_buffer_size_bytes;
+}
+
 bool HpackDecoder::HandleHeaderRepresentation(StringPiece name,
                                               StringPiece value) {
   total_header_bytes_ += name.size() + value.size();
-
-  // Fail if pseudo-header follows regular header.
-  if (name.size() > 0) {
-    if (name[0] == kPseudoHeaderPrefix) {
-      if (regular_header_seen_) {
-        return false;
-      }
-    } else {
-      regular_header_seen_ = true;
-    }
-  }
 
   if (handler_ == nullptr) {
     auto it = decoded_block_.find(name);

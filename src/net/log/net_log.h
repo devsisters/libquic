@@ -132,12 +132,11 @@ class NET_EXPORT NetLog {
     EventPhase phase() const { return data_->phase; }
 
     // Serializes the specified event to a Value.  The Value also includes the
-    // current time.  Caller takes ownership of returned Value.  Takes in a time
-    // to allow back-dating entries.
-    base::Value* ToValue() const;
+    // current time.  Takes in a time to allow back-dating entries.
+    std::unique_ptr<base::Value> ToValue() const;
 
     // Returns the parameters as a Value.  Returns NULL if there are no
-    // parameters.  Caller takes ownership of returned Value.
+    // parameters.
     std::unique_ptr<base::Value> ParametersToValue() const;
 
    private:

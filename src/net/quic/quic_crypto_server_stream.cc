@@ -54,6 +54,26 @@ QuicCryptoServerStreamBase::QuicCryptoServerStreamBase(
     QuicServerSessionBase* session)
     : QuicCryptoStream(session) {}
 
+// TODO(jokulik): Once stateless rejects support is inherent in the version
+// number, this function will likely go away entirely.
+// static
+bool QuicCryptoServerStreamBase::DoesPeerSupportStatelessRejects(
+    const CryptoHandshakeMessage& message) {
+  const QuicTag* received_tags;
+  size_t received_tags_length;
+  QuicErrorCode error =
+      message.GetTaglist(kCOPT, &received_tags, &received_tags_length);
+  if (error != QUIC_NO_ERROR) {
+    return false;
+  }
+  for (size_t i = 0; i < received_tags_length; ++i) {
+    if (received_tags[i] == kSREJ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 QuicCryptoServerStream::QuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
@@ -220,7 +240,8 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
   session()->connection()->SetEncrypter(
       ENCRYPTION_FORWARD_SECURE,
       crypto_negotiated_params_.forward_secure_crypters.encrypter.release());
-  if (config->HasClientSentConnectionOption(kIPFS, Perspective::IS_SERVER)) {
+  if (FLAGS_quic_default_immediate_forward_secure !=
+      config->HasClientSentConnectionOption(kIPFS, Perspective::IS_SERVER)) {
     session()->connection()->SetDefaultEncryptionLevel(
         ENCRYPTION_FORWARD_SECURE);
   }
@@ -365,8 +386,9 @@ QuicErrorCode QuicCryptoServerStream::ProcessClientHello(
           ? GenerateConnectionIdForReject(connection->connection_id())
           : 0;
   return crypto_config_->ProcessClientHello(
-      result, connection->connection_id(), connection->self_address().address(),
-      connection->peer_address(), version(), connection->supported_versions(),
+      result, /*reject_only=*/false, connection->connection_id(),
+      connection->self_address().address(), connection->peer_address(),
+      version(), connection->supported_versions(),
       use_stateless_rejects_in_crypto_config, server_designated_connection_id,
       connection->clock(), connection->random_generator(),
       compressed_certs_cache_, &crypto_negotiated_params_, &crypto_proof_,
@@ -400,26 +422,6 @@ QuicConnectionId QuicCryptoServerStream::GenerateConnectionIdForReject(
     return session_base->GenerateConnectionIdForReject(connection_id);
   }
   return session()->connection()->random_generator()->RandUint64();
-}
-
-// TODO(jokulik): Once stateless rejects support is inherent in the version
-// number, this function will likely go away entirely.
-// static
-bool QuicCryptoServerStream::DoesPeerSupportStatelessRejects(
-    const CryptoHandshakeMessage& message) {
-  const QuicTag* received_tags;
-  size_t received_tags_length;
-  QuicErrorCode error =
-      message.GetTaglist(kCOPT, &received_tags, &received_tags_length);
-  if (error != QUIC_NO_ERROR) {
-    return false;
-  }
-  for (size_t i = 0; i < received_tags_length; ++i) {
-    if (received_tags[i] == kSREJ) {
-      return true;
-    }
-  }
-  return false;
 }
 
 }  // namespace net

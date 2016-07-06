@@ -304,7 +304,6 @@ char HpackHuffmanDecoder::CanonicalToSource(HuffmanWord canonical) {
 // TODO(jamessynge): Determine if that is worth it by adding some counters to
 // measure the distribution of string sizes seen in practice.
 bool HpackHuffmanDecoder::DecodeString(HpackInputStream* in,
-                                       size_t out_capacity,
                                        std::string* out) {
   out->clear();
 
@@ -369,14 +368,6 @@ bool HpackHuffmanDecoder::DecodeString(HpackInputStream* in,
         peeked_success = in->PeekBits(&bits_available, &bits);
       } while (peeked_success && bits_available < 32);
     } else {
-      if (out->size() == out_capacity) {
-        // This code would cause us to overflow |out_capacity|.
-        // TODO(jamessynge) Avoid this case by pre-allocating out based on
-        // scaling up the encoded size by 8/5 (shortest codes are 5 bits).
-        DLOG(WARNING) << "Output size too large: " << out_capacity;
-        return false;
-      }
-
       // Convert from the prefix code of length |code_length| to the
       // canonical symbol (i.e. where the input symbols (bytes) are ordered by
       // increasing code length and then by their increasing uint8 value).

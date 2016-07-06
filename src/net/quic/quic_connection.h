@@ -447,6 +447,11 @@ class NET_EXPORT_PRIVATE QuicConnection
   bool OnPathCloseFrame(const QuicPathCloseFrame& frame) override;
   void OnPacketComplete() override;
 
+  // QuicConnectionCloseDelegateInterface
+  void OnUnrecoverableError(QuicErrorCode error,
+                            const std::string& error_details,
+                            ConnectionCloseSource source) override;
+
   // QuicPacketGenerator::DelegateInterface
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
@@ -455,13 +460,11 @@ class NET_EXPORT_PRIVATE QuicConnection
 
   // QuicPacketCreator::DelegateInterface
   void OnSerializedPacket(SerializedPacket* packet) override;
-  void OnUnrecoverableError(QuicErrorCode error,
-                            const std::string& error_details,
-                            ConnectionCloseSource source) override;
 
   // QuicSentPacketManager::NetworkChangeVisitor
   void OnCongestionChange() override;
   void OnPathDegrading() override;
+  void OnPathMtuIncreased(QuicPacketLength packet_size) override;
 
   // Called by the crypto stream when the handshake completes. In the server's
   // case this is when the SHLO has been ACKed. Clients call this on receipt of

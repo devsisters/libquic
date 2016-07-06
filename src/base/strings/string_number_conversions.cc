@@ -12,10 +12,8 @@
 #include <limits>
 
 #include "base/logging.h"
-#include "base/numerics/safe_conversions.h"
 #include "base/numerics/safe_math.h"
 #include "base/scoped_clear_errno.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/third_party/dmg_fp/dmg_fp.h"
 
 namespace base {

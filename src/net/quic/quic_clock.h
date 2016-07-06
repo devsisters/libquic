@@ -31,6 +31,10 @@ class NET_EXPORT_PRIVATE QuicClock {
   // different clocks.
   virtual QuicWallTime WallNow() const;
 
+  // Converts |walltime| to a QuicTime relative to this clock's epoch.
+  virtual QuicTime ConvertWallTimeToQuicTime(
+      const QuicWallTime& walltime) const;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(QuicClock);
 };

@@ -5,6 +5,7 @@
 #ifndef NET_SPDY_WRITE_SCHEDULER_H_
 #define NET_SPDY_WRITE_SCHEDULER_H_
 
+#include <tuple>
 #include <vector>
 
 #include "net/spdy/spdy_protocol.h"
@@ -108,6 +109,14 @@ class NET_EXPORT_PRIVATE WriteScheduler {
   //
   // Preconditions: |HasReadyStreams() == true|
   virtual StreamIdType PopNextReadyStream() = 0;
+
+  // If the scheduler has any ready streams, returns the next scheduled
+  // ready stream and its priority, in the process transitioning the stream from
+  // ready to not ready.
+  //
+  // Preconditions: |HasReadyStreams() == true|
+  virtual std::tuple<StreamIdType, StreamPrecedenceType>
+  PopNextReadyStreamAndPrecedence() = 0;
 
   // Returns true if there's another stream ahead of the given stream in the
   // scheduling queue.  This function can be called to see if the given stream

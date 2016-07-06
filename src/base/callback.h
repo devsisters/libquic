@@ -345,14 +345,13 @@
 // please include "base/callback_forward.h" instead.
 
 namespace base {
-namespace internal {
-template <typename Runnable, typename RunType, typename... BoundArgsType>
-struct BindState;
-}  // namespace internal
 
 template <typename R, typename... Args, internal::CopyMode copy_mode>
 class Callback<R(Args...), copy_mode>
     : public internal::CallbackBase<copy_mode> {
+ private:
+  using PolymorphicInvoke = R (*)(internal::BindStateBase*, Args&&...);
+
  public:
   // MSVC 2013 doesn't support Type Alias of function types.
   // Revisit this after we update it to newer version.
@@ -360,16 +359,9 @@ class Callback<R(Args...), copy_mode>
 
   Callback() : internal::CallbackBase<copy_mode>(nullptr) {}
 
-  template <typename Runnable, typename BindRunType, typename... BoundArgs>
-  explicit Callback(
-      internal::BindState<Runnable, BindRunType, BoundArgs...>* bind_state)
+  Callback(internal::BindStateBase* bind_state,
+           PolymorphicInvoke invoke_func)
       : internal::CallbackBase<copy_mode>(bind_state) {
-    // Force the assignment to a local variable of PolymorphicInvoke
-    // so the compiler will typecheck that the passed in Run() method has
-    // the correct type.
-    PolymorphicInvoke invoke_func =
-        &internal::BindState<Runnable, BindRunType, BoundArgs...>
-            ::InvokerType::Run;
     using InvokeFuncStorage =
         typename internal::CallbackBase<copy_mode>::InvokeFuncStorage;
     this->polymorphic_invoke_ =
@@ -396,9 +388,6 @@ class Callback<R(Args...), copy_mode>
         reinterpret_cast<PolymorphicInvoke>(this->polymorphic_invoke_);
     return f(this->bind_state_.get(), std::forward<Args>(args)...);
   }
-
- private:
-  using PolymorphicInvoke = R (*)(internal::BindStateBase*, Args&&...);
 };
 
 }  // namespace base

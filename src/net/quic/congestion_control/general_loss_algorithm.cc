@@ -63,10 +63,8 @@ void GeneralLossAlgorithm::DetectLosses(
     largest_observed = largest_newly_acked;
   }
   loss_detection_timeout_ = QuicTime::Zero();
-  QuicTime::Delta max_rtt = QuicTime::Delta::Max(
-      FLAGS_quic_adaptive_loss_recovery ? rtt_stats.previous_srtt()
-                                        : rtt_stats.smoothed_rtt(),
-      rtt_stats.latest_rtt());
+  QuicTime::Delta max_rtt =
+      QuicTime::Delta::Max(rtt_stats.previous_srtt(), rtt_stats.latest_rtt());
   QuicTime::Delta loss_delay =
       QuicTime::Delta::Max(QuicTime::Delta::FromMilliseconds(kMinLossDelayMs),
                            max_rtt.Add(max_rtt >> reordering_shift_));

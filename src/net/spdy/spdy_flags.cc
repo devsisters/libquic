@@ -9,3 +9,7 @@ bool FLAGS_chromium_http2_flag_remove_hpack_decode_buffer_size_limit = true;
 
 // Use NestedSpdyFramerDecoder.
 bool FLAGS_use_nested_spdy_framer_decoder = false;
+
+// Enforce the limit we advertise on frame payload size with
+// GOAWAY_FRAME_SIZE_ERROR.
+bool FLAGS_chromium_http2_flag_enforce_max_frame_size = false;

@@ -83,11 +83,6 @@ class NET_EXPORT HttpUtil {
   // a fully RFC-2616-compliant header value validation.
   static bool IsValidHeaderValue(const std::string& value);
 
-  // Returns true if |value| is a valid HTTP header value according to
-  // RFC 7230 and doesn't contain CR or LF.
-  // i.e. returns true if |value| matches |*field-content| in RFC 7230.
-  static bool IsValidHeaderValueRFC7230(const base::StringPiece& value);
-
   // Strips all header lines from |headers| whose name matches
   // |headers_to_remove|. |headers_to_remove| is a list of null-terminated
   // lower-case header names, with array length |headers_to_remove_len|.

@@ -15,10 +15,8 @@ namespace net {
 using base::StringPiece;
 using std::string;
 
-HpackInputStream::HpackInputStream(uint32_t max_string_literal_size,
-                                   StringPiece buffer)
-    : max_string_literal_size_(max_string_literal_size),
-      buffer_(buffer),
+HpackInputStream::HpackInputStream(StringPiece buffer)
+    : buffer_(buffer),
       bit_offset_(0),
       parsed_bytes_(0),
       parsed_bytes_current_(0),
@@ -127,10 +125,6 @@ bool HpackInputStream::DecodeNextIdentityString(StringPiece* str) {
     return false;
   }
 
-  if (size > max_string_literal_size_) {
-    return false;
-  }
-
   if (size > buffer_.size()) {
     need_more_data_ = true;
     return false;
@@ -159,15 +153,11 @@ bool HpackInputStream::DecodeNextHuffmanString(string* str) {
     return false;
   }
 
-  HpackInputStream bounded_reader(max_string_literal_size_,
-                                  StringPiece(buffer_.data(), encoded_size));
+  HpackInputStream bounded_reader(StringPiece(buffer_.data(), encoded_size));
   buffer_.remove_prefix(encoded_size);
   parsed_bytes_current_ += encoded_size;
 
-  // DecodeString will not append more than |max_string_literal_size_| chars
-  // to |str|.
-  return HpackHuffmanDecoder::DecodeString(&bounded_reader,
-                                           max_string_literal_size_, str);
+  return HpackHuffmanDecoder::DecodeString(&bounded_reader, str);
 }
 
 bool HpackInputStream::PeekBits(size_t* peeked_count, uint32_t* out) const {

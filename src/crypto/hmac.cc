@@ -63,10 +63,10 @@ bool HMAC::Sign(const base::StringPiece& data,
   DCHECK(initialized_);
 
   ScopedOpenSSLSafeSizeBuffer<EVP_MAX_MD_SIZE> result(digest, digest_length);
-  return !!::HMAC(hash_alg_ == SHA1 ? EVP_sha1() : EVP_sha256(),
-                  key_.data(), key_.size(),
+  return !!::HMAC(hash_alg_ == SHA1 ? EVP_sha1() : EVP_sha256(), key_.data(),
+                  key_.size(),
                   reinterpret_cast<const unsigned char*>(data.data()),
-                  data.size(), result.safe_buffer(), NULL);
+                  data.size(), result.safe_buffer(), nullptr);
 }
 
 bool HMAC::Verify(const base::StringPiece& data,

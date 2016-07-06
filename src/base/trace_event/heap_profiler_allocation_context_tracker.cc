@@ -168,8 +168,8 @@ AllocationContext AllocationContextTracker::GetContextSnapshot() {
   CaptureMode mode = static_cast<CaptureMode>(
       subtle::NoBarrier_Load(&capture_mode_));
 
-  auto backtrace = std::begin(ctx.backtrace.frames);
-  auto backtrace_end = std::end(ctx.backtrace.frames);
+  auto* backtrace = std::begin(ctx.backtrace.frames);
+  auto* backtrace_end = std::end(ctx.backtrace.frames);
 
   if (!thread_name_) {
     // Ignore the string allocation made by GetAndLeakThreadName to avoid

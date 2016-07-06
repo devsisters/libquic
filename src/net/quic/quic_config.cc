@@ -408,7 +408,8 @@ QuicConfig::QuicConfig()
       connection_options_(kCOPT, PRESENCE_OPTIONAL),
       idle_connection_state_lifetime_seconds_(kICSL, PRESENCE_REQUIRED),
       silent_close_(kSCLS, PRESENCE_OPTIONAL),
-      max_streams_per_connection_(kMSPC, PRESENCE_REQUIRED),
+      max_streams_per_connection_(kMSPC, PRESENCE_OPTIONAL),
+      max_incoming_dynamic_streams_(kMIDS, PRESENCE_OPTIONAL),
       bytes_for_connection_id_(kTCID, PRESENCE_OPTIONAL),
       initial_round_trip_time_us_(kIRTT, PRESENCE_OPTIONAL),
       initial_stream_flow_control_window_bytes_(kSFCW, PRESENCE_OPTIONAL),
@@ -499,6 +500,23 @@ void QuicConfig::SetMaxStreamsPerConnection(size_t max_streams,
 
 uint32_t QuicConfig::MaxStreamsPerConnection() const {
   return max_streams_per_connection_.GetUint32();
+}
+
+void QuicConfig::SetMaxIncomingDynamicStreamsToSend(
+    uint32_t max_incoming_dynamic_streams) {
+  max_incoming_dynamic_streams_.SetSendValue(max_incoming_dynamic_streams);
+}
+
+uint32_t QuicConfig::GetMaxIncomingDynamicStreamsToSend() {
+  return max_incoming_dynamic_streams_.GetSendValue();
+}
+
+bool QuicConfig::HasReceivedMaxIncomingDynamicStreams() {
+  return max_incoming_dynamic_streams_.HasReceivedValue();
+}
+
+uint32_t QuicConfig::ReceivedMaxIncomingDynamicStreams() {
+  return max_incoming_dynamic_streams_.GetReceivedValue();
 }
 
 bool QuicConfig::HasSetBytesForConnectionIdToSend() const {
@@ -639,6 +657,7 @@ void QuicConfig::SetDefaults() {
   silent_close_.set(1, 0);
   SetMaxStreamsPerConnection(kDefaultMaxStreamsPerConnection,
                              kDefaultMaxStreamsPerConnection);
+  SetMaxIncomingDynamicStreamsToSend(kDefaultMaxStreamsPerConnection);
   max_time_before_crypto_handshake_ =
       QuicTime::Delta::FromSeconds(kMaxTimeForCryptoHandshakeSecs);
   max_idle_time_before_crypto_handshake_ =
@@ -653,6 +672,7 @@ void QuicConfig::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
   idle_connection_state_lifetime_seconds_.ToHandshakeMessage(out);
   silent_close_.ToHandshakeMessage(out);
   max_streams_per_connection_.ToHandshakeMessage(out);
+  max_incoming_dynamic_streams_.ToHandshakeMessage(out);
   bytes_for_connection_id_.ToHandshakeMessage(out);
   initial_round_trip_time_us_.ToHandshakeMessage(out);
   initial_stream_flow_control_window_bytes_.ToHandshakeMessage(out);
@@ -681,6 +701,10 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
   if (error == QUIC_NO_ERROR) {
     error = max_streams_per_connection_.ProcessPeerHello(peer_hello, hello_type,
                                                          error_details);
+  }
+  if (error == QUIC_NO_ERROR) {
+    error = max_incoming_dynamic_streams_.ProcessPeerHello(
+        peer_hello, hello_type, error_details);
   }
   if (error == QUIC_NO_ERROR) {
     error = bytes_for_connection_id_.ProcessPeerHello(peer_hello, hello_type,

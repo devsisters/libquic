@@ -27,4 +27,22 @@ QuicWallTime QuicClock::WallNow() const {
                                             1000);
 }
 
+QuicTime QuicClock::ConvertWallTimeToQuicTime(
+    const QuicWallTime& walltime) const {
+  //     ..........................
+  //     |            |           |
+  // unix epoch   |walltime|   WallNow()
+  //     ..........................
+  //            |     |           |
+  //     clock epoch  |         Now()
+  //               result
+  //
+  // result = Now() - (WallNow() - walltime)
+  return Now().Subtract(QuicTime::Delta::FromMicroseconds(
+      WallNow()
+          .Subtract(
+              QuicTime::Delta::FromMicroseconds(walltime.ToUNIXMicroseconds()))
+          .ToUNIXMicroseconds()));
+}
+
 }  // namespace net

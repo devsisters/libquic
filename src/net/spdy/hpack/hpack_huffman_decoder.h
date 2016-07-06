@@ -34,9 +34,8 @@ class NET_EXPORT_PRIVATE HpackHuffmanDecoder {
   // sufficient space in |*out| to hold decoded output.
   // DecodeString() halts when |in| runs out of input, in which case true is
   // returned. It also halts (returning false) if an invalid Huffman code
-  // prefix is read, or if |out_capacity| would otherwise be overflowed.
+  // prefix is read.
   static bool DecodeString(HpackInputStream* in,
-                           size_t out_capacity,
                            std::string* out);
 
  private:

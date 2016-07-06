@@ -27,16 +27,27 @@ base::Callback<Sig> ResetAndReturn(base::Callback<Sig>* cb) {
   return ret;
 }
 
-// ScopedClosureRunner is akin to scoped_ptr for Closures. It ensures that the
-// Closure is executed and deleted no matter how the current scope exits.
+// ScopedClosureRunner is akin to std::unique_ptr<> for Closures. It ensures
+// that the Closure is executed no matter how the current scope exits.
 class BASE_EXPORT ScopedClosureRunner {
  public:
   ScopedClosureRunner();
   explicit ScopedClosureRunner(const Closure& closure);
   ~ScopedClosureRunner();
 
+  ScopedClosureRunner(ScopedClosureRunner&& other);
+
+  // Calls the current closure if it's set and replaces it with the closure from
+  // |other|.
+  ScopedClosureRunner& operator=(ScopedClosureRunner&& other);
+
+  // Calls the current closure and resets it, so it wont be called again.
   void Reset();
+
+  // Calls the current closure and replaces it with the new one.
   void Reset(const Closure& closure);
+
+  // Releases the Closure without calling.
   Closure Release() WARN_UNUSED_RESULT;
 
  private:

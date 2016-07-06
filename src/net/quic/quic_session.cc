@@ -33,8 +33,8 @@ namespace net {
 QuicSession::QuicSession(QuicConnection* connection, const QuicConfig& config)
     : connection_(connection),
       config_(config),
-      max_open_outgoing_streams_(config_.MaxStreamsPerConnection()),
-      max_open_incoming_streams_(config_.MaxStreamsPerConnection()),
+      max_open_outgoing_streams_(kDefaultMaxStreamsPerConnection),
+      max_open_incoming_streams_(config_.GetMaxIncomingDynamicStreamsToSend()),
       next_outgoing_stream_id_(perspective() == Perspective::IS_SERVER ? 2 : 3),
       largest_peer_created_stream_id_(
           perspective() == Perspective::IS_SERVER ? 1 : 0),
@@ -393,7 +393,15 @@ bool QuicSession::IsCryptoHandshakeConfirmed() {
 void QuicSession::OnConfigNegotiated() {
   connection_->SetFromConfig(config_);
 
-  uint32_t max_streams = config_.MaxStreamsPerConnection();
+  const QuicVersion version = connection()->version();
+  uint32_t max_streams = 0;
+  if (version > QUIC_VERSION_34 &&
+      config_.HasReceivedMaxIncomingDynamicStreams()) {
+    max_streams = config_.ReceivedMaxIncomingDynamicStreams();
+  } else {
+    max_streams = config_.MaxStreamsPerConnection();
+  }
+  set_max_open_outgoing_streams(max_streams);
   if (!FLAGS_quic_enable_autotune_by_default &&
       perspective() == Perspective::IS_SERVER) {
     if (config_.HasReceivedConnectionOptions()) {
@@ -414,17 +422,25 @@ void QuicSession::OnConfigNegotiated() {
     }
   }
 
-  set_max_open_outgoing_streams(max_streams);
-
-  // A small number of additional incoming streams beyond the limit should be
-  // allowed. This helps avoid early connection termination when FIN/RSTs for
-  // old streams are lost or arrive out of order.
-  // Use a minimum number of additional streams, or a percentage increase,
-  // whichever is larger.
-  uint32_t max_incoming_streams =
-      max(max_streams + kMaxStreamsMinimumIncrement,
-          static_cast<uint32_t>(max_streams * kMaxStreamsMultiplier));
-  set_max_open_incoming_streams(max_incoming_streams);
+  if (version <= QUIC_VERSION_34) {
+    // A small number of additional incoming streams beyond the limit should be
+    // allowed. This helps avoid early connection termination when FIN/RSTs for
+    // old streams are lost or arrive out of order.
+    // Use a minimum number of additional streams, or a percentage increase,
+    // whichever is larger.
+    uint32_t max_incoming_streams =
+        max(max_streams + kMaxStreamsMinimumIncrement,
+            static_cast<uint32_t>(max_streams * kMaxStreamsMultiplier));
+    set_max_open_incoming_streams(max_incoming_streams);
+  } else {
+    uint32_t max_incoming_streams_to_send =
+        config_.GetMaxIncomingDynamicStreamsToSend();
+    uint32_t max_incoming_streams =
+        max(max_incoming_streams_to_send + kMaxStreamsMinimumIncrement,
+            static_cast<uint32_t>(max_incoming_streams_to_send *
+                                  kMaxStreamsMultiplier));
+    set_max_open_incoming_streams(max_incoming_streams);
+  }
 
   if (config_.HasReceivedInitialStreamFlowControlWindowBytes()) {
     // Streams which were created before the SHLO was received (0-RTT

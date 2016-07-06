@@ -13,8 +13,6 @@
 #if defined(OS_WIN)
 #include <io.h>
 #include <windows.h>
-#include "base/files/file_path.h"
-#include "base/files/file_util.h"
 typedef HANDLE FileHandle;
 typedef HANDLE MutexHandle;
 // Windows warns on using write().  It prefers _write().
@@ -289,13 +287,24 @@ bool InitializeLogFileHandle() {
                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                             OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (g_log_file == INVALID_HANDLE_VALUE || g_log_file == nullptr) {
+      // We are intentionally not using FilePath or FileUtil here to reduce the
+      // dependencies of the logging implementation. For e.g. FilePath and
+      // FileUtil depend on shell32 and user32.dll. This is not acceptable for
+      // some consumers of base logging like chrome_elf, etc.
+      // Please don't change the code below to use FilePath.
       // try the current directory
-      base::FilePath file_path;
-      if (!base::GetCurrentDirectory(&file_path))
+      wchar_t system_buffer[MAX_PATH];
+      system_buffer[0] = 0;
+      DWORD len = ::GetCurrentDirectory(arraysize(system_buffer),
+                                        system_buffer);
+      if (len == 0 || len > arraysize(system_buffer))
         return false;
 
-      *g_log_file_name = file_path.Append(
-          FILE_PATH_LITERAL("debug.log")).value();
+      *g_log_file_name = system_buffer;
+      // Append a trailing backslash if needed.
+      if (g_log_file_name->back() != L'\\')
+        *g_log_file_name += L"\\";
+      *g_log_file_name += L"debug.log";
 
       g_log_file = CreateFile(g_log_file_name->c_str(), FILE_APPEND_DATA,
                               FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,

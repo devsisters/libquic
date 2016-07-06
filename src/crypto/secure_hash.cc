@@ -9,6 +9,7 @@
 #include <stddef.h>
 
 #include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/pickle.h"
 #include "crypto/openssl_util.h"
 
@@ -40,8 +41,8 @@ class SecureHashSHA256 : public SecureHash {
     SHA256_Final(result.safe_buffer(), &ctx_);
   }
 
-  SecureHash* Clone() const override {
-    return new SecureHashSHA256(*this);
+  std::unique_ptr<SecureHash> Clone() const override {
+    return base::MakeUnique<SecureHashSHA256>(*this);
   }
 
   size_t GetHashLength() const override { return SHA256_DIGEST_LENGTH; }
@@ -52,13 +53,13 @@ class SecureHashSHA256 : public SecureHash {
 
 }  // namespace
 
-SecureHash* SecureHash::Create(Algorithm algorithm) {
+std::unique_ptr<SecureHash> SecureHash::Create(Algorithm algorithm) {
   switch (algorithm) {
     case SHA256:
-      return new SecureHashSHA256();
+      return base::MakeUnique<SecureHashSHA256>();
     default:
       NOTIMPLEMENTED();
-      return NULL;
+      return nullptr;
   }
 }
 

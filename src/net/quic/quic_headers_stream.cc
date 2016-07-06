@@ -8,6 +8,7 @@
 
 #include "base/macros.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "net/quic/quic_bug_tracker.h"
 #include "net/quic/quic_flags.h"
@@ -141,15 +142,32 @@ class QuicHeadersStream::SpdyFramerVisitor
   }
 
   void OnSetting(SpdySettingsIds id, uint8_t flags, uint32_t value) override {
-    CloseConnection("SPDY SETTINGS frame received.");
+    if (!FLAGS_quic_respect_http2_settings_frame) {
+      CloseConnection("SPDY SETTINGS frame received.");
+      return;
+    }
+    switch (id) {
+      case SETTINGS_HEADER_TABLE_SIZE:
+        stream_->UpdateHeaderEncoderTableSize(value);
+        break;
+      // TODO(fayang): Need to support SETTINGS_MAX_HEADER_LIST_SIZE when
+      // clients are actually sending it.
+      default:
+        CloseConnection("Unsupported field of HTTP/2 SETTINGS frame: " +
+                        base::IntToString(id));
+    }
   }
 
   void OnSettingsAck() override {
-    CloseConnection("SPDY SETTINGS frame received.");
+    if (!FLAGS_quic_respect_http2_settings_frame) {
+      CloseConnection("SPDY SETTINGS frame received.");
+    }
   }
 
   void OnSettingsEnd() override {
-    CloseConnection("SPDY SETTINGS frame received.");
+    if (!FLAGS_quic_respect_http2_settings_frame) {
+      CloseConnection("SPDY SETTINGS frame received.");
+    }
   }
 
   void OnPing(SpdyPingId unique_id, bool is_ack) override {
@@ -482,6 +500,10 @@ void QuicHeadersStream::SetHpackDecoderDebugVisitor(
   spdy_framer_.SetDecoderHeaderTableDebugVisitor(
       std::unique_ptr<HeaderTableDebugVisitor>(new HeaderTableDebugVisitor(
           session()->connection()->helper()->GetClock(), std::move(visitor))));
+}
+
+void QuicHeadersStream::UpdateHeaderEncoderTableSize(uint32_t value) {
+  spdy_framer_.UpdateHeaderEncoderTableSize(value);
 }
 
 }  // namespace net

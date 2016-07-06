@@ -8,16 +8,23 @@
 
 namespace base {
 
-ScopedClosureRunner::ScopedClosureRunner() {
-}
+ScopedClosureRunner::ScopedClosureRunner() {}
 
 ScopedClosureRunner::ScopedClosureRunner(const Closure& closure)
-    : closure_(closure) {
-}
+    : closure_(closure) {}
 
 ScopedClosureRunner::~ScopedClosureRunner() {
   if (!closure_.is_null())
     closure_.Run();
+}
+
+ScopedClosureRunner::ScopedClosureRunner(ScopedClosureRunner&& other)
+    : closure_(other.Release()) {}
+
+ScopedClosureRunner& ScopedClosureRunner::operator=(
+    ScopedClosureRunner&& other) {
+  Reset(other.Release());
+  return *this;
 }
 
 void ScopedClosureRunner::Reset() {

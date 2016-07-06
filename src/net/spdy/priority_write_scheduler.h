@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -152,6 +153,12 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   }
 
   StreamIdType PopNextReadyStream() override {
+    return std::get<0>(PopNextReadyStreamAndPrecedence());
+  }
+
+  // Returns the next ready stream and its precedence.
+  std::tuple<StreamIdType, StreamPrecedenceType>
+  PopNextReadyStreamAndPrecedence() override {
     for (SpdyPriority p = kV3HighestPriority; p <= kV3LowestPriority; ++p) {
       ReadyList& ready_list = priority_infos_[p].ready_list;
       if (!ready_list.empty()) {
@@ -161,11 +168,12 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
 
         DCHECK(stream_infos_.find(info->stream_id) != stream_infos_.end());
         info->ready = false;
-        return info->stream_id;
+        return std::make_tuple(info->stream_id,
+                               StreamPrecedenceType(info->priority));
       }
     }
     SPDY_BUG << "No ready streams available";
-    return 0;
+    return std::make_tuple(0, StreamPrecedenceType(kV3LowestPriority));
   }
 
   bool ShouldYield(StreamIdType stream_id) const override {

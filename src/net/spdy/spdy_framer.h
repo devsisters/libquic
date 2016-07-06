@@ -17,8 +17,10 @@
 #include "base/sys_byteorder.h"
 #include "net/base/net_export.h"
 #include "net/spdy/hpack/hpack_decoder.h"
+#include "net/spdy/hpack/hpack_decoder_interface.h"
 #include "net/spdy/hpack/hpack_encoder.h"
 #include "net/spdy/spdy_alt_svc_wire_format.h"
+#include "net/spdy/spdy_flags.h"
 #include "net/spdy/spdy_header_block.h"
 #include "net/spdy/spdy_headers_block_parser.h"
 #include "net/spdy/spdy_headers_handler_interface.h"
@@ -348,6 +350,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     SPDY_UNEXPECTED_FRAME,             // Frame received out of order.
     SPDY_INTERNAL_FRAMER_ERROR,        // SpdyFramer was used incorrectly.
     SPDY_INVALID_CONTROL_FRAME_SIZE,   // Control frame not sized to spec
+    SPDY_OVERSIZED_PAYLOAD,            // Payload size was too large
 
     LAST_ERROR,  // Must be the last entry in the enum.
   };
@@ -516,6 +519,10 @@ class NET_EXPORT_PRIVATE SpdyFramer {
         max_decode_buffer_size_bytes);
   }
 
+  void set_recv_frame_size_limit(size_t recv_frame_size_limit) {
+    recv_frame_size_limit_ = recv_frame_size_limit;
+  }
+
   void SetDecoderHeaderTableDebugVisitor(
       std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor);
 
@@ -650,14 +657,16 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Validates the frame header against the current protocol, e.g.
   // Frame type must be known, must specify a non-zero stream id.
   //
-  // is_control_frame: the control bit for SPDY3
-  // frame_type_field: the unparsed frame type octet(s)
+  // is_control_frame    : the control bit for SPDY3
+  // frame_type_field    : the unparsed frame type octet(s)
+  // payload_length_field: the stated length in octets of the frame payload
   //
   // For valid frames, returns the correct SpdyFrameType.
   // Otherwise returns a best guess at invalid frame type,
   // after setting the appropriate SpdyError.
   SpdyFrameType ValidateFrameHeader(bool is_control_frame,
-                                    int frame_type_field);
+                                    int frame_type_field,
+                                    size_t payload_length_field);
 
   // TODO(jgraettinger): To be removed with migration to
   // SpdyHeadersHandlerInterface.  Serializes the last-processed
@@ -682,7 +691,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
   // Get (and lazily initialize) the HPACK state.
   HpackEncoder* GetHpackEncoder();
-  HpackDecoder* GetHpackDecoder();
+  HpackDecoderInterface* GetHpackDecoder();
 
   size_t GetNumberRequiredContinuationFrames(size_t size);
 
@@ -748,6 +757,10 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // are part of the frame's payload, and not the frame's headers.
   size_t remaining_control_header_;
 
+  // The limit on HTTP/2 payload size as specified in the
+  // SETTINGS_MAX_FRAME_SIZE advertised to peer
+  size_t recv_frame_size_limit_ = kSpdyInitialFrameSizeLimit;
+
   CharBuffer current_frame_buffer_;
 
   // The type of the frame currently being read.
@@ -777,7 +790,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   std::unique_ptr<z_stream> header_decompressor_;
 
   std::unique_ptr<HpackEncoder> hpack_encoder_;
-  std::unique_ptr<HpackDecoder> hpack_decoder_;
+  std::unique_ptr<HpackDecoderInterface> hpack_decoder_;
 
   SpdyFramerVisitorInterface* visitor_;
   SpdyFramerDebugVisitorInterface* debug_visitor_;
@@ -823,6 +836,9 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // If true, then ProcessInput returns after processing a full frame,
   // rather than reading all available input.
   bool process_single_input_frame_ = false;
+
+  bool enforce_max_frame_size_ =
+      FLAGS_chromium_http2_flag_enforce_max_frame_size;
 };
 
 }  // namespace net

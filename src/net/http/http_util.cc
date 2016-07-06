@@ -353,24 +353,6 @@ bool HttpUtil::IsValidHeaderValue(const std::string& value) {
 }
 
 // static
-bool HttpUtil::IsValidHeaderValueRFC7230(const base::StringPiece& value) {
-  // This empty string is a valid header-value.
-  if (value.empty())
-    return true;
-
-  // Check leading/trailing whitespaces.
-  if (IsLWS(value[0]) || IsLWS(value[value.size() - 1]))
-    return false;
-
-  // Check each octet is |field-vchar|, |SP| or |HTAB|.
-  for (unsigned char c : value) {
-    if (c == 0x7F || (c < 0x20 && c != '\t'))
-      return false;
-  }
-  return true;
-}
-
-// static
 std::string HttpUtil::StripHeaders(const std::string& headers,
                                    const char* const headers_to_remove[],
                                    size_t headers_to_remove_len) {
@@ -910,7 +892,7 @@ bool HttpUtil::HeadersIterator::GetNext() {
       continue;
 
     TrimLWS(&name_begin_, &name_end_);
-    if (name_begin_ == name_end_)
+    if (!IsToken(name_begin_, name_end_))
       continue;  // skip malformed header
 
     values_begin_ = colon + 1;

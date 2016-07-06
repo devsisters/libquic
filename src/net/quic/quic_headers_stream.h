@@ -20,6 +20,10 @@ namespace net {
 
 class QuicSpdySession;
 
+namespace test {
+class QuicHeadersStreamPeer;
+}  // namespace test
+
 // Headers in QUIC are sent as HTTP/2 HEADERS or PUSH_PROMISE frames
 // over a reserved reliable stream with the id 3.  Each endpoint
 // (client and server) will allocate an instance of QuicHeadersStream
@@ -75,7 +79,19 @@ class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
   void SetHpackEncoderDebugVisitor(std::unique_ptr<HpackDebugVisitor> visitor);
   void SetHpackDecoderDebugVisitor(std::unique_ptr<HpackDebugVisitor> visitor);
 
+  // Sets the maximum size of the header compression table spdy_framer_ is
+  // willing to use to decode header blocks.
+  void UpdateHeaderEncoderTableSize(uint32_t value);
+
+  // Sets how much encoded data the hpack decoder of spdy_framer_ is willing to
+  // buffer.
+  void set_max_decode_buffer_size_bytes(size_t max_decode_buffer_size_bytes) {
+    spdy_framer_.set_max_decode_buffer_size_bytes(max_decode_buffer_size_bytes);
+  }
+
  private:
+  friend class test::QuicHeadersStreamPeer;
+
   class SpdyFramerVisitor;
 
   // The following methods are called by the SimpleVisitor.

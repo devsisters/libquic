@@ -33,18 +33,14 @@ class QuicRandom;
 class NET_EXPORT_PRIVATE QuicPacketCreator {
  public:
   // A delegate interface for further processing serialized packet.
-  class NET_EXPORT_PRIVATE DelegateInterface {
+  class NET_EXPORT_PRIVATE DelegateInterface
+      : public QuicConnectionCloseDelegateInterface {
    public:
-    virtual ~DelegateInterface() {}
+    ~DelegateInterface() override {}
     // Called when a packet is serialized. Delegate does not take the ownership
     // of |serialized_packet|, but takes ownership of any frames it removes
     // from |packet.retransmittable_frames|.
     virtual void OnSerializedPacket(SerializedPacket* serialized_packet) = 0;
-
-    // Called when an unrecoverable error is encountered.
-    virtual void OnUnrecoverableError(QuicErrorCode error,
-                                      const std::string& error_details,
-                                      ConnectionCloseSource source) = 0;
   };
 
   // Interface which gets callbacks from the QuicPacketCreator at interesting

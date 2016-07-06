@@ -288,7 +288,7 @@ void StatisticsRecorder::GetBucketRanges(
     return;
 
   for (const auto& entry : *ranges_) {
-    for (const auto& range_entry : *entry.second) {
+    for (auto* range_entry : *entry.second) {
       output->push_back(range_entry);
     }
   }

@@ -448,9 +448,9 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
   }
 
   if (disable_ecdsa_) {
-    out->SetTaglist(kPDMD, kX59R, 0);
+    out->SetVector(kPDMD, QuicTagVector{kX59R});
   } else {
-    out->SetTaglist(kPDMD, kX509, 0);
+    out->SetVector(kPDMD, QuicTagVector{kX509});
   }
 
   if (common_cert_sets) {
@@ -541,8 +541,8 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     *error_details = "Unsupported AEAD or KEXS";
     return QUIC_CRYPTO_NO_SUPPORT;
   }
-  out->SetTaglist(kAEAD, out_params->aead, 0);
-  out->SetTaglist(kKEXS, out_params->key_exchange, 0);
+  out->SetVector(kAEAD, QuicTagVector{out_params->aead});
+  out->SetVector(kKEXS, QuicTagVector{out_params->key_exchange});
 
   if (!tb_key_params.empty()) {
     const QuicTag* their_tbkps;
@@ -555,7 +555,8 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
                                      num_their_tbkps, QuicUtils::LOCAL_PRIORITY,
                                      &out_params->token_binding_key_param,
                                      nullptr)) {
-          out->SetTaglist(kTBKP, out_params->token_binding_key_param, 0);
+          out->SetVector(kTBKP,
+                         QuicTagVector{out_params->token_binding_key_param});
         }
         break;
       default:

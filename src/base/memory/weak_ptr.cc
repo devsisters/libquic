@@ -34,13 +34,15 @@ WeakReference::Flag::~Flag() {
 WeakReference::WeakReference() {
 }
 
-WeakReference::WeakReference(const WeakReference& other) = default;
-
 WeakReference::WeakReference(const Flag* flag) : flag_(flag) {
 }
 
 WeakReference::~WeakReference() {
 }
+
+WeakReference::WeakReference(WeakReference&& other) = default;
+
+WeakReference::WeakReference(const WeakReference& other) = default;
 
 bool WeakReference::is_valid() const { return flag_.get() && flag_->IsValid(); }
 

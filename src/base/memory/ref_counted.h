@@ -111,7 +111,7 @@ class BASE_EXPORT RefCountedThreadSafeBase {
 
 //
 // A base class for reference counted classes.  Otherwise, known as a cheap
-// knock-off of WebKit's RefCounted<T> class.  To use this guy just extend your
+// knock-off of WebKit's RefCounted<T> class.  To use this, just extend your
 // class from it like so:
 //
 //   class MyFoo : public base::RefCounted<MyFoo> {

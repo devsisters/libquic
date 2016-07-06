@@ -74,10 +74,12 @@
 #define gzread MOZ_Z_gzread
 #define gzwrite MOZ_Z_gzwrite
 #define gzprintf MOZ_Z_gzprintf
+#define gzvprintf MOZ_Z_gzvprintf
 #define gzputs MOZ_Z_gzputs
 #define gzgets MOZ_Z_gzgets
 #define gzputc MOZ_Z_gzputc
 #define gzgetc MOZ_Z_gzgetc
+#define gzgetc_ MOZ_Z_gzgetc_
 #define gzungetc MOZ_Z_gzungetc
 #define gzflush MOZ_Z_gzflush
 #define gzseek MOZ_Z_gzseek
@@ -158,6 +160,13 @@
 #define voidpf MOZ_Z_voidpf
 #define gz_header_s MOZ_Z_gz_header_s
 #define internal_state MOZ_Z_internal_state
+
+/* New as of zlib 1.2.8 */
+#define deflateResetKeep MOZ_Z_deflateResetKeep
+#define deflatePending MOZ_Z_deflatePending
+#define inflateGetDictionary MOZ_Z_inflateGetDictionary
+#define inflateResetKeep MOZ_Z_inflateResetKeep
+#define gzopen_w MOZ_Z_gzopen_w
 
 /* Mangle Byte types except on Mac. */
 #if !defined(__MACTYPES__)

@@ -104,6 +104,20 @@ struct MakeIndexSequenceImpl<N, Ns...>
 
 #endif  // defined(OS_WIN) && defined(_PREFAST_)
 
+// std::get() in <=libstdc++-4.6 returns an lvalue-reference for
+// rvalue-reference of a tuple, where an rvalue-reference is expected.
+template <size_t I, typename... Ts>
+typename std::tuple_element<I, std::tuple<Ts...>>::type&& get(
+    std::tuple<Ts...>&& t) {
+  using ElemType = typename std::tuple_element<I, std::tuple<Ts...>>::type;
+  return std::forward<ElemType>(std::get<I>(t));
+}
+
+template <size_t I, typename T>
+auto get(T& t) -> decltype(std::get<I>(t)) {
+  return std::get<I>(t);
+}
+
 template <size_t N>
 using MakeIndexSequence = typename MakeIndexSequenceImpl<N>::Type;
 

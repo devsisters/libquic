@@ -182,7 +182,8 @@ class BASE_EXPORT BinaryValue: public Value {
   // For situations where you want to keep ownership of your buffer, this
   // factory method creates a new BinaryValue by copying the contents of the
   // buffer that's passed in.
-  static BinaryValue* CreateWithCopiedBuffer(const char* buffer, size_t size);
+  static std::unique_ptr<BinaryValue> CreateWithCopiedBuffer(const char* buffer,
+                                                             size_t size);
 
   size_t GetSize() const { return size_; }
 
