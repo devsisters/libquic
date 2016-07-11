@@ -443,6 +443,10 @@ class BASE_EXPORT GlobalHistogramAllocator
   // in order to persist the data for a later use.
   void SetPersistentLocation(const FilePath& location);
 
+  // Retrieves a previously set pathname to which the contents of this allocator
+  // are to be saved.
+  const FilePath& GetPersistentLocation() const;
+
   // Writes the internal data to a previously set location. This is generally
   // called when a process is exiting from a section of code that may not know
   // the filesystem. The data is written in an atomic manner. The return value

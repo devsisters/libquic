@@ -37,15 +37,15 @@ class BASE_EXPORT ScopedClosureRunner {
 
   ScopedClosureRunner(ScopedClosureRunner&& other);
 
-  // Calls the current closure if it's set and replaces it with the closure from
-  // |other|.
+  // Releases the current closure if it's set and replaces it with the closure
+  // from |other|.
   ScopedClosureRunner& operator=(ScopedClosureRunner&& other);
 
   // Calls the current closure and resets it, so it wont be called again.
-  void Reset();
+  void RunAndReset();
 
-  // Calls the current closure and replaces it with the new one.
-  void Reset(const Closure& closure);
+  // Replaces closure with the new one releasing the old one without calling it.
+  void ReplaceClosure(const Closure& closure);
 
   // Releases the Closure without calling.
   Closure Release() WARN_UNUSED_RESULT;

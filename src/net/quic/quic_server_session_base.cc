@@ -43,7 +43,7 @@ void QuicServerSessionBase::Initialize() {
 }
 
 void QuicServerSessionBase::OnConfigNegotiated() {
-  QuicSession::OnConfigNegotiated();
+  QuicSpdySession::OnConfigNegotiated();
 
   if (!config()->HasReceivedConnectionOptions()) {
     return;

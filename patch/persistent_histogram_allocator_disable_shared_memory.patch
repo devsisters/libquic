@@ -1,5 +1,5 @@
 diff --git a/src/base/metrics/persistent_histogram_allocator.cc b/src/base/metrics/persistent_histogram_allocator.cc
-index 6d790e1..6d43a68 100644
+index 51a3d6c..098893e 100644
 --- a/src/base/metrics/persistent_histogram_allocator.cc
 +++ b/src/base/metrics/persistent_histogram_allocator.cc
 @@ -7,9 +7,11 @@
@@ -30,7 +30,7 @@ index 6d790e1..6d43a68 100644
  
  // static
  void GlobalHistogramAllocator::Set(
-@@ -813,6 +817,7 @@ void GlobalHistogramAllocator::SetPersistentLocation(const FilePath& location) {
+@@ -817,6 +821,7 @@ const FilePath& GlobalHistogramAllocator::GetPersistentLocation() const {
  }
  
  bool GlobalHistogramAllocator::WriteToPersistentLocation() {
@@ -38,7 +38,7 @@ index 6d790e1..6d43a68 100644
  #if defined(OS_NACL)
    // NACL doesn't support file operations, including ImportantFileWriter.
    NOTREACHED();
-@@ -835,6 +840,10 @@ bool GlobalHistogramAllocator::WriteToPersistentLocation() {
+@@ -839,6 +844,10 @@ bool GlobalHistogramAllocator::WriteToPersistentLocation() {
  
    return true;
  #endif
@@ -50,7 +50,7 @@ index 6d790e1..6d43a68 100644
  
  GlobalHistogramAllocator::GlobalHistogramAllocator(
 diff --git a/src/base/metrics/persistent_histogram_allocator.h b/src/base/metrics/persistent_histogram_allocator.h
-index 5464da6..559a96a 100644
+index ee1fba5..aa712ec 100644
 --- a/src/base/metrics/persistent_histogram_allocator.h
 +++ b/src/base/metrics/persistent_histogram_allocator.h
 @@ -11,7 +11,9 @@

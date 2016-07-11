@@ -65,6 +65,15 @@ class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
                                   SpdyHeaderBlock headers,
                                   QuicAckListenerInterface* ack_listener);
 
+  // For forcing HOL blocking.  This encapsulates data from other
+  // streams into HTTP/2 data frames on the headers stream.
+  QuicConsumedData WritevStreamData(
+      QuicStreamId id,
+      QuicIOVector iov,
+      QuicStreamOffset offset,
+      bool fin,
+      QuicAckListenerInterface* ack_notifier_delegate);
+
   // ReliableQuicStream implementation
   void OnDataAvailable() override;
 
@@ -122,6 +131,12 @@ class NET_EXPORT_PRIVATE QuicHeadersStream : public ReliableQuicStream {
 
   // Called when the size of the compressed frame payload is available.
   void OnCompressedFrameSize(size_t frame_len);
+
+  // For force HOL blocking, where stream frames from all streams are
+  // plumbed through headers stream as HTTP/2 data frames.  Return false
+  // if force_hol_blocking_ is false;
+  bool OnDataFrameHeader(QuicStreamId stream_id, size_t length, bool fin);
+  bool OnStreamFrameData(QuicStreamId stream_id, const char* data, size_t len);
 
   // Returns true if the session is still connected.
   bool IsConnected();

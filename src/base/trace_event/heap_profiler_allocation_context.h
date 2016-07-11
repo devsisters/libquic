@@ -71,18 +71,20 @@ struct BASE_EXPORT Backtrace {
   // If the stack is higher than what can be stored here, the bottom frames
   // (the ones closer to main()) are stored. Depth of 12 is enough for most
   // pseudo traces (see above), but not for native traces, where we need more.
-  enum { kMaxFrameCount = 24 };
+  enum { kMaxFrameCount = 48 };
   StackFrame frames[kMaxFrameCount];
   size_t frame_count;
 };
 
 bool BASE_EXPORT operator==(const Backtrace& lhs, const Backtrace& rhs);
+bool BASE_EXPORT operator!=(const Backtrace& lhs, const Backtrace& rhs);
 
 // The |AllocationContext| is context metadata that is kept for every allocation
 // when heap profiling is enabled. To simplify memory management for book-
 // keeping, this struct has a fixed size.
 struct BASE_EXPORT AllocationContext {
   AllocationContext();
+  AllocationContext(const Backtrace& backtrace, const char* type_name);
 
   Backtrace backtrace;
 
@@ -94,6 +96,8 @@ struct BASE_EXPORT AllocationContext {
 };
 
 bool BASE_EXPORT operator==(const AllocationContext& lhs,
+                            const AllocationContext& rhs);
+bool BASE_EXPORT operator!=(const AllocationContext& lhs,
                             const AllocationContext& rhs);
 
 // Struct to store the size and count of the allocations.

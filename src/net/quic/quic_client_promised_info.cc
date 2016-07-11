@@ -56,11 +56,11 @@ void QuicClientPromisedInfo::OnPromiseHeaders(const SpdyHeaderBlock& headers) {
     Reset(QUIC_UNAUTHORIZED_PROMISE_URL);
     return;
   }
-  request_headers_.reset(new SpdyHeaderBlock(headers));
+  request_headers_.reset(new SpdyHeaderBlock(headers.Clone()));
 }
 
 void QuicClientPromisedInfo::OnResponseHeaders(const SpdyHeaderBlock& headers) {
-  response_headers_.reset(new SpdyHeaderBlock(headers));
+  response_headers_.reset(new SpdyHeaderBlock(headers.Clone()));
   if (client_request_delegate_) {
     // We already have a client request waiting.
     FinalValidation();
@@ -107,7 +107,7 @@ QuicAsyncStatus QuicClientPromisedInfo::HandleClientRequest(
     return QUIC_FAILURE;
   }
   client_request_delegate_ = delegate;
-  client_request_headers_.reset(new SpdyHeaderBlock(request_headers));
+  client_request_headers_.reset(new SpdyHeaderBlock(request_headers.Clone()));
   if (!response_headers_) {
     return QUIC_PENDING;
   }

@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 #include <ostream>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/callback.h"
@@ -57,7 +58,7 @@ void AtExitManager::RegisterTask(base::Closure task) {
 
   AutoLock lock(g_top_manager->lock_);
   DCHECK(!g_top_manager->processing_callbacks_);
-  g_top_manager->stack_.push(task);
+  g_top_manager->stack_.push(std::move(task));
 }
 
 // static

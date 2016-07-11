@@ -62,7 +62,7 @@ class MessagePumpMojo;
 }
 class SyncCallRestrictions;
 }
-namespace mus {
+namespace ui {
 class CommandBufferClientImpl;
 class CommandBufferLocal;
 class GpuState;
@@ -212,9 +212,9 @@ class BASE_EXPORT ThreadRestrictions {
   friend class android::JavaHandlerThread;
   friend class mojo::common::MessagePumpMojo;
   friend class mojo::SyncCallRestrictions;
-  friend class mus::CommandBufferClientImpl;
-  friend class mus::CommandBufferLocal;
-  friend class mus::GpuState;
+  friend class ui::CommandBufferClientImpl;
+  friend class ui::CommandBufferLocal;
+  friend class ui::GpuState;
 
   // END ALLOWED USAGE.
   // BEGIN USAGE THAT NEEDS TO BE FIXED.

@@ -191,6 +191,14 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
                               bool fin,
                               QuicAckListenerInterface* ack_listener);
 
+  // Allows override of the session level writev, for the force HOL
+  // blocking experiment.
+  virtual QuicConsumedData WritevDataInner(
+      QuicIOVector iov,
+      QuicStreamOffset offset,
+      bool fin,
+      QuicAckListenerInterface* ack_notifier_delegate);
+
   // Close the write side of the socket.  Further writes will fail.
   // Can be called by the subclass or internally.
   // Does not send a FIN.  May cause the stream to be closed.

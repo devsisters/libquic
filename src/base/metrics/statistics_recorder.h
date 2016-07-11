@@ -167,6 +167,12 @@ class BASE_EXPORT StatisticsRecorder {
   // Returns the number of known histograms.
   static size_t GetHistogramCount();
 
+  // Initializes logging histograms with --v=1. Safe to call multiple times.
+  // Is called from ctor but for browser it seems that it is more useful to
+  // start logging after statistics recorder, so we need to init log-on-shutdown
+  // later.
+  static void InitLogOnShutdown();
+
   // Removes a histogram from the internal set of known ones. This can be
   // necessary during testing persistent histograms where the underlying
   // memory is being released.
@@ -195,6 +201,7 @@ class BASE_EXPORT StatisticsRecorder {
   typedef std::map<uint32_t, std::list<const BucketRanges*>*> RangesMap;
 
   friend struct DefaultLazyInstanceTraits<StatisticsRecorder>;
+  friend class StatisticsRecorderTest;
 
   // Imports histograms from global persistent memory. The global lock must
   // not be held during this call.
@@ -205,12 +212,18 @@ class BASE_EXPORT StatisticsRecorder {
   // call the constructor to get a clean StatisticsRecorder.
   StatisticsRecorder();
 
+  // Initialize implementation but without lock. Caller should guard
+  // StatisticsRecorder by itself if needed (it isn't in unit tests).
+  void InitLogOnShutdownWithoutLock();
+
   // These are copies of everything that existed when the (test) Statistics-
   // Recorder was created. The global ones have to be moved aside to create a
   // clean environment.
   std::unique_ptr<HistogramMap> existing_histograms_;
   std::unique_ptr<CallbackMap> existing_callbacks_;
   std::unique_ptr<RangesMap> existing_ranges_;
+
+  bool vlog_initialized_ = false;
 
   static void Reset();
   static void DumpHistogramsToVlog(void* instance);

@@ -26,8 +26,6 @@ NET_EXPORT_PRIVATE extern bool FLAGS_quic_require_fix;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_supports_push_promise;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_supports_push_promise;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_cede_correctly;
-NET_EXPORT_PRIVATE extern bool
-    FLAGS_quic_crypto_server_config_default_has_chacha20;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_reply_to_rej;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_no_lower_bw_resumption_limit;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_sslr_limit_reduction;
@@ -54,5 +52,6 @@ NET_EXPORT_PRIVATE extern bool FLAGS_quic_respect_http2_settings_frame;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_no_mtu_discovery_ack_listener;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_simple_packet_number_length;
 NET_EXPORT_PRIVATE extern bool FLAGS_quic_enable_version_35;
+NET_EXPORT_PRIVATE extern bool FLAGS_quic_enable_version_36;
 
 #endif  // NET_QUIC_QUIC_FLAGS_H_

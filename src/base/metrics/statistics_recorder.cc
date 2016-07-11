@@ -338,6 +338,14 @@ StatisticsRecorder::HistogramIterator StatisticsRecorder::end() {
 }
 
 // static
+void StatisticsRecorder::InitLogOnShutdown() {
+  if (lock_ == nullptr)
+    return;
+  base::AutoLock auto_lock(*lock_);
+  g_statistics_recorder_.Get().InitLogOnShutdownWithoutLock();
+}
+
+// static
 void StatisticsRecorder::GetSnapshot(const std::string& query,
                                      Histograms* snapshot) {
   if (lock_ == NULL)
@@ -482,8 +490,14 @@ StatisticsRecorder::StatisticsRecorder() {
   callbacks_ = new CallbackMap;
   ranges_ = new RangesMap;
 
-  if (VLOG_IS_ON(1))
+  InitLogOnShutdownWithoutLock();
+}
+
+void StatisticsRecorder::InitLogOnShutdownWithoutLock() {
+  if (!vlog_initialized_ && VLOG_IS_ON(1)) {
+    vlog_initialized_ = true;
     AtExitManager::RegisterCallback(&DumpHistogramsToVlog, this);
+  }
 }
 
 // static

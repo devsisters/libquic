@@ -100,6 +100,14 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
 
   void OnConfigNegotiated() override;
 
+  // Called by |headers_stream_| when |force_hol_blocking_| is true.
+  virtual void OnStreamFrameData(QuicStreamId stream_id,
+                                 const char* data,
+                                 size_t len,
+                                 bool fin);
+
+  bool force_hol_blocking() const { return force_hol_blocking_; }
+
  protected:
   // Override CreateIncomingDynamicStream() and CreateOutgoingDynamicStream()
   // with QuicSpdyStream return type to make sure that all data streams are
@@ -120,6 +128,11 @@ class NET_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   friend class test::QuicSpdySessionPeer;
 
   std::unique_ptr<QuicHeadersStream> headers_stream_;
+
+  // If set, redirect all data through the headers stream in order to
+  // simulate forced HOL blocking between streams as happens in
+  // HTTP/2 over TCP.
+  bool force_hol_blocking_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicSpdySession);
 };

@@ -192,6 +192,10 @@ QuicVersionVector FilterSupportedVersions(QuicVersionVector versions) {
         if (FLAGS_quic_enable_version_35) {
           filtered_versions.push_back(version);
         }
+      } else if (version == QUIC_VERSION_36) {
+        if (FLAGS_quic_enable_version_35 && FLAGS_quic_enable_version_36) {
+          filtered_versions.push_back(version);
+        }
       } else {
         filtered_versions.push_back(version);
       }
@@ -224,6 +228,8 @@ QuicTag QuicVersionToQuicTag(const QuicVersion version) {
       return MakeQuicTag('Q', '0', '3', '4');
     case QUIC_VERSION_35:
       return MakeQuicTag('Q', '0', '3', '5');
+    case QUIC_VERSION_36:
+      return MakeQuicTag('Q', '0', '3', '6');
     default:
       // This shold be an ERROR because we should never attempt to convert an
       // invalid QuicVersion to be written to the wire.
@@ -261,6 +267,7 @@ string QuicVersionToString(const QuicVersion version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_33);
     RETURN_STRING_LITERAL(QUIC_VERSION_34);
     RETURN_STRING_LITERAL(QUIC_VERSION_35);
+    RETURN_STRING_LITERAL(QUIC_VERSION_36);
     default:
       return "QUIC_VERSION_UNSUPPORTED";
   }

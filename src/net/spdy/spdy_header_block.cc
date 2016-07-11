@@ -120,13 +120,6 @@ SpdyHeaderBlock::StringPieceProxy::operator StringPiece() const {
 
 SpdyHeaderBlock::SpdyHeaderBlock() : storage_(new Storage) {}
 
-SpdyHeaderBlock::SpdyHeaderBlock(const SpdyHeaderBlock& other)
-    : storage_(new Storage) {
-  for (auto iter : other) {
-    AppendHeader(iter.first, iter.second);
-  }
-}
-
 SpdyHeaderBlock::SpdyHeaderBlock(SpdyHeaderBlock&& other)
     : storage_(std::move(other.storage_)) {
   // |block_| is linked_hash_map, which does not have move constructor.
@@ -135,20 +128,20 @@ SpdyHeaderBlock::SpdyHeaderBlock(SpdyHeaderBlock&& other)
 
 SpdyHeaderBlock::~SpdyHeaderBlock() {}
 
-SpdyHeaderBlock& SpdyHeaderBlock::operator=(const SpdyHeaderBlock& other) {
-  clear();
-  for (auto iter : other) {
-    AppendHeader(iter.first, iter.second);
-  }
-  return *this;
-}
-
 SpdyHeaderBlock& SpdyHeaderBlock::operator=(SpdyHeaderBlock&& other) {
   storage_ = std::move(other.storage_);
   // |block_| is linked_hash_map, which does not have move assignment
   // operator.
   block_.swap(other.block_);
   return *this;
+}
+
+SpdyHeaderBlock SpdyHeaderBlock::Clone() const {
+  SpdyHeaderBlock copy;
+  for (auto iter : *this) {
+    copy.AppendHeader(iter.first, iter.second);
+  }
+  return copy;
 }
 
 bool SpdyHeaderBlock::operator==(const SpdyHeaderBlock& other) const {

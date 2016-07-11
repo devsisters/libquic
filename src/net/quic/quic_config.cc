@@ -417,7 +417,8 @@ QuicConfig::QuicConfig()
       socket_receive_buffer_(kSRBF, PRESENCE_OPTIONAL),
       multipath_enabled_(kMPTH, PRESENCE_OPTIONAL),
       connection_migration_disabled_(kNCMR, PRESENCE_OPTIONAL),
-      alternate_server_address_(kASAD, PRESENCE_OPTIONAL) {
+      alternate_server_address_(kASAD, PRESENCE_OPTIONAL),
+      force_hol_blocking_(kFHOL, PRESENCE_OPTIONAL) {
   SetDefaults();
 }
 
@@ -641,6 +642,18 @@ bool QuicConfig::HasReceivedAlternateServerAddress() const {
 
 const IPEndPoint& QuicConfig::ReceivedAlternateServerAddress() const {
   return alternate_server_address_.GetReceivedValue();
+}
+
+void QuicConfig::SetForceHolBlocking() {
+  force_hol_blocking_.SetSendValue(1);
+}
+
+bool QuicConfig::ForceHolBlocking(Perspective perspective) const {
+  if (perspective == Perspective::IS_SERVER) {
+    return force_hol_blocking_.HasReceivedValue();
+  } else {
+    return force_hol_blocking_.HasSendValue();
+  }
 }
 
 bool QuicConfig::negotiated() const {

@@ -70,12 +70,6 @@ bool FLAGS_quic_supports_push_promise = true;
 // priority (or batch) streams when doing QUIC writes.
 bool FLAGS_quic_cede_correctly = true;
 
-// If true, QUIC should correctly report if it supports ChaCha20. Otherwise,
-// QUIC will lie and claim that it does not support ChaCha20. The primary use
-// case for this is places where ChaCha20 is prohibitively expensive compared to
-// AES-GCM.
-bool FLAGS_quic_crypto_server_config_default_has_chacha20 = true;
-
 // Resend 0RTT requests in response to an REJ that re-establishes encryption.
 bool FLAGS_quic_reply_to_rej = true;
 
@@ -170,3 +164,6 @@ bool FLAGS_quic_simple_packet_number_length = false;
 
 // If true, enables QUIC_VERSION_35.
 bool FLAGS_quic_enable_version_35 = false;
+
+// If true, enables QUIC_VERSION_36.
+bool FLAGS_quic_enable_version_36 = false;

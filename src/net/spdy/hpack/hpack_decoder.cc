@@ -103,7 +103,7 @@ bool HpackDecoder::HandleControlFrameHeadersComplete(size_t* compressed_len) {
   return true;
 }
 
-const SpdyHeaderBlock& HpackDecoder::decoded_block() {
+const SpdyHeaderBlock& HpackDecoder::decoded_block() const {
   return decoded_block_;
 }
 

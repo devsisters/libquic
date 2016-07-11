@@ -24,6 +24,10 @@
 #include "base/files/scoped_file.h"
 #endif
 
+#if defined(OS_WIN)
+#include "base/win/scoped_handle.h"
+#endif
+
 namespace base {
 
 class FilePath;
@@ -263,7 +267,7 @@ class BASE_EXPORT SharedMemory {
   // before being mapped.
   bool external_section_;
   std::wstring       name_;
-  HANDLE             mapped_file_;
+  win::ScopedHandle  mapped_file_;
 #elif defined(OS_MACOSX) && !defined(OS_IOS)
   // The OS primitive that backs the shared memory region.
   SharedMemoryHandle shm_;

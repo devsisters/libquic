@@ -16,7 +16,7 @@ namespace net {
 
 QuicSpdySession::QuicSpdySession(QuicConnection* connection,
                                  const QuicConfig& config)
-    : QuicSession(connection, config) {}
+    : QuicSession(connection, config), force_hol_blocking_(false) {}
 
 QuicSpdySession::~QuicSpdySession() {
   // Set the streams' session pointers in closed and dynamic stream lists
@@ -153,6 +153,32 @@ void QuicSpdySession::OnConfigNegotiated() {
       config()->HasClientSentConnectionOption(kDHDT, perspective())) {
     headers_stream_->DisableHpackDynamicTable();
   }
+  const QuicVersion version = connection()->version();
+  if (version > QUIC_VERSION_35 && config()->ForceHolBlocking(perspective())) {
+    force_hol_blocking_ = true;
+    // Autotuning makes sure that the headers stream flow control does
+    // not get in the way, and normal stream and connection level flow
+    // control are active anyway. This is really only for the client
+    // side (and mainly there just in tests and toys), where
+    // autotuning and/or large buffers are not enabled by default.
+    headers_stream_->flow_controller()->set_auto_tune_receive_window(true);
+  }
+}
+
+void QuicSpdySession::OnStreamFrameData(QuicStreamId stream_id,
+                                        const char* data,
+                                        size_t len,
+                                        bool fin) {
+  QuicSpdyStream* stream = GetSpdyDataStream(stream_id);
+  if (stream == nullptr) {
+    return;
+  }
+  const QuicStreamOffset offset =
+      stream->flow_controller()->highest_received_byte_offset();
+  const QuicStreamFrame frame(stream_id, fin, offset, StringPiece(data, len));
+  DVLOG(1) << "De-encapsulating DATA frame for stream " << stream_id
+           << " offset " << offset << " len " << len << " fin " << fin;
+  OnStreamFrame(frame);
 }
 
 }  // namespace net

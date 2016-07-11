@@ -31,12 +31,23 @@ bool operator==(const Backtrace& lhs, const Backtrace& rhs) {
   return std::equal(lhs.frames, lhs.frames + lhs.frame_count, rhs.frames);
 }
 
+bool operator!=(const Backtrace& lhs, const Backtrace& rhs) {
+  return !(lhs == rhs);
+}
+
 AllocationContext::AllocationContext(): type_name(nullptr) {}
+
+AllocationContext::AllocationContext(const Backtrace& backtrace,
+                                     const char* type_name)
+  : backtrace(backtrace), type_name(type_name) {}
 
 bool operator==(const AllocationContext& lhs, const AllocationContext& rhs) {
   return (lhs.backtrace == rhs.backtrace) && (lhs.type_name == rhs.type_name);
 }
 
+bool operator!=(const AllocationContext& lhs, const AllocationContext& rhs) {
+  return !(lhs == rhs);
+}
 }  // namespace trace_event
 }  // namespace base
 

@@ -126,6 +126,8 @@ const QuicTag kBWRS = TAG('B', 'W', 'R', 'S');  // Server bandwidth resumption.
 const QuicTag kMTUH = TAG('M', 'T', 'U', 'H');  // High-target MTU discovery.
 const QuicTag kMTUL = TAG('M', 'T', 'U', 'L');  // Low-target MTU discovery.
 
+const QuicTag kFHOL = TAG('F', 'H', 'O', 'L');   // Force head of line blocking.
+
 // Proof types (i.e. certificate types)
 // NOTE: although it would be silly to do so, specifying both kX509 and kX59R
 // is allowed and is equivalent to specifying only kX509.

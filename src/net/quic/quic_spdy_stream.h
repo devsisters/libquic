@@ -210,6 +210,14 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
   // Returns true if headers have been fully read and consumed.
   bool FinishedReadingHeaders() const;
 
+  // Redirects to the headers stream if force HOL blocking enabled,
+  // otherwise just pass through.
+  QuicConsumedData WritevDataInner(
+      QuicIOVector iov,
+      QuicStreamOffset offset,
+      bool fin,
+      QuicAckListenerInterface* ack_notifier_delegate) override;
+
  private:
   friend class test::QuicSpdyStreamPeer;
   friend class test::ReliableQuicStreamPeer;

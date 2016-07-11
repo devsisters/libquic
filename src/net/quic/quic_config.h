@@ -386,6 +386,10 @@ class NET_EXPORT_PRIVATE QuicConfig {
 
   const IPEndPoint& ReceivedAlternateServerAddress() const;
 
+  void SetForceHolBlocking();
+
+  bool ForceHolBlocking(Perspective perspective) const;
+
   bool negotiated() const;
 
   // ToHandshakeMessage serialises the settings in this object as a series of
@@ -445,6 +449,9 @@ class NET_EXPORT_PRIVATE QuicConfig {
 
   // An alternate server address the client could connect to.
   QuicFixedIPEndPoint alternate_server_address_;
+
+  // Force HOL blocking for measurement purposes.
+  QuicFixedUint32 force_hol_blocking_;
 };
 
 }  // namespace net

@@ -23,21 +23,18 @@ ScopedClosureRunner::ScopedClosureRunner(ScopedClosureRunner&& other)
 
 ScopedClosureRunner& ScopedClosureRunner::operator=(
     ScopedClosureRunner&& other) {
-  Reset(other.Release());
+  ReplaceClosure(other.Release());
   return *this;
 }
 
-void ScopedClosureRunner::Reset() {
+void ScopedClosureRunner::RunAndReset() {
   Closure old_closure = Release();
   if (!old_closure.is_null())
     old_closure.Run();
 }
 
-void ScopedClosureRunner::Reset(const Closure& closure) {
-  Closure old_closure = Release();
+void ScopedClosureRunner::ReplaceClosure(const Closure& closure) {
   closure_ = closure;
-  if (!old_closure.is_null())
-    old_closure.Run();
 }
 
 Closure ScopedClosureRunner::Release() {

@@ -1188,6 +1188,23 @@ EVENT_TYPE(HTTP_TRANSACTION_RESTART_AFTER_ERROR)
 //   }
 EVENT_TYPE(BIDIRECTIONAL_STREAM_ALIVE)
 
+// Marks the ReadData call of a net::BidirectionalStream.
+// The following parameters are attached:
+// {
+//     "rv": <The value in int that is returned to the caller>
+// }
+EVENT_TYPE(BIDIRECTIONAL_STREAM_READ_DATA)
+
+// Marks the SendData call of a net::BidirectionalStream.
+EVENT_TYPE(BIDIRECTIONAL_STREAM_SEND_DATA)
+
+// Marks the SendvData call of a net::BidirectionalStream.
+// The following parameters are attached:
+// {
+//     "num_buffers": <The number of buffers passed to SendvData>
+// }
+EVENT_TYPE(BIDIRECTIONAL_STREAM_SENDV_DATA)
+
 // Marks the beginning/end of buffers sent in a net::BidirectionalStream.
 // The following parameters are attached:
 //   {

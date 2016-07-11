@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/linked_hash_map.h"
 #include "net/base/net_export.h"
@@ -52,12 +53,14 @@ class NET_EXPORT SpdyHeaderBlock {
   class StringPieceProxy;
 
   SpdyHeaderBlock();
-  SpdyHeaderBlock(const SpdyHeaderBlock& other);
+  SpdyHeaderBlock(const SpdyHeaderBlock& other) = delete;
   SpdyHeaderBlock(SpdyHeaderBlock&& other);
   ~SpdyHeaderBlock();
 
-  SpdyHeaderBlock& operator=(const SpdyHeaderBlock& other);
+  SpdyHeaderBlock& operator=(const SpdyHeaderBlock& other) = delete;
   SpdyHeaderBlock& operator=(SpdyHeaderBlock&& other);
+  SpdyHeaderBlock Clone() const;
+
   bool operator==(const SpdyHeaderBlock& other) const;
   bool operator!=(const SpdyHeaderBlock& other) const;
 

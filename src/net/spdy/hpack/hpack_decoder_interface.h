@@ -51,7 +51,7 @@ class NET_EXPORT_PRIVATE HpackDecoderInterface {
   // call to HandleControlFrameHeadersData().
   // TODO(birenroy): Remove this method when all users of HpackDecoder specify
   // a SpdyHeadersHandlerInterface.
-  virtual const SpdyHeaderBlock& decoded_block() = 0;
+  virtual const SpdyHeaderBlock& decoded_block() const = 0;
 
   virtual void SetHeaderTableDebugVisitor(
       std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) = 0;

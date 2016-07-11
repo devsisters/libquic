@@ -3,7 +3,7 @@
 
 # START #
 {
-    "chromium_revision": "53.0.2783.0",
+    "chromium_revision": "54.0.2791.0",
     "dependency_exclude": [
         "zconf.h",
         "modp_b64.h",

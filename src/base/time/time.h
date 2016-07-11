@@ -667,7 +667,13 @@ constexpr TimeDelta TimeDelta::FromDouble(double value) {
 // static
 constexpr TimeDelta TimeDelta::FromProduct(int64_t value,
                                            int64_t positive_value) {
-  return (DCHECK(positive_value > 0),
+  return (
+#if !defined(_PREFAST_) || !defined(OS_WIN)
+          // Avoid internal compiler errors in /analyze builds with VS 2015
+          // update 3.
+          // https://connect.microsoft.com/VisualStudio/feedback/details/2870865
+          DCHECK(positive_value > 0),
+#endif
           value > std::numeric_limits<int64_t>::max() / positive_value
               ? Max()
               : value < -std::numeric_limits<int64_t>::max() / positive_value

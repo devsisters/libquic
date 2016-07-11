@@ -402,4 +402,18 @@ void QuicSpdyStream::ClearSession() {
   spdy_session_ = nullptr;
 }
 
+QuicConsumedData QuicSpdyStream::WritevDataInner(
+    QuicIOVector iov,
+    QuicStreamOffset offset,
+    bool fin,
+    QuicAckListenerInterface* ack_notifier_delegate) {
+  if (spdy_session_->headers_stream() != nullptr &&
+      spdy_session_->force_hol_blocking()) {
+    return spdy_session_->headers_stream()->WritevStreamData(
+        id(), iov, offset, fin, ack_notifier_delegate);
+  }
+  return ReliableQuicStream::WritevDataInner(iov, offset, fin,
+                                             ack_notifier_delegate);
+}
+
 }  // namespace net

@@ -718,9 +718,9 @@ class NET_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
   ~SpdyFrameWithHeaderBlockIR() override;
 
   const SpdyHeaderBlock& header_block() const { return header_block_; }
-  void set_header_block(const SpdyHeaderBlock& header_block) {
+  void set_header_block(SpdyHeaderBlock header_block) {
     // Deep copy.
-    header_block_ = header_block;
+    header_block_ = std::move(header_block);
   }
   void SetHeader(base::StringPiece name, base::StringPiece value) {
     header_block_[name] = value;

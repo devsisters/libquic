@@ -64,6 +64,7 @@ class BASE_EXPORT CallbackBase<CopyMode::MoveOnly> {
 
   // Returns true if Callback is null (doesn't refer to anything).
   bool is_null() const { return bind_state_.get() == NULL; }
+  explicit operator bool() const { return !is_null(); }
 
   // Returns the Callback into an uninitialized state.
   void Reset();
