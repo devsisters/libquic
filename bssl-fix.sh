@@ -55,4 +55,13 @@ echo '[*] Creating a header to put boringssl under a bssl prefix'
 echo '[*] Removing pointless noop defines in ssl.h so our redefines work'
 $(dirname $0)/bssl-fix-ssl-h.py boringssl/include/boringssl/ssl.h <bssl-badsyms.txt
 
+echo '[*] Giving boringssl considerate library naming'
+sed -i 's/bssl/bssl_test/' boringssl/tool/CMakeLists.txt
+sed -i 's/^  crypto$/  bsslcrypto/' boringssl/crypto/CMakeLists.txt
+sed -i 's/^  ssl$/  bssl/' boringssl/ssl/CMakeLists.txt
+
+# yes, ming
+find -name CMakeLists.txt -print0 | xargs -0 sed -i -e 's/(crypto /(bsslcrypto /' -e 's/ crypto / bsslcrypto /' -e  's/ crypto)/ bsslcrypto)/'
+find -name CMakeLists.txt -print0 | xargs -0 sed -i -e 's/(ssl /(bssl /' -e 's/ ssl / bssl /' -e  's/ ssl)/ bssl)/'
+
 echo '[+] Done'
