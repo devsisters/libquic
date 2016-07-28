@@ -108,7 +108,7 @@ bool CryptoUtils::DeriveKeys(StringPiece premaster_secret,
     nonce = nonce_storage;
   }
 
-  crypto::HKDF hkdf(premaster_secret, nonce, hkdf_input, key_bytes,
+  crypto::CryptoHKDF hkdf(premaster_secret, nonce, hkdf_input, key_bytes,
                     nonce_prefix_bytes, subkey_secret_bytes);
 
   // Key derivation depends on the key diversification method being employed.
@@ -201,7 +201,7 @@ bool CryptoUtils::ExportKeyingMaterial(StringPiece subkey_secret,
   info.append(reinterpret_cast<char*>(&context_length), sizeof(context_length));
   info.append(context.data(), context.length());
 
-  crypto::HKDF hkdf(subkey_secret, StringPiece() /* no salt */, info,
+  crypto::CryptoHKDF hkdf(subkey_secret, StringPiece() /* no salt */, info,
                     result_len, 0 /* no fixed IV */, 0 /* no subkey secret */);
   hkdf.client_write_key().CopyToString(result);
   return true;

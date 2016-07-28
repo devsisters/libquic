@@ -16,13 +16,13 @@ namespace crypto {
 
 const size_t kSHA256HashLength = 32;
 
-HKDF::HKDF(const base::StringPiece& secret,
+CryptoHKDF::CryptoHKDF(const base::StringPiece& secret,
            const base::StringPiece& salt,
            const base::StringPiece& info,
            size_t key_bytes_to_generate,
            size_t iv_bytes_to_generate,
            size_t subkey_secret_bytes_to_generate)
-    : HKDF(secret,
+    : CryptoHKDF(secret,
            salt,
            info,
            key_bytes_to_generate,
@@ -31,7 +31,7 @@ HKDF::HKDF(const base::StringPiece& secret,
            iv_bytes_to_generate,
            subkey_secret_bytes_to_generate) {}
 
-HKDF::HKDF(const base::StringPiece& secret,
+CryptoHKDF::CryptoHKDF(const base::StringPiece& secret,
            const base::StringPiece& salt,
            const base::StringPiece& info,
            size_t client_key_bytes_to_generate,
@@ -130,7 +130,7 @@ HKDF::HKDF(const base::StringPiece& secret,
   }
 }
 
-HKDF::~HKDF() {
+CryptoHKDF::~CryptoHKDF() {
 }
 
 }  // namespace crypto

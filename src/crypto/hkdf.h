@@ -18,7 +18,7 @@ namespace crypto {
 // HKDF implements the key derivation function specified in RFC 5869 (using
 // SHA-256) and outputs key material, as needed by QUIC.
 // See https://tools.ietf.org/html/rfc5869 for details.
-class CRYPTO_EXPORT HKDF {
+class CRYPTO_EXPORT CryptoHKDF {
  public:
   // |secret|: the input shared secret (or, from RFC 5869, the IKM).
   // |salt|: an (optional) public salt / non-secret random value. While
@@ -34,7 +34,7 @@ class CRYPTO_EXPORT HKDF {
   // client and server.
   // |subkey_secret_bytes_to_generate|: the number of bytes of subkey secret to
   // generate, shared between client and server.
-  HKDF(const base::StringPiece& secret,
+  CryptoHKDF(const base::StringPiece& secret,
        const base::StringPiece& salt,
        const base::StringPiece& info,
        size_t key_bytes_to_generate,
@@ -43,7 +43,7 @@ class CRYPTO_EXPORT HKDF {
 
   // An alternative constructor that allows the client and server key/IV
   // lengths to be different.
-  HKDF(const base::StringPiece& secret,
+  CryptoHKDF(const base::StringPiece& secret,
        const base::StringPiece& salt,
        const base::StringPiece& info,
        size_t client_key_bytes_to_generate,
@@ -51,7 +51,7 @@ class CRYPTO_EXPORT HKDF {
        size_t client_iv_bytes_to_generate,
        size_t server_iv_bytes_to_generate,
        size_t subkey_secret_bytes_to_generate);
-  ~HKDF();
+  ~CryptoHKDF();
 
   base::StringPiece client_write_key() const {
     return client_write_key_;

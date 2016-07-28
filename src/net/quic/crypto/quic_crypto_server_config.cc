@@ -63,7 +63,7 @@ const size_t kMultiplier = 3;
 const int kMaxTokenAddresses = 4;
 
 string DeriveSourceAddressTokenKey(StringPiece source_address_token_secret) {
-  crypto::HKDF hkdf(source_address_token_secret, StringPiece() /* no salt */,
+  crypto::CryptoHKDF hkdf(source_address_token_secret, StringPiece() /* no salt */,
                     "QUIC source address token key",
                     CryptoSecretBoxer::GetKeySize(), 0 /* no fixed IV needed */,
                     0 /* no subkey secret */);
