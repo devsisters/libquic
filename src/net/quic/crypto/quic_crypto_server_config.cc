@@ -330,7 +330,7 @@ QuicServerConfigProtobuf* QuicCryptoServerConfig::GenerateConfig(
     // thus we make it a hash of the rest of the server config.
     std::unique_ptr<QuicData> serialized(
         CryptoFramer::ConstructHandshakeMessage(msg));
-    std::unique_ptr<SecureHash> hash(SecureHash::Create(SecureHash::SHA256));
+    std::unique_ptr<SecureHash> hash(SecureHash::Create(SecureHash::CryptoSHA256));
     hash->Update(serialized->data(), serialized->length());
 
     char scid_bytes[16];

@@ -55,7 +55,7 @@ class SecureHashSHA256 : public SecureHash {
 
 std::unique_ptr<SecureHash> SecureHash::Create(Algorithm algorithm) {
   switch (algorithm) {
-    case SHA256:
+    case CryptoSHA256:
       return base::MakeUnique<SecureHashSHA256>();
     default:
       NOTIMPLEMENTED();

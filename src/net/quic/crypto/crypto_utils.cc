@@ -330,7 +330,7 @@ void CryptoUtils::HashHandshakeMessage(const CryptoHandshakeMessage& message,
                                        string* output) {
   const QuicData& serialized = message.GetSerialized();
   std::unique_ptr<crypto::SecureHash> hash(
-      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
+      crypto::SecureHash::Create(crypto::SecureHash::CryptoSHA256));
   hash->Update(serialized.data(), serialized.length());
   uint8_t digest[32];
   hash->Finish(digest, sizeof(digest));
