@@ -51,7 +51,7 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(v3name_test crypto)
+target_link_libraries(v3name_test bsslcrypto)
 add_dependencies(all_tests v3name_test)
 
 add_executable(
@@ -62,5 +62,5 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(tab_test crypto)
+target_link_libraries(tab_test bsslcrypto)
 add_dependencies(all_tests tab_test)

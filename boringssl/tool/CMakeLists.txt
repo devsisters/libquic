@@ -1,7 +1,7 @@
 include_directories(../include)
 
 add_executable(
-  bssl
+  bssl_test
 
   args.cc
   ciphers.cc
@@ -19,12 +19,12 @@ add_executable(
 )
 
 if (APPLE OR WIN32 OR ANDROID)
-  target_link_libraries(bssl ssl crypto)
+  target_link_libraries(bssl_test bssl bsslcrypto)
 else()
   find_library(FOUND_LIBRT rt)
   if (FOUND_LIBRT)
-    target_link_libraries(bssl ssl crypto -lrt)
+    target_link_libraries(bssl_test bssl bsslcrypto -lrt)
   else()
-    target_link_libraries(bssl ssl crypto)
+    target_link_libraries(bssl_test bssl bsslcrypto)
   endif()
 endif()

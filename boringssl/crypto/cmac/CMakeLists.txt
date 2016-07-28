@@ -16,5 +16,5 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(cmac_test crypto)
+target_link_libraries(cmac_test bsslcrypto)
 add_dependencies(all_tests cmac_test)

@@ -18,5 +18,5 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(ecdsa_test crypto)
+target_link_libraries(ecdsa_test bsslcrypto)
 add_dependencies(all_tests ecdsa_test)

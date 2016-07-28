@@ -68,5 +68,5 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(aes_test crypto)
+target_link_libraries(aes_test bsslcrypto)
 add_dependencies(all_tests aes_test)

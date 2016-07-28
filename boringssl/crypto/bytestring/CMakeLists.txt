@@ -19,5 +19,5 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(bytestring_test crypto)
+target_link_libraries(bytestring_test bsslcrypto)
 add_dependencies(all_tests bytestring_test)

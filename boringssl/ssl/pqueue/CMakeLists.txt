@@ -16,5 +16,5 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(pqueue_test ssl crypto)
+target_link_libraries(pqueue_test bssl bsslcrypto)
 add_dependencies(all_tests pqueue_test)

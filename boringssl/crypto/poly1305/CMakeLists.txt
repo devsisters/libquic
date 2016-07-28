@@ -27,5 +27,5 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(poly1305_test crypto)
+target_link_libraries(poly1305_test bsslcrypto)
 add_dependencies(all_tests poly1305_test)
