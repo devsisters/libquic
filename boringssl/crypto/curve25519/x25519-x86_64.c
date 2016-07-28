@@ -1,4 +1,5 @@
-#include <openssl/curve25519.h>
+#include <boringssl/bssl.h>
+#include <boringssl/curve25519.h>
 
 #include <string.h>
 

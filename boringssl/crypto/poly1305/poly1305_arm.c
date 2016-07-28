@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +16,7 @@
 /* This implementation was taken from the public domain, neon2 version in
  * SUPERCOP by D. J. Bernstein and Peter Schwabe. */
 
-#include <openssl/poly1305.h>
+#include <boringssl/poly1305.h>
 
 #if defined(OPENSSL_ARM) && !defined(OPENSSL_NO_ASM)
 

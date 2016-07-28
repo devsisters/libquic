@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +16,7 @@
 #ifndef OPENSSL_HEADER_BYTESTRING_INTERNAL_H
 #define OPENSSL_HEADER_BYTESTRING_INTERNAL_H
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #if defined(__cplusplus)
 extern "C" {

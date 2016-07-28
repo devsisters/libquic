@@ -212,6 +212,7 @@ $code=<<___;
 #endif
 
 .text
+#include <boringssl/bssl.h>
 #if __ARM_ARCH__<7 || defined(__APPLE__)
 .code	32
 #else

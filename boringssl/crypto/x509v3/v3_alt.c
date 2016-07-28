@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_alt.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
@@ -58,11 +59,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/conf.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/x509v3.h>
+#include <boringssl/conf.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509v3.h>
 
 static GENERAL_NAMES *v2i_subject_alt(X509V3_EXT_METHOD *method,
                                       X509V3_CTX *ctx,

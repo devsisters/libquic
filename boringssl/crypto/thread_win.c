@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -23,8 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/mem.h>
-#include <openssl/type_check.h>
+#include <boringssl/mem.h>
+#include <boringssl/type_check.h>
 
 
 OPENSSL_COMPILE_ASSERT(sizeof(CRYPTO_MUTEX) >= sizeof(CRITICAL_SECTION),

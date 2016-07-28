@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -17,7 +18,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include <openssl/mem.h>
+#include <boringssl/mem.h>
 
 
 namespace {

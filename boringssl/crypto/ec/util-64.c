@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,12 +13,12 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 
 #if defined(OPENSSL_64_BIT) && !defined(OPENSSL_WINDOWS)
 
-#include <openssl/ec.h>
+#include <boringssl/ec.h>
 
 #include "internal.h"
 

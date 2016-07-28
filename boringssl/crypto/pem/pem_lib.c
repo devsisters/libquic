@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/pem/pem_lib.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -60,16 +61,16 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/base64.h>
-#include <openssl/buf.h>
-#include <openssl/des.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/pem.h>
-#include <openssl/rand.h>
-#include <openssl/x509.h>
+#include <boringssl/base64.h>
+#include <boringssl/buf.h>
+#include <boringssl/des.h>
+#include <boringssl/err.h>
+#include <boringssl/evp.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/pem.h>
+#include <boringssl/rand.h>
+#include <boringssl/x509.h>
 
 #define MIN_LENGTH      4
 

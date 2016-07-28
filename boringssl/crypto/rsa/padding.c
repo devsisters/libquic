@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2005.
  */
@@ -53,18 +54,18 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/rsa.h>
+#include <boringssl/rsa.h>
 
 #include <assert.h>
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/bn.h>
-#include <openssl/digest.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/rand.h>
-#include <openssl/sha.h>
+#include <boringssl/bn.h>
+#include <boringssl/digest.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/rand.h>
+#include <boringssl/sha.h>
 
 #include "internal.h"
 #include "../internal.h"

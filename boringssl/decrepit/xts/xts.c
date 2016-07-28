@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 2011 The OpenSSL Project.  All rights reserved.
  *
@@ -46,12 +47,12 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ==================================================================== */
 
-#include <openssl/evp.h>
+#include <boringssl/evp.h>
 
 #include <string.h>
 
-#include <openssl/aes.h>
-#include <openssl/cipher.h>
+#include <boringssl/aes.h>
+#include <boringssl/cipher.h>
 
 #include "../crypto/modes/internal.h"
 

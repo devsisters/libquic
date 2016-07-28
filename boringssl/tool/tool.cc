@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,9 +16,9 @@
 #include <string>
 #include <vector>
 
-#include <openssl/crypto.h>
-#include <openssl/err.h>
-#include <openssl/ssl.h>
+#include <boringssl/crypto.h>
+#include <boringssl/err.h>
+#include <boringssl/ssl.h>
 
 #if defined(OPENSSL_WINDOWS)
 #include <fcntl.h>

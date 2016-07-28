@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 #if defined(__arm__) && !defined(OPENSSL_NO_ASM)
 
 # This implementation was taken from the public domain, neon2 version in

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/x509/x509_cmp.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -57,15 +58,15 @@
 
 #include <string.h>
 
-#include <openssl/asn1.h>
-#include <openssl/buf.h>
-#include <openssl/digest.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/stack.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
+#include <boringssl/asn1.h>
+#include <boringssl/buf.h>
+#include <boringssl/digest.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/stack.h>
+#include <boringssl/x509.h>
+#include <boringssl/x509v3.h>
 
 int X509_issuer_and_serial_cmp(const X509 *a, const X509 *b)
 {

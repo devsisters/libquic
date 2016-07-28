@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -106,7 +107,7 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/err.h>
+#include <boringssl/err.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -119,8 +120,8 @@
 #pragma warning(pop)
 #endif
 
-#include <openssl/mem.h>
-#include <openssl/thread.h>
+#include <boringssl/mem.h>
+#include <boringssl/thread.h>
 
 #include "../internal.h"
 

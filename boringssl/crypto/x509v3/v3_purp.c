@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_purp.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -59,14 +60,14 @@
 
 #include <string.h>
 
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/digest.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/thread.h>
-#include <openssl/x509_vfy.h>
-#include <openssl/x509v3.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/digest.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/thread.h>
+#include <boringssl/x509_vfy.h>
+#include <boringssl/x509v3.h>
 
 #include "../internal.h"
 

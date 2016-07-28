@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,8 +17,8 @@
 #define _POSIX_C_SOURCE 201410L
 #endif
 
-#include <openssl/crypto.h>
-#include <openssl/lhash.h>
+#include <boringssl/crypto.h>
+#include <boringssl/lhash.h>
 
 #include <stdio.h>
 #include <stdlib.h>

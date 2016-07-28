@@ -114,6 +114,7 @@ $code.=<<___;
 #include <openssl/arm_arch.h>
 
 .text
+#include <boringssl/bssl.h>
 
 .extern	OPENSSL_armcap_P
 

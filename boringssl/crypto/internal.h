@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -109,8 +110,8 @@
 #ifndef OPENSSL_HEADER_CRYPTO_INTERNAL_H
 #define OPENSSL_HEADER_CRYPTO_INTERNAL_H
 
-#include <openssl/ex_data.h>
-#include <openssl/thread.h>
+#include <boringssl/ex_data.h>
+#include <boringssl/thread.h>
 
 #if defined(_MSC_VER)
 #if !defined(__cplusplus) || _MSC_VER < 1900

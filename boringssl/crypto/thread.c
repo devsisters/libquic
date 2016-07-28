@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/thread.h>
+#include <boringssl/thread.h>
 
 #include <string.h>
 
@@ -66,7 +67,7 @@
 #pragma warning(pop)
 #endif
 
-#include <openssl/mem.h>
+#include <boringssl/mem.h>
 
 
 int CRYPTO_num_locks(void) { return 1; }

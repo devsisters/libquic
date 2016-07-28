@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_pku.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -57,11 +58,11 @@
 
 #include <stdio.h>
 
-#include <openssl/asn1.h>
-#include <openssl/asn1t.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/x509v3.h>
+#include <boringssl/asn1.h>
+#include <boringssl/asn1t.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509v3.h>
 
 static int i2r_PKEY_USAGE_PERIOD(X509V3_EXT_METHOD *method,
                                  PKEY_USAGE_PERIOD *usage, BIO *out,

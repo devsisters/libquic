@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -58,14 +59,14 @@
 #define _POSIX_C_SOURCE 201410L  /* for snprintf, vprintf etc */
 #endif
 
-#include <openssl/bio.h>
+#include <boringssl/bio.h>
 
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 int BIO_printf(BIO *bio, const char *format, ...) {
   va_list args;

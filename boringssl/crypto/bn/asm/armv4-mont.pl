@@ -82,6 +82,7 @@ $code=<<___;
 #include <openssl/arm_arch.h>
 
 .text
+#include <boringssl/bssl.h>
 .code	32
 
 #if __ARM_MAX_ARCH__>=7

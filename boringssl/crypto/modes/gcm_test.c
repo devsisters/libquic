@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
  *
@@ -49,9 +50,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/aes.h>
-#include <openssl/crypto.h>
-#include <openssl/mem.h>
+#include <boringssl/aes.h>
+#include <boringssl/crypto.h>
+#include <boringssl/mem.h>
 
 #include "internal.h"
 #include "../test/test_util.h"

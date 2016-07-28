@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_prn.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -59,10 +60,10 @@
 
 #include <stdio.h>
 
-#include <openssl/bio.h>
-#include <openssl/conf.h>
-#include <openssl/mem.h>
-#include <openssl/x509v3.h>
+#include <boringssl/bio.h>
+#include <boringssl/conf.h>
+#include <boringssl/mem.h>
+#include <boringssl/x509v3.h>
 
 /* Extension printing routines */
 

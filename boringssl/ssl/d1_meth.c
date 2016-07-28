@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /*
  * DTLS implementation written by Nagendra Modadugu
  * (nagendra@cs.stanford.edu) for the OpenSSL project 2005. 
@@ -54,7 +55,7 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/ssl.h>
+#include <boringssl/ssl.h>
 
 #include "internal.h"
 

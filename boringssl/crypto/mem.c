@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -58,7 +59,7 @@
 #define _POSIX_C_SOURCE 201410L  /* needed for strdup, snprintf, vprintf etc */
 #endif
 
-#include <openssl/mem.h>
+#include <boringssl/mem.h>
 
 #include <assert.h>
 #include <stdarg.h>

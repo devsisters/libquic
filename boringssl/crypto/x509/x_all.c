@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,14 +55,14 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/asn1.h>
-#include <openssl/buf.h>
-#include <openssl/digest.h>
-#include <openssl/dsa.h>
-#include <openssl/evp.h>
-#include <openssl/rsa.h>
-#include <openssl/stack.h>
-#include <openssl/x509.h>
+#include <boringssl/asn1.h>
+#include <boringssl/buf.h>
+#include <boringssl/digest.h>
+#include <boringssl/dsa.h>
+#include <boringssl/evp.h>
+#include <boringssl/rsa.h>
+#include <boringssl/stack.h>
+#include <boringssl/x509.h>
 
 int X509_verify(X509 *a, EVP_PKEY *r)
 {

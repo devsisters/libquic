@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,12 +13,12 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/obj.h>
+#include <boringssl/obj.h>
 
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/evp.h>
+#include <boringssl/evp.h>
 
 
 struct wrapped_callback {

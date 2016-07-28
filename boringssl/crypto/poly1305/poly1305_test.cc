@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -17,8 +18,8 @@
 
 #include <vector>
 
-#include <openssl/crypto.h>
-#include <openssl/poly1305.h>
+#include <boringssl/crypto.h>
+#include <boringssl/poly1305.h>
 
 #include "../internal.h"
 #include "../test/file_test.h"

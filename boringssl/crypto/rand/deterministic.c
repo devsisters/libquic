@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,13 +13,13 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/rand.h>
+#include <boringssl/rand.h>
 
 #if defined(BORINGSSL_UNSAFE_FUZZER_MODE)
 
 #include <string.h>
 
-#include <openssl/chacha.h>
+#include <boringssl/chacha.h>
 
 #include "internal.h"
 

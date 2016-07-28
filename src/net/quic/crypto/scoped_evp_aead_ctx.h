@@ -5,7 +5,7 @@
 #ifndef NET_QUIC_CRYPTO_SCOPED_EVP_AEAD_CTX_H_
 #define NET_QUIC_CRYPTO_SCOPED_EVP_AEAD_CTX_H_
 
-#include <openssl/evp.h>
+#include <boringssl/evp.h>
 
 #include "base/macros.h"
 

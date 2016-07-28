@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,7 +17,7 @@
 #define _POSIX_C_SOURCE 201410L
 #endif
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #if !defined(OPENSSL_WINDOWS)
 #include <arpa/inet.h>
@@ -33,10 +34,10 @@
 #pragma warning(pop)
 #endif
 
-#include <openssl/bio.h>
-#include <openssl/crypto.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/bio.h>
+#include <boringssl/crypto.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 #include <algorithm>
 

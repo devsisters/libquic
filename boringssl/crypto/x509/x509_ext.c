@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/x509/x509_ext.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -55,12 +56,12 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/asn1.h>
-#include <openssl/evp.h>
-#include <openssl/obj.h>
-#include <openssl/stack.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
+#include <boringssl/asn1.h>
+#include <boringssl/evp.h>
+#include <boringssl/obj.h>
+#include <boringssl/stack.h>
+#include <boringssl/x509.h>
+#include <boringssl/x509v3.h>
 
 int X509_CRL_get_ext_count(X509_CRL *x)
 {

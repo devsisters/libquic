@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -20,24 +21,24 @@
 
 #include <memory>
 
-#include <openssl/aead.h>
-#include <openssl/asn1.h>
-#include <openssl/bio.h>
-#include <openssl/bn.h>
-#include <openssl/bytestring.h>
-#include <openssl/cmac.h>
-#include <openssl/curve25519.h>
-#include <openssl/dh.h>
-#include <openssl/ecdsa.h>
-#include <openssl/ec.h>
-#include <openssl/ec_key.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-#include <openssl/mem.h>
-#include <openssl/pkcs8.h>
-#include <openssl/rsa.h>
-#include <openssl/stack.h>
-#include <openssl/x509.h>
+#include <boringssl/aead.h>
+#include <boringssl/asn1.h>
+#include <boringssl/bio.h>
+#include <boringssl/bn.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/cmac.h>
+#include <boringssl/curve25519.h>
+#include <boringssl/dh.h>
+#include <boringssl/ecdsa.h>
+#include <boringssl/ec.h>
+#include <boringssl/ec_key.h>
+#include <boringssl/evp.h>
+#include <boringssl/hmac.h>
+#include <boringssl/mem.h>
+#include <boringssl/pkcs8.h>
+#include <boringssl/rsa.h>
+#include <boringssl/stack.h>
+#include <boringssl/x509.h>
 
 
 template<typename T, void (*func)(T*)>

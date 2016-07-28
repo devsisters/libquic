@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,11 +55,11 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/md5.h>
+#include <boringssl/md5.h>
 
 #include <string.h>
 
-#include <openssl/mem.h>
+#include <boringssl/mem.h>
 
 
 uint8_t *MD5(const uint8_t *data, size_t len, uint8_t *out) {

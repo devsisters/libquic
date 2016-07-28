@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Originally written by Bodo Moeller for the OpenSSL project.
  * ====================================================================
  * Copyright (c) 1998-2005 The OpenSSL Project.  All rights reserved.
@@ -67,10 +68,10 @@
 
 #include <stdio.h>
 
-#include <openssl/bn.h>
-#include <openssl/crypto.h>
-#include <openssl/ec.h>
-#include <openssl/nid.h>
+#include <boringssl/bn.h>
+#include <boringssl/crypto.h>
+#include <boringssl/ec.h>
+#include <boringssl/nid.h>
 
 
 static int example_EC_POINT_mul(void) {

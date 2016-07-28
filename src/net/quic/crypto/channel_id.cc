@@ -4,11 +4,11 @@
 
 #include "net/quic/crypto/channel_id.h"
 
-#include <openssl/bn.h>
-#include <openssl/ec.h>
-#include <openssl/ecdsa.h>
-#include <openssl/obj_mac.h>
-#include <openssl/sha.h>
+#include <boringssl/bn.h>
+#include <boringssl/ec.h>
+#include <boringssl/ecdsa.h>
+#include <boringssl/obj_mac.h>
+#include <boringssl/sha.h>
 
 #include "crypto/openssl_util.h"
 #include "crypto/scoped_openssl_types.h"

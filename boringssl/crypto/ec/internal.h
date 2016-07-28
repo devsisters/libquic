@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Originally written by Bodo Moeller for the OpenSSL project.
  * ====================================================================
  * Copyright (c) 1998-2005 The OpenSSL Project.  All rights reserved.
@@ -68,11 +69,11 @@
 #ifndef OPENSSL_HEADER_EC_INTERNAL_H
 #define OPENSSL_HEADER_EC_INTERNAL_H
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
-#include <openssl/bn.h>
-#include <openssl/ex_data.h>
-#include <openssl/thread.h>
+#include <boringssl/bn.h>
+#include <boringssl/ex_data.h>
+#include <boringssl/thread.h>
 
 #if defined(__cplusplus)
 extern "C" {

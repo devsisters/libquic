@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,16 +55,16 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/rsa.h>
+#include <boringssl/rsa.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/bn.h>
-#include <openssl/bytestring.h>
-#include <openssl/crypto.h>
-#include <openssl/err.h>
-#include <openssl/nid.h>
+#include <boringssl/bn.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/crypto.h>
+#include <boringssl/err.h>
+#include <boringssl/nid.h>
 
 #include "../test/scoped_types.h"
 

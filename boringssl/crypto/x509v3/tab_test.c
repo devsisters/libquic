@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* tabtest.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -64,10 +65,10 @@
 
 #include <stdio.h>
 
-#include <openssl/base.h>
-#include <openssl/crypto.h>
-#include <openssl/obj.h>
-#include <openssl/x509v3.h>
+#include <boringssl/base.h>
+#include <boringssl/crypto.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509v3.h>
 
 #if !defined(BORINGSSL_SHARED_LIBRARY)
 # include "ext_dat.h"

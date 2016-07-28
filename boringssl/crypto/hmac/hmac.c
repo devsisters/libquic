@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,13 +55,13 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/hmac.h>
+#include <boringssl/hmac.h>
 
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/digest.h>
-#include <openssl/mem.h>
+#include <boringssl/digest.h>
+#include <boringssl/mem.h>
 
 
 uint8_t *HMAC(const EVP_MD *evp_md, const void *key, size_t key_len,

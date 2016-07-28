@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -56,12 +57,12 @@
 
 #include <string.h>
 
-#include <openssl/asn1.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/obj.h>
-#include <openssl/stack.h>
-#include <openssl/x509.h>
+#include <boringssl/asn1.h>
+#include <boringssl/err.h>
+#include <boringssl/evp.h>
+#include <boringssl/obj.h>
+#include <boringssl/stack.h>
+#include <boringssl/x509.h>
 
 int X509_NAME_get_text_by_NID(X509_NAME *name, int nid, char *buf, int len)
 {

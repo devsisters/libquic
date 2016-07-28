@@ -64,6 +64,7 @@ $PREFIX="vpaes";
 
 $code.=<<___;
 .text
+#include <boringssl/bssl.h>
 
 ##
 ##  _aes_encrypt_core

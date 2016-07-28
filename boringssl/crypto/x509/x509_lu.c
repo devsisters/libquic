@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/x509/x509_lu.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -57,12 +58,12 @@
 
 #include <string.h>
 
-#include <openssl/err.h>
-#include <openssl/lhash.h>
-#include <openssl/mem.h>
-#include <openssl/thread.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
+#include <boringssl/err.h>
+#include <boringssl/lhash.h>
+#include <boringssl/mem.h>
+#include <boringssl/thread.h>
+#include <boringssl/x509.h>
+#include <boringssl/x509v3.h>
 
 #include "../internal.h"
 

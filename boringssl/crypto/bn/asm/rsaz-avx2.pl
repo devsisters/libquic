@@ -140,6 +140,7 @@ $np="%r13";			# reassigned argument
 
 $code.=<<___;
 .text
+#include <boringssl/bssl.h>
 
 .globl	rsaz_1024_sqr_avx2
 .type	rsaz_1024_sqr_avx2,\@function,5
@@ -1915,6 +1916,7 @@ foreach (split("\n",$code)) {
 }}} else {{{
 print <<___;	# assembler is too old
 .text
+#include <boringssl/bssl.h>
 
 .globl	rsaz_avx2_eligible
 .type	rsaz_avx2_eligible,\@abi-omnipotent

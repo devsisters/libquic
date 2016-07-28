@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /*****************************************************************************
 *                                                                            *
 *  Copyright (c) 2012, Intel Corporation                                     *
@@ -43,7 +44,7 @@
 #ifndef RSAZ_EXP_H
 #define RSAZ_EXP_H
 
-#include <openssl/bn.h>
+#include <boringssl/bn.h>
 
 void RSAZ_1024_mod_exp_avx2(BN_ULONG result[16],
 	const BN_ULONG base_norm[16], const BN_ULONG exponent[16],

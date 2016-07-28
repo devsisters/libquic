@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,7 +17,7 @@
 #define __STDC_FORMAT_MACROS
 #endif
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #if !defined(OPENSSL_WINDOWS)
 #include <arpa/inet.h>
@@ -39,16 +40,16 @@
 #include <inttypes.h>
 #include <string.h>
 
-#include <openssl/bio.h>
-#include <openssl/buf.h>
-#include <openssl/bytestring.h>
-#include <openssl/cipher.h>
-#include <openssl/crypto.h>
-#include <openssl/err.h>
-#include <openssl/hmac.h>
-#include <openssl/nid.h>
-#include <openssl/rand.h>
-#include <openssl/ssl.h>
+#include <boringssl/bio.h>
+#include <boringssl/buf.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/cipher.h>
+#include <boringssl/crypto.h>
+#include <boringssl/err.h>
+#include <boringssl/hmac.h>
+#include <boringssl/nid.h>
+#include <boringssl/rand.h>
+#include <boringssl/ssl.h>
 
 #include <memory>
 #include <string>

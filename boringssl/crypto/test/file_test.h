@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +16,7 @@
 #ifndef OPENSSL_HEADER_CRYPTO_TEST_FILE_TEST_H
 #define OPENSSL_HEADER_CRYPTO_TEST_FILE_TEST_H
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #include <stdint.h>
 #include <stdio.h>

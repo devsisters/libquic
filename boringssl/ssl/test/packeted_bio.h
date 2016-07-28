@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,8 +16,8 @@
 #ifndef HEADER_PACKETED_BIO
 #define HEADER_PACKETED_BIO
 
-#include <openssl/base.h>
-#include <openssl/bio.h>
+#include <boringssl/base.h>
+#include <boringssl/bio.h>
 
 #include "../../crypto/test/scoped_types.h"
 

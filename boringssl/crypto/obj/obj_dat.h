@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* THIS FILE IS GENERATED FROM objects.h by obj_dat.pl via the
  * following command:
  * perl obj_dat.pl ../../include/openssl/nid.h obj_dat.h */

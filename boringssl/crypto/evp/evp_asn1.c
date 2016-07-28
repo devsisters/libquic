@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,15 +55,15 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/evp.h>
+#include <boringssl/evp.h>
 
 #include <string.h>
 
-#include <openssl/bytestring.h>
-#include <openssl/dsa.h>
-#include <openssl/ec_key.h>
-#include <openssl/err.h>
-#include <openssl/rsa.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/dsa.h>
+#include <boringssl/ec_key.h>
+#include <boringssl/err.h>
+#include <boringssl/rsa.h>
 
 #include "internal.h"
 

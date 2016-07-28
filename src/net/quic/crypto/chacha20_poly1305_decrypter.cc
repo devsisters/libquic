@@ -4,8 +4,8 @@
 
 #include "net/quic/crypto/chacha20_poly1305_decrypter.h"
 
-#include <openssl/evp.h>
-#include <openssl/tls1.h>
+#include <boringssl/evp.h>
+#include <boringssl/tls1.h>
 
 namespace net {
 

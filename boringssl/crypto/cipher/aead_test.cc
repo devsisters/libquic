@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -17,9 +18,9 @@
 
 #include <vector>
 
-#include <openssl/aead.h>
-#include <openssl/crypto.h>
-#include <openssl/err.h>
+#include <boringssl/aead.h>
+#include <boringssl/crypto.h>
+#include <boringssl/err.h>
 
 #include "../test/file_test.h"
 #include "../test/scoped_types.h"

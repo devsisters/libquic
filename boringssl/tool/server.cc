@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,10 +13,10 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
-#include <openssl/err.h>
-#include <openssl/ssl.h>
+#include <boringssl/err.h>
+#include <boringssl/ssl.h>
 
 #include "internal.h"
 #include "transport_common.h"

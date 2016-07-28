@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Ulf Moeller for the OpenSSL project. */
 /* ====================================================================
  * Copyright (c) 1998-2004 The OpenSSL Project.  All rights reserved.
@@ -52,12 +53,12 @@
  * Hudson (tjh@cryptsoft.com). */
 
 
-#include <openssl/bn.h>
+#include <boringssl/bn.h>
 
 #include <string.h>
 
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 
 /* How many bignums are in each "pool item"; */

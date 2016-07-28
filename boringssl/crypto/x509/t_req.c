@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -56,12 +57,12 @@
 
 #include <stdio.h>
 
-#include <openssl/bn.h>
-#include <openssl/buffer.h>
-#include <openssl/err.h>
-#include <openssl/objects.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
+#include <boringssl/bn.h>
+#include <boringssl/buffer.h>
+#include <boringssl/err.h>
+#include <boringssl/objects.h>
+#include <boringssl/x509.h>
+#include <boringssl/x509v3.h>
 
 
 int X509_REQ_print_fp(FILE *fp, X509_REQ *x) {

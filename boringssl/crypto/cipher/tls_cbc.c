@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 2012 The OpenSSL Project.  All rights reserved.
  *
@@ -53,9 +54,9 @@
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/digest.h>
-#include <openssl/nid.h>
-#include <openssl/sha.h>
+#include <boringssl/digest.h>
+#include <boringssl/nid.h>
+#include <boringssl/sha.h>
 
 #include "../internal.h"
 #include "internal.h"

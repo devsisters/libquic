@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +16,7 @@
 #ifndef HEADER_ASYNC_BIO
 #define HEADER_ASYNC_BIO
 
-#include <openssl/bio.h>
+#include <boringssl/bio.h>
 
 #include "../../crypto/test/scoped_types.h"
 

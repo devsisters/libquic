@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/pem/pem_oth.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -55,17 +56,17 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/pem.h>
+#include <boringssl/pem.h>
 
 #include <stdio.h>
 
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/evp.h>
-#include <openssl/obj.h>
-#include <openssl/rand.h>
-#include <openssl/x509.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/evp.h>
+#include <boringssl/obj.h>
+#include <boringssl/rand.h>
+#include <boringssl/x509.h>
 
 /* Handle 'other' PEMs: not private keys */
 

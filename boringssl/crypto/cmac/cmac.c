@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 2010 The OpenSSL Project.  All rights reserved.
  *
@@ -46,14 +47,14 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ==================================================================== */
 
-#include <openssl/cmac.h>
+#include <boringssl/cmac.h>
 
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/aes.h>
-#include <openssl/cipher.h>
-#include <openssl/mem.h>
+#include <boringssl/aes.h>
+#include <boringssl/cipher.h>
+#include <boringssl/mem.h>
 
 
 struct cmac_ctx_st {

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -22,7 +23,7 @@
 #include <stdatomic.h>
 #include <stdlib.h>
 
-#include <openssl/type_check.h>
+#include <boringssl/type_check.h>
 
 
 /* See comment above the typedef of CRYPTO_refcount_t about these tests. */

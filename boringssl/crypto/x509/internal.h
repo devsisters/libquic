@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,9 +16,9 @@
 #ifndef OPENSSL_HEADER_X509_INTERNAL_H
 #define OPENSSL_HEADER_X509_INTERNAL_H
 
-#include <openssl/base.h>
-#include <openssl/evp.h>
-#include <openssl/x509.h>
+#include <boringssl/base.h>
+#include <boringssl/evp.h>
+#include <boringssl/x509.h>
 
 #if defined(__cplusplus)
 extern "C" {

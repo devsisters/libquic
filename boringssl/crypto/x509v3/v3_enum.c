@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_enum.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -57,9 +58,9 @@
 
 #include <stdio.h>
 
-#include <openssl/buf.h>
-#include <openssl/obj.h>
-#include <openssl/x509v3.h>
+#include <boringssl/buf.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509v3.h>
 
 static const ENUMERATED_NAMES crl_reasons[] = {
     {CRL_REASON_UNSPECIFIED, "Unspecified", "unspecified"},

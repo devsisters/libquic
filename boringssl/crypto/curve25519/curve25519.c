@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -19,14 +20,14 @@
  *
  * The field functions are shared by Ed25519 and X25519 where possible. */
 
-#include <openssl/curve25519.h>
+#include <boringssl/curve25519.h>
 
 #include <string.h>
 
-#include <openssl/cpu.h>
-#include <openssl/mem.h>
-#include <openssl/rand.h>
-#include <openssl/sha.h>
+#include <boringssl/cpu.h>
+#include <boringssl/mem.h>
+#include <boringssl/rand.h>
+#include <boringssl/sha.h>
 
 #include "internal.h"
 

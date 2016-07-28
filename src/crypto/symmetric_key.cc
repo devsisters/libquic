@@ -4,8 +4,8 @@
 
 #include "crypto/symmetric_key.h"
 
-#include <openssl/evp.h>
-#include <openssl/rand.h>
+#include <boringssl/evp.h>
+#include <boringssl/rand.h>
 #include <stddef.h>
 #include <stdint.h>
 

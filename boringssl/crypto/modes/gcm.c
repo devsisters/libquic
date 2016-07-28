@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
  *
@@ -46,13 +47,13 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ==================================================================== */
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/mem.h>
-#include <openssl/cpu.h>
+#include <boringssl/mem.h>
+#include <boringssl/cpu.h>
 
 #include "internal.h"
 #include "../internal.h"
@@ -363,7 +364,7 @@ void gcm_ghash_4bit_x86(uint64_t Xi[2], const u128 Htable[16], const uint8_t *in
                         size_t len);
 #endif
 #elif defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
-#include <openssl/arm_arch.h>
+#include <boringssl/arm_arch.h>
 #if __ARM_ARCH__ >= 7
 #define GHASH_ASM_ARM
 #define GCM_FUNCREF_4BIT

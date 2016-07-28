@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* pcy_map.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -57,9 +58,9 @@
  *
  */
 
-#include <openssl/obj.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509.h>
+#include <boringssl/x509v3.h>
 
 #include "pcy_int.h"
 

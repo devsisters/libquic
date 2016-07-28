@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -72,15 +73,15 @@
 #endif
 #endif
 
-#include <openssl/bio.h>
+#include <boringssl/bio.h>
 
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 
 #define BIO_FP_READ 0x02

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,16 +13,16 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/engine.h>
+#include <boringssl/engine.h>
 
 #include <string.h>
 #include <assert.h>
 
-#include <openssl/ec_key.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/rsa.h>
-#include <openssl/thread.h>
+#include <boringssl/ec_key.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/rsa.h>
+#include <boringssl/thread.h>
 
 
 struct engine_st {

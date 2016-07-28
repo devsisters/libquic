@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,9 +58,9 @@
 #ifndef OPENSSL_HEADER_EVP_INTERNAL_H
 #define OPENSSL_HEADER_EVP_INTERNAL_H
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
-#include <openssl/rsa.h>
+#include <boringssl/rsa.h>
 
 #if defined(__cplusplus)
 extern "C" {

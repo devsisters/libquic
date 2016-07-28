@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,20 +58,20 @@
  * The DSS routines are based on patches supplied by
  * Steven Schoch <schoch@sheba.arc.nasa.gov>. */
 
-#include <openssl/dsa.h>
+#include <boringssl/dsa.h>
 
 #include <string.h>
 
-#include <openssl/bn.h>
-#include <openssl/dh.h>
-#include <openssl/digest.h>
-#include <openssl/engine.h>
-#include <openssl/err.h>
-#include <openssl/ex_data.h>
-#include <openssl/mem.h>
-#include <openssl/rand.h>
-#include <openssl/sha.h>
-#include <openssl/thread.h>
+#include <boringssl/bn.h>
+#include <boringssl/dh.h>
+#include <boringssl/digest.h>
+#include <boringssl/engine.h>
+#include <boringssl/err.h>
+#include <boringssl/ex_data.h>
+#include <boringssl/mem.h>
+#include <boringssl/rand.h>
+#include <boringssl/sha.h>
+#include <boringssl/thread.h>
 
 #include "../internal.h"
 

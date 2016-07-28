@@ -57,6 +57,7 @@ $code=<<___;
 #include <openssl/arm_arch.h>
 
 .text
+#include <boringssl/bssl.h>
 ___
 $code.=<<___ if ($flavour =~ /64/);
 #if !defined(__clang__)

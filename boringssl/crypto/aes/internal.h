@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 2002-2006 The OpenSSL Project.  All rights reserved.
  *
@@ -49,7 +50,7 @@
 #ifndef OPENSSL_HEADER_AES_INTERNAL_H
 #define OPENSSL_HEADER_AES_INTERNAL_H
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #if defined(__cplusplus)
 extern "C" {

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,8 +16,8 @@
 #undef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200112L
 
-#include <openssl/bio.h>
-#include <openssl/err.h>
+#include <boringssl/bio.h>
+#include <boringssl/err.h>
 
 #include <fcntl.h>
 #include <string.h>

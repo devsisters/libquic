@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,8 +16,8 @@
 #ifndef OPENSSL_HEADER_POLY1305_INTERNAL_H
 #define OPENSSL_HEADER_POLY1305_INTERNAL_H
 
-#include <openssl/base.h>
-#include <openssl/poly1305.h>
+#include <boringssl/base.h>
+#include <boringssl/poly1305.h>
 
 #if defined(__cplusplus)
 extern "C" {

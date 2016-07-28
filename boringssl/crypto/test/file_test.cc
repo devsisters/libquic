@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -22,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/err.h>
+#include <boringssl/err.h>
 
 
 FileTest::FileTest(const char *path) {

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/x509/x509_obj.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -57,12 +58,12 @@
 
 #include <string.h>
 
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/lhash.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/x509.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/lhash.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509.h>
 
 char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
 {

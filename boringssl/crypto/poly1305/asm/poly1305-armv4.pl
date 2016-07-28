@@ -42,6 +42,7 @@ $code.=<<___;
 #include <openssl/arm_arch.h>
 
 .text
+#include <boringssl/bssl.h>
 #if defined(__thumb2__)
 .syntax	unified
 .thumb

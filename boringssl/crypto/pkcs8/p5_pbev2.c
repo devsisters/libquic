@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999-2004.
  */
@@ -57,14 +58,14 @@
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/asn1t.h>
-#include <openssl/cipher.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/pkcs8.h>
-#include <openssl/rand.h>
-#include <openssl/x509.h>
+#include <boringssl/asn1t.h>
+#include <boringssl/cipher.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/pkcs8.h>
+#include <boringssl/rand.h>
+#include <boringssl/x509.h>
 
 #include "internal.h"
 

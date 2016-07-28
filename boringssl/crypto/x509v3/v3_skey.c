@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_skey.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -58,10 +59,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/digest.h>
-#include <openssl/err.h>
-#include <openssl/obj.h>
-#include <openssl/x509v3.h>
+#include <boringssl/digest.h>
+#include <boringssl/err.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509v3.h>
 
 static ASN1_OCTET_STRING *s2i_skey_id(X509V3_EXT_METHOD *method,
                                       X509V3_CTX *ctx, char *str);
