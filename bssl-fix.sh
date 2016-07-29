@@ -19,7 +19,7 @@ if [ ! -f build/boringssl/crypto/libcrypto.a -o ! -f build/boringssl/ssl/libssl.
     fi
 else
     echo '[*] Finding exported symbols from previously built libraries'
-    ( cat <(nm build/boringssl/crypto/libcrypto.a) <(nm build/boringssl/ssl/libssl.a) )  | grep -vE ' [rtdbb] ' | grep -vE '^(      |$)' | grep -vF '.o:' | grep -vF ' r .L' | awk '{print $3}' | sed 's/^bssl_//' | sort >bssl-badsyms.txt
+    ( cat <(nm build/boringssl/crypto/libcrypto.a) <(nm build/boringssl/ssl/libssl.a) ) | grep -vE ' [A-Z] ' | grep -vE '^(      |$)' | grep -vF '.o:' | grep -vF ' r .L' | awk '{print $3}' | sed 's/^bssl_//' | sort >bssl-badsyms.txt
 fi
 
 echo '[*] Replacing QUIC openssl header includes with boringssl equivalent'
