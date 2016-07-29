@@ -45,8 +45,8 @@ for f in $(find boringssl -name '*.pl'); do
 
     # FIXME: these seds don't work for all .pls, but they were sufficient for my build
 
-    sed -i 's@^\.text$@.text\n#include <boringssl/bssl.h>@' $f
-    sed -i 's@^print STDOUT "#if defined(__x86_64__)\\n" if ($gas);$@print STDOUT "#include <boringssl/bssl.h>\\n" if ($gas);\nprint STDOUT "#if defined(__x86_64__)\\n" if ($gas);@' $f
+    sed -i -e 's@^\.text$@.text\n#include <boringssl/bssl.h>@' \
+        -e 's@^print STDOUT "#if defined(__x86_64__)\\n" if ($gas);$@print STDOUT "#include <boringssl/bssl.h>\\n" if ($gas);\nprint STDOUT "#if defined(__x86_64__)\\n" if ($gas);@' $f
 done
 
 echo '[*] Creating a header to put boringssl under a bssl prefix'
