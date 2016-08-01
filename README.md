@@ -44,7 +44,7 @@ Getting Started
 
 ## How to build
 
-Building with CMake and [Ninja](http://martine.github.io/ninja/) (Recommended):
+Building with CMake and [Ninja](https://ninja-build.org/) (Recommended):
 
 ```bash
 $ mkdir build/
