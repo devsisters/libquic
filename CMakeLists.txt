@@ -366,7 +366,7 @@ set(
 
 find_package(Protobuf 3)
 
-if(Protobuf_FOUND)
+if(Protobuf_FOUND AND FALSE)  # Turn off protobuf. Use bundled protobuf instead
 	set(GENERATE_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 	foreach(FIL ${PROTO_SOURCES})
@@ -395,7 +395,7 @@ else()
 		src/net/quic/proto/source_address_token.pb.cc
 	)
 
-	message("Cannot find protobuf")
+	# message("Cannot find protobuf")
 endif()
 
 set_source_files_properties(${PROTO_RESUTS} PROPERTIES GENERATED TRUE)
