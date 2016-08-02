@@ -31,7 +31,8 @@
         "base/threading/platform_thread_posix.cc",
         "base/threading/platform_thread_linux.cc",
         "base/threading/platform_thread_freebsd.cc",
-        "base/callback_helpers.cc"
+        "base/callback_helpers.cc",
+        "base/time/time_posix.cc"
     ],
     "manual_dependency": [
         {
@@ -50,7 +51,6 @@
                 "base/sequence_checker.h",
                 "base/debug/debugger.h",
                 "base/debug/debugger.cc",
-                "base/time/time_posix.cc",
                 "base/third_party/dmg_fp/dtoa.cc",
                 "base/third_party/dmg_fp/g_fmt.cc",
                 "base/third_party/superfasthash/superfasthash.c",
@@ -58,6 +58,7 @@
                 "base/strings/string_util_constants.cc",
                 "base/threading/thread_local_storage_posix.cc",
                 "base/threading/thread_local_posix.cc",
+                "base/threading/thread_local_android.cc",
                 "base/threading/platform_thread_mac.mm",
                 "base/synchronization/lock_impl_posix.cc",
                 "base/files/file_path_constants.cc",
@@ -94,7 +95,6 @@
         {
             "action": "remove",
             "target": [
-                "src/base/os_compat_android.*",
                 "third_party/zlib/crc_folding.c",
                 "third_party/zlib/fill_window_sse.c",
                 "third_party/zlib/x86.c"
