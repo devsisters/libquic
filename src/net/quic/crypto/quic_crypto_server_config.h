@@ -115,6 +115,18 @@ class NET_EXPORT_PRIVATE ValidateClientHelloResultCallback {
   DISALLOW_COPY_AND_ASSIGN(ValidateClientHelloResultCallback);
 };
 
+// Callback used to receive the results of a call to
+// BuildServerConfigUpdateMessage.
+class BuildServerConfigUpdateMessageResultCallback {
+ public:
+  BuildServerConfigUpdateMessageResultCallback() = default;
+  virtual ~BuildServerConfigUpdateMessageResultCallback() {}
+  virtual void Run(bool ok, const CryptoHandshakeMessage& message) = 0;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(BuildServerConfigUpdateMessageResultCallback);
+};
+
 // QuicCryptoServerConfig contains the crypto configuration of a QUIC server.
 // Unlike a client, a QUIC server can have multiple configurations active in
 // order to support clients resuming with a previous configuration.
@@ -159,7 +171,7 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   //     takes ownership of |proof_source|.
   QuicCryptoServerConfig(base::StringPiece source_address_token_secret,
                          QuicRandom* server_nonce_entropy,
-                         ProofSource* proof_source);
+                         std::unique_ptr<ProofSource> proof_source);
   ~QuicCryptoServerConfig();
 
   // TESTING is a magic parameter for passing to the constructor in tests.
@@ -297,6 +309,8 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // filled |out|.
   //
   // |cached_network_params| is optional, and can be nullptr.
+  //
+  // TODO(gredner): remove this when --FLAGS_enable_async_get_proof is removed.
   bool BuildServerConfigUpdateMessage(
       QuicVersion version,
       base::StringPiece chlo_hash,
@@ -309,6 +323,29 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
       const QuicCryptoNegotiatedParameters& params,
       const CachedNetworkParameters* cached_network_params,
       CryptoHandshakeMessage* out) const;
+
+  // BuildServerConfigUpdateMessage invokes |cb| with a SCUP message containing
+  // the current primary config, an up to date source-address token, and cert
+  // chain and proof in the case of secure QUIC. Passes true to |cb| if the
+  // message was generated successfully, and false otherwise.  This method
+  // assumes ownership of |cb|.
+  //
+  // |cached_network_params| is optional, and can be nullptr.
+  //
+  // TODO(gredner): This method is an async version of the above.  The
+  // synchronous version will eventually be removed.
+  void BuildServerConfigUpdateMessage(
+      QuicVersion version,
+      base::StringPiece chlo_hash,
+      const SourceAddressTokens& previous_source_address_tokens,
+      const IPAddress& server_ip,
+      const IPAddress& client_ip,
+      const QuicClock* clock,
+      QuicRandom* rand,
+      QuicCompressedCertsCache* compressed_certs_cache,
+      const QuicCryptoNegotiatedParameters& params,
+      const CachedNetworkParameters* cached_network_params,
+      std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const;
 
   // SetEphemeralKeySource installs an object that can cache ephemeral keys for
   // a short period of time. This object takes ownership of
@@ -497,12 +534,12 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   // sets known locally and |client_common_set_hashes| contains the hashes of
   // the common sets known to the peer. |client_cached_cert_hashes| contains
   // 64-bit, FNV-1a hashes of certificates that the peer already possesses.
-  const std::string CompressChain(
+  static std::string CompressChain(
       QuicCompressedCertsCache* compressed_certs_cache,
       const scoped_refptr<ProofSource::Chain>& chain,
       const std::string& client_common_set_hashes,
       const std::string& client_cached_cert_hashes,
-      const CommonCertSets* common_sets) const;
+      const CommonCertSets* common_sets);
 
   // ParseConfigProtobuf parses the given config protobuf and returns a
   // scoped_refptr<Config> if successful. The caller adopts the reference to the
@@ -582,6 +619,61 @@ class NET_EXPORT_PRIVATE QuicCryptoServerConfig {
   void ParseProofDemand(const CryptoHandshakeMessage& client_hello,
                         bool* x509_supported,
                         bool* x509_ecdsa_supported) const;
+
+  // Callback to receive the results of ProofSource::GetProof.  Note: this
+  // callback has no cancellation support, since the lifetime of the ProofSource
+  // is controlled by this object via unique ownership.  If that ownership
+  // stricture changes, this decision may need to be revisited.
+  class BuildServerConfigUpdateMessageProofSourceCallback
+      : public ProofSource::Callback {
+   public:
+    BuildServerConfigUpdateMessageProofSourceCallback(
+        const BuildServerConfigUpdateMessageProofSourceCallback&) = delete;
+    ~BuildServerConfigUpdateMessageProofSourceCallback() override;
+    void operator=(const BuildServerConfigUpdateMessageProofSourceCallback&) =
+        delete;
+    BuildServerConfigUpdateMessageProofSourceCallback(
+        const QuicCryptoServerConfig* config,
+        QuicVersion version,
+        QuicCompressedCertsCache* compressed_certs_cache,
+        const CommonCertSets* common_cert_sets,
+        const QuicCryptoNegotiatedParameters& params,
+        CryptoHandshakeMessage message,
+        std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb);
+
+    void Run(bool ok,
+             const scoped_refptr<ProofSource::Chain>& chain,
+             const std::string& signature,
+             const std::string& leaf_cert_sct) override;
+
+   private:
+    const QuicCryptoServerConfig* config_;
+    const QuicVersion version_;
+    QuicCompressedCertsCache* compressed_certs_cache_;
+    const CommonCertSets* common_cert_sets_;
+    const std::string client_common_set_hashes_;
+    const std::string client_cached_cert_hashes_;
+    const bool sct_supported_by_client_;
+    CryptoHandshakeMessage message_;
+    std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb_;
+  };
+
+  // Invoked by BuildServerConfigUpdateMessageProofSourceCallback::RunImpl once
+  // the proof has been acquired.  Finishes building the server config update
+  // message and invokes |cb|.
+  void FinishBuildServerConfigUpdateMessage(
+      QuicVersion version,
+      QuicCompressedCertsCache* compressed_certs_cache,
+      const CommonCertSets* common_cert_sets,
+      const std::string& client_common_set_hashes,
+      const std::string& client_cached_cert_hashes,
+      bool sct_supported_by_client,
+      bool ok,
+      const scoped_refptr<ProofSource::Chain>& chain,
+      const std::string& signature,
+      const std::string& leaf_cert_sct,
+      CryptoHandshakeMessage message,
+      std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const;
 
   // replay_protection_ controls whether the server enforces that handshakes
   // aren't replays.

@@ -55,7 +55,7 @@ struct StaticDescriptorInitializer_cached_5fnetwork_5fparameters_2eproto {
 namespace {
 
 static void MergeFromFail(int line) GOOGLE_ATTRIBUTE_COLD;
-static void MergeFromFail(int line) {
+GOOGLE_ATTRIBUTE_NOINLINE static void MergeFromFail(int line) {
   GOOGLE_CHECK(false) << __FILE__ << ":" << line;
 }
 
@@ -63,6 +63,11 @@ static void MergeFromFail(int line) {
 
 
 // ===================================================================
+
+static ::std::string* MutableUnknownFieldsForCachedNetworkParameters(
+    CachedNetworkParameters* ptr) {
+  return ptr->mutable_unknown_fields();
+}
 
 bool CachedNetworkParameters_PreviousConnectionState_IsValid(int value) {
   switch(value) {
@@ -165,8 +170,17 @@ CachedNetworkParameters* CachedNetworkParameters::New(::google::protobuf::Arena*
 }
 
 void CachedNetworkParameters::Clear() {
+// @@protoc_insertion_point(message_clear_start:net.CachedNetworkParameters)
+#if defined(__clang__)
+#define ZR_HELPER_(f) \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
+  __builtin_offsetof(CachedNetworkParameters, f) \
+  _Pragma("clang diagnostic pop")
+#else
 #define ZR_HELPER_(f) reinterpret_cast<char*>(\
   &reinterpret_cast<CachedNetworkParameters*>(16)->f)
+#endif
 
 #define ZR_(first, last) do {\
   ::memset(&first, 0,\
@@ -190,12 +204,13 @@ void CachedNetworkParameters::Clear() {
 
 bool CachedNetworkParameters::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  ::google::protobuf::io::StringOutputStream unknown_fields_string(
-      mutable_unknown_fields());
+  ::google::protobuf::io::LazyStringOutputStream unknown_fields_string(
+      ::google::protobuf::internal::NewPermanentCallback(
+          &MutableUnknownFieldsForCachedNetworkParameters, this));
   ::google::protobuf::io::CodedOutputStream unknown_fields_stream(
-      &unknown_fields_string);
+      &unknown_fields_string, false);
   // @@protoc_insertion_point(parse_start:net.CachedNetworkParameters)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
@@ -371,6 +386,7 @@ void CachedNetworkParameters::SerializeWithCachedSizes(
 }
 
 int CachedNetworkParameters::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:net.CachedNetworkParameters)
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & 127u) {
@@ -438,6 +454,7 @@ void CachedNetworkParameters::CheckTypeAndMergeFrom(
 }
 
 void CachedNetworkParameters::MergeFrom(const CachedNetworkParameters& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:net.CachedNetworkParameters)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_serving_region()) {
@@ -463,10 +480,13 @@ void CachedNetworkParameters::MergeFrom(const CachedNetworkParameters& from) {
       set_timestamp(from.timestamp());
     }
   }
-  mutable_unknown_fields()->append(from.unknown_fields());
+  if (!from.unknown_fields().empty()) {
+    mutable_unknown_fields()->append(from.unknown_fields());
+  }
 }
 
 void CachedNetworkParameters::CopyFrom(const CachedNetworkParameters& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:net.CachedNetworkParameters)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -541,6 +561,7 @@ void CachedNetworkParameters::clear_serving_region() {
   return serving_region_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  ::std::string* CachedNetworkParameters::release_serving_region() {
+  // @@protoc_insertion_point(field_release:net.CachedNetworkParameters.serving_region)
   clear_has_serving_region();
   return serving_region_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }

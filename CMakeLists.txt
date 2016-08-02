@@ -120,6 +120,7 @@ set(
 	src/net/quic/crypto/quic_encrypter.cc
 	src/net/quic/crypto/quic_crypto_client_config.cc
 	src/net/quic/crypto/proof_source.cc
+	src/net/quic/quic_buffered_packet_store.cc
 	src/net/quic/quic_clock.cc
 	src/net/quic/quic_alarm.cc
 	src/net/quic/quic_sent_entropy_manager.cc

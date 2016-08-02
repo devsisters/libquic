@@ -95,6 +95,9 @@ class NET_EXPORT_PRIVATE QuicStreamSequencer {
 
   bool ignore_read_data() const { return ignore_read_data_; }
 
+  // Returns std::string describing internal state.
+  const std::string DebugString() const;
+
  private:
   friend class test::QuicStreamSequencerPeer;
 

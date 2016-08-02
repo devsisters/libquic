@@ -35,7 +35,7 @@ void QuicAlarm::Update(QuicTime new_deadline, QuicTime::Delta granularity) {
     Cancel();
     return;
   }
-  if (std::abs(new_deadline.Subtract(deadline_).ToMicroseconds()) <
+  if (std::abs((new_deadline - deadline_).ToMicroseconds()) <
       granularity.ToMicroseconds()) {
     return;
   }

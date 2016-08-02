@@ -175,7 +175,7 @@ void QuicReceivedPacketManager::RecordPacketReceived(
         max(stats_->max_sequence_reordering,
             ack_frame_.largest_observed - packet_number);
     int64_t reordering_time_us =
-        receipt_time.Subtract(time_largest_observed_).ToMicroseconds();
+        (receipt_time - time_largest_observed_).ToMicroseconds();
     stats_->max_time_reordering_us =
         max(stats_->max_time_reordering_us, reordering_time_us);
   }
@@ -231,10 +231,9 @@ const QuicFrame QuicReceivedPacketManager::GetUpdatedAckFrame(
     ack_frame_.ack_delay_time = QuicTime::Delta::Infinite();
   } else {
     // Ensure the delta is zero if approximate now is "in the past".
-    ack_frame_.ack_delay_time =
-        approximate_now < time_largest_observed_
-            ? QuicTime::Delta::Zero()
-            : approximate_now.Subtract(time_largest_observed_);
+    ack_frame_.ack_delay_time = approximate_now < time_largest_observed_
+                                    ? QuicTime::Delta::Zero()
+                                    : approximate_now - time_largest_observed_;
   }
 
   // Clear all packet times if any are too far from largest observed.
@@ -318,6 +317,10 @@ void QuicReceivedPacketManager::SetVersion(QuicVersion version) {
 
 bool QuicReceivedPacketManager::ack_frame_updated() const {
   return ack_frame_updated_;
+}
+
+QuicPacketNumber QuicReceivedPacketManager::GetLargestObserved() const {
+  return ack_frame_.largest_observed;
 }
 
 }  // namespace net

@@ -47,9 +47,6 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
   // particularly for congestion avoidance.  Can be set any time.
   virtual void SetNumEmulatedConnections(int num_connections) = 0;
 
-  // Sets the maximum congestion window in bytes.
-  virtual void SetMaxCongestionWindow(QuicByteCount max_congestion_window) = 0;
-
   // Indicates an update to the congestion state, caused either by an incoming
   // ack or loss event timeout.  |rtt_updated| indicates whether a new
   // latest_rtt sample has been taken, |byte_in_flight| the bytes in flight

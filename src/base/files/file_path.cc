@@ -537,7 +537,7 @@ bool FilePath::IsAbsolute() const {
 bool FilePath::EndsWithSeparator() const {
   if (empty())
     return false;
-  return IsSeparator(path_[path_.size() - 1]);
+  return IsSeparator(path_.back());
 }
 
 FilePath FilePath::AsEndingWithSeparator() const {

@@ -59,7 +59,7 @@ struct StaticDescriptorInitializer_source_5faddress_5ftoken_2eproto {
 namespace {
 
 static void MergeFromFail(int line) GOOGLE_ATTRIBUTE_COLD;
-static void MergeFromFail(int line) {
+GOOGLE_ATTRIBUTE_NOINLINE static void MergeFromFail(int line) {
   GOOGLE_CHECK(false) << __FILE__ << ":" << line;
 }
 
@@ -67,6 +67,11 @@ static void MergeFromFail(int line) {
 
 
 // ===================================================================
+
+static ::std::string* MutableUnknownFieldsForSourceAddressToken(
+    SourceAddressToken* ptr) {
+  return ptr->mutable_unknown_fields();
+}
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int SourceAddressToken::kIpFieldNumber;
@@ -151,6 +156,7 @@ SourceAddressToken* SourceAddressToken::New(::google::protobuf::Arena* arena) co
 }
 
 void SourceAddressToken::Clear() {
+// @@protoc_insertion_point(message_clear_start:net.SourceAddressToken)
   if (_has_bits_[0 / 32] & 7u) {
     if (has_ip()) {
       ip_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
@@ -167,12 +173,13 @@ void SourceAddressToken::Clear() {
 
 bool SourceAddressToken::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  ::google::protobuf::io::StringOutputStream unknown_fields_string(
-      mutable_unknown_fields());
+  ::google::protobuf::io::LazyStringOutputStream unknown_fields_string(
+      ::google::protobuf::internal::NewPermanentCallback(
+          &MutableUnknownFieldsForSourceAddressToken, this));
   ::google::protobuf::io::CodedOutputStream unknown_fields_stream(
-      &unknown_fields_string);
+      &unknown_fields_string, false);
   // @@protoc_insertion_point(parse_start:net.SourceAddressToken)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
@@ -267,6 +274,7 @@ void SourceAddressToken::SerializeWithCachedSizes(
 }
 
 int SourceAddressToken::RequiredFieldsByteSizeFallback() const {
+// @@protoc_insertion_point(required_fields_byte_size_fallback_start:net.SourceAddressToken)
   int total_size = 0;
 
   if (has_ip()) {
@@ -286,6 +294,7 @@ int SourceAddressToken::RequiredFieldsByteSizeFallback() const {
   return total_size;
 }
 int SourceAddressToken::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:net.SourceAddressToken)
   int total_size = 0;
 
   if (((_has_bits_[0] & 0x00000003) ^ 0x00000003) == 0) {  // All required fields are present.
@@ -323,6 +332,7 @@ void SourceAddressToken::CheckTypeAndMergeFrom(
 }
 
 void SourceAddressToken::MergeFrom(const SourceAddressToken& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:net.SourceAddressToken)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_ip()) {
@@ -336,10 +346,13 @@ void SourceAddressToken::MergeFrom(const SourceAddressToken& from) {
       mutable_cached_network_parameters()->::net::CachedNetworkParameters::MergeFrom(from.cached_network_parameters());
     }
   }
-  mutable_unknown_fields()->append(from.unknown_fields());
+  if (!from.unknown_fields().empty()) {
+    mutable_unknown_fields()->append(from.unknown_fields());
+  }
 }
 
 void SourceAddressToken::CopyFrom(const SourceAddressToken& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:net.SourceAddressToken)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -411,6 +424,7 @@ void SourceAddressToken::clear_ip() {
   return ip_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  ::std::string* SourceAddressToken::release_ip() {
+  // @@protoc_insertion_point(field_release:net.SourceAddressToken.ip)
   clear_has_ip();
   return ip_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
@@ -479,6 +493,7 @@ const ::net::CachedNetworkParameters& SourceAddressToken::cached_network_paramet
   return cached_network_parameters_;
 }
 ::net::CachedNetworkParameters* SourceAddressToken::release_cached_network_parameters() {
+  // @@protoc_insertion_point(field_release:net.SourceAddressToken.cached_network_parameters)
   clear_has_cached_network_parameters();
   ::net::CachedNetworkParameters* temp = cached_network_parameters_;
   cached_network_parameters_ = NULL;
@@ -498,6 +513,11 @@ void SourceAddressToken::set_allocated_cached_network_parameters(::net::CachedNe
 #endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
+
+static ::std::string* MutableUnknownFieldsForSourceAddressTokens(
+    SourceAddressTokens* ptr) {
+  return ptr->mutable_unknown_fields();
+}
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int SourceAddressTokens::kTokensFieldNumber;
@@ -569,6 +589,7 @@ SourceAddressTokens* SourceAddressTokens::New(::google::protobuf::Arena* arena) 
 }
 
 void SourceAddressTokens::Clear() {
+// @@protoc_insertion_point(message_clear_start:net.SourceAddressTokens)
   tokens_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   _unknown_fields_.ClearToEmptyNoArena(
@@ -577,12 +598,13 @@ void SourceAddressTokens::Clear() {
 
 bool SourceAddressTokens::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  ::google::protobuf::io::StringOutputStream unknown_fields_string(
-      mutable_unknown_fields());
+  ::google::protobuf::io::LazyStringOutputStream unknown_fields_string(
+      ::google::protobuf::internal::NewPermanentCallback(
+          &MutableUnknownFieldsForSourceAddressTokens, this));
   ::google::protobuf::io::CodedOutputStream unknown_fields_stream(
-      &unknown_fields_string);
+      &unknown_fields_string, false);
   // @@protoc_insertion_point(parse_start:net.SourceAddressTokens)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
@@ -642,6 +664,7 @@ void SourceAddressTokens::SerializeWithCachedSizes(
 }
 
 int SourceAddressTokens::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:net.SourceAddressTokens)
   int total_size = 0;
 
   // repeated .net.SourceAddressToken tokens = 4;
@@ -666,12 +689,16 @@ void SourceAddressTokens::CheckTypeAndMergeFrom(
 }
 
 void SourceAddressTokens::MergeFrom(const SourceAddressTokens& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:net.SourceAddressTokens)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   tokens_.MergeFrom(from.tokens_);
-  mutable_unknown_fields()->append(from.unknown_fields());
+  if (!from.unknown_fields().empty()) {
+    mutable_unknown_fields()->append(from.unknown_fields());
+  }
 }
 
 void SourceAddressTokens::CopyFrom(const SourceAddressTokens& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:net.SourceAddressTokens)
   if (&from == this) return;
   Clear();
   MergeFrom(from);

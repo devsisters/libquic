@@ -2501,6 +2501,12 @@ EVENT_TYPE(DOWNLOAD_URL_REQUEST)
 // one of these events.
 EVENT_TYPE(DOWNLOAD_ITEM_ACTIVE)
 
+// Recorded when the DownloadFile is created.
+//   {
+//     "source_dependency": <Source ID of DownloadFile>
+//   }
+EVENT_TYPE(DOWNLOAD_FILE_CREATED)
+
 // This event is created when a download item's danger type
 // has been modified.
 //   {
@@ -2563,6 +2569,12 @@ EVENT_TYPE(DOWNLOAD_ITEM_CANCELED)
 // DownloadFile events.
 // ------------------------------------------------------------------------
 
+// A new download file was created.
+//   {
+//     "source_dependency": <Source ID of owning DownloadItem>
+//   }
+EVENT_TYPE(DOWNLOAD_FILE_ACTIVE)
+
 // This event is created when a download file is opened, and lasts until
 // the file is closed.
 // The BEGIN event has the following parameters:
@@ -2580,16 +2592,19 @@ EVENT_TYPE(DOWNLOAD_FILE_OPENED)
 //   }
 EVENT_TYPE(DOWNLOAD_STREAM_DRAINED)
 
+// Created when a buffer is written to the download file. The END event has the
+// following paramters:
+//   {
+//     "bytes": <Count of bytes written>
+//   }
+EVENT_TYPE(DOWNLOAD_FILE_WRITTEN)
+
 // This event is created when a download file is renamed.
 //   {
 //     "old_filename": <Old filename>,
 //     "new_filename": <New filename>,
 //   }
 EVENT_TYPE(DOWNLOAD_FILE_RENAMED)
-
-// This event is created when a download file is closed.  This event is allowed
-// to occur even if the file is not open.
-EVENT_TYPE(DOWNLOAD_FILE_CLOSED)
 
 // This event is created when a download file is detached.
 EVENT_TYPE(DOWNLOAD_FILE_DETACHED)

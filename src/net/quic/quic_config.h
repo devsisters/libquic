@@ -216,7 +216,7 @@ class NET_EXPORT_PRIVATE QuicFixedTagVector : public QuicConfigValue {
 };
 
 // Stores IPEndPoint from CHLO or SHLO messages that are not negotiated.
-class QuicFixedIPEndPoint : public QuicConfigValue {
+class NET_EXPORT_PRIVATE QuicFixedIPEndPoint : public QuicConfigValue {
  public:
   QuicFixedIPEndPoint(QuicTag tag, QuicConfigPresence presence);
   ~QuicFixedIPEndPoint() override;

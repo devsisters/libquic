@@ -236,8 +236,8 @@ class ObserverList : public ObserverListBase<ObserverType> {
 #define FOR_EACH_OBSERVER(ObserverType, observer_list, func)             \
   do {                                                                   \
     if ((observer_list).might_have_observers()) {                        \
-      base::ObserverListBase<ObserverType>::Iterator it_inside_observer_macro( \
-          &observer_list);                                               \
+      typename base::ObserverListBase<ObserverType>::Iterator            \
+          it_inside_observer_macro(&observer_list);                      \
       ObserverType* obs;                                                 \
       while ((obs = it_inside_observer_macro.GetNext()) != nullptr)      \
         obs->func;                                                       \

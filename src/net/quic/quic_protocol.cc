@@ -504,6 +504,13 @@ bool PacketNumberQueue::RemoveUpTo(QuicPacketNumber higher) {
   return Empty() || old_min != Min();
 }
 
+void PacketNumberQueue::Complement() {
+  if (Empty()) {
+    return;
+  }
+  packet_number_intervals_.Complement(Min(), Max() + 1);
+}
+
 bool PacketNumberQueue::Contains(QuicPacketNumber packet_number) const {
   return packet_number_intervals_.Contains(packet_number);
 }

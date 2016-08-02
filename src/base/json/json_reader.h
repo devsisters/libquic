@@ -91,17 +91,17 @@ class BASE_EXPORT JSONReader {
 
   ~JSONReader();
 
-  // Reads and parses |json|, returning a Value. The caller owns the returned
-  // instance. If |json| is not a properly formed JSON string, returns NULL.
+  // Reads and parses |json|, returning a Value.
+  // If |json| is not a properly formed JSON string, returns nullptr.
+  // Wrap this in base::FooValue::From() to check the Value is of type Foo and
+  // convert to a FooValue at the same time.
   static std::unique_ptr<Value> Read(StringPiece json);
 
-  // Reads and parses |json|, returning a Value owned by the caller. The
-  // parser respects the given |options|. If the input is not properly formed,
-  // returns NULL.
+  // Same as Read() above, but the parser respects the given |options|.
   static std::unique_ptr<Value> Read(StringPiece json, int options);
 
   // Reads and parses |json| like Read(). |error_code_out| and |error_msg_out|
-  // are optional. If specified and NULL is returned, they will be populated
+  // are optional. If specified and nullptr is returned, they will be populated
   // an error code and a formatted error message (including error location if
   // appropriate). Otherwise, they will be unmodified.
   static std::unique_ptr<Value> ReadAndReturnError(
@@ -116,7 +116,7 @@ class BASE_EXPORT JSONReader {
   // Returns an empty string if error_code is JSON_NO_ERROR.
   static std::string ErrorCodeToString(JsonParseError error_code);
 
-  // Parses an input string into a Value that is owned by the caller.
+  // Non-static version of Read() above.
   std::unique_ptr<Value> ReadToValue(StringPiece json);
 
   // Returns the error code if the last call to ReadToValue() failed.

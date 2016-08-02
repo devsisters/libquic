@@ -40,7 +40,6 @@ class NET_EXPORT_PRIVATE TcpCubicSenderBytes : public TcpCubicSenderBase {
 
   // Start implementation of SendAlgorithmInterface.
   void SetNumEmulatedConnections(int num_connections) override;
-  void SetMaxCongestionWindow(QuicByteCount max_congestion_window) override;
   void OnConnectionMigration() override;
   QuicByteCount GetCongestionWindow() const override;
   QuicByteCount GetSlowStartThreshold() const override;

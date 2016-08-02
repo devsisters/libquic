@@ -70,32 +70,6 @@ class NET_EXPORT_PRIVATE QuicTime {
     // Converts the time offset to a rounded number of microseconds.
     inline int64_t ToMicroseconds() const { return time_offset_; }
 
-    inline Delta Add(Delta delta) const WARN_UNUSED_RESULT {
-      return Delta(time_offset_ + delta.time_offset_);
-    }
-
-    inline Delta Subtract(Delta delta) const WARN_UNUSED_RESULT {
-      return Delta(time_offset_ - delta.time_offset_);
-    }
-
-    inline Delta Multiply(int i) const WARN_UNUSED_RESULT {
-      return Delta(time_offset_ * i);
-    }
-
-    inline Delta Multiply(double d) const WARN_UNUSED_RESULT {
-      return Delta(time_offset_ * d);
-    }
-
-    // Returns the larger delta of time1 and time2.
-    static inline Delta Max(Delta delta1, Delta delta2) {
-      return delta1 < delta2 ? delta2 : delta1;
-    }
-
-    // Returns the smaller delta of time1 and time2.
-    static inline Delta Min(Delta delta1, Delta delta2) {
-      return delta1 < delta2 ? delta1 : delta2;
-    }
-
     inline bool IsZero() const { return time_offset_ == 0; }
 
     inline bool IsInfinite() const {
@@ -109,8 +83,19 @@ class NET_EXPORT_PRIVATE QuicTime {
     friend inline QuicTime::Delta operator<<(QuicTime::Delta lhs, size_t rhs);
     friend inline QuicTime::Delta operator>>(QuicTime::Delta lhs, size_t rhs);
 
-    // Highest number of microseconds that DateTimeOffset can hold.
-    static const int64_t kQuicInfiniteTimeUs = INT64_C(0x7fffffffffffffff) / 10;
+    friend inline QuicTime::Delta operator+(QuicTime::Delta lhs,
+                                            QuicTime::Delta rhs);
+    friend inline QuicTime::Delta operator-(QuicTime::Delta lhs,
+                                            QuicTime::Delta rhs);
+    friend inline QuicTime::Delta operator*(QuicTime::Delta lhs, int rhs);
+    friend inline QuicTime::Delta operator*(QuicTime::Delta lhs, double rhs);
+
+    friend inline QuicTime operator+(QuicTime lhs, QuicTime::Delta rhs);
+    friend inline QuicTime operator-(QuicTime lhs, QuicTime::Delta rhs);
+    friend inline QuicTime::Delta operator-(QuicTime lhs, QuicTime rhs);
+
+    static const int64_t kQuicInfiniteTimeUs =
+        std::numeric_limits<int64_t>::max();
 
     explicit QUICTIME_CONSTEXPR Delta(int64_t time_offset)
         : time_offset_(time_offset) {}
@@ -131,11 +116,6 @@ class NET_EXPORT_PRIVATE QuicTime {
     return QuicTime(Delta::kQuicInfiniteTimeUs);
   }
 
-  // Returns the later time of time1 and time2.
-  static inline QuicTime Max(QuicTime time1, QuicTime time2) {
-    return time1 < time2 ? time2 : time1;
-  }
-
   // Produce the internal value to be used when logging.  This value
   // represents the number of microseconds since some epoch.  It may
   // be the UNIX epoch on some platforms.  On others, it may
@@ -144,23 +124,12 @@ class NET_EXPORT_PRIVATE QuicTime {
 
   inline bool IsInitialized() const { return 0 != time_; }
 
-  inline QuicTime Add(Delta delta) const WARN_UNUSED_RESULT {
-    return QuicTime(time_ + delta.time_offset_);
-  }
-
-  inline QuicTime Subtract(Delta delta) const WARN_UNUSED_RESULT {
-    return QuicTime(time_ - delta.time_offset_);
-  }
-
-  inline Delta Subtract(QuicTime other) const WARN_UNUSED_RESULT {
-    return Delta(time_ - other.time_);
-  }
-
  private:
   friend inline bool operator==(QuicTime lhs, QuicTime rhs);
   friend inline bool operator<(QuicTime lhs, QuicTime rhs);
-  friend class QuicClock;
-  friend class QuicClockTest;
+  friend inline QuicTime operator+(QuicTime lhs, QuicTime::Delta rhs);
+  friend inline QuicTime operator-(QuicTime lhs, QuicTime::Delta rhs);
+  friend inline QuicTime::Delta operator-(QuicTime lhs, QuicTime rhs);
 
   explicit QUICTIME_CONSTEXPR QuicTime(int64_t time) : time_(time) {}
 
@@ -169,7 +138,7 @@ class NET_EXPORT_PRIVATE QuicTime {
 
 // A QuicWallTime represents an absolute time that is globally consistent. In
 // practice, clock-skew means that comparing values from different machines
-// requires some flexibility in interpretation.
+// requires some flexibility.
 class NET_EXPORT_PRIVATE QuicWallTime {
  public:
   // FromUNIXSeconds constructs a QuicWallTime from a count of the seconds
@@ -261,6 +230,37 @@ inline bool operator<=(QuicTime lhs, QuicTime rhs) {
 }
 inline bool operator>=(QuicTime lhs, QuicTime rhs) {
   return !(lhs < rhs);
+}
+
+// Non-member arithmetic operators for QuicTime::Delta.
+inline QuicTime::Delta operator+(QuicTime::Delta lhs, QuicTime::Delta rhs) {
+  return QuicTime::Delta(lhs.time_offset_ + rhs.time_offset_);
+}
+inline QuicTime::Delta operator-(QuicTime::Delta lhs, QuicTime::Delta rhs) {
+  return QuicTime::Delta(lhs.time_offset_ - rhs.time_offset_);
+}
+inline QuicTime::Delta operator*(QuicTime::Delta lhs, int rhs) {
+  return QuicTime::Delta(lhs.time_offset_ * rhs);
+}
+inline QuicTime::Delta operator*(QuicTime::Delta lhs, double rhs) {
+  return QuicTime::Delta(lhs.time_offset_ * rhs);
+}
+inline QuicTime::Delta operator*(int lhs, QuicTime::Delta rhs) {
+  return rhs * lhs;
+}
+inline QuicTime::Delta operator*(double lhs, QuicTime::Delta rhs) {
+  return rhs * lhs;
+}
+
+// Non-member arithmetic operators for QuicTime and QuicTime::Delta.
+inline QuicTime operator+(QuicTime lhs, QuicTime::Delta rhs) {
+  return QuicTime(lhs.time_ + rhs.time_offset_);
+}
+inline QuicTime operator-(QuicTime lhs, QuicTime::Delta rhs) {
+  return QuicTime(lhs.time_ - rhs.time_offset_);
+}
+inline QuicTime::Delta operator-(QuicTime lhs, QuicTime rhs) {
+  return QuicTime::Delta(lhs.time_ - rhs.time_);
 }
 
 }  // namespace net

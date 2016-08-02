@@ -52,17 +52,15 @@ class NET_EXPORT_PRIVATE QuicBandwidth {
 
   bool IsZero() const;
 
-  QuicBandwidth Add(QuicBandwidth delta) const WARN_UNUSED_RESULT;
-
-  QuicBandwidth Subtract(QuicBandwidth delta) const WARN_UNUSED_RESULT;
-
-  QuicBandwidth Scale(float scale_factor) const WARN_UNUSED_RESULT;
-
   QuicTime::Delta TransferTime(QuicByteCount bytes) const;
 
  private:
   explicit QuicBandwidth(int64_t bits_per_second);
   int64_t bits_per_second_;
+
+  friend QuicBandwidth operator+(QuicBandwidth lhs, QuicBandwidth rhs);
+  friend QuicBandwidth operator-(QuicBandwidth lhs, QuicBandwidth rhs);
+  friend QuicBandwidth operator*(QuicBandwidth lhs, float factor);
 };
 
 // Non-member relational operators for QuicBandwidth.
@@ -83,6 +81,20 @@ inline bool operator<=(QuicBandwidth lhs, QuicBandwidth rhs) {
 }
 inline bool operator>=(QuicBandwidth lhs, QuicBandwidth rhs) {
   return !(lhs < rhs);
+}
+
+// Non-member arithmetic operators for QuicBandwidth.
+inline QuicBandwidth operator+(QuicBandwidth lhs, QuicBandwidth rhs) {
+  return QuicBandwidth(lhs.bits_per_second_ + rhs.bits_per_second_);
+}
+inline QuicBandwidth operator-(QuicBandwidth lhs, QuicBandwidth rhs) {
+  return QuicBandwidth(lhs.bits_per_second_ - rhs.bits_per_second_);
+}
+inline QuicBandwidth operator*(QuicBandwidth lhs, float rhs) {
+  return QuicBandwidth(static_cast<int64_t>(lhs.bits_per_second_ * rhs));
+}
+inline QuicBandwidth operator*(float lhs, QuicBandwidth rhs) {
+  return rhs * lhs;
 }
 
 }  // namespace net

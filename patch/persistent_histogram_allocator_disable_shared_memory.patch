@@ -1,5 +1,5 @@
 diff --git a/src/base/metrics/persistent_histogram_allocator.cc b/src/base/metrics/persistent_histogram_allocator.cc
-index 51a3d6c..098893e 100644
+index cad4642..7bacbea 100644
 --- a/src/base/metrics/persistent_histogram_allocator.cc
 +++ b/src/base/metrics/persistent_histogram_allocator.cc
 @@ -7,9 +7,11 @@
@@ -14,7 +14,7 @@ index 51a3d6c..098893e 100644
  #include "base/lazy_instance.h"
  #include "base/logging.h"
  #include "base/memory/ptr_util.h"
-@@ -688,6 +690,7 @@ void GlobalHistogramAllocator::CreateWithLocalMemory(
+@@ -684,6 +686,7 @@ void GlobalHistogramAllocator::CreateWithLocalMemory(
        WrapUnique(new LocalPersistentMemoryAllocator(size, id, name)))));
  }
  
@@ -22,7 +22,7 @@ index 51a3d6c..098893e 100644
  #if !defined(OS_NACL)
  // static
  void GlobalHistogramAllocator::CreateWithFile(
-@@ -753,6 +756,7 @@ void GlobalHistogramAllocator::CreateWithSharedMemoryHandle(
+@@ -749,6 +752,7 @@ void GlobalHistogramAllocator::CreateWithSharedMemoryHandle(
        WrapUnique(new SharedPersistentMemoryAllocator(
            std::move(shm), 0, StringPiece(), /*readonly=*/false)))));
  }
@@ -30,7 +30,7 @@ index 51a3d6c..098893e 100644
  
  // static
  void GlobalHistogramAllocator::Set(
-@@ -817,6 +821,7 @@ const FilePath& GlobalHistogramAllocator::GetPersistentLocation() const {
+@@ -813,6 +817,7 @@ const FilePath& GlobalHistogramAllocator::GetPersistentLocation() const {
  }
  
  bool GlobalHistogramAllocator::WriteToPersistentLocation() {
@@ -38,7 +38,7 @@ index 51a3d6c..098893e 100644
  #if defined(OS_NACL)
    // NACL doesn't support file operations, including ImportantFileWriter.
    NOTREACHED();
-@@ -839,6 +844,10 @@ bool GlobalHistogramAllocator::WriteToPersistentLocation() {
+@@ -835,6 +840,10 @@ bool GlobalHistogramAllocator::WriteToPersistentLocation() {
  
    return true;
  #endif

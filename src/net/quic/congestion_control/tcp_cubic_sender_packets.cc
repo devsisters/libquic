@@ -78,12 +78,6 @@ void TcpCubicSenderPackets::SetNumEmulatedConnections(int num_connections) {
   cubic_.SetNumConnections(num_connections_);
 }
 
-void TcpCubicSenderPackets::SetMaxCongestionWindow(
-    QuicByteCount max_congestion_window) {
-  DCHECK(!FLAGS_quic_ignore_srbf);
-  max_tcp_congestion_window_ = max_congestion_window / kDefaultTCPMSS;
-}
-
 void TcpCubicSenderPackets::ExitSlowstart() {
   slowstart_threshold_ = congestion_window_;
 }
@@ -125,8 +119,7 @@ void TcpCubicSenderPackets::OnPacketLost(QuicPacketNumber packet_number,
   // TODO(jri): Separate out all of slow start into a separate class.
   if (slow_start_large_reduction_ && InSlowStart()) {
     DCHECK_LT(1u, congestion_window_);
-    if (FLAGS_quic_sslr_limit_reduction &&
-        congestion_window_ >= 2 * initial_tcp_congestion_window_) {
+    if (congestion_window_ >= 2 * initial_tcp_congestion_window_) {
       min_slow_start_exit_window_ = congestion_window_ / 2;
     }
     congestion_window_ = congestion_window_ - 1;

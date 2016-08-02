@@ -135,8 +135,8 @@ void QuicFlowController::MaybeIncreaseMaxWindowSize() {
   }
 
   // Now we can compare timing of window updates with RTT.
-  QuicTime::Delta since_last = now.Subtract(prev);
-  QuicTime::Delta two_rtt = rtt.Multiply(2);
+  QuicTime::Delta since_last = now - prev;
+  QuicTime::Delta two_rtt = 2 * rtt;
 
   if (since_last >= two_rtt) {
     // If interval between window updates is sufficiently large, there

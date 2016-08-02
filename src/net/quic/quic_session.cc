@@ -123,7 +123,7 @@ void QuicSession::OnConnectionClosed(QuicErrorCode error,
   }
 
   while (!dynamic_stream_map_.empty()) {
-    StreamMap::iterator it = dynamic_stream_map_.begin();
+    DynamicStreamMap::iterator it = dynamic_stream_map_.begin();
     QuicStreamId id = it->first;
     it->second->OnConnectionClosed(error, source);
     // The stream should call CloseStream as part of OnConnectionClosed.
@@ -310,7 +310,7 @@ void QuicSession::InsertLocallyClosedStreamsHighestOffset(
 void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
   DVLOG(1) << ENDPOINT << "Closing stream " << stream_id;
 
-  StreamMap::iterator it = dynamic_stream_map_.find(stream_id);
+  DynamicStreamMap::iterator it = dynamic_stream_map_.find(stream_id);
   if (it == dynamic_stream_map_.end()) {
     // When CloseStreamInner has been called recursively (via
     // ReliableQuicStream::OnClose), the stream will already have been deleted
@@ -617,7 +617,7 @@ QuicStreamId QuicSession::GetNextOutgoingStreamId() {
 
 ReliableQuicStream* QuicSession::GetOrCreateStream(
     const QuicStreamId stream_id) {
-  StreamMap::iterator it = static_stream_map_.find(stream_id);
+  StaticStreamMap::iterator it = static_stream_map_.find(stream_id);
   if (it != static_stream_map_.end()) {
     return it->second;
   }
@@ -681,7 +681,7 @@ ReliableQuicStream* QuicSession::GetOrCreateDynamicStream(
   DCHECK(!ContainsKey(static_stream_map_, stream_id))
       << "Attempt to call GetOrCreateDynamicStream for a static stream";
 
-  StreamMap::iterator it = dynamic_stream_map_.find(stream_id);
+  DynamicStreamMap::iterator it = dynamic_stream_map_.find(stream_id);
   if (it != dynamic_stream_map_.end()) {
     return it->second;
   }

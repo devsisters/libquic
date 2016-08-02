@@ -153,7 +153,7 @@ bool HpackInputStream::DecodeNextHuffmanString(string* str) {
     return false;
   }
 
-  HpackInputStream bounded_reader(StringPiece(buffer_.data(), encoded_size));
+  HpackInputStream bounded_reader(buffer_.substr(0, encoded_size));
   buffer_.remove_prefix(encoded_size);
   parsed_bytes_current_ += encoded_size;
 

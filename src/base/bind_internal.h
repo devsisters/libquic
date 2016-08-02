@@ -46,6 +46,60 @@ namespace internal {
 //  BindState<> -- Stores the curried parameters, and is the main entry point
 //                 into the Bind() system.
 
+template <typename...>
+struct make_void {
+  using type = void;
+};
+
+// A clone of C++17 std::void_t.
+// Unlike the original version, we need |make_void| as a helper struct to avoid
+// a C++14 defect.
+// ref: http://en.cppreference.com/w/cpp/types/void_t
+// ref: http://open-std.org/JTC1/SC22/WG21/docs/cwg_defects.html#1558
+template <typename... Ts>
+using void_t = typename make_void<Ts...>::type;
+
+template <typename Callable,
+          typename Signature = decltype(&Callable::operator())>
+struct ExtractCallableRunTypeImpl;
+
+template <typename Callable, typename R, typename... Args>
+struct ExtractCallableRunTypeImpl<Callable, R(Callable::*)(Args...) const> {
+  using Type = R(Args...);
+};
+
+// Evaluated to RunType of the given callable type.
+// Example:
+//   auto f = [](int, char*) { return 0.1; };
+//   ExtractCallableRunType<decltype(f)>
+//   is evaluated to
+//   double(int, char*);
+template <typename Callable>
+using ExtractCallableRunType =
+    typename ExtractCallableRunTypeImpl<Callable>::Type;
+
+// IsConvertibleToRunType<Functor> is std::true_type if |Functor| has operator()
+// and convertible to the corresponding function pointer. Otherwise, it's
+// std::false_type.
+// Example:
+//   IsConvertibleToRunType<void(*)()>::value is false.
+//
+//   struct Foo {};
+//   IsConvertibleToRunType<void(Foo::*)()>::value is false.
+//
+//   auto f = []() {};
+//   IsConvertibleToRunType<decltype(f)>::value is true.
+//
+//   int i = 0;
+//   auto g = [i]() {};
+//   IsConvertibleToRunType<decltype(g)>::value is false.
+template <typename Functor, typename SFINAE = void>
+struct IsConvertibleToRunType : std::false_type {};
+
+template <typename Callable>
+struct IsConvertibleToRunType<Callable, void_t<decltype(&Callable::operator())>>
+    : std::is_convertible<Callable, ExtractCallableRunType<Callable>*> {};
+
 // HasRefCountedTypeAsRawPtr selects true_type when any of the |Args| is a raw
 // pointer to a RefCounted type.
 // Implementation note: This non-specialized case handles zero-arity case only.
@@ -76,14 +130,34 @@ struct ForceVoidReturn<R(Args...)> {
 // FunctorTraits<>
 //
 // See description at top of file.
-template <typename Functor>
+template <typename Functor, typename SFINAE = void>
 struct FunctorTraits;
+
+// For a callable type that is convertible to the corresponding function type.
+// This specialization is intended to allow binding captureless lambdas by
+// base::Bind(), based on the fact that captureless lambdas can be convertible
+// to the function type while capturing lambdas can't.
+template <typename Functor>
+struct FunctorTraits<
+    Functor,
+    typename std::enable_if<IsConvertibleToRunType<Functor>::value>::type> {
+  using RunType = ExtractCallableRunType<Functor>;
+  static constexpr bool is_method = false;
+  static constexpr bool is_nullable = false;
+
+  template <typename... RunArgs>
+  static ExtractReturnType<RunType>
+  Invoke(const Functor& functor, RunArgs&&... args) {
+    return functor(std::forward<RunArgs>(args)...);
+  }
+};
 
 // For functions.
 template <typename R, typename... Args>
 struct FunctorTraits<R (*)(Args...)> {
   using RunType = R(Args...);
   static constexpr bool is_method = false;
+  static constexpr bool is_nullable = true;
 
   template <typename... RunArgs>
   static R Invoke(R (*function)(Args...), RunArgs&&... args) {
@@ -98,6 +172,7 @@ template <typename R, typename... Args>
 struct FunctorTraits<R(__stdcall*)(Args...)> {
   using RunType = R(Args...);
   static constexpr bool is_method = false;
+  static constexpr bool is_nullable = true;
 
   template <typename... RunArgs>
   static R Invoke(R(__stdcall* function)(Args...), RunArgs&&... args) {
@@ -110,6 +185,7 @@ template <typename R, typename... Args>
 struct FunctorTraits<R(__fastcall*)(Args...)> {
   using RunType = R(Args...);
   static constexpr bool is_method = false;
+  static constexpr bool is_nullable = true;
 
   template <typename... RunArgs>
   static R Invoke(R(__fastcall* function)(Args...), RunArgs&&... args) {
@@ -124,6 +200,7 @@ template <typename R, typename Receiver, typename... Args>
 struct FunctorTraits<R (Receiver::*)(Args...)> {
   using RunType = R(Receiver*, Args...);
   static constexpr bool is_method = true;
+  static constexpr bool is_nullable = true;
 
   template <typename ReceiverPtr, typename... RunArgs>
   static R Invoke(R (Receiver::*method)(Args...),
@@ -143,6 +220,7 @@ template <typename R, typename Receiver, typename... Args>
 struct FunctorTraits<R (Receiver::*)(Args...) const> {
   using RunType = R(const Receiver*, Args...);
   static constexpr bool is_method = true;
+  static constexpr bool is_nullable = true;
 
   template <typename ReceiverPtr, typename... RunArgs>
   static R Invoke(R (Receiver::*method)(Args...) const,
@@ -176,6 +254,7 @@ template <typename R, typename... Args, CopyMode copy_mode>
 struct FunctorTraits<Callback<R(Args...), copy_mode>> {
   using RunType = R(Args...);
   static constexpr bool is_method = false;
+  static constexpr bool is_nullable = true;
 
   template <typename CallbackType, typename... RunArgs>
   static R Invoke(CallbackType&& callback, RunArgs&&... args) {
@@ -216,7 +295,7 @@ struct InvokeHelper<true, ReturnType> {
 
   template <typename Functor, typename BoundWeakPtr, typename... RunArgs>
   static inline void MakeItSo(Functor&& functor,
-                              BoundWeakPtr weak_ptr,
+                              BoundWeakPtr&& weak_ptr,
                               RunArgs&&... args) {
     if (!weak_ptr)
       return;
@@ -281,18 +360,29 @@ struct MakeUnboundRunTypeImpl {
   using UnboundArgs = DropTypeListItem<sizeof...(BoundArgs), Args>;
   using Type = MakeFunctionType<ReturnType, UnboundArgs>;
 };
+template <typename Functor>
+typename std::enable_if<FunctorTraits<Functor>::is_nullable, bool>::type
+IsNull(const Functor& functor) {
+  return !functor;
+}
+
+template <typename Functor>
+typename std::enable_if<!FunctorTraits<Functor>::is_nullable, bool>::type
+IsNull(const Functor&) {
+  return false;
+}
 
 // BindState<>
 //
 // This stores all the state passed into Bind().
 template <typename Functor, typename... BoundArgs>
 struct BindState final : BindStateBase {
-  template <typename... ForwardBoundArgs>
-  explicit BindState(Functor functor, ForwardBoundArgs&&... bound_args)
+  template <typename ForwardFunctor, typename... ForwardBoundArgs>
+  explicit BindState(ForwardFunctor&& functor, ForwardBoundArgs&&... bound_args)
       : BindStateBase(&Destroy),
-        functor_(std::move(functor)),
+      functor_(std::forward<ForwardFunctor>(functor)),
         bound_args_(std::forward<ForwardBoundArgs>(bound_args)...) {
-    DCHECK(functor_);
+    DCHECK(!IsNull(functor_));
   }
 
   Functor functor_;

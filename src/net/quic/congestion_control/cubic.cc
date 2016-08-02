@@ -117,7 +117,7 @@ QuicPacketCount Cubic::CongestionWindowAfterAck(
 
   // Cubic is "independent" of RTT, the update is limited by the time elapsed.
   if (last_congestion_window_ == current_congestion_window &&
-      (current_time.Subtract(last_update_time_) <= MaxCubicTimeInterval())) {
+      (current_time - last_update_time_ <= MaxCubicTimeInterval())) {
     return max(last_target_congestion_window_,
                estimated_tcp_congestion_window_);
   }
@@ -145,9 +145,9 @@ QuicPacketCount Cubic::CongestionWindowAfterAck(
     // through the app-limited period.
     if (FLAGS_shift_quic_cubic_epoch_when_app_limited &&
         app_limited_start_time_ != QuicTime::Zero()) {
-      QuicTime::Delta shift = current_time.Subtract(app_limited_start_time_);
+      QuicTime::Delta shift = current_time - app_limited_start_time_;
       DVLOG(1) << "Shifting epoch for quiescence by " << shift.ToMicroseconds();
-      epoch_ = epoch_.Add(shift);
+      epoch_ = epoch_ + shift;
       app_limited_start_time_ = QuicTime::Zero();
     }
   }
@@ -156,7 +156,7 @@ QuicPacketCount Cubic::CongestionWindowAfterAck(
   // the round trip time in account. This is done to allow us to use shift as a
   // divide operator.
   int64_t elapsed_time =
-      (current_time.Add(delay_min).Subtract(epoch_).ToMicroseconds() << 10) /
+      ((current_time + delay_min - epoch_).ToMicroseconds() << 10) /
       kNumMicrosPerSecond;
 
   int64_t offset = time_to_origin_point_ - elapsed_time;

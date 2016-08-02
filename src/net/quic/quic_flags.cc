@@ -60,26 +60,12 @@ bool FLAGS_quic_disable_pacing_for_perf_tests = false;
 // If true, Close the connection instead of writing unencrypted stream data.
 bool FLAGS_quic_never_write_unencrypted_data = true;
 
-// If true, reject any incoming QUIC which does not have the FIXD tag.
-bool FLAGS_quic_require_fix = true;
-
 // If true, headers stream will support receiving PUSH_PROMISE frames.
 bool FLAGS_quic_supports_push_promise = true;
-
-// If true, make sure new incoming streams correctly cede to higher
-// priority (or batch) streams when doing QUIC writes.
-bool FLAGS_quic_cede_correctly = true;
-
-// Resend 0RTT requests in response to an REJ that re-establishes encryption.
-bool FLAGS_quic_reply_to_rej = true;
 
 // If true, QUIC connections can do bandwidth resumption with an initial window
 // of < 10 packets.
 bool FLAGS_quic_no_lower_bw_resumption_limit = true;
-
-// Limit the ruction of slow start large reduction to 1/2 the current CWND once
-// the initial flight has been acked.
-bool FLAGS_quic_sslr_limit_reduction = true;
 
 // If true, flow controller may grow the receive window size if necessary.
 bool FLAGS_quic_auto_tune_receive_window = true;
@@ -102,17 +88,6 @@ bool FLAGS_quic_use_hash_in_scup = true;
 // If true, QUIC public reset packets will have the \"pre-v33\" public header
 // flags.
 bool FLAGS_quic_use_old_public_reset_packets = true;
-
-// Ignore the peer's recieve buffer size and instead set max CWND based on the
-// amount of data the sender is willing to have in flight.
-bool FLAGS_quic_ignore_srbf = true;
-
-// Allow the NPRR connection option which reduces QUIC\'s pacing rate during
-// recovery instead of PRR.
-bool FLAGS_quic_allow_noprr = true;
-
-// Use a write path optimized for StreamFrames.
-bool FLAGS_quic_use_optimized_write_path = true;
 
 // If true, the dispatcher is responsible for generating server designated
 // connection IDs.
@@ -167,3 +142,24 @@ bool FLAGS_quic_enable_version_35 = false;
 
 // If true, enables QUIC_VERSION_36.
 bool FLAGS_quic_enable_version_36 = false;
+
+// If true, requires support for X509 certificates in QUIC CHLO PDMDs.
+bool FLAGS_quic_require_x509 = false;
+
+// If true, deprecate safeguards for b/26023400.
+bool FLAGS_quic_deprecate_kfixd = false;
+
+// If true, QUIC will refresh the proof for versions 31 and beyond on subsequent
+// CHLOs.
+bool FLAGS_quic_refresh_proof = true;
+
+// If true, a connection does not migrate on an old packet even the peer address
+// changes.
+bool FLAGS_quic_do_not_migrate_on_old_packet = true;
+
+// If true, use async codepaths to invoke ProofSource::GetProof.
+bool FLAGS_enable_async_get_proof = false;
+
+// If true, neuter null encrypted packets before sending the next handshake
+// message.
+bool FLAGS_quic_neuter_unencrypted_when_sending = false;

@@ -569,16 +569,39 @@ string QuicUtils::HexDecode(StringPiece data) {
   return out;
 }
 
-string QuicUtils::BinaryToAscii(StringPiece binary) {
+string QuicUtils::HexDump(StringPiece binary_input) {
   string out = "";
-  for (const unsigned char c : binary) {
-    // Leading space.
-    out += " ";
-    if (isprint(c)) {
-      out += c;
-    } else {
-      out += '.';
+  const int kBytesPerRow = 16;
+  const int size = binary_input.size();
+  for (int i = 0; i < size;) {
+    // Print one row of hex.
+    for (int j = i; j < i + kBytesPerRow; ++j) {
+      if (j < size) {
+        out += HexEncode(string(1, binary_input[j]));
+      } else {
+        out += "  ";
+      }
+      out += " ";
     }
+    out += " |";
+
+    // Print one row of ascii.
+    for (int j = i; j < i + kBytesPerRow; ++j) {
+      if (j < size) {
+        char c = binary_input[j];
+        bool is_printable = (c >= 32 && c < 127);
+        if (!is_printable) {
+          // Non-printable characters are replaced with '.'.
+          c = '.';
+        }
+        out += string(1, c);
+      } else {
+        out += " ";
+      }
+    }
+
+    out += "|\n";
+    i += kBytesPerRow;
   }
   return out;
 }

@@ -40,10 +40,6 @@ void PacingSender::SetNumEmulatedConnections(int num_connections) {
   sender_->SetNumEmulatedConnections(num_connections);
 }
 
-void PacingSender::SetMaxCongestionWindow(QuicByteCount max_congestion_window) {
-  sender_->SetMaxCongestionWindow(max_congestion_window);
-}
-
 void PacingSender::SetMaxPacingRate(QuicBandwidth max_pacing_rate) {
   max_pacing_rate_ = max_pacing_rate;
 }
@@ -52,7 +48,7 @@ void PacingSender::OnCongestionEvent(bool rtt_updated,
                                      QuicByteCount bytes_in_flight,
                                      const CongestionVector& acked_packets,
                                      const CongestionVector& lost_packets) {
-  if (FLAGS_quic_allow_noprr && !lost_packets.empty()) {
+  if (!lost_packets.empty()) {
     // Clear any burst tokens when entering recovery.
     burst_tokens_ = 0;
   }
@@ -95,12 +91,12 @@ bool PacingSender::OnPacketSent(
   // If the last send was delayed, and the alarm took a long time to get
   // invoked, allow the connection to make up for lost time.
   if (was_last_send_delayed_) {
-    ideal_next_packet_send_time_ = ideal_next_packet_send_time_.Add(delay);
+    ideal_next_packet_send_time_ = ideal_next_packet_send_time_ + delay;
     // The send was application limited if it takes longer than the
     // pacing delay between sent packets.
     const bool application_limited =
         last_delayed_packet_sent_time_.IsInitialized() &&
-        sent_time > last_delayed_packet_sent_time_.Add(delay);
+        sent_time > last_delayed_packet_sent_time_ + delay;
     const bool making_up_for_lost_time =
         ideal_next_packet_send_time_ <= sent_time;
     // As long as we're making up time and not application limited,
@@ -113,8 +109,8 @@ bool PacingSender::OnPacketSent(
       last_delayed_packet_sent_time_ = QuicTime::Zero();
     }
   } else {
-    ideal_next_packet_send_time_ = QuicTime::Max(
-        ideal_next_packet_send_time_.Add(delay), sent_time.Add(delay));
+    ideal_next_packet_send_time_ =
+        std::max(ideal_next_packet_send_time_ + delay, sent_time + delay);
   }
   return in_flight;
 }
@@ -144,11 +140,11 @@ QuicTime::Delta PacingSender::TimeUntilSend(
   }
 
   // If the next send time is within the alarm granularity, send immediately.
-  if (ideal_next_packet_send_time_ > now.Add(alarm_granularity_)) {
+  if (ideal_next_packet_send_time_ > now + alarm_granularity_) {
     DVLOG(1) << "Delaying packet: "
-             << ideal_next_packet_send_time_.Subtract(now).ToMicroseconds();
+             << (ideal_next_packet_send_time_ - now).ToMicroseconds();
     was_last_send_delayed_ = true;
-    return ideal_next_packet_send_time_.Subtract(now);
+    return ideal_next_packet_send_time_ - now;
   }
 
   DVLOG(1) << "Sending packet now";

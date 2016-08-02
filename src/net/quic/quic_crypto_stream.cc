@@ -10,6 +10,7 @@
 #include "net/quic/crypto/crypto_handshake.h"
 #include "net/quic/crypto/crypto_utils.h"
 #include "net/quic/quic_connection.h"
+#include "net/quic/quic_flags.h"
 #include "net/quic/quic_session.h"
 #include "net/quic/quic_utils.h"
 
@@ -69,6 +70,9 @@ void QuicCryptoStream::SendHandshakeMessage(
     const CryptoHandshakeMessage& message,
     QuicAckListenerInterface* listener) {
   DVLOG(1) << ENDPOINT << "Sending " << message.DebugString();
+  if (FLAGS_quic_neuter_unencrypted_when_sending) {
+    session()->connection()->NeuterUnencryptedPackets();
+  }
   session()->OnCryptoHandshakeMessageSent(message);
   const QuicData& data = message.GetSerialized();
   // TODO(wtc): check the return value.

@@ -347,9 +347,8 @@ bool HttpUtil::IsValidHeaderName(const std::string& name) {
 
 // static
 bool HttpUtil::IsValidHeaderValue(const std::string& value) {
-  // Just a sanity check: disallow NUL and CRLF.
-  return value.find('\0') == std::string::npos &&
-      value.find("\r\n") == std::string::npos;
+  // Just a sanity check: disallow NUL, CR and LF.
+  return value.find_first_of("\0\r\n", 0, 3) == std::string::npos;
 }
 
 // static

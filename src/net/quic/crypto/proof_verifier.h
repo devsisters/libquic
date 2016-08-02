@@ -70,7 +70,6 @@ class NET_EXPORT_PRIVATE ProofVerifier {
   //
   // This function may also return QUIC_PENDING, in which case the ProofVerifier
   // will call back, on the original thread, via |callback| when complete.
-  // In this case, the ProofVerifier will take ownership of |callback|.
   //
   // The signature uses SHA-256 as the hash function and PSS padding in the
   // case of RSA.
@@ -86,7 +85,7 @@ class NET_EXPORT_PRIVATE ProofVerifier {
       const ProofVerifyContext* context,
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
-      ProofVerifierCallback* callback) = 0;
+      std::unique_ptr<ProofVerifierCallback> callback) = 0;
 };
 
 }  // namespace net

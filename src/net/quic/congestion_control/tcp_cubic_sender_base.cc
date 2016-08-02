@@ -87,7 +87,7 @@ void TcpCubicSenderBase::SetFromConfig(const QuicConfig& config,
       // Slow Start Fast Exit experiment.
       slow_start_large_reduction_ = true;
     }
-    if (FLAGS_quic_allow_noprr && config.HasReceivedConnectionOptions() &&
+    if (config.HasReceivedConnectionOptions() &&
         ContainsQuicTag(config.ReceivedConnectionOptions(), kNPRR)) {
       // Use unity pacing instead of PRR.
       no_prr_ = true;
@@ -224,10 +224,9 @@ QuicBandwidth TcpCubicSenderBase::PacingRate(
   if (rate_based_sending_ && bytes_in_flight > GetCongestionWindow()) {
     // Rate based sending allows sending more than CWND, but reduces the pacing
     // rate when the bytes in flight is more than the CWND to 75% of bandwidth.
-    return bandwidth.Scale(0.75);
+    return 0.75 * bandwidth;
   }
-  return bandwidth.Scale(InSlowStart() ? 2
-                                       : (no_prr_ && InRecovery() ? 1 : 1.25));
+  return bandwidth * (InSlowStart() ? 2 : (no_prr_ && InRecovery() ? 1 : 1.25));
 }
 
 QuicBandwidth TcpCubicSenderBase::BandwidthEstimate() const {
@@ -243,8 +242,7 @@ QuicTime::Delta TcpCubicSenderBase::RetransmissionDelay() const {
   if (rtt_stats_->smoothed_rtt().IsZero()) {
     return QuicTime::Delta::Zero();
   }
-  return rtt_stats_->smoothed_rtt().Add(
-      rtt_stats_->mean_deviation().Multiply(4));
+  return rtt_stats_->smoothed_rtt() + 4 * rtt_stats_->mean_deviation();
 }
 
 bool TcpCubicSenderBase::InSlowStart() const {

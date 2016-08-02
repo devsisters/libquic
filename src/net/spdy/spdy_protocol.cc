@@ -691,7 +691,7 @@ int SpdyConstants::SerializeGoAwayStatus(SpdyMajorVersion version,
   return -1;
 }
 
-size_t SpdyConstants::GetDataFrameMinimumSize(SpdyMajorVersion version) {
+size_t SpdyConstants::GetFrameHeaderSize(SpdyMajorVersion version) {
   switch (version) {
     case SPDY3:
       return 8;
@@ -702,36 +702,21 @@ size_t SpdyConstants::GetDataFrameMinimumSize(SpdyMajorVersion version) {
   return 0;
 }
 
+size_t SpdyConstants::GetDataFrameMinimumSize(SpdyMajorVersion version) {
+  return GetFrameHeaderSize(version);
+}
+
 size_t SpdyConstants::GetControlFrameHeaderSize(SpdyMajorVersion version) {
-  switch (version) {
-    case SPDY3:
-      return 8;
-    case HTTP2:
-      return 9;
-  }
-  SPDY_BUG << "Unhandled SPDY version.";
-  return 0;
+  return GetFrameHeaderSize(version);
 }
 
 size_t SpdyConstants::GetPrefixLength(SpdyFrameType type,
                                       SpdyMajorVersion version) {
-  if (type != DATA) {
-     return GetControlFrameHeaderSize(version);
-  } else {
-     return GetDataFrameMinimumSize(version);
-  }
+  return GetFrameHeaderSize(version);
 }
 
-size_t SpdyConstants::GetFrameMaximumSize(SpdyMajorVersion version) {
-  if (version == SPDY3) {
-    // 24-bit length field plus eight-byte frame header.
-    return ((1 << 24) - 1) + 8;
-  } else {
-    // Max payload of 2^14 plus nine-byte frame header.
-    // TODO(dahollings): Change this to the actual spec
-    // max of (1 << 24) - 1 + 9.
-    return (1 << 14) + 9;
-  }
+size_t SpdyConstants::GetMaxFrameSizeLimit(SpdyMajorVersion version) {
+  return kSpdyMaxFrameSizeLimit + GetFrameHeaderSize(version);
 }
 
 size_t SpdyConstants::GetSizeOfSizeField() {

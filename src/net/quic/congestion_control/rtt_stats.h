@@ -99,7 +99,11 @@ class NET_EXPORT_PRIVATE RttStats {
   uint32_t num_samples_for_forced_min_;
 
   // Windowed min_rtt.
-  WindowedFilter<QuicTime::Delta, MinFilter<QuicTime::Delta>> windowed_min_rtt_;
+  WindowedFilter<QuicTime::Delta,
+                 MinFilter<QuicTime::Delta>,
+                 QuicTime,
+                 QuicTime::Delta>
+      windowed_min_rtt_;
 
   DISALLOW_COPY_AND_ASSIGN(RttStats);
 };

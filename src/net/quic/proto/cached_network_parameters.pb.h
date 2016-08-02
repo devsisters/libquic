@@ -27,11 +27,12 @@
 #include <google/protobuf/extension_set.h>
 #include <google/protobuf/generated_enum_util.h>
 // @@protoc_insertion_point(includes)
+#include "net/base/net_export.h"
 
 namespace net {
 
 // Internal implementation detail -- do not call these.
-void protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto();
+void NET_EXPORT_PRIVATE protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto();
 void protobuf_AssignDesc_cached_5fnetwork_5fparameters_2eproto();
 void protobuf_ShutdownFile_cached_5fnetwork_5fparameters_2eproto();
 
@@ -41,14 +42,14 @@ enum CachedNetworkParameters_PreviousConnectionState {
   CachedNetworkParameters_PreviousConnectionState_SLOW_START = 0,
   CachedNetworkParameters_PreviousConnectionState_CONGESTION_AVOIDANCE = 1
 };
-bool CachedNetworkParameters_PreviousConnectionState_IsValid(int value);
+NET_EXPORT_PRIVATE bool CachedNetworkParameters_PreviousConnectionState_IsValid(int value);
 const CachedNetworkParameters_PreviousConnectionState CachedNetworkParameters_PreviousConnectionState_PreviousConnectionState_MIN = CachedNetworkParameters_PreviousConnectionState_SLOW_START;
 const CachedNetworkParameters_PreviousConnectionState CachedNetworkParameters_PreviousConnectionState_PreviousConnectionState_MAX = CachedNetworkParameters_PreviousConnectionState_CONGESTION_AVOIDANCE;
 const int CachedNetworkParameters_PreviousConnectionState_PreviousConnectionState_ARRAYSIZE = CachedNetworkParameters_PreviousConnectionState_PreviousConnectionState_MAX + 1;
 
 // ===================================================================
 
-class CachedNetworkParameters : public ::google::protobuf::MessageLite {
+class NET_EXPORT_PRIVATE CachedNetworkParameters : public ::google::protobuf::MessageLite {
  public:
   CachedNetworkParameters();
   virtual ~CachedNetworkParameters();
@@ -82,7 +83,7 @@ class CachedNetworkParameters : public ::google::protobuf::MessageLite {
   }
   #endif
 
-  void Swap(CachedNetworkParameters* other);
+  GOOGLE_ATTRIBUTE_NOINLINE void Swap(CachedNetworkParameters* other);
 
   // implements Message ----------------------------------------------
 
@@ -121,8 +122,10 @@ class CachedNetworkParameters : public ::google::protobuf::MessageLite {
   // nested types ----------------------------------------------------
 
   typedef CachedNetworkParameters_PreviousConnectionState PreviousConnectionState;
-  static const PreviousConnectionState SLOW_START = CachedNetworkParameters_PreviousConnectionState_SLOW_START;
-  static const PreviousConnectionState CONGESTION_AVOIDANCE = CachedNetworkParameters_PreviousConnectionState_CONGESTION_AVOIDANCE;
+  static const PreviousConnectionState SLOW_START =
+    CachedNetworkParameters_PreviousConnectionState_SLOW_START;
+  static const PreviousConnectionState CONGESTION_AVOIDANCE =
+    CachedNetworkParameters_PreviousConnectionState_CONGESTION_AVOIDANCE;
   static inline bool PreviousConnectionState_IsValid(int value) {
     return CachedNetworkParameters_PreviousConnectionState_IsValid(value);
   }
@@ -219,9 +222,9 @@ class CachedNetworkParameters : public ::google::protobuf::MessageLite {
   ::google::protobuf::int32 previous_connection_state_;
   ::google::protobuf::int64 timestamp_;
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void  protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto_impl();
+  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto_impl();
   #else
-  friend void  protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto();
+  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_cached_5fnetwork_5fparameters_2eproto();
   #endif
   friend void protobuf_AssignDesc_cached_5fnetwork_5fparameters_2eproto();
   friend void protobuf_ShutdownFile_cached_5fnetwork_5fparameters_2eproto();
@@ -277,6 +280,7 @@ inline ::std::string* CachedNetworkParameters::mutable_serving_region() {
   return serving_region_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* CachedNetworkParameters::release_serving_region() {
+  // @@protoc_insertion_point(field_release:net.CachedNetworkParameters.serving_region)
   clear_has_serving_region();
   return serving_region_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }

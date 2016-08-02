@@ -109,7 +109,7 @@ bool SpdyFrameBuilder::BeginNewFrame(const SpdyFramer& framer,
   if (length_ > 0) {
     // Update length field for previous frame.
     OverwriteLength(framer, length_ - framer.GetPrefixLength(type));
-    SPDY_BUG_IF(SpdyConstants::GetFrameMaximumSize(version_) < length_)
+    SPDY_BUG_IF(framer.GetFrameMaximumSize() < length_)
         << "Frame length  " << length_
         << " is longer than the maximum allowed length.";
   }
@@ -170,11 +170,10 @@ bool SpdyFrameBuilder::RewriteLength(const SpdyFramer& framer) {
 bool SpdyFrameBuilder::OverwriteLength(const SpdyFramer& framer,
                                        size_t length) {
   if (version_ == SPDY3) {
-    DCHECK_LE(length,
-              SpdyConstants::GetFrameMaximumSize(version_) -
-                  framer.GetFrameMinimumSize());
+    DCHECK_GE(framer.GetFrameMaximumSize() - framer.GetFrameMinimumSize(),
+              length);
   } else {
-    DCHECK_LE(length, SpdyConstants::GetFrameMaximumSize(version_));
+    DCHECK_GE(framer.GetFrameMaximumSize(), length);
   }
   bool success = false;
   const size_t old_length = length_;

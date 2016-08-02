@@ -50,7 +50,7 @@ typedef uint32_t SpdyStreamId;
 // flow control).
 const SpdyStreamId kSessionFlowControlStreamId = 0;
 
-// The maxmium possible frame payload size allowed by the spec.
+// The maximum possible frame payload size allowed by the spec.
 const uint32_t kSpdyMaxFrameSizeLimit = (1 << 24) - 1;
 
 // The initial value for the maximum frame payload size as per the spec. This is
@@ -532,12 +532,16 @@ class NET_EXPORT_PRIVATE SpdyConstants {
   // for this value as opposed to a constant.
   static size_t GetDataFrameMinimumSize(SpdyMajorVersion version);
 
+  // Number of octets in the frame header
+  static size_t GetFrameHeaderSize(SpdyMajorVersion version);
+
   // Size, in bytes, of the control frame header.
   static size_t GetControlFrameHeaderSize(SpdyMajorVersion version);
 
   static size_t GetPrefixLength(SpdyFrameType type, SpdyMajorVersion version);
 
-  static size_t GetFrameMaximumSize(SpdyMajorVersion version);
+  // Maximum possible configurable size of a frame in octets.
+  static size_t GetMaxFrameSizeLimit(SpdyMajorVersion version);
 
   // Returns the size of a header block size field. Valid only for SPDY 3.
   static size_t GetSizeOfSizeField();

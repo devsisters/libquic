@@ -211,14 +211,14 @@ QuicCryptoServerConfig::ConfigOptions::ConfigOptions(
 QuicCryptoServerConfig::QuicCryptoServerConfig(
     StringPiece source_address_token_secret,
     QuicRandom* server_nonce_entropy,
-    ProofSource* proof_source)
+    std::unique_ptr<ProofSource> proof_source)
     : replay_protection_(true),
       chlo_multiplier_(kMultiplier),
       configs_lock_(),
       primary_config_(nullptr),
       next_config_promotion_time_(QuicWallTime::Zero()),
       server_nonce_strike_register_lock_(),
-      proof_source_(proof_source),
+      proof_source_(std::move(proof_source)),
       strike_register_no_startup_period_(false),
       strike_register_max_entries_(1 << 10),
       strike_register_window_secs_(600),
@@ -531,6 +531,13 @@ void QuicCryptoServerConfig::ValidateClientHello(
   }
 
   if (result->error_code == QUIC_NO_ERROR) {
+    if (FLAGS_quic_refresh_proof && version > QUIC_VERSION_30) {
+      // QUIC v31 and above require a new proof for each CHLO so clear the
+      // existing proof, if any.
+      crypto_proof->chain = nullptr;
+      crypto_proof->signature = "";
+      crypto_proof->cert_sct = "";
+    }
     EvaluateClientHello(server_ip, version, primary_orbit, requested_config,
                         primary_config, crypto_proof, result, done_cb);
   } else {
@@ -604,9 +611,14 @@ QuicErrorCode QuicCryptoServerConfig::ProcessClientHello(
   bool x509_supported = false;
   bool x509_ecdsa_supported = false;
   ParseProofDemand(client_hello, &x509_supported, &x509_ecdsa_supported);
+  if (!x509_supported && FLAGS_quic_require_x509) {
+    *error_details = "Missing or invalid PDMD";
+    return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
+  }
   DCHECK(proof_source_.get());
   string chlo_hash;
   CryptoUtils::HashHandshakeMessage(client_hello, &chlo_hash);
+  // No need to get a new proof if one was already generated.
   if (!crypto_proof->chain &&
       !proof_source_->GetProof(
           server_ip, info.sni.as_string(), primary_config->serialized, version,
@@ -1058,7 +1070,13 @@ void QuicCryptoServerConfig::EvaluateClientHello(
     string serialized_config = primary_config->serialized;
     string chlo_hash;
     CryptoUtils::HashHandshakeMessage(client_hello, &chlo_hash);
-    if (!proof_source_->GetProof(
+    bool need_proof = true;
+    if (FLAGS_quic_refresh_proof) {
+      need_proof = !crypto_proof->chain;
+    }
+    // No need to get a new proof if one was already generated.
+    if (need_proof &&
+        !proof_source_->GetProof(
             server_ip, info->sni.as_string(), serialized_config, version,
             chlo_hash, x509_ecdsa_supported, &crypto_proof->chain,
             &crypto_proof->signature, &crypto_proof->cert_sct)) {
@@ -1163,21 +1181,27 @@ bool QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
     const QuicCryptoNegotiatedParameters& params,
     const CachedNetworkParameters* cached_network_params,
     CryptoHandshakeMessage* out) const {
-  base::AutoLock locked(configs_lock_);
+  string serialized;
+  string source_address_token;
+  const CommonCertSets* common_cert_sets;
+  {
+    base::AutoLock locked(configs_lock_);
+    serialized = primary_config_->serialized;
+    common_cert_sets = primary_config_->common_cert_sets;
+    source_address_token = NewSourceAddressToken(
+        *primary_config_, previous_source_address_tokens, client_ip, rand,
+        clock->WallNow(), cached_network_params);
+  }
+
   out->set_tag(kSCUP);
-  out->SetStringPiece(kSCFG, primary_config_->serialized);
-  out->SetStringPiece(
-      kSourceAddressTokenTag,
-      NewSourceAddressToken(*primary_config_.get(),
-                            previous_source_address_tokens, client_ip, rand,
-                            clock->WallNow(), cached_network_params));
+  out->SetStringPiece(kSCFG, serialized);
+  out->SetStringPiece(kSourceAddressTokenTag, source_address_token);
 
   scoped_refptr<ProofSource::Chain> chain;
   string signature;
   string cert_sct;
   if (FLAGS_quic_use_hash_in_scup) {
-    if (!proof_source_->GetProof(server_ip, params.sni,
-                                 primary_config_->serialized, version,
+    if (!proof_source_->GetProof(server_ip, params.sni, serialized, version,
                                  chlo_hash, params.x509_ecdsa_supported, &chain,
                                  &signature, &cert_sct)) {
       DVLOG(1) << "Server: failed to get proof.";
@@ -1185,9 +1209,8 @@ bool QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
     }
   } else {
     if (!proof_source_->GetProof(
-            server_ip, params.sni, primary_config_->serialized, version,
-            params.client_nonce, params.x509_ecdsa_supported, &chain,
-            &signature, &cert_sct)) {
+            server_ip, params.sni, serialized, version, params.client_nonce,
+            params.x509_ecdsa_supported, &chain, &signature, &cert_sct)) {
       DVLOG(1) << "Server: failed to get proof.";
       return false;
     }
@@ -1195,7 +1218,7 @@ bool QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
 
   const string compressed = CompressChain(
       compressed_certs_cache, chain, params.client_common_set_hashes,
-      params.client_cached_cert_hashes, primary_config_->common_cert_sets);
+      params.client_cached_cert_hashes, common_cert_sets);
 
   out->SetStringPiece(kCertificateTag, compressed);
   out->SetStringPiece(kPROF, signature);
@@ -1208,6 +1231,121 @@ bool QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
     }
   }
   return true;
+}
+
+void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
+    QuicVersion version,
+    StringPiece chlo_hash,
+    const SourceAddressTokens& previous_source_address_tokens,
+    const IPAddress& server_ip,
+    const IPAddress& client_ip,
+    const QuicClock* clock,
+    QuicRandom* rand,
+    QuicCompressedCertsCache* compressed_certs_cache,
+    const QuicCryptoNegotiatedParameters& params,
+    const CachedNetworkParameters* cached_network_params,
+    std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const {
+  string serialized;
+  string source_address_token;
+  const CommonCertSets* common_cert_sets;
+  {
+    base::AutoLock locked(configs_lock_);
+    serialized = primary_config_->serialized;
+    common_cert_sets = primary_config_->common_cert_sets;
+    source_address_token = NewSourceAddressToken(
+        *primary_config_, previous_source_address_tokens, client_ip, rand,
+        clock->WallNow(), cached_network_params);
+  }
+
+  CryptoHandshakeMessage message;
+  message.set_tag(kSCUP);
+  message.SetStringPiece(kSCFG, serialized);
+  message.SetStringPiece(kSourceAddressTokenTag, source_address_token);
+
+  std::unique_ptr<BuildServerConfigUpdateMessageProofSourceCallback>
+      proof_source_cb(new BuildServerConfigUpdateMessageProofSourceCallback(
+          this, version, compressed_certs_cache, common_cert_sets, params,
+          std::move(message), std::move(cb)));
+
+  if (FLAGS_quic_use_hash_in_scup) {
+    proof_source_->GetProof(server_ip, params.sni, serialized, version,
+                            chlo_hash, params.x509_ecdsa_supported,
+                            std::move(proof_source_cb));
+  } else {
+    proof_source_->GetProof(server_ip, params.sni, serialized, version,
+                            params.client_nonce, params.x509_ecdsa_supported,
+                            std::move(proof_source_cb));
+  }
+}
+
+QuicCryptoServerConfig::BuildServerConfigUpdateMessageProofSourceCallback::
+    ~BuildServerConfigUpdateMessageProofSourceCallback() {}
+
+QuicCryptoServerConfig::BuildServerConfigUpdateMessageProofSourceCallback::
+    BuildServerConfigUpdateMessageProofSourceCallback(
+        const QuicCryptoServerConfig* config,
+        QuicVersion version,
+        QuicCompressedCertsCache* compressed_certs_cache,
+        const CommonCertSets* common_cert_sets,
+        const QuicCryptoNegotiatedParameters& params,
+        CryptoHandshakeMessage message,
+        std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb)
+    : config_(config),
+      version_(version),
+      compressed_certs_cache_(compressed_certs_cache),
+      common_cert_sets_(common_cert_sets),
+      client_common_set_hashes_(params.client_common_set_hashes),
+      client_cached_cert_hashes_(params.client_cached_cert_hashes),
+      sct_supported_by_client_(params.sct_supported_by_client),
+      message_(std::move(message)),
+      cb_(std::move(cb)) {}
+
+void QuicCryptoServerConfig::BuildServerConfigUpdateMessageProofSourceCallback::
+    Run(bool ok,
+        const scoped_refptr<ProofSource::Chain>& chain,
+        const string& signature,
+        const string& leaf_cert_sct) {
+  config_->FinishBuildServerConfigUpdateMessage(
+      version_, compressed_certs_cache_, common_cert_sets_,
+      client_common_set_hashes_, client_cached_cert_hashes_,
+      sct_supported_by_client_, ok, chain, signature, leaf_cert_sct,
+      std::move(message_), std::move(cb_));
+}
+
+void QuicCryptoServerConfig::FinishBuildServerConfigUpdateMessage(
+    QuicVersion version,
+    QuicCompressedCertsCache* compressed_certs_cache,
+    const CommonCertSets* common_cert_sets,
+    const string& client_common_set_hashes,
+    const string& client_cached_cert_hashes,
+    bool sct_supported_by_client,
+    bool ok,
+    const scoped_refptr<ProofSource::Chain>& chain,
+    const string& signature,
+    const string& leaf_cert_sct,
+    CryptoHandshakeMessage message,
+    std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const {
+  if (!ok) {
+    cb->Run(false, message);
+    return;
+  }
+
+  const string compressed =
+      CompressChain(compressed_certs_cache, chain, client_common_set_hashes,
+                    client_cached_cert_hashes, common_cert_sets);
+
+  message.SetStringPiece(kCertificateTag, compressed);
+  message.SetStringPiece(kPROF, signature);
+  if (sct_supported_by_client && version > QUIC_VERSION_29 &&
+      enable_serving_sct_) {
+    if (leaf_cert_sct.empty()) {
+      DLOG(WARNING) << "SCT is expected but it is empty.";
+    } else {
+      message.SetStringPiece(kCertificateSCTTag, leaf_cert_sct);
+    }
+  }
+
+  cb->Run(true, message);
 }
 
 void QuicCryptoServerConfig::BuildRejection(
@@ -1249,7 +1387,8 @@ void QuicCryptoServerConfig::BuildRejection(
   bool x509_supported = false;
   ParseProofDemand(client_hello, &x509_supported,
                    &params->x509_ecdsa_supported);
-  if (!x509_supported) {
+  if (!x509_supported && FLAGS_quic_require_x509) {
+    QUIC_BUG << "x509 certificates not supported in proof demand";
     return;
   }
 
@@ -1301,12 +1440,12 @@ void QuicCryptoServerConfig::BuildRejection(
   }
 }
 
-const string QuicCryptoServerConfig::CompressChain(
+string QuicCryptoServerConfig::CompressChain(
     QuicCompressedCertsCache* compressed_certs_cache,
     const scoped_refptr<ProofSource::Chain>& chain,
     const string& client_common_set_hashes,
     const string& client_cached_cert_hashes,
-    const CommonCertSets* common_sets) const {
+    const CommonCertSets* common_sets) {
   // Check whether the compressed certs is available in the cache.
   DCHECK(compressed_certs_cache);
   const string* cached_value = compressed_certs_cache->GetCompressedCert(

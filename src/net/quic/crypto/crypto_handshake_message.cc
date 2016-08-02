@@ -28,9 +28,12 @@ CryptoHandshakeMessage::CryptoHandshakeMessage(
     : tag_(other.tag_),
       tag_value_map_(other.tag_value_map_),
       minimum_size_(other.minimum_size_) {
-  // Don't copy serialized_. scoped_ptr doesn't have a copy constructor.
+  // Don't copy serialized_. unique_ptr doesn't have a copy constructor.
   // The new object can lazily reconstruct serialized_.
 }
+
+CryptoHandshakeMessage::CryptoHandshakeMessage(CryptoHandshakeMessage&& other) =
+    default;
 
 CryptoHandshakeMessage::~CryptoHandshakeMessage() {}
 
@@ -38,12 +41,15 @@ CryptoHandshakeMessage& CryptoHandshakeMessage::operator=(
     const CryptoHandshakeMessage& other) {
   tag_ = other.tag_;
   tag_value_map_ = other.tag_value_map_;
-  // Don't copy serialized_. scoped_ptr doesn't have an assignment operator.
+  // Don't copy serialized_. unique_ptr doesn't have an assignment operator.
   // However, invalidate serialized_.
   serialized_.reset();
   minimum_size_ = other.minimum_size_;
   return *this;
 }
+
+CryptoHandshakeMessage& CryptoHandshakeMessage::operator=(
+    CryptoHandshakeMessage&& other) = default;
 
 void CryptoHandshakeMessage::Clear() {
   tag_ = 0;

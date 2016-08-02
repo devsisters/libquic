@@ -21,6 +21,11 @@ namespace base {
 
 namespace {
 
+const char* const kTypeNames[] = {"null",   "boolean", "integer",    "double",
+                                  "string", "binary",  "dictionary", "list"};
+static_assert(arraysize(kTypeNames) == Value::TYPE_LIST + 1,
+              "kTypeNames Has Wrong Size");
+
 std::unique_ptr<Value> CopyWithoutEmptyChildren(const Value& node);
 
 // Make a deep copy of |node|, but don't include empty lists or dictionaries
@@ -75,6 +80,13 @@ Value::~Value() {
 // static
 std::unique_ptr<Value> Value::CreateNullValue() {
   return WrapUnique(new Value(TYPE_NULL));
+}
+
+// static
+const char* Value::GetTypeName(Value::Type type) {
+  DCHECK_GE(type, 0);
+  DCHECK_LT(static_cast<size_t>(type), arraysize(kTypeNames));
+  return kTypeNames[type];
 }
 
 bool Value::GetAsBinary(const BinaryValue** out_value) const {

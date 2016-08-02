@@ -92,7 +92,6 @@ class NET_EXPORT_PRIVATE HpackHuffmanTable {
   // DEPRECATED: HpackHuffmanDecoder is now used for decoding strings encoded
   // according to the Huffman Table in the HPACK spec.
   bool GenericDecodeString(HpackInputStream* in,
-                           size_t out_capacity,
                            std::string* out) const;
 
  private:

@@ -27,11 +27,12 @@
 #include <google/protobuf/extension_set.h>
 #include "cached_network_parameters.pb.h"
 // @@protoc_insertion_point(includes)
+#include "net/base/net_export.h"
 
 namespace net {
 
 // Internal implementation detail -- do not call these.
-void protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
+void NET_EXPORT_PRIVATE protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
 void protobuf_AssignDesc_source_5faddress_5ftoken_2eproto();
 void protobuf_ShutdownFile_source_5faddress_5ftoken_2eproto();
 
@@ -40,7 +41,7 @@ class SourceAddressTokens;
 
 // ===================================================================
 
-class SourceAddressToken : public ::google::protobuf::MessageLite {
+class NET_EXPORT_PRIVATE SourceAddressToken : public ::google::protobuf::MessageLite {
  public:
   SourceAddressToken();
   virtual ~SourceAddressToken();
@@ -74,7 +75,7 @@ class SourceAddressToken : public ::google::protobuf::MessageLite {
   }
   #endif
 
-  void Swap(SourceAddressToken* other);
+  GOOGLE_ATTRIBUTE_NOINLINE void Swap(SourceAddressToken* other);
 
   // implements Message ----------------------------------------------
 
@@ -163,9 +164,9 @@ class SourceAddressToken : public ::google::protobuf::MessageLite {
   ::google::protobuf::int64 timestamp_;
   ::net::CachedNetworkParameters* cached_network_parameters_;
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void  protobuf_AddDesc_source_5faddress_5ftoken_2eproto_impl();
+  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_source_5faddress_5ftoken_2eproto_impl();
   #else
-  friend void  protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
+  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
   #endif
   friend void protobuf_AssignDesc_source_5faddress_5ftoken_2eproto();
   friend void protobuf_ShutdownFile_source_5faddress_5ftoken_2eproto();
@@ -175,7 +176,7 @@ class SourceAddressToken : public ::google::protobuf::MessageLite {
 };
 // -------------------------------------------------------------------
 
-class SourceAddressTokens : public ::google::protobuf::MessageLite {
+class NET_EXPORT_PRIVATE SourceAddressTokens : public ::google::protobuf::MessageLite {
  public:
   SourceAddressTokens();
   virtual ~SourceAddressTokens();
@@ -209,7 +210,7 @@ class SourceAddressTokens : public ::google::protobuf::MessageLite {
   }
   #endif
 
-  void Swap(SourceAddressTokens* other);
+  GOOGLE_ATTRIBUTE_NOINLINE void Swap(SourceAddressTokens* other);
 
   // implements Message ----------------------------------------------
 
@@ -271,9 +272,9 @@ class SourceAddressTokens : public ::google::protobuf::MessageLite {
   mutable int _cached_size_;
   ::google::protobuf::RepeatedPtrField< ::net::SourceAddressToken > tokens_;
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void  protobuf_AddDesc_source_5faddress_5ftoken_2eproto_impl();
+  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_source_5faddress_5ftoken_2eproto_impl();
   #else
-  friend void  protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
+  friend void NET_EXPORT_PRIVATE protobuf_AddDesc_source_5faddress_5ftoken_2eproto();
   #endif
   friend void protobuf_AssignDesc_source_5faddress_5ftoken_2eproto();
   friend void protobuf_ShutdownFile_source_5faddress_5ftoken_2eproto();
@@ -329,6 +330,7 @@ inline ::std::string* SourceAddressToken::mutable_ip() {
   return ip_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* SourceAddressToken::release_ip() {
+  // @@protoc_insertion_point(field_release:net.SourceAddressToken.ip)
   clear_has_ip();
   return ip_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
@@ -397,6 +399,7 @@ inline ::net::CachedNetworkParameters* SourceAddressToken::mutable_cached_networ
   return cached_network_parameters_;
 }
 inline ::net::CachedNetworkParameters* SourceAddressToken::release_cached_network_parameters() {
+  // @@protoc_insertion_point(field_release:net.SourceAddressToken.cached_network_parameters)
   clear_has_cached_network_parameters();
   ::net::CachedNetworkParameters* temp = cached_network_parameters_;
   cached_network_parameters_ = NULL;

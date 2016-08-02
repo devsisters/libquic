@@ -19,6 +19,7 @@
 #include "net/quic/quic_utils.h"
 #include "net/quic/reliable_quic_stream.h"
 
+using base::IntToString;
 using base::StringPiece;
 using std::min;
 using std::numeric_limits;
@@ -158,7 +159,7 @@ void QuicStreamSequencer::MarkConsumed(size_t num_bytes_consumed) {
   if (!result) {
     QUIC_BUG << "Invalid argument to MarkConsumed."
              << " expect to consume: " << num_bytes_consumed
-             << ", but not enough bytes available.";
+             << ", but not enough bytes available. " << DebugString();
     stream_->Reset(QUIC_ERROR_PROCESSING_STREAM);
     return;
   }
@@ -200,6 +201,18 @@ size_t QuicStreamSequencer::NumBytesBuffered() const {
 
 QuicStreamOffset QuicStreamSequencer::NumBytesConsumed() const {
   return buffered_frames_.BytesConsumed();
+}
+
+const string QuicStreamSequencer::DebugString() const {
+  // clang-format off
+  return "QuicStreamSequencer:"
+         "\n  bytes buffered: " + IntToString(NumBytesBuffered()) +
+         "\n  bytes consumed: " + IntToString( NumBytesConsumed()) +
+         "\n  has bytes to read: " +  (HasBytesToRead() ? "true" : "false") +
+         "\n  frames received: " + IntToString(num_frames_received()) +
+         "\n  close offset bytes: " + IntToString( close_offset_) +
+         "\n  is closed: " + (IsClosed() ? "true" : "false");
+  // clang-format on
 }
 
 }  // namespace net

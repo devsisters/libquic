@@ -65,6 +65,9 @@ class BASE_EXPORT Value {
 
   static std::unique_ptr<Value> CreateNullValue();
 
+  // Returns the name for a given |type|.
+  static const char* GetTypeName(Type type);
+
   // Returns the type of the value stored by the current Value object.
   // Each type will be implemented by only one subclass of Value, so it's
   // safe to use the Type to determine whether you can cast from

@@ -89,6 +89,16 @@ const char kProfilerTiming[]                = "profiler-timing";
 // chrome://profiler.
 const char kProfilerTimingDisabledValue[]   = "0";
 
+// Specifies a location for profiling output. This will only work if chrome has
+// been built with the gyp variable profiling=1 or gn arg enable_profiling=true.
+//
+//   {pid} if present will be replaced by the pid of the process.
+//   {count} if present will be incremented each time a profile is generated
+//           for this process.
+// The default is chrome-profile-{pid} for the browser and test-profile-{pid}
+// for tests.
+const char kProfilingFile[] = "profiling-file";
+
 #if defined(OS_WIN)
 // Disables the USB keyboard detection for blocking the OSK on Win8+.
 const char kDisableUsbKeyboardDetect[]      = "disable-usb-keyboard-detect";

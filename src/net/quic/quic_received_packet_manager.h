@@ -149,6 +149,8 @@ class NET_EXPORT_PRIVATE QuicReceivedPacketManager
 
   virtual bool ack_frame_updated() const;
 
+  QuicPacketNumber GetLargestObserved() const;
+
   // For logging purposes.
   const QuicAckFrame& ack_frame() const { return ack_frame_; }
 

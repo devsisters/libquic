@@ -50,7 +50,9 @@ class BASE_EXPORT JSONParser {
   ~JSONParser();
 
   // Parses the input string according to the set options and returns the
-  // result as a Value owned by the caller.
+  // result as a Value.
+  // Wrap this in base::FooValue::From() to check the Value is of type Foo and
+  // convert to a FooValue at the same time.
   std::unique_ptr<Value> Parse(StringPiece input);
 
   // Returns the error code.
@@ -219,7 +221,7 @@ class BASE_EXPORT JSONParser {
                                         const std::string& description);
 
   // base::JSONParserOptions that control parsing.
-  int options_;
+  const int options_;
 
   // Pointer to the start of the input data.
   const char* start_pos_;

@@ -163,14 +163,6 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       config.HasClientSentConnectionOption(kUNDO, perspective_)) {
     undo_pending_retransmits_ = true;
   }
-  if (!FLAGS_quic_ignore_srbf && config.HasReceivedSocketReceiveBuffer()) {
-    receive_buffer_bytes_ =
-        max(kMinSocketReceiveBuffer,
-            static_cast<QuicByteCount>(config.ReceivedSocketReceiveBuffer()));
-    QuicByteCount max_cwnd_bytes = static_cast<QuicByteCount>(
-        receive_buffer_bytes_ * kConservativeReceiveBufferFraction);
-    send_algorithm_->SetMaxCongestionWindow(max_cwnd_bytes);
-  }
   send_algorithm_->SetFromConfig(config, perspective_);
 
   if (network_change_visitor_ != nullptr) {
@@ -772,8 +764,7 @@ bool QuicSentPacketManager::MaybeUpdateRTT(const QuicAckFrame& ack_frame,
     return false;
   }
 
-  QuicTime::Delta send_delta =
-      ack_receive_time.Subtract(transmission_info.sent_time);
+  QuicTime::Delta send_delta = ack_receive_time - transmission_info.sent_time;
   const int kMaxSendDeltaSeconds = 30;
   if (FLAGS_quic_socket_walltimestamps &&
       send_delta.ToSeconds() > kMaxSendDeltaSeconds) {
@@ -815,7 +806,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
   }
   switch (GetRetransmissionMode()) {
     case HANDSHAKE_MODE:
-      return clock_->ApproximateNow().Add(GetCryptoRetransmissionDelay());
+      return clock_->ApproximateNow() + GetCryptoRetransmissionDelay();
     case LOSS_MODE:
       return loss_algorithm_->GetLossTimeout();
     case TLP_MODE: {
@@ -823,18 +814,18 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       // set the timer based on the earliest retransmittable packet.
       // Base the updated timer on the send time of the last packet.
       const QuicTime sent_time = unacked_packets_.GetLastPacketSentTime();
-      const QuicTime tlp_time = sent_time.Add(GetTailLossProbeDelay());
+      const QuicTime tlp_time = sent_time + GetTailLossProbeDelay();
       // Ensure the TLP timer never gets set to a time in the past.
-      return QuicTime::Max(clock_->ApproximateNow(), tlp_time);
+      return std::max(clock_->ApproximateNow(), tlp_time);
     }
     case RTO_MODE: {
       // The RTO is based on the first outstanding packet.
       const QuicTime sent_time = unacked_packets_.GetLastPacketSentTime();
-      QuicTime rto_time = sent_time.Add(GetRetransmissionDelay());
+      QuicTime rto_time = sent_time + GetRetransmissionDelay();
       // Wait for TLP packets to be acked before an RTO fires.
       QuicTime tlp_time =
-          unacked_packets_.GetLastPacketSentTime().Add(GetTailLossProbeDelay());
-      return QuicTime::Max(tlp_time, rto_time);
+          unacked_packets_.GetLastPacketSentTime() + GetTailLossProbeDelay();
+      return std::max(tlp_time, rto_time);
     }
   }
   DCHECK(false);
@@ -866,10 +857,8 @@ const QuicTime::Delta QuicSentPacketManager::GetTailLossProbeDelay() const {
             static_cast<int64_t>(0.5 * srtt.ToMilliseconds())));
   }
   if (!unacked_packets_.HasMultipleInFlightPackets()) {
-    return QuicTime::Delta::Max(
-        srtt.Multiply(2),
-        srtt.Multiply(1.5).Add(
-            QuicTime::Delta::FromMilliseconds(kMinRetransmissionTimeMs / 2)));
+    return std::max(2 * srtt, 1.5 * srtt + QuicTime::Delta::FromMilliseconds(
+                                               kMinRetransmissionTimeMs / 2));
   }
   return QuicTime::Delta::FromMilliseconds(
       max(kMinTailLossProbeTimeoutMs,
@@ -888,8 +877,9 @@ const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay() const {
   }
 
   // Calculate exponential back off.
-  retransmission_delay = retransmission_delay.Multiply(
-      1 << min<size_t>(consecutive_rto_count_, kMaxRetransmissions));
+  retransmission_delay =
+      retransmission_delay *
+      (1 << min<size_t>(consecutive_rto_count_, kMaxRetransmissions));
 
   if (retransmission_delay.ToMilliseconds() > kMaxRetransmissionTimeMs) {
     return QuicTime::Delta::FromMilliseconds(kMaxRetransmissionTimeMs);

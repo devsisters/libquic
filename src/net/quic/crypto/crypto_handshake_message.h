@@ -25,9 +25,11 @@ class NET_EXPORT_PRIVATE CryptoHandshakeMessage {
  public:
   CryptoHandshakeMessage();
   CryptoHandshakeMessage(const CryptoHandshakeMessage& other);
+  CryptoHandshakeMessage(CryptoHandshakeMessage&& other);
   ~CryptoHandshakeMessage();
 
   CryptoHandshakeMessage& operator=(const CryptoHandshakeMessage& other);
+  CryptoHandshakeMessage& operator=(CryptoHandshakeMessage&& other);
 
   // Clears state.
   void Clear();

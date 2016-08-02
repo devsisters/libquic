@@ -29,6 +29,10 @@ QuicClientSessionBase::~QuicClientSessionBase() {
   }
 }
 
+void QuicClientSessionBase::OnConfigNegotiated() {
+  QuicSpdySession::OnConfigNegotiated();
+}
+
 void QuicClientSessionBase::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   QuicSession::OnCryptoHandshakeEvent(event);
 }
@@ -174,7 +178,7 @@ QuicSpdyStream* QuicClientSessionBase::GetPromisedStream(
   if (IsClosedStream(id)) {
     return nullptr;
   }
-  StreamMap::iterator it = dynamic_streams().find(id);
+  DynamicStreamMap::iterator it = dynamic_streams().find(id);
   if (it != dynamic_streams().end()) {
     return static_cast<QuicSpdyStream*>(it->second);
   }

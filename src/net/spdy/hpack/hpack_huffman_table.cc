@@ -266,7 +266,6 @@ size_t HpackHuffmanTable::EncodedSize(StringPiece in) const {
 }
 
 bool HpackHuffmanTable::GenericDecodeString(HpackInputStream* in,
-                                            size_t out_capacity,
                                             string* out) const {
   // Number of decode iterations required for a 32-bit code.
   const int kDecodeIterations = static_cast<int>(
@@ -304,10 +303,6 @@ bool HpackHuffmanTable::GenericDecodeString(HpackInputStream* in,
       // The input is an invalid prefix, larger than any prefix in the table.
       return false;
     } else {
-      if (out->size() == out_capacity) {
-        // This code would cause us to overflow |out_capacity|.
-        return false;
-      }
       if (entry.symbol_id < 256) {
         // Assume symbols >= 256 are used for padding.
         out->push_back(static_cast<char>(entry.symbol_id));

@@ -1595,7 +1595,7 @@ bool QuicFramer::ProcessTimestampsInAckFrame(QuicDataReader* reader,
 
     ack_frame->received_packet_times.reserve(num_received_packets);
     ack_frame->received_packet_times.push_back(
-        std::make_pair(seq_num, creation_time_.Add(last_timestamp_)));
+        std::make_pair(seq_num, creation_time_ + last_timestamp_));
 
     for (uint8_t i = 1; i < num_received_packets; ++i) {
       if (!reader->ReadBytes(&delta_from_largest_observed,
@@ -1614,10 +1614,10 @@ bool QuicFramer::ProcessTimestampsInAckFrame(QuicDataReader* reader,
         return false;
       }
 
-      last_timestamp_ = last_timestamp_.Add(
-          QuicTime::Delta::FromMicroseconds(incremental_time_delta_us));
+      last_timestamp_ = last_timestamp_ + QuicTime::Delta::FromMicroseconds(
+                                              incremental_time_delta_us);
       ack_frame->received_packet_times.push_back(
-          std::make_pair(seq_num, creation_time_.Add(last_timestamp_)));
+          std::make_pair(seq_num, creation_time_ + last_timestamp_));
     }
   }
   return true;
@@ -2447,9 +2447,9 @@ bool QuicFramer::AppendTimestampToAckFrame(const QuicAckFrame& frame,
 
   // Use the lowest 4 bytes of the time delta from the creation_time_.
   const uint64_t time_epoch_delta_us = UINT64_C(1) << 32;
-  uint32_t time_delta_us = static_cast<uint32_t>(
-      it->second.Subtract(creation_time_).ToMicroseconds() &
-      (time_epoch_delta_us - 1));
+  uint32_t time_delta_us =
+      static_cast<uint32_t>((it->second - creation_time_).ToMicroseconds() &
+                            (time_epoch_delta_us - 1));
   if (!writer->WriteBytes(&time_delta_us, sizeof(time_delta_us))) {
     return false;
   }
@@ -2469,8 +2469,7 @@ bool QuicFramer::AppendTimestampToAckFrame(const QuicAckFrame& frame,
       return false;
     }
 
-    uint64_t frame_time_delta_us =
-        it->second.Subtract(prev_time).ToMicroseconds();
+    uint64_t frame_time_delta_us = (it->second - prev_time).ToMicroseconds();
     prev_time = it->second;
     if (!writer->WriteUFloat16(frame_time_delta_us)) {
       return false;

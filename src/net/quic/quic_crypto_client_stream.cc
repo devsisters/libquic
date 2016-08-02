@@ -321,7 +321,7 @@ void QuicCryptoClientStream::DoSendCHLO(
     crypto_config_->FillInchoateClientHello(
         server_id_, session()->connection()->supported_versions().front(),
         cached, session()->connection()->random_generator(),
-        &crypto_negotiated_params_, &out);
+        /* demand_x509_proof= */ true, &crypto_negotiated_params_, &out);
     // Pad the inchoate client hello to fill up a packet.
     const QuicByteCount kFramingOverhead = 50;  // A rough estimate.
     const QuicByteCount max_packet_size =
@@ -390,20 +390,10 @@ void QuicCryptoClientStream::DoSendCHLO(
       crypto_negotiated_params_.initial_crypters.encrypter.release());
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
 
-  if (FLAGS_quic_reply_to_rej) {
-    // TODO(ianswett): Merge ENCRYPTION_REESTABLISHED and
-    // ENCRYPTION_FIRST_ESTABLSIHED.
-    encryption_established_ = true;
-    session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_REESTABLISHED);
-  } else {
-    if (!encryption_established_) {
-      encryption_established_ = true;
-      session()->OnCryptoHandshakeEvent(
-          QuicSession::ENCRYPTION_FIRST_ESTABLISHED);
-    } else {
-      session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_REESTABLISHED);
-    }
-  }
+  // TODO(ianswett): Merge ENCRYPTION_REESTABLISHED and
+  // ENCRYPTION_FIRST_ESTABLSIHED
+  encryption_established_ = true;
+  session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_REESTABLISHED);
 }
 
 void QuicCryptoClientStream::DoReceiveREJ(
@@ -486,7 +476,8 @@ QuicAsyncStatus QuicCryptoClientStream::DoVerifyProof(
       server_id_.host(), server_id_.port(), cached->server_config(),
       session()->connection()->version(), chlo_hash_, cached->certs(),
       cached->cert_sct(), cached->signature(), verify_context_.get(),
-      &verify_error_details_, &verify_details_, proof_verify_callback);
+      &verify_error_details_, &verify_details_,
+      std::unique_ptr<ProofVerifierCallback>(proof_verify_callback));
 
   switch (status) {
     case QUIC_PENDING:
@@ -494,10 +485,8 @@ QuicAsyncStatus QuicCryptoClientStream::DoVerifyProof(
       DVLOG(1) << "Doing VerifyProof";
       break;
     case QUIC_FAILURE:
-      delete proof_verify_callback;
       break;
     case QUIC_SUCCESS:
-      delete proof_verify_callback;
       verify_ok_ = true;
       break;
   }

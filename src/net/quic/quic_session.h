@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/containers/small_map.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/ip_endpoint.h"
@@ -227,7 +228,11 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   bool ShouldYield(QuicStreamId stream_id);
 
  protected:
-  typedef std::unordered_map<QuicStreamId, ReliableQuicStream*> StreamMap;
+  using StaticStreamMap =
+      base::SmallMap<std::unordered_map<QuicStreamId, ReliableQuicStream*>, 2>;
+
+  using DynamicStreamMap =
+      base::SmallMap<std::unordered_map<QuicStreamId, ReliableQuicStream*>, 10>;
 
   // Creates a new stream to handle a peer-initiated stream.
   // Caller does not own the returned stream.
@@ -273,11 +278,13 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // Return true if given stream is peer initiated.
   bool IsIncomingStream(QuicStreamId id) const;
 
-  StreamMap& static_streams() { return static_stream_map_; }
-  const StreamMap& static_streams() const { return static_stream_map_; }
+  StaticStreamMap& static_streams() { return static_stream_map_; }
+  const StaticStreamMap& static_streams() const { return static_stream_map_; }
 
-  StreamMap& dynamic_streams() { return dynamic_stream_map_; }
-  const StreamMap& dynamic_streams() const { return dynamic_stream_map_; }
+  DynamicStreamMap& dynamic_streams() { return dynamic_stream_map_; }
+  const DynamicStreamMap& dynamic_streams() const {
+    return dynamic_stream_map_;
+  }
 
   std::vector<ReliableQuicStream*>* closed_streams() {
     return &closed_streams_;
@@ -367,10 +374,10 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
 
   // Static streams, such as crypto and header streams. Owned by child classes
   // that create these streams.
-  StreamMap static_stream_map_;
+  StaticStreamMap static_stream_map_;
 
   // Map from StreamId to pointers to streams. Owns the streams.
-  StreamMap dynamic_stream_map_;
+  DynamicStreamMap dynamic_stream_map_;
 
   // The ID to use for the next outgoing stream.
   QuicStreamId next_outgoing_stream_id_;

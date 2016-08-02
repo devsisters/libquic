@@ -157,12 +157,37 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStream
     DISALLOW_COPY_AND_ASSIGN(ValidateCallback);
   };
 
+  class SendServerConfigUpdateCallback
+      : public BuildServerConfigUpdateMessageResultCallback {
+   public:
+    explicit SendServerConfigUpdateCallback(QuicCryptoServerStream* parent);
+    SendServerConfigUpdateCallback(const SendServerConfigUpdateCallback&) =
+        delete;
+    void operator=(const SendServerConfigUpdateCallback&) = delete;
+
+    // To allow the parent to detach itself from the callback before deletion.
+    void Cancel();
+
+    // From BuildServerConfigUpdateMessageResultCallback
+    void Run(bool ok, const CryptoHandshakeMessage& message) override;
+
+   private:
+    QuicCryptoServerStream* parent_;
+  };
+
   // Invoked by ValidateCallback::RunImpl once initial validation of
   // the client hello is complete.  Finishes processing of the client
   // hello message and handles handshake success/failure.
   void FinishProcessingHandshakeMessage(
       const CryptoHandshakeMessage& message,
       const ValidateClientHelloResultCallback::Result& result);
+
+  // Invoked by SendServerConfigUpdateCallback::RunImpl once the proof has been
+  // received.  |ok| indicates whether or not the proof was successfully
+  // acquired, and |message| holds the partially-constructed message from
+  // SendServerConfigUpdate.
+  void FinishSendServerConfigUpdate(bool ok,
+                                    const CryptoHandshakeMessage& message);
 
   // crypto_config_ contains crypto parameters for the handshake.
   const QuicCryptoServerConfig* crypto_config_;
@@ -192,6 +217,12 @@ class NET_EXPORT_PRIVATE QuicCryptoServerStream
   // server nonces (indicating that this is a non-zero-RTT handshake
   // attempt).
   uint8_t num_handshake_messages_with_server_nonces_;
+
+  // Pointer to the active callback that will receive the result of
+  // BuildServerConfigUpdateMessage and forward it to
+  // FinishSendServerConfigUpdate.  nullptr if no update message is currently
+  // being built.
+  SendServerConfigUpdateCallback* send_server_config_update_cb_;
 
   // Number of server config update (SCUP) messages sent by this stream.
   int num_server_config_update_messages_sent_;

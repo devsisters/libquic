@@ -90,6 +90,17 @@ void UnpackStreamDependencyValues(uint32_t packed,
   *parent_stream_id = packed & 0x7fffffff;
 }
 
+// Creates a SpdyFramerDecoderAdapter if flags indicate that one should be
+// used. This code is isolated to hopefully make merging into Chromium easier.
+std::unique_ptr<SpdyFramerDecoderAdapter> DecoderAdapterFactory(
+    SpdyFramer* outer) {
+  if (FLAGS_use_nested_spdy_framer_decoder) {
+    DVLOG(1) << "Creating NestedSpdyFramerDecoder.";
+    return CreateNestedSpdyFramerDecoder(outer);
+  }
+  return nullptr;
+}
+
 struct DictionaryIds {
   DictionaryIds()
       : v3_dictionary_id(
@@ -119,6 +130,7 @@ const size_t SpdyFramer::kHeaderDataChunkMaxSize = 1024;
 // limit on control frame size for legacy reasons and to
 // mitigate DOS attacks.
 const size_t SpdyFramer::kMaxControlFrameSize = (1 << 14) - 1;
+const size_t SpdyFramer::kMaxDataPayloadSendSize = 1 << 14;
 // The size of the control frame buffer. Must be >= the minimum size of the
 // largest control frame, which is SYN_STREAM. See GetSynStreamMinimumSize() for
 // calculation details.
@@ -171,7 +183,8 @@ bool SpdyFramerVisitorInterface::OnRstStreamFrameData(
   return true;
 }
 
-SpdyFramer::SpdyFramer(SpdyMajorVersion version, bool choose_decoder)
+SpdyFramer::SpdyFramer(SpdyMajorVersion version,
+                       SpdyFramer::DecoderAdapterFactoryFn adapter_factory)
     : current_frame_buffer_(kControlFrameBufferSize),
       expect_continuation_(0),
       visitor_(NULL),
@@ -191,16 +204,13 @@ SpdyFramer::SpdyFramer(SpdyMajorVersion version, bool choose_decoder)
                 "Our send limit should be at most our receive limit");
   Reset();
 
-  if (choose_decoder && version == HTTP2) {
-    // Another case will be added, hence the nested if blocks...
-    if (FLAGS_use_nested_spdy_framer_decoder) {
-      DVLOG(1) << "Creating NestedSpdyFramerDecoder.";
-      decoder_adapter_.reset(CreateNestedSpdyFramerDecoder(this));
-    }
+  if (version == HTTP2 && adapter_factory != nullptr) {
+    decoder_adapter_ = adapter_factory(this);
   }
 }
 
-SpdyFramer::SpdyFramer(SpdyMajorVersion version) : SpdyFramer(version, true) {}
+SpdyFramer::SpdyFramer(SpdyMajorVersion version)
+    : SpdyFramer(version, &DecoderAdapterFactory) {}
 
 SpdyFramer::~SpdyFramer() {
   if (header_compressor_.get()) {
@@ -421,11 +431,21 @@ size_t SpdyFramer::GetFrameMinimumSize() const {
 }
 
 size_t SpdyFramer::GetFrameMaximumSize() const {
-  return SpdyConstants::GetFrameMaximumSize(protocol_version_);
+  if (protocol_version_ == HTTP2) {
+    return send_frame_size_limit_ +
+           SpdyConstants::GetFrameHeaderSize(protocol_version_);
+  } else {
+    return SpdyConstants::GetMaxFrameSizeLimit(protocol_version_);
+  }
 }
 
 size_t SpdyFramer::GetDataFrameMaximumPayload() const {
-  return GetFrameMaximumSize() - GetDataFrameMinimumSize();
+  if (protocol_version_ == HTTP2) {
+    return std::min(kMaxDataPayloadSendSize,
+                    GetFrameMaximumSize() - GetDataFrameMinimumSize());
+  } else {
+    return GetFrameMaximumSize() - GetDataFrameMinimumSize();
+  }
 }
 
 size_t SpdyFramer::GetPrefixLength(SpdyFrameType type) const {
@@ -3222,7 +3242,11 @@ bool SpdyFramer::IncrementallyDeliverControlFrameHeaderData(
 
 void SpdyFramer::SetDecoderHeaderTableDebugVisitor(
     std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) {
-  GetHpackDecoder()->SetHeaderTableDebugVisitor(std::move(visitor));
+  if (decoder_adapter_ != nullptr) {
+    decoder_adapter_->SetDecoderHeaderTableDebugVisitor(std::move(visitor));
+  } else {
+    GetHpackDecoder()->SetHeaderTableDebugVisitor(std::move(visitor));
+  }
 }
 
 void SpdyFramer::SetEncoderHeaderTableDebugVisitor(

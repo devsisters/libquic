@@ -3,7 +3,7 @@
 
 # START #
 {
-    "chromium_revision": "54.0.2791.0",
+    "chromium_revision": "54.0.2800.0",
     "dependency_exclude": [
         "zconf.h",
         "modp_b64.h",
@@ -67,6 +67,8 @@
                 "net/base/host_port_pair.cc",
                 "net/quic/quic_simple_buffer_allocator.h",
                 "net/quic/quic_simple_buffer_allocator.cc",
+                "net/quic/quic_buffered_packet_store.h",
+                "net/quic/quic_buffered_packet_store.cc",
                 "base/memory/scoped_vector.h",
                 "third_party/modp_b64/modp_b64_data.h",
                 "base/mac/mach_logging.cc",

@@ -51,29 +51,39 @@ struct MaxFilter {
 };
 
 // Use the following to construct a windowed filter object of type T.
-// For a min filter: WindowedFilter<T, MinFilter<T>> ObjectName;
-// For a max filter: WindowedFilter<T, MaxFilter<T>> ObjectName;
-template <class T, class Compare>
+// For example, a min filter using QuicTime as the time type:
+//   WindowedFilter<T, MinFilter<T>, QuicTime, QuicTime::Delta> ObjectName;
+// A max filter using 64-bit integers as the time type:
+//   WindowedFilter<T, MaxFilter<T>, uint64_t, int64_t> ObjectName;
+// Specifically, this template takes four arguments:
+// 1. T -- type of the measurement that is being filtered.
+// 2. Compare -- MinFilter<T> or MaxFilter<T>, depending on the type of filter
+//    desired.
+// 3. TimeT -- the type used to represent timestamps.
+// 4. TimeDeltaT -- the type used to represent continuous time intervals between
+//    two timestamps.  Has to be the type of (a - b) if both |a| and |b| are
+//    of type TimeT.
+template <class T, class Compare, typename TimeT, typename TimeDeltaT>
 class WindowedFilter {
  public:
   // |window_length| is the period after which a best estimate expires.
   // |zero_value| is used as the uninitialized value for objects of T.
   // Importantly, |zero_value| should be an invalid value for a true sample.
-  WindowedFilter(QuicTime::Delta window_length, T zero_value)
+  WindowedFilter(TimeDeltaT window_length, T zero_value, TimeT zero_time)
       : window_length_(window_length),
         zero_value_(zero_value),
-        estimates_{Sample(zero_value_, QuicTime::Zero()),
-                   Sample(zero_value_, QuicTime::Zero()),
-                   Sample(zero_value_, QuicTime::Zero())} {}
+        estimates_{Sample(zero_value_, zero_time),
+                   Sample(zero_value_, zero_time),
+                   Sample(zero_value_, zero_time)} {}
 
   // Updates best estimates with |sample|, and expires and updates best
   // estimates as necessary.
-  void Update(T new_sample, QuicTime new_time) {
+  void Update(T new_sample, TimeT new_time) {
     // Reset all estimates if they have not yet been initialized, if new sample
     // is a new best, or if the newest recorded estimate is too old.
     if (estimates_[0].sample == zero_value_ ||
         Compare()(new_sample, estimates_[0].sample) ||
-        new_time.Subtract(estimates_[2].time) > window_length_) {
+        new_time - estimates_[2].time > window_length_) {
       Reset(new_sample, new_time);
       return;
     }
@@ -86,7 +96,7 @@ class WindowedFilter {
     }
 
     // Expire and update estimates as necessary.
-    if (new_time.Subtract(estimates_[0].time) > window_length_) {
+    if (new_time - estimates_[0].time > window_length_) {
       // The best estimate hasn't been updated for an entire window, so promote
       // second and third best estimates.
       estimates_[0] = estimates_[1];
@@ -96,14 +106,14 @@ class WindowedFilter {
       // outside the window as well, since it may also have been recorded a
       // long time ago. Don't need to iterate once more since we cover that
       // case at the beginning of the method.
-      if (new_time.Subtract(estimates_[0].time) > window_length_) {
+      if (new_time - estimates_[0].time > window_length_) {
         estimates_[0] = estimates_[1];
         estimates_[1] = estimates_[2];
       }
       return;
     }
     if (estimates_[1].sample == estimates_[0].sample &&
-        new_time.Subtract(estimates_[1].time) > window_length_ >> 2) {
+        new_time - estimates_[1].time > window_length_ >> 2) {
       // A quarter of the window has passed without a better sample, so the
       // second-best estimate is taken from the second quarter of the window.
       estimates_[2] = estimates_[1] = Sample(new_sample, new_time);
@@ -111,7 +121,7 @@ class WindowedFilter {
     }
 
     if (estimates_[2].sample == estimates_[1].sample &&
-        new_time.Subtract(estimates_[2].time) > window_length_ >> 1) {
+        new_time - estimates_[2].time > window_length_ >> 1) {
       // We've passed a half of the window without a better estimate, so take
       // a third-best estimate from the second half of the window.
       estimates_[2] = Sample(new_sample, new_time);
@@ -119,7 +129,7 @@ class WindowedFilter {
   }
 
   // Resets all estimates to new sample.
-  void Reset(T new_sample, QuicTime new_time) {
+  void Reset(T new_sample, TimeT new_time) {
     estimates_[0] = estimates_[1] = estimates_[2] =
         Sample(new_sample, new_time);
   }
@@ -131,14 +141,14 @@ class WindowedFilter {
  private:
   struct Sample {
     T sample;
-    QuicTime time;
-    Sample(T init_sample, QuicTime init_time)
+    TimeT time;
+    Sample(T init_sample, TimeT init_time)
         : sample(init_sample), time(init_time) {}
   };
 
-  QuicTime::Delta window_length_;  // Time length of window.
-  T zero_value_;                   // Uninitialized value of T.
-  Sample estimates_[3];            // Best estimate is element 0.
+  TimeDeltaT window_length_;  // Time length of window.
+  T zero_value_;              // Uninitialized value of T.
+  Sample estimates_[3];       // Best estimate is element 0.
 };
 
 }  // namespace net

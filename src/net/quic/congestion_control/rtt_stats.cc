@@ -37,7 +37,8 @@ RttStats::RttStats()
       num_samples_for_forced_min_(0),
       windowed_min_rtt_(
           QuicTime::Delta::FromMilliseconds(kMinRttWindowLengthMs),
-          QuicTime::Delta::Zero()) {}
+          QuicTime::Delta::Zero(),
+          QuicTime::Zero()) {}
 
 void RttStats::SampleNewWindowedMinRtt(uint32_t num_samples) {
   num_samples_for_forced_min_ = num_samples;
@@ -46,10 +47,9 @@ void RttStats::SampleNewWindowedMinRtt(uint32_t num_samples) {
 }
 
 void RttStats::ExpireSmoothedMetrics() {
-  mean_deviation_ =
-      max(mean_deviation_,
-          QuicTime::Delta::FromMicroseconds(
-              std::abs(smoothed_rtt_.Subtract(latest_rtt_).ToMicroseconds())));
+  mean_deviation_ = max(mean_deviation_,
+                        QuicTime::Delta::FromMicroseconds(std::abs(
+                            (smoothed_rtt_ - latest_rtt_).ToMicroseconds())));
   smoothed_rtt_ = max(smoothed_rtt_, latest_rtt_);
 }
 
@@ -80,7 +80,7 @@ void RttStats::UpdateRtt(QuicTime::Delta send_delta,
   previous_srtt_ = smoothed_rtt_;
 
   if (rtt_sample > ack_delay) {
-    rtt_sample = rtt_sample.Subtract(ack_delay);
+    rtt_sample = rtt_sample - ack_delay;
   }
   latest_rtt_ = rtt_sample;
   // First time call.
@@ -91,9 +91,8 @@ void RttStats::UpdateRtt(QuicTime::Delta send_delta,
   } else {
     mean_deviation_ = QuicTime::Delta::FromMicroseconds(static_cast<int64_t>(
         kOneMinusBeta * mean_deviation_.ToMicroseconds() +
-        kBeta * std::abs(smoothed_rtt_.Subtract(rtt_sample).ToMicroseconds())));
-    smoothed_rtt_ =
-        smoothed_rtt_.Multiply(kOneMinusAlpha).Add(rtt_sample.Multiply(kAlpha));
+        kBeta * std::abs((smoothed_rtt_ - rtt_sample).ToMicroseconds())));
+    smoothed_rtt_ = kOneMinusAlpha * smoothed_rtt_ + kAlpha * rtt_sample;
     DVLOG(1) << " smoothed_rtt(us):" << smoothed_rtt_.ToMicroseconds()
              << " mean_deviation(us):" << mean_deviation_.ToMicroseconds();
   }

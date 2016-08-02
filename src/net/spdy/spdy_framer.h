@@ -355,6 +355,11 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     LAST_ERROR,  // Must be the last entry in the enum.
   };
 
+  // Typedef for a function used to create SpdyFramerDecoderAdapter's.
+  // Defined in support of evaluating an alternate HTTP/2 decoder.
+  typedef std::unique_ptr<SpdyFramerDecoderAdapter> (*DecoderAdapterFactoryFn)(
+      SpdyFramer* outer);
+
   // Constant for invalid (or unknown) stream IDs.
   static const SpdyStreamId kInvalidStream;
 
@@ -377,8 +382,9 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   explicit SpdyFramer(SpdyMajorVersion version);
 
   // Used recursively from the above constructor in order to support
-  // instantiating a SpdyFramerDecoderAdapter selected via flags.
-  SpdyFramer(SpdyMajorVersion version, bool choose_decoder);
+  // instantiating a SpdyFramerDecoderAdapter selected via flags or some other
+  // means.
+  SpdyFramer(SpdyMajorVersion version, DecoderAdapterFactoryFn adapter_factory);
 
   virtual ~SpdyFramer();
 
@@ -517,6 +523,12 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   void set_max_decode_buffer_size_bytes(size_t max_decode_buffer_size_bytes) {
     GetHpackDecoder()->set_max_decode_buffer_size_bytes(
         max_decode_buffer_size_bytes);
+  }
+
+  size_t send_frame_size_limit() const { return send_frame_size_limit_; }
+
+  void set_send_frame_size_limit(size_t send_frame_size_limit) {
+    send_frame_size_limit_ = send_frame_size_limit;
   }
 
   void set_recv_frame_size_limit(size_t recv_frame_size_limit) {
@@ -739,6 +751,8 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // removed) if necessary later down the line.
   // TODO(diannahu): Rename to make it clear that this limit is for sending.
   static const size_t kMaxControlFrameSize;
+  // The maximum size for the payload of DATA frames to send.
+  static const size_t kMaxDataPayloadSendSize;
 
   SpdyState state_;
   SpdyState previous_state_;
@@ -757,8 +771,12 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // are part of the frame's payload, and not the frame's headers.
   size_t remaining_control_header_;
 
-  // The limit on HTTP/2 payload size as specified in the
-  // SETTINGS_MAX_FRAME_SIZE advertised to peer
+  // The limit on the size of sent HTTP/2 payloads as specified in the
+  // SETTINGS_MAX_FRAME_SIZE received from peer.
+  size_t send_frame_size_limit_ = kSpdyInitialFrameSizeLimit;
+
+  // The limit on the size of received HTTP/2 payloads as specified in the
+  // SETTINGS_MAX_FRAME_SIZE advertised to peer.
   size_t recv_frame_size_limit_ = kSpdyInitialFrameSizeLimit;
 
   CharBuffer current_frame_buffer_;

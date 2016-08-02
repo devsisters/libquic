@@ -155,7 +155,7 @@ FilePath GetAppBundlePath(const FilePath& exec_name) {
   exec_name.GetComponents(&components);
 
   // It's an error if we don't get any components.
-  if (!components.size())
+  if (components.empty())
     return FilePath();
 
   // Don't prepend '/' to the first component.

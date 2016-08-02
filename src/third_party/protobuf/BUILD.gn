@@ -175,7 +175,7 @@ component("protobuf_lite") {
 # This is the full, heavy protobuf lib that's needed for c++ .protos that don't
 # specify the LITE_RUNTIME option. The protocol compiler itself (protoc) falls
 # into that category. Do not use in Chrome code.
-source_set("protobuf_full") {
+static_library("protobuf_full") {
   # Prevent people from depending on this outside our file.
   visibility = [ ":*" ]
 
@@ -338,7 +338,7 @@ if (current_toolchain == host_toolchain) {
   # protoc compiler is separated into protoc library and executable targets to
   # support protoc plugins that need to link libprotoc, but not the main()
   # itself. See src/google/protobuf/compiler/plugin.h
-  source_set("protoc_lib") {
+  static_library("protoc_lib") {
     sources = [
       "src/google/protobuf/compiler/code_generator.cc",
       "src/google/protobuf/compiler/code_generator.h",

@@ -135,10 +135,6 @@ class BASE_EXPORT HistogramBase {
     COUNT_LOW_ERROR = 0x8,
 
     NEVER_EXCEEDED_VALUE = 0x10,
-
-    // This value is used only in HistogramSnapshotManager for marking
-    // internally when new inconsistencies are found.
-    NEW_INCONSISTENCY_FOUND = 0x8000000
   };
 
   explicit HistogramBase(const std::string& name);

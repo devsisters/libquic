@@ -956,6 +956,11 @@ class NET_EXPORT_PRIVATE PacketNumberQueue {
   // the queue. Returns true if packets were removed.
   bool RemoveUpTo(QuicPacketNumber higher);
 
+  // Mutates packet number set so that it contains only those packet numbers
+  // from minimum to maximum packet number not currently in the set. Do nothing
+  // if packet number set is empty.
+  void Complement();
+
   // Returns true if the queue contains |packet_number|.
   bool Contains(QuicPacketNumber packet_number) const;
 

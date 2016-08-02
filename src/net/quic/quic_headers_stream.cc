@@ -35,14 +35,14 @@ class HeaderTableDebugVisitor : public HpackHeaderTable::DebugVisitorInterface {
 
   int64_t OnNewEntry(const HpackEntry& entry) override {
     DVLOG(1) << entry.GetDebugString();
-    return clock_->ApproximateNow().Subtract(QuicTime::Zero()).ToMicroseconds();
+    return (clock_->ApproximateNow() - QuicTime::Zero()).ToMicroseconds();
   }
 
   void OnUseEntry(const HpackEntry& entry) override {
     const QuicTime::Delta elapsed(
-        clock_->ApproximateNow()
-            .Subtract(QuicTime::Delta::FromMicroseconds(entry.time_added()))
-            .Subtract(QuicTime::Zero()));
+        clock_->ApproximateNow() -
+        QuicTime::Delta::FromMicroseconds(entry.time_added()) -
+        QuicTime::Zero());
     DVLOG(1) << entry.GetDebugString() << " " << elapsed.ToMilliseconds()
              << " ms";
     headers_stream_hpack_visitor_->OnUseEntry(elapsed);
@@ -382,7 +382,7 @@ QuicConsumedData QuicHeadersStream::WritevStreamData(
     QuicStreamOffset offset,
     bool fin,
     QuicAckListenerInterface* ack_notifier_delegate) {
-  const size_t max_len = SpdyConstants::GetFrameMaximumSize(HTTP2) -
+  const size_t max_len = kSpdyInitialFrameSizeLimit -
                          SpdyConstants::GetDataFrameMinimumSize(HTTP2);
 
   QuicConsumedData result(0, false);
@@ -446,7 +446,7 @@ void QuicHeadersStream::OnDataAvailable() {
         break;
       }
       DCHECK(timestamp.IsInitialized());
-      cur_max_timestamp_ = QuicTime::Max(timestamp, cur_max_timestamp_);
+      cur_max_timestamp_ = std::max(timestamp, cur_max_timestamp_);
     } else {
       if (sequencer()->GetReadableRegions(&iov, 1) != 1) {
         // No more data to read.
@@ -508,7 +508,7 @@ void QuicHeadersStream::OnControlFrameHeaderData(SpdyStreamId stream_id,
         // headers from lower numbered streams actually came off the
         // wire after headers for the current stream, hence there was
         // HOL blocking.
-        QuicTime::Delta delta(prev_max_timestamp_.Subtract(cur_max_timestamp_));
+        QuicTime::Delta delta = prev_max_timestamp_ - cur_max_timestamp_;
         DVLOG(1) << "stream " << stream_id
                  << ": Net.QuicSession.HeadersHOLBlockedTime "
                  << delta.ToMilliseconds();
@@ -555,7 +555,7 @@ void QuicHeadersStream::OnHeaderList(const QuicHeaderList& header_list) {
       // headers from lower numbered streams actually came off the
       // wire after headers for the current stream, hence there was
       // HOL blocking.
-      QuicTime::Delta delta = prev_max_timestamp_.Subtract(cur_max_timestamp_);
+      QuicTime::Delta delta = prev_max_timestamp_ - cur_max_timestamp_;
       DVLOG(1) << "stream " << stream_id_
                << ": Net.QuicSession.HeadersHOLBlockedTime "
                << delta.ToMilliseconds();

@@ -193,6 +193,10 @@ class NET_EXPORT_PRIVATE QuicSpdyStream : public ReliableQuicStream {
   // use of the spdy_session_ member.
   void ClearSession();
 
+  // Returns true if the sequencer has delivered the FIN, and no more body bytes
+  // will be available.
+  bool IsClosed() { return sequencer()->IsClosed(); }
+
  protected:
   // Called by OnStreamHeadersComplete depending on which type (initial or
   // trailing) headers are expected next.

@@ -20,12 +20,7 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
     CongestionControlType congestion_control_type,
     QuicConnectionStats* stats,
     QuicPacketCount initial_congestion_window) {
-  QuicPacketCount max_congestion_window =
-      (kDefaultSocketReceiveBuffer * kConservativeReceiveBufferFraction) /
-      kDefaultTCPMSS;
-  if (FLAGS_quic_ignore_srbf) {
-    max_congestion_window = kDefaultMaxCongestionWindowPackets;
-  }
+  QuicPacketCount max_congestion_window = kDefaultMaxCongestionWindowPackets;
   switch (congestion_control_type) {
     case kCubic:
       return new TcpCubicSenderPackets(

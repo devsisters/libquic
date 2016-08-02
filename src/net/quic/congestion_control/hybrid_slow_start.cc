@@ -94,7 +94,7 @@ bool HybridSlowStart::ShouldExitSlowStart(QuicTime::Delta latest_rtt,
         QuicTime::Delta::FromMicroseconds(max(min_rtt_increase_threshold_us,
                                               kHybridStartDelayMinThresholdUs));
 
-    if (current_min_rtt_ > min_rtt.Add(min_rtt_increase_threshold)) {
+    if (current_min_rtt_ > min_rtt + min_rtt_increase_threshold) {
       hystart_found_ = DELAY;
     }
   }

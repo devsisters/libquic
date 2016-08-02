@@ -38,11 +38,11 @@ QuicTime QuicClock::ConvertWallTimeToQuicTime(
   //               result
   //
   // result = Now() - (WallNow() - walltime)
-  return Now().Subtract(QuicTime::Delta::FromMicroseconds(
-      WallNow()
-          .Subtract(
-              QuicTime::Delta::FromMicroseconds(walltime.ToUNIXMicroseconds()))
-          .ToUNIXMicroseconds()));
+  return Now() - QuicTime::Delta::FromMicroseconds(
+                     WallNow()
+                         .Subtract(QuicTime::Delta::FromMicroseconds(
+                             walltime.ToUNIXMicroseconds()))
+                         .ToUNIXMicroseconds());
 }
 
 }  // namespace net

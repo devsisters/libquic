@@ -290,7 +290,7 @@ QuicConsumedData ReliableQuicStream::WritevData(
         min(send_window, connection_flow_controller_->SendWindowSize());
   }
 
-  if (FLAGS_quic_cede_correctly && session_->ShouldYield(id())) {
+  if (session_->ShouldYield(id())) {
     session_->MarkConnectionLevelWriteBlocked(id());
     return QuicConsumedData(0, false);
   }

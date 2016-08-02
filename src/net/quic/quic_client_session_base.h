@@ -42,6 +42,8 @@ class NET_EXPORT_PRIVATE QuicClientSessionBase
 
   ~QuicClientSessionBase() override;
 
+  void OnConfigNegotiated() override;
+
   // Override base class to set FEC policy before any data is sent by client.
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
 

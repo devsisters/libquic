@@ -5,6 +5,7 @@
 #ifndef NET_QUIC_CRYPTO_PROOF_SOURCE_H_
 #define NET_QUIC_CRYPTO_PROOF_SOURCE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -35,9 +36,36 @@ class NET_EXPORT_PRIVATE ProofSource {
     DISALLOW_COPY_AND_ASSIGN(Chain);
   };
 
+  // Callback base class for receiving the results of an async call to GetProof.
+  class Callback {
+   public:
+    Callback() {}
+    virtual ~Callback() {}
+
+    // Invoked upon completion of GetProof.
+    //
+    // |ok| indicates whether the operation completed successfully.  If false,
+    // the values of the remaining three arguments are undefined.
+    //
+    // |chain| is a reference-counted pointer to an object representing the
+    // certificate chain.
+    //
+    // |signature| contains the signature of the server config.
+    //
+    // |leaf_cert_sct| holds the signed timestamp (RFC6962) of the leaf cert.
+    virtual void Run(bool ok,
+                     const scoped_refptr<Chain>& chain,
+                     const std::string& signature,
+                     const std::string& leaf_cert_sct) = 0;
+
+   private:
+    Callback(const Callback&) = delete;
+    Callback& operator=(const Callback&) = delete;
+  };
+
   virtual ~ProofSource() {}
 
-  // GetProof finds a certificate chain for |hostname|, sets |out_certs| to
+  // GetProof finds a certificate chain for |hostname|, sets |out_chain| to
   // point to it (in leaf-first order), calculates a signature of
   // |server_config| using that chain and puts the result in |out_signature|.
   //
@@ -52,13 +80,13 @@ class NET_EXPORT_PRIVATE ProofSource {
   // |out_chain| is reference counted to avoid the (assumed) expense of copying
   // out the certificates.
   //
-  // The number of certificate chains is expected to be small and fixed thus
-  // the ProofSource retains ownership of the contents of |out_certs|. The
+  // The number of certificate chains is expected to be small and fixed, thus
+  // the ProofSource retains ownership of the contents of |out_chain|. The
   // expectation is that they will be cached forever.
   //
   // For version before QUIC_VERSION_30, the signature values should be cached
   // because |server_config| will be somewhat static. However, since they aren't
-  // bounded, the ProofSource may wish to evicit entries from that cache, thus
+  // bounded, the ProofSource may wish to evict entries from that cache, thus
   // the caller takes ownership of |*out_signature|.
   //
   // For QUIC_VERSION_30 and later, the signature depends on |chlo_hash|
@@ -70,6 +98,7 @@ class NET_EXPORT_PRIVATE ProofSource {
   //
   // |out_leaf_cert_sct| points to the signed timestamp (RFC6962) of the leaf
   // cert.
+  //
   // This function may be called concurrently.
   virtual bool GetProof(const IPAddress& server_ip,
                         const std::string& hostname,
@@ -80,6 +109,18 @@ class NET_EXPORT_PRIVATE ProofSource {
                         scoped_refptr<Chain>* out_chain,
                         std::string* out_signature,
                         std::string* out_leaf_cert_sct) = 0;
+
+  // Async version of GetProof with identical semantics, except that the results
+  // are delivered to |callback|.  Callers should expect that |callback| might
+  // be invoked synchronously.  The ProofSource takes ownership of |callback| in
+  // any case.
+  virtual void GetProof(const IPAddress& server_ip,
+                        const std::string& hostname,
+                        const std::string& server_config,
+                        QuicVersion quic_version,
+                        base::StringPiece chlo_hash,
+                        bool ecdsa_ok,
+                        std::unique_ptr<Callback> callback) = 0;
 };
 
 }  // namespace net

@@ -143,9 +143,12 @@ class NET_EXPORT_PRIVATE QuicUtils {
   static std::string HexDecode(const char* data, size_t length);
   static std::string HexDecode(base::StringPiece data);
 
-  // Converts binary data into an ASCII string. Each character in the resulting
-  // string is preceeded by a space, and replaced with a '.' if not printable.
-  static std::string BinaryToAscii(base::StringPiece binary);
+  // Returns a std::string containing hex and ASCII representations of |binary|,
+  // side-by-side in the style of hexdump. Non-printable characters will be
+  // printed as '.' in the ASCII output.
+  // For example:
+  // "48 65 6c 6c 6f 2c 20 51 55 49 43 21 01 02 03 04  |Hello, QUIC!....|"
+  static std::string HexDump(base::StringPiece binary_data);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(QuicUtils);

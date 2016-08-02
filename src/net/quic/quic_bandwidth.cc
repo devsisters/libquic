@@ -95,18 +95,6 @@ bool QuicBandwidth::IsZero() const {
   return (bits_per_second_ == 0);
 }
 
-QuicBandwidth QuicBandwidth::Add(QuicBandwidth delta) const {
-  return QuicBandwidth(bits_per_second_ + delta.bits_per_second_);
-}
-
-QuicBandwidth QuicBandwidth::Subtract(QuicBandwidth delta) const {
-  return QuicBandwidth(bits_per_second_ - delta.bits_per_second_);
-}
-
-QuicBandwidth QuicBandwidth::Scale(float scale_factor) const {
-  return QuicBandwidth(static_cast<int64_t>(bits_per_second_ * scale_factor));
-}
-
 QuicTime::Delta QuicBandwidth::TransferTime(QuicByteCount bytes) const {
   if (bits_per_second_ == 0) {
     return QuicTime::Delta::Zero();

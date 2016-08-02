@@ -85,6 +85,7 @@ QuicCryptoServerStream::QuicCryptoServerStream(
       validate_client_hello_cb_(nullptr),
       num_handshake_messages_(0),
       num_handshake_messages_with_server_nonces_(0),
+      send_server_config_update_cb_(nullptr),
       num_server_config_update_messages_sent_(0),
       use_stateless_rejects_if_peer_supported_(
           use_stateless_rejects_if_peer_supported),
@@ -102,6 +103,10 @@ void QuicCryptoServerStream::CancelOutstandingCallbacks() {
     validate_client_hello_cb_->Cancel();
     validate_client_hello_cb_ = nullptr;
   }
+  if (send_server_config_update_cb_ != nullptr) {
+    send_server_config_update_cb_->Cancel();
+    send_server_config_update_cb_ = nullptr;
+  }
 }
 
 void QuicCryptoServerStream::OnHandshakeMessage(
@@ -109,8 +114,11 @@ void QuicCryptoServerStream::OnHandshakeMessage(
   QuicCryptoServerStreamBase::OnHandshakeMessage(message);
   ++num_handshake_messages_;
 
-  // This block should be removed with support for QUIC_VERSION_25.
-  if (FLAGS_quic_require_fix && !HasFixedTag(message)) {
+  // It's only safe to deprecate kFIXD where we have deprecated v25
+  bool require_kfixd =
+      !FLAGS_quic_deprecate_kfixd || !FLAGS_quic_disable_pre_30;
+
+  if (require_kfixd && !HasFixedTag(message)) {
     CloseConnectionWithDetails(QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND,
                                "Missing kFIXD");
     return;
@@ -262,6 +270,27 @@ void QuicCryptoServerStream::SendServerConfigUpdate(
     return;
   }
 
+  if (FLAGS_enable_async_get_proof) {
+    if (send_server_config_update_cb_ != nullptr) {
+      DVLOG(1)
+          << "Skipped server config update since one is already in progress";
+      return;
+    }
+
+    std::unique_ptr<SendServerConfigUpdateCallback> cb(
+        new SendServerConfigUpdateCallback(this));
+    send_server_config_update_cb_ = cb.get();
+    crypto_config_->BuildServerConfigUpdateMessage(
+        session()->connection()->version(), chlo_hash_,
+        previous_source_address_tokens_,
+        session()->connection()->self_address().address(),
+        session()->connection()->peer_address().address(),
+        session()->connection()->clock(),
+        session()->connection()->random_generator(), compressed_certs_cache_,
+        crypto_negotiated_params_, cached_network_params, std::move(cb));
+    return;
+  }
+
   CryptoHandshakeMessage server_config_update_message;
   if (!crypto_config_->BuildServerConfigUpdateMessage(
           session()->connection()->version(), chlo_hash_,
@@ -279,6 +308,43 @@ void QuicCryptoServerStream::SendServerConfigUpdate(
   DVLOG(1) << "Server: Sending server config update: "
            << server_config_update_message.DebugString();
   const QuicData& data = server_config_update_message.GetSerialized();
+  WriteOrBufferData(StringPiece(data.data(), data.length()), false, nullptr);
+
+  ++num_server_config_update_messages_sent_;
+}
+
+QuicCryptoServerStream::SendServerConfigUpdateCallback::
+    SendServerConfigUpdateCallback(QuicCryptoServerStream* parent)
+    : parent_(parent) {}
+
+void QuicCryptoServerStream::SendServerConfigUpdateCallback::Cancel() {
+  parent_ = nullptr;
+}
+
+// From BuildServerConfigUpdateMessageResultCallback
+void QuicCryptoServerStream::SendServerConfigUpdateCallback::Run(
+    bool ok,
+    const CryptoHandshakeMessage& message) {
+  if (parent_ == nullptr) {
+    return;
+  }
+  parent_->FinishSendServerConfigUpdate(ok, message);
+}
+
+void QuicCryptoServerStream::FinishSendServerConfigUpdate(
+    bool ok,
+    const CryptoHandshakeMessage& message) {
+  // Clear the callback that got us here.
+  DCHECK(send_server_config_update_cb_ != nullptr);
+  send_server_config_update_cb_ = nullptr;
+
+  if (!ok) {
+    DVLOG(1) << "Server: Failed to build server config update (SCUP)!";
+    return;
+  }
+
+  DVLOG(1) << "Server: Sending server config update: " << message.DebugString();
+  const QuicData& data = message.GetSerialized();
   WriteOrBufferData(StringPiece(data.data(), data.length()), false, nullptr);
 
   ++num_server_config_update_messages_sent_;

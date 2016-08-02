@@ -303,8 +303,7 @@ char HpackHuffmanDecoder::CanonicalToSource(HuffmanWord canonical) {
 // strings, and a later portion dealing with the last few bytes of strings.
 // TODO(jamessynge): Determine if that is worth it by adding some counters to
 // measure the distribution of string sizes seen in practice.
-bool HpackHuffmanDecoder::DecodeString(HpackInputStream* in,
-                                       std::string* out) {
+bool HpackHuffmanDecoder::DecodeString(HpackInputStream* in, std::string* out) {
   out->clear();
 
   // Load |bits| with the leading bits of the input stream, left justified

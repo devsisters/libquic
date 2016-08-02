@@ -45,7 +45,6 @@ class NET_EXPORT_PRIVATE PacingSender : public SendAlgorithmInterface {
       const CachedNetworkParameters& cached_network_params,
       bool max_bandwidth_resumption) override;
   void SetNumEmulatedConnections(int num_connections) override;
-  void SetMaxCongestionWindow(QuicByteCount max_congestion_window) override;
   void OnCongestionEvent(bool rtt_updated,
                          QuicByteCount bytes_in_flight,
                          const CongestionVector& acked_packets,

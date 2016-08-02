@@ -681,8 +681,12 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   PeerAddressChangeType peer_migration_type =
       QuicUtils::DetermineAddressChangeType(peer_address_,
                                             last_packet_source_address_);
+  // Do not migrate connection if the changed address packet is a reordered
+  // packet.
   if (active_peer_migration_type_ == NO_CHANGE &&
-      peer_migration_type != NO_CHANGE) {
+      peer_migration_type != NO_CHANGE &&
+      (!FLAGS_quic_do_not_migrate_on_old_packet ||
+       header.packet_number > received_packet_manager_.GetLargestObserved())) {
     StartPeerMigration(header.path_id, peer_migration_type);
   }
 
@@ -829,9 +833,9 @@ bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
 
 const char* QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
   if (incoming_ack.largest_observed > packet_generator_.packet_number()) {
-    LOG(WARNING) << ENDPOINT << "Peer's observed unsent packet:"
-                 << incoming_ack.largest_observed << " vs "
-                 << packet_generator_.packet_number();
+    DLOG(WARNING) << ENDPOINT << "Peer's observed unsent packet:"
+                  << incoming_ack.largest_observed << " vs "
+                  << packet_generator_.packet_number();
     // We got an error for data we have not sent.  Error out.
     return "Largest observed too high.";
   }
@@ -874,9 +878,9 @@ const char* QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
     if (!sent_entropy_manager_.IsValidEntropy(incoming_ack.largest_observed,
                                               incoming_ack.packets,
                                               incoming_ack.entropy_hash)) {
-      LOG(WARNING) << ENDPOINT << "Peer sent invalid entropy."
-                   << " largest_observed:" << incoming_ack.largest_observed
-                   << " last_received:" << last_header_.packet_number;
+      DLOG(WARNING) << ENDPOINT << "Peer sent invalid entropy."
+                    << " largest_observed:" << incoming_ack.largest_observed
+                    << " last_received:" << last_header_.packet_number;
       return "Invalid entropy.";
     }
   } else {
@@ -1064,11 +1068,10 @@ void QuicConnection::MaybeQueueAck(bool was_missing) {
         ack_queued_ = true;
       } else if (!ack_alarm_->IsSet()) {
         // Wait the minimum of a quarter min_rtt and the delayed ack time.
-        QuicTime::Delta ack_delay = QuicTime::Delta::Min(
-            DelayedAckTime(),
-            sent_packet_manager_->GetRttStats()->min_rtt().Multiply(
-                ack_decimation_delay_));
-        ack_alarm_->Set(clock_->ApproximateNow().Add(ack_delay));
+        QuicTime::Delta ack_delay = std::min(
+            DelayedAckTime(), sent_packet_manager_->GetRttStats()->min_rtt() *
+                                  ack_decimation_delay_);
+        ack_alarm_->Set(clock_->ApproximateNow() + ack_delay);
       }
     } else {
       // Ack with a timer or every 2 packets by default.
@@ -1076,7 +1079,7 @@ void QuicConnection::MaybeQueueAck(bool was_missing) {
           kDefaultRetransmittablePacketsBeforeAck) {
         ack_queued_ = true;
       } else if (!ack_alarm_->IsSet()) {
-        ack_alarm_->Set(clock_->ApproximateNow().Add(DelayedAckTime()));
+        ack_alarm_->Set(clock_->ApproximateNow() + DelayedAckTime());
       }
     }
 
@@ -1084,8 +1087,9 @@ void QuicConnection::MaybeQueueAck(bool was_missing) {
     if (received_packet_manager_.HasNewMissingPackets()) {
       if (ack_mode_ == ACK_DECIMATION_WITH_REORDERING) {
         // Wait the minimum of an eighth min_rtt and the existing ack time.
-        QuicTime ack_time = clock_->ApproximateNow().Add(
-            sent_packet_manager_->GetRttStats()->min_rtt().Multiply(0.125));
+        QuicTime ack_time =
+            clock_->ApproximateNow() +
+            0.125 * sent_packet_manager_->GetRttStats()->min_rtt();
         if (!ack_alarm_->IsSet() || ack_alarm_->deadline() > ack_time) {
           ack_alarm_->Cancel();
           ack_alarm_->Set(ack_time);
@@ -1212,8 +1216,7 @@ QuicConsumedData QuicConnection::SendStreamData(
   ScopedPacketBundler ack_bundler(this, SEND_ACK_IF_PENDING);
   // The optimized path may be used for data only packets which fit into a
   // standard buffer and don't need padding.
-  if (FLAGS_quic_use_optimized_write_path && id != kCryptoStreamId &&
-      !packet_generator_.HasQueuedFrames() &&
+  if (id != kCryptoStreamId && !packet_generator_.HasQueuedFrames() &&
       iov.total_length > kMaxPacketSize) {
     // Use the fast path to send full data packets.
     return packet_generator_.ConsumeDataFastPath(id, iov, offset, fin,
@@ -1578,7 +1581,7 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
   DCHECK_NE(kInvalidPathId, path_id);
   // If the scheduler requires a delay, then we can not send this packet now.
   if (!delay.IsZero()) {
-    send_alarm_->Update(now.Add(delay), QuicTime::Delta::FromMilliseconds(1));
+    send_alarm_->Update(now + delay, QuicTime::Delta::FromMilliseconds(1));
     DVLOG(1) << ENDPOINT << "Delaying sending " << delay.ToMilliseconds()
              << "ms";
     return false;
@@ -2141,9 +2144,9 @@ void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
   // Adjust the idle timeout on client and server to prevent clients from
   // sending requests to servers which have already closed the connection.
   if (perspective_ == Perspective::IS_SERVER) {
-    idle_timeout = idle_timeout.Add(QuicTime::Delta::FromSeconds(3));
+    idle_timeout = idle_timeout + QuicTime::Delta::FromSeconds(3);
   } else if (idle_timeout > QuicTime::Delta::FromSeconds(1)) {
-    idle_timeout = idle_timeout.Subtract(QuicTime::Delta::FromSeconds(1));
+    idle_timeout = idle_timeout - QuicTime::Delta::FromSeconds(1);
   }
   handshake_timeout_ = handshake_timeout;
   idle_network_timeout_ = idle_timeout;
@@ -2159,7 +2162,7 @@ void QuicConnection::CheckForTimeout() {
   // |delta| can be < 0 as |now| is approximate time but |time_of_last_packet|
   // is accurate time. However, this should not change the behavior of
   // timeout handling.
-  QuicTime::Delta idle_duration = now.Subtract(time_of_last_packet);
+  QuicTime::Delta idle_duration = now - time_of_last_packet;
   DVLOG(1) << ENDPOINT << "last packet "
            << time_of_last_packet.ToDebuggingValue()
            << " now:" << now.ToDebuggingValue()
@@ -2175,8 +2178,7 @@ void QuicConnection::CheckForTimeout() {
   }
 
   if (!handshake_timeout_.IsInfinite()) {
-    QuicTime::Delta connected_duration =
-        now.Subtract(stats_.connection_creation_time);
+    QuicTime::Delta connected_duration = now - stats_.connection_creation_time;
     DVLOG(1) << ENDPOINT
              << "connection time: " << connected_duration.ToMicroseconds()
              << " handshake timeout: " << handshake_timeout_.ToMicroseconds();
@@ -2196,10 +2198,10 @@ void QuicConnection::SetTimeoutAlarm() {
   QuicTime time_of_last_packet =
       max(time_of_last_received_packet_, time_of_last_sent_new_packet_);
 
-  QuicTime deadline = time_of_last_packet.Add(idle_network_timeout_);
+  QuicTime deadline = time_of_last_packet + idle_network_timeout_;
   if (!handshake_timeout_.IsInfinite()) {
     deadline =
-        min(deadline, stats_.connection_creation_time.Add(handshake_timeout_));
+        min(deadline, stats_.connection_creation_time + handshake_timeout_);
   }
 
   timeout_alarm_->Cancel();
@@ -2217,7 +2219,7 @@ void QuicConnection::SetPingAlarm() {
     return;
   }
   QuicTime::Delta ping_timeout = QuicTime::Delta::FromSeconds(kPingTimeoutSecs);
-  ping_alarm_->Update(clock_->ApproximateNow().Add(ping_timeout),
+  ping_alarm_->Update(clock_->ApproximateNow() + ping_timeout,
                       QuicTime::Delta::FromSeconds(1));
 }
 
@@ -2266,7 +2268,7 @@ QuicConnection::ScopedPacketBundler::ScopedPacketBundler(
   // Move generator into batch mode. If caller wants us to include an ack,
   // check the delayed-ack timer to see if there's ack info to be sent.
   if (!already_in_batch_mode_) {
-    DVLOG(1) << "Entering Batch Mode.";
+    DVLOG(2) << "Entering Batch Mode.";
     connection_->packet_generator_.StartBatchOperations();
   }
   if (ShouldSendAck(ack_mode)) {
@@ -2299,7 +2301,7 @@ QuicConnection::ScopedPacketBundler::~ScopedPacketBundler() {
   }
   // If we changed the generator's batch state, restore original batch state.
   if (!already_in_batch_mode_) {
-    DVLOG(1) << "Leaving Batch Mode.";
+    DVLOG(2) << "Leaving Batch Mode.";
     connection_->packet_generator_.FinishBatchOperations();
   }
   DCHECK_EQ(already_in_batch_mode_,

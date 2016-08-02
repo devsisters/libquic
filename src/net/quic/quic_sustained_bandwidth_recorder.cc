@@ -41,7 +41,7 @@ void QuicSustainedBandwidthRecorder::RecordEstimate(bool in_recovery,
 
   // If we have been recording for at least 3 * srtt, then record the latest
   // bandwidth estimate as a valid sustained bandwidth estimate.
-  if (estimate_time.Subtract(start_time_) >= srtt.Multiply(3)) {
+  if (estimate_time - start_time_ >= 3 * srtt) {
     has_estimate_ = true;
     bandwidth_estimate_recorded_during_slow_start_ = in_slow_start;
     bandwidth_estimate_ = bandwidth;

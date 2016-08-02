@@ -141,7 +141,10 @@ class NET_EXPORT SpdyHeaderBlock {
  private:
   void Write(const base::StringPiece s);
   void AppendHeader(const base::StringPiece key, const base::StringPiece value);
+  Storage* GetStorage();
 
+  // StringPieces held by |block_| point to memory owned by |*storage_|.
+  // |storage_| might be nullptr as long as |block_| is empty.
   MapType block_;
   std::unique_ptr<Storage> storage_;
 };

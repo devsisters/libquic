@@ -674,14 +674,13 @@ NET_ERROR(PROXY_HTTP_1_1_REQUIRED, -366)
 // The PAC script terminated fatally and must be reloaded.
 NET_ERROR(PAC_SCRIPT_TERMINATED, -367)
 
-// The certificate offered by the alternative server is not valid for the
-// origin, a violation of HTTP Alternative Services specification Section 2.1,
-// https://tools.ietf.org/id/draft-ietf-httpbis-alt-svc-06.html#host_auth.
-NET_ERROR(ALTERNATIVE_CERT_NOT_VALID_FOR_ORIGIN, -368)
-
 // Request is throttled because of a Backoff header.
 // See: crbug.com/486891.
 NET_ERROR(TEMPORARY_BACKOFF, -369)
+
+// The server was expected to return an HTTP/1.x response, but did not. Rather
+// than treat it as HTTP/0.9, this error is returned.
+NET_ERROR(INVALID_HTTP_RESPONSE, -370)
 
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
