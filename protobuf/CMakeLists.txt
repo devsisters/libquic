@@ -4,7 +4,11 @@ project (libprotobuf)
 
 include_directories(../src/third_party/protobuf/src ../src/third_party/protobuf/)
 
+if (NOT ANDROID)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -DHAVE_PTHREAD")
+else ()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_PTHREAD")
+endif()
 
 add_library(
 	protobuf

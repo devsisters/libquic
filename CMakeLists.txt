@@ -26,7 +26,7 @@ elseif (CMAKE_BUILD_TYPE STREQUAL Release)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_RELEASE_FLAGS}")
 endif()
 
-add_definitions(-DUSE_OPENSSL)
+add_definitions(-DUSE_OPENSSL -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS)
 
 if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
 	set(ARCH "amd64")
@@ -45,10 +45,10 @@ elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i386")
 	set(ARCH "386")
 elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
 	set(ARCH "386")
-elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm")
+elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm.*")
 	set(ARCH "arm")
-#elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
-#	set(ARCH "aarch64")
+elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+	set(ARCH "aarch64")
 else()
 	message(FATAL_ERROR "Unknown processor:" ${CMAKE_SYSTEM_PROCESSOR})
 endif()
@@ -195,6 +195,16 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 		BASE_ARCH_SOURCES
 
 		src/base/threading/platform_thread_linux.cc
+	)
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Android")
+	set(
+		BASE_ARCH_LIBRARIES
+	)
+	set(
+		BASE_ARCH_SOURCES
+
+		src/base/threading/platform_thread_linux.cc
+		src/base/threading/thread_local_android.cc
 	)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 	set(
