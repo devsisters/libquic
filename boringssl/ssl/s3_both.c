@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -110,21 +111,21 @@
  * ECC cipher suite support in OpenSSL originally developed by
  * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project. */
 
-#include <openssl/ssl.h>
+#include <boringssl/ssl.h>
 
 #include <assert.h>
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/mem.h>
-#include <openssl/md5.h>
-#include <openssl/nid.h>
-#include <openssl/rand.h>
-#include <openssl/sha.h>
-#include <openssl/x509.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/evp.h>
+#include <boringssl/mem.h>
+#include <boringssl/md5.h>
+#include <boringssl/nid.h>
+#include <boringssl/rand.h>
+#include <boringssl/sha.h>
+#include <boringssl/x509.h>
 
 #include "internal.h"
 

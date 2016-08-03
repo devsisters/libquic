@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any

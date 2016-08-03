@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_bitst.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -58,10 +59,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/conf.h>
-#include <openssl/err.h>
-#include <openssl/obj.h>
-#include <openssl/x509v3.h>
+#include <boringssl/conf.h>
+#include <boringssl/err.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509v3.h>
 
 static const BIT_STRING_BITNAME ns_cert_type_table[] = {
     {0, "SSL Client", "client"},

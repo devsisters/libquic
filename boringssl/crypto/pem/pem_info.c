@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/pem/pem_info.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -56,20 +57,20 @@
  * [including the GNU Public Licence.]
  */
 
-#include <openssl/pem.h>
+#include <boringssl/pem.h>
 
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/buf.h>
-#include <openssl/dsa.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/rsa.h>
-#include <openssl/x509.h>
+#include <boringssl/buf.h>
+#include <boringssl/dsa.h>
+#include <boringssl/err.h>
+#include <boringssl/evp.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/rsa.h>
+#include <boringssl/x509.h>
 
 #ifndef OPENSSL_NO_FP_API
 STACK_OF(X509_INFO) *PEM_X509_INFO_read(FILE *fp, STACK_OF(X509_INFO) *sk,

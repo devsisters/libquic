@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -59,11 +60,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/base64.h>
-#include <openssl/bio.h>
-#include <openssl/buffer.h>
-#include <openssl/evp.h>
-#include <openssl/mem.h>
+#include <boringssl/base64.h>
+#include <boringssl/bio.h>
+#include <boringssl/buffer.h>
+#include <boringssl/evp.h>
+#include <boringssl/mem.h>
 
 
 #define B64_BLOCK_SIZE 1024

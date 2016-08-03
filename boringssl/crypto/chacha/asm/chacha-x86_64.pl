@@ -60,6 +60,7 @@ open OUT,"| \"$^X\" $xlate $flavour $output";
 
 $code.=<<___;
 .text
+#include <boringssl/bssl.h>
 
 .extern OPENSSL_ia32cap_P
 

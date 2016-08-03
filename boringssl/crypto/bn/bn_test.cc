@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -78,10 +79,10 @@
 
 #include <utility>
 
-#include <openssl/bn.h>
-#include <openssl/crypto.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/bn.h>
+#include <boringssl/crypto.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 #include "../crypto/test/scoped_types.h"
 #include "../crypto/test/test_util.h"

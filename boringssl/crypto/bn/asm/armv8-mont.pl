@@ -58,6 +58,7 @@ $num="x5";	# int num);
 
 $code.=<<___;
 .text
+#include <boringssl/bssl.h>
 
 .globl	bn_mul_mont
 .type	bn_mul_mont,%function

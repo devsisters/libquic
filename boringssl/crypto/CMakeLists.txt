@@ -110,7 +110,7 @@ add_subdirectory(pkcs8)
 add_subdirectory(test)
 
 add_library(
-  crypto
+  bsslcrypto
 
   cpu-aarch64-linux.c
   cpu-arm.c
@@ -170,7 +170,7 @@ add_library(
 )
 
 if(NOT MSVC AND NOT ANDROID)
-  target_link_libraries(crypto pthread)
+  target_link_libraries(bsslcrypto pthread)
 endif()
 
 add_executable(
@@ -181,7 +181,7 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(constant_time_test crypto)
+target_link_libraries(constant_time_test bsslcrypto)
 add_dependencies(all_tests constant_time_test)
 
 add_executable(
@@ -192,7 +192,7 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(thread_test crypto)
+target_link_libraries(thread_test bsslcrypto)
 add_dependencies(all_tests thread_test)
 
 add_executable(
@@ -201,5 +201,5 @@ add_executable(
   refcount_test.c
 )
 
-target_link_libraries(refcount_test crypto)
+target_link_libraries(refcount_test bsslcrypto)
 add_dependencies(all_tests refcount_test)

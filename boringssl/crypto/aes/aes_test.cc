@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,8 +16,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/aes.h>
-#include <openssl/crypto.h>
+#include <boringssl/aes.h>
+#include <boringssl/crypto.h>
 
 
 static bool TestAES(const uint8_t *key, size_t key_len,

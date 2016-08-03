@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
  *
@@ -106,13 +107,13 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/rsa.h>
+#include <boringssl/rsa.h>
 
 #include <string.h>
 
-#include <openssl/bn.h>
-#include <openssl/mem.h>
-#include <openssl/err.h>
+#include <boringssl/bn.h>
+#include <boringssl/mem.h>
+#include <boringssl/err.h>
 
 #include "internal.h"
 

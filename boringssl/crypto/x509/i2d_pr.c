@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/asn1/i2d_pr.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -55,12 +56,12 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/asn1.h>
-#include <openssl/ec_key.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/rsa.h>
-#include <openssl/dsa.h>
+#include <boringssl/asn1.h>
+#include <boringssl/ec_key.h>
+#include <boringssl/err.h>
+#include <boringssl/evp.h>
+#include <boringssl/rsa.h>
+#include <boringssl/dsa.h>
 
 
 int i2d_PrivateKey(const EVP_PKEY *a, uint8_t **pp)

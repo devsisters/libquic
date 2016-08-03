@@ -138,6 +138,7 @@ $code=<<___;
 .syntax unified
 
 .text
+#include <boringssl/bssl.h>
 .code	32
 
 #ifdef  __clang__

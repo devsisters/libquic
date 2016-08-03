@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,11 +55,11 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/rsa.h>
+#include <boringssl/rsa.h>
 
 #include <assert.h>
 
-#include <openssl/bn.h>
+#include <boringssl/bn.h>
 
 
 RSA *RSA_generate_key(int bits, unsigned long e_value, void *callback,

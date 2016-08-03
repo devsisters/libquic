@@ -11,4 +11,4 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(bssl_shim ssl crypto)
+target_link_libraries(bssl_shim bssl bsslcrypto)

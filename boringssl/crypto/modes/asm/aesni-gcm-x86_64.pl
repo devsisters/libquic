@@ -65,6 +65,7 @@ if ($avx>1) {{{
 
 $code=<<___;
 .text
+#include <boringssl/bssl.h>
 
 .type	_aesni_ctr32_ghash_6x,\@abi-omnipotent
 .align	32
@@ -1063,6 +1064,7 @@ ___
 }}} else {{{
 $code=<<___;	# assembler is too old
 .text
+#include <boringssl/bssl.h>
 
 .globl	aesni_gcm_encrypt
 .type	aesni_gcm_encrypt,\@abi-omnipotent

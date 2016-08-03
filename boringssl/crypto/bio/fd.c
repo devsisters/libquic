@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/bio.h>
+#include <boringssl/bio.h>
 
 #include <errno.h>
 #include <string.h>
@@ -68,9 +69,9 @@
 #pragma warning(pop)
 #endif
 
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 #include "internal.h"
 

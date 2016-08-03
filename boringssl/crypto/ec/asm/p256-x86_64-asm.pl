@@ -60,6 +60,7 @@ $addx=0;
 
 $code.=<<___;
 .text
+#include <boringssl/bssl.h>
 .extern	OPENSSL_ia32cap_P
 
 # The polynomial

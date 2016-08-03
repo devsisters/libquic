@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,16 +58,16 @@
 #include <string.h>
 #include <time.h>
 
-#include <openssl/asn1.h>
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/lhash.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/thread.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
+#include <boringssl/asn1.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/evp.h>
+#include <boringssl/lhash.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/thread.h>
+#include <boringssl/x509.h>
+#include <boringssl/x509v3.h>
 
 #include "vpm_int.h"
 #include "../internal.h"

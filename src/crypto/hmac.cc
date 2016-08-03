@@ -4,7 +4,7 @@
 
 #include "crypto/hmac.h"
 
-#include <openssl/hmac.h>
+#include <boringssl/hmac.h>
 #include <stddef.h>
 
 #include <algorithm>
@@ -17,22 +17,22 @@
 
 namespace crypto {
 
-HMAC::HMAC(HashAlgorithm hash_alg) : hash_alg_(hash_alg), initialized_(false) {
+CryptoHMAC::CryptoHMAC(HashAlgorithm hash_alg) : hash_alg_(hash_alg), initialized_(false) {
   // Only SHA-1 and SHA-256 hash algorithms are supported now.
-  DCHECK(hash_alg_ == SHA1 || hash_alg_ == SHA256);
+  DCHECK(hash_alg_ == CryptoSHA1 || hash_alg_ == CryptoSHA256);
 }
 
-HMAC::~HMAC() {
+CryptoHMAC::~CryptoHMAC() {
   // Zero out key copy.
   key_.assign(key_.size(), 0);
   STLClearObject(&key_);
 }
 
-size_t HMAC::DigestLength() const {
+size_t CryptoHMAC::DigestLength() const {
   switch (hash_alg_) {
-    case SHA1:
+    case CryptoSHA1:
       return 20;
-    case SHA256:
+    case CryptoSHA256:
       return 32;
     default:
       NOTREACHED();
@@ -40,7 +40,7 @@ size_t HMAC::DigestLength() const {
   }
 }
 
-bool HMAC::Init(const unsigned char* key, size_t key_length) {
+bool CryptoHMAC::Init(const unsigned char* key, size_t key_length) {
   // Init must not be called more than once on the same HMAC object.
   DCHECK(!initialized_);
   initialized_ = true;
@@ -48,7 +48,7 @@ bool HMAC::Init(const unsigned char* key, size_t key_length) {
   return true;
 }
 
-bool HMAC::Init(SymmetricKey* key) {
+bool CryptoHMAC::Init(SymmetricKey* key) {
   std::string raw_key;
   bool result = key->GetRawKey(&raw_key) && Init(raw_key);
   // Zero out key copy.  This might get optimized away, but one can hope.
@@ -57,26 +57,26 @@ bool HMAC::Init(SymmetricKey* key) {
   return result;
 }
 
-bool HMAC::Sign(const base::StringPiece& data,
+bool CryptoHMAC::Sign(const base::StringPiece& data,
                 unsigned char* digest,
                 size_t digest_length) const {
   DCHECK(initialized_);
 
   ScopedOpenSSLSafeSizeBuffer<EVP_MAX_MD_SIZE> result(digest, digest_length);
-  return !!::HMAC(hash_alg_ == SHA1 ? EVP_sha1() : EVP_sha256(), key_.data(),
+  return !!::HMAC(hash_alg_ == CryptoSHA1 ? EVP_sha1() : EVP_sha256(), key_.data(),
                   key_.size(),
                   reinterpret_cast<const unsigned char*>(data.data()),
                   data.size(), result.safe_buffer(), nullptr);
 }
 
-bool HMAC::Verify(const base::StringPiece& data,
+bool CryptoHMAC::Verify(const base::StringPiece& data,
                   const base::StringPiece& digest) const {
   if (digest.size() != DigestLength())
     return false;
   return VerifyTruncated(data, digest);
 }
 
-bool HMAC::VerifyTruncated(const base::StringPiece& data,
+bool CryptoHMAC::VerifyTruncated(const base::StringPiece& data,
                            const base::StringPiece& digest) const {
   if (digest.empty())
     return false;

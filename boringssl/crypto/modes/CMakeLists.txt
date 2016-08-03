@@ -62,5 +62,5 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(gcm_test crypto)
+target_link_libraries(gcm_test bsslcrypto)
 add_dependencies(all_tests gcm_test)

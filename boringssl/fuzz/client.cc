@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +15,8 @@
 
 #include <assert.h>
 
-#include <openssl/rand.h>
-#include <openssl/ssl.h>
+#include <boringssl/rand.h>
+#include <boringssl/ssl.h>
 
 struct GlobalState {
   GlobalState() : ctx(SSL_CTX_new(SSLv23_method())) {}

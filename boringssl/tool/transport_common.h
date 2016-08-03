@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +16,7 @@
 #ifndef OPENSSL_HEADER_TOOL_TRANSPORT_COMMON_H
 #define OPENSSL_HEADER_TOOL_TRANSPORT_COMMON_H
 
-#include <openssl/ssl.h>
+#include <boringssl/ssl.h>
 #include <string.h>
 
 // InitSocketLibrary calls the Windows socket init functions, if needed.

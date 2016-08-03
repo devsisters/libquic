@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_int.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -57,8 +58,8 @@
 
 #include <stdio.h>
 
-#include <openssl/obj.h>
-#include <openssl/x509v3.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509v3.h>
 
 const X509V3_EXT_METHOD v3_crl_num = {
     NID_crl_number, 0, ASN1_ITEM_ref(ASN1_INTEGER),

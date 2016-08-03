@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,11 +55,11 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/asn1.h>
-#include <openssl/cipher.h>
-#include <openssl/evp.h>
-#include <openssl/obj.h>
-#include <openssl/x509.h>
+#include <boringssl/asn1.h>
+#include <boringssl/cipher.h>
+#include <boringssl/evp.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509.h>
 
 int X509_set_version(X509 *x, long version)
 {

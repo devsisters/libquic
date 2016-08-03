@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_genn.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -57,10 +58,10 @@
 
 #include <stdio.h>
 
-#include <openssl/asn1t.h>
-#include <openssl/conf.h>
-#include <openssl/obj.h>
-#include <openssl/x509v3.h>
+#include <boringssl/asn1t.h>
+#include <boringssl/conf.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509v3.h>
 
 
 ASN1_SEQUENCE(OTHERNAME) = {

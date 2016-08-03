@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */
@@ -53,22 +54,22 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/pkcs8.h>
+#include <boringssl/pkcs8.h>
 
 #include <assert.h>
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/asn1.h>
-#include <openssl/buf.h>
-#include <openssl/bytestring.h>
-#include <openssl/cipher.h>
-#include <openssl/digest.h>
-#include <openssl/err.h>
-#include <openssl/hmac.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/x509.h>
+#include <boringssl/asn1.h>
+#include <boringssl/buf.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/cipher.h>
+#include <boringssl/digest.h>
+#include <boringssl/err.h>
+#include <boringssl/hmac.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509.h>
 
 #include "internal.h"
 #include "../bytestring/internal.h"

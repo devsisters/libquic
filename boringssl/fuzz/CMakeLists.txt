@@ -7,7 +7,7 @@ add_executable(
 )
 
 target_link_libraries(privkey Fuzzer)
-target_link_libraries(privkey crypto)
+target_link_libraries(privkey bsslcrypto)
 
 add_executable(
   cert
@@ -16,7 +16,7 @@ add_executable(
 )
 
 target_link_libraries(cert Fuzzer)
-target_link_libraries(cert crypto)
+target_link_libraries(cert bsslcrypto)
 
 add_executable(
   spki
@@ -25,7 +25,7 @@ add_executable(
 )
 
 target_link_libraries(spki Fuzzer)
-target_link_libraries(spki crypto)
+target_link_libraries(spki bsslcrypto)
 
 add_executable(
   pkcs8
@@ -34,7 +34,7 @@ add_executable(
 )
 
 target_link_libraries(pkcs8 Fuzzer)
-target_link_libraries(pkcs8 crypto)
+target_link_libraries(pkcs8 bsslcrypto)
 
 add_executable(
   server
@@ -43,8 +43,8 @@ add_executable(
 )
 
 target_link_libraries(server Fuzzer)
-target_link_libraries(server crypto)
-target_link_libraries(server ssl)
+target_link_libraries(server bsslcrypto)
+target_link_libraries(server bssl)
 
 add_executable(
   client
@@ -53,5 +53,5 @@ add_executable(
 )
 
 target_link_libraries(client Fuzzer)
-target_link_libraries(client crypto)
-target_link_libraries(client ssl)
+target_link_libraries(client bsslcrypto)
+target_link_libraries(client bssl)

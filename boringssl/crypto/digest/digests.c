@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,15 +55,15 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/digest.h>
+#include <boringssl/digest.h>
 
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/md4.h>
-#include <openssl/md5.h>
-#include <openssl/obj.h>
-#include <openssl/sha.h>
+#include <boringssl/md4.h>
+#include <boringssl/md5.h>
+#include <boringssl/obj.h>
+#include <boringssl/sha.h>
 
 #include "internal.h"
 

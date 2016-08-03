@@ -32,4 +32,4 @@ add_library(
   $<TARGET_OBJECTS:xts>
 )
 
-target_link_libraries(decrepit crypto ssl)
+target_link_libraries(decrepit bsslcrypto bssl)

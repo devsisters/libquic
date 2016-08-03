@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Intel Corporation.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -20,15 +21,15 @@
  * S.Gueron and V.Krasnov, "Fast Prime Field Elliptic Curve Cryptography with
  *                          256 Bit Primes" */
 
-#include <openssl/ec.h>
+#include <boringssl/ec.h>
 
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <openssl/bn.h>
-#include <openssl/crypto.h>
-#include <openssl/err.h>
+#include <boringssl/bn.h>
+#include <boringssl/crypto.h>
+#include <boringssl/err.h>
 
 #include "../bn/internal.h"
 #include "../ec/internal.h"

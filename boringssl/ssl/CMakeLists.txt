@@ -3,7 +3,7 @@ include_directories(../include)
 add_subdirectory(pqueue)
 
 add_library(
-  ssl
+  bssl
 
   custom_extensions.c
   d1_both.c
@@ -39,7 +39,7 @@ add_library(
   $<TARGET_OBJECTS:pqueue>
 )
 
-target_link_libraries(ssl crypto)
+target_link_libraries(bssl bsslcrypto)
 
 add_executable(
   ssl_test
@@ -49,5 +49,5 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(ssl_test ssl crypto)
+target_link_libraries(ssl_test bssl bsslcrypto)
 add_dependencies(all_tests ssl_test)

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -146,27 +147,27 @@
  * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
  * OTHERWISE. */
 
-#include <openssl/ssl.h>
+#include <boringssl/ssl.h>
 
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/bn.h>
-#include <openssl/buf.h>
-#include <openssl/bytestring.h>
-#include <openssl/cipher.h>
-#include <openssl/dh.h>
-#include <openssl/ec.h>
-#include <openssl/ecdsa.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-#include <openssl/md5.h>
-#include <openssl/mem.h>
-#include <openssl/nid.h>
-#include <openssl/rand.h>
-#include <openssl/sha.h>
-#include <openssl/x509.h>
+#include <boringssl/bn.h>
+#include <boringssl/buf.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/cipher.h>
+#include <boringssl/dh.h>
+#include <boringssl/ec.h>
+#include <boringssl/ecdsa.h>
+#include <boringssl/err.h>
+#include <boringssl/evp.h>
+#include <boringssl/hmac.h>
+#include <boringssl/md5.h>
+#include <boringssl/mem.h>
+#include <boringssl/nid.h>
+#include <boringssl/rand.h>
+#include <boringssl/sha.h>
+#include <boringssl/x509.h>
 
 #include "internal.h"
 #include "../crypto/internal.h"

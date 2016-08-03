@@ -399,7 +399,7 @@ bool QuicCryptoServerStream::GetBase64SHA256ClientChannelID(
 
   const string& channel_id(crypto_negotiated_params_.channel_id);
   std::unique_ptr<crypto::SecureHash> hash(
-      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
+      crypto::SecureHash::Create(crypto::SecureHash::CryptoSHA256));
   hash->Update(channel_id.data(), channel_id.size());
   uint8_t digest[32];
   hash->Finish(digest, sizeof(digest));

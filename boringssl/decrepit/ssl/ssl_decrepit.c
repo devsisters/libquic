@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -108,7 +109,7 @@
  *
  */
 
-#include <openssl/ssl.h>
+#include <boringssl/ssl.h>
 
 #if !defined(OPENSSL_WINDOWS) && !defined(OPENSSL_PNACL)
 
@@ -117,8 +118,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 
 typedef struct {

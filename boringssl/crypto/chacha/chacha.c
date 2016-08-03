@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,11 +15,11 @@
 
 /* Adapted from the public domain, estream code by D. Bernstein. */
 
-#include <openssl/chacha.h>
+#include <boringssl/chacha.h>
 
 #include <string.h>
 
-#include <openssl/cpu.h>
+#include <boringssl/cpu.h>
 
 
 #define U8TO32_LITTLE(p)                              \

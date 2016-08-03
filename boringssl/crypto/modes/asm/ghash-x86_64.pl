@@ -210,6 +210,7 @@ ___
 
 $code=<<___;
 .text
+#include <boringssl/bssl.h>
 .extern	OPENSSL_ia32cap_P
 
 .globl	gcm_gmult_4bit

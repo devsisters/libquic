@@ -27,6 +27,7 @@ open OUT,"| \"$^X\" $xlate $flavour $output";
 
 print<<___;
 .text
+#include <boringssl/bssl.h>
 
 # CRYPTO_rdrand writes eight bytes of random data from the hardware RNG to
 # |out|. It returns one on success or zero on hardware failure.

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
@@ -57,9 +58,9 @@
 #include <string>
 #include <vector>
 
-#include <openssl/cipher.h>
-#include <openssl/crypto.h>
-#include <openssl/err.h>
+#include <boringssl/cipher.h>
+#include <boringssl/crypto.h>
+#include <boringssl/err.h>
 
 #include "../test/file_test.h"
 #include "../test/scoped_types.h"

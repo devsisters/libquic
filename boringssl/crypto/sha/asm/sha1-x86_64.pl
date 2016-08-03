@@ -233,6 +233,7 @@ push(@xi,shift(@xi));
 
 $code.=<<___;
 .text
+#include <boringssl/bssl.h>
 .extern	OPENSSL_ia32cap_P
 
 .globl	sha1_block_data_order

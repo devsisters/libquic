@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_bcons.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -58,12 +59,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/asn1.h>
-#include <openssl/asn1t.h>
-#include <openssl/conf.h>
-#include <openssl/err.h>
-#include <openssl/obj.h>
-#include <openssl/x509v3.h>
+#include <boringssl/asn1.h>
+#include <boringssl/asn1t.h>
+#include <boringssl/conf.h>
+#include <boringssl/err.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509v3.h>
 
 static STACK_OF(CONF_VALUE) *i2v_BASIC_CONSTRAINTS(X509V3_EXT_METHOD *method,
                                                    BASIC_CONSTRAINTS *bcons,

@@ -35,6 +35,6 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(cipher_test crypto)
-target_link_libraries(aead_test crypto)
+target_link_libraries(cipher_test bsslcrypto)
+target_link_libraries(aead_test bsslcrypto)
 add_dependencies(all_tests cipher_test aead_test)

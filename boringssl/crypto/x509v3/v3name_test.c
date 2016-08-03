@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
  * 1999.
@@ -57,10 +58,10 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include <openssl/crypto.h>
-#include <openssl/mem.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
+#include <boringssl/crypto.h>
+#include <boringssl/mem.h>
+#include <boringssl/x509.h>
+#include <boringssl/x509v3.h>
 
 static const char *const names[] = {
     "a", "b", ".", "*", "@",

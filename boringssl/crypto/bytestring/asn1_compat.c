@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -13,13 +14,13 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
 
-#include <openssl/bytestring.h>
+#include <boringssl/bytestring.h>
 
 #include <assert.h>
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/mem.h>
+#include <boringssl/mem.h>
 
 #include "internal.h"
 

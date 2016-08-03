@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* pcy_lib.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -55,8 +56,8 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
+#include <boringssl/x509.h>
+#include <boringssl/x509v3.h>
 
 #include "pcy_int.h"
 

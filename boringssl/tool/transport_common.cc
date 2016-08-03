@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,7 +13,7 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #include <string>
 #include <vector>
@@ -42,9 +43,9 @@ typedef int ssize_t;
 #pragma comment(lib, "Ws2_32.lib")
 #endif
 
-#include <openssl/err.h>
-#include <openssl/ssl.h>
-#include <openssl/x509.h>
+#include <boringssl/err.h>
+#include <boringssl/ssl.h>
+#include <boringssl/x509.h>
 
 #include "internal.h"
 #include "transport_common.h"

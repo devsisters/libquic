@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */
@@ -53,11 +54,11 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/evp.h>
+#include <boringssl/evp.h>
 
 #include <string.h>
 
-#include <openssl/hmac.h>
+#include <boringssl/hmac.h>
 
 
 int PKCS5_PBKDF2_HMAC(const char *password, size_t password_len,

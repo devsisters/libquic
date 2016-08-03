@@ -16,13 +16,13 @@ namespace crypto {
 
 const size_t kSHA256HashLength = 32;
 
-HKDF::HKDF(const base::StringPiece& secret,
+CryptoHKDF::CryptoHKDF(const base::StringPiece& secret,
            const base::StringPiece& salt,
            const base::StringPiece& info,
            size_t key_bytes_to_generate,
            size_t iv_bytes_to_generate,
            size_t subkey_secret_bytes_to_generate)
-    : HKDF(secret,
+    : CryptoHKDF(secret,
            salt,
            info,
            key_bytes_to_generate,
@@ -31,7 +31,7 @@ HKDF::HKDF(const base::StringPiece& secret,
            iv_bytes_to_generate,
            subkey_secret_bytes_to_generate) {}
 
-HKDF::HKDF(const base::StringPiece& secret,
+CryptoHKDF::CryptoHKDF(const base::StringPiece& secret,
            const base::StringPiece& salt,
            const base::StringPiece& info,
            size_t client_key_bytes_to_generate,
@@ -50,7 +50,7 @@ HKDF::HKDF(const base::StringPiece& secret,
 
   // Perform the Extract step to transform the input key and
   // salt into the pseudorandom key (PRK) used for Expand.
-  HMAC prk_hmac(HMAC::SHA256);
+  CryptoHMAC prk_hmac(CryptoHMAC::CryptoSHA256);
   bool result = prk_hmac.Init(actual_salt);
   DCHECK(result);
 
@@ -77,7 +77,7 @@ HKDF::HKDF(const base::StringPiece& secret,
   std::unique_ptr<char[]> buf(new char[kSHA256HashLength + info.size() + 1]);
   uint8_t digest[kSHA256HashLength];
 
-  HMAC hmac(HMAC::SHA256);
+  CryptoHMAC hmac(CryptoHMAC::CryptoSHA256);
   result = hmac.Init(prk, sizeof(prk));
   DCHECK(result);
 
@@ -130,7 +130,7 @@ HKDF::HKDF(const base::StringPiece& secret,
   }
 }
 
-HKDF::~HKDF() {
+CryptoHKDF::~CryptoHKDF() {
 }
 
 }  // namespace crypto

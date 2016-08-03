@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 1998-2005 The OpenSSL Project.  All rights reserved.
  *
@@ -50,17 +51,17 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/ecdsa.h>
+#include <boringssl/ecdsa.h>
 
 #include <vector>
 
-#include <openssl/bn.h>
-#include <openssl/crypto.h>
-#include <openssl/ec.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/nid.h>
-#include <openssl/rand.h>
+#include <boringssl/bn.h>
+#include <boringssl/crypto.h>
+#include <boringssl/ec.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/nid.h>
+#include <boringssl/rand.h>
 
 #include "../test/scoped_types.h"
 

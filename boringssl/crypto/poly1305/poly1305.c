@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,11 +17,11 @@
  * (https://github.com/floodyberry/poly1305-donna) and released as public
  * domain. */
 
-#include <openssl/poly1305.h>
+#include <boringssl/poly1305.h>
 
 #include <string.h>
 
-#include <openssl/cpu.h>
+#include <boringssl/cpu.h>
 
 #include "internal.h"
 

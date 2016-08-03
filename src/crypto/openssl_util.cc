@@ -4,8 +4,8 @@
 
 #include "crypto/openssl_util.h"
 
-#include <openssl/crypto.h>
-#include <openssl/err.h>
+#include <boringssl/crypto.h>
+#include <boringssl/err.h>
 #include <stddef.h>
 #include <stdint.h>
 

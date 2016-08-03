@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -106,14 +107,14 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/bn.h>
+#include <boringssl/bn.h>
 
 #include <string.h>
 
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/rand.h>
-#include <openssl/sha.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/rand.h>
+#include <boringssl/sha.h>
 
 int BN_rand(BIGNUM *rnd, int bits, int top, int bottom) {
   uint8_t *buf = NULL;

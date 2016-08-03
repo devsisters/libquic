@@ -23,16 +23,16 @@ namespace crypto {
 // Simplify the interface and reduce includes by abstracting out the internals.
 class SymmetricKey;
 
-class CRYPTO_EXPORT HMAC {
+class CRYPTO_EXPORT CryptoHMAC {
  public:
   // The set of supported hash functions. Extend as required.
   enum HashAlgorithm {
-    SHA1,
-    SHA256,
+    CryptoSHA1,
+    CryptoSHA256,
   };
 
-  explicit HMAC(HashAlgorithm hash_alg);
-  ~HMAC();
+  explicit CryptoHMAC(HashAlgorithm hash_alg);
+  ~CryptoHMAC();
 
   // Returns the length of digest that this HMAC will create.
   size_t DigestLength() const;
@@ -89,7 +89,7 @@ class CRYPTO_EXPORT HMAC {
   bool initialized_;
   std::vector<unsigned char> key_;
 
-  DISALLOW_COPY_AND_ASSIGN(HMAC);
+  DISALLOW_COPY_AND_ASSIGN(CryptoHMAC);
 };
 
 }  // namespace crypto

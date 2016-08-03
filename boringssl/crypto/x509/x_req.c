@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -56,9 +57,9 @@
 
 #include <stdio.h>
 
-#include <openssl/asn1t.h>
-#include <openssl/thread.h>
-#include <openssl/x509.h>
+#include <boringssl/asn1t.h>
+#include <boringssl/thread.h>
+#include <boringssl/x509.h>
 
 /*
  * X509_REQ_INFO is handled in an unusual way to get round invalid encodings.

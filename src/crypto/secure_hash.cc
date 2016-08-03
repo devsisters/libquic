@@ -4,8 +4,8 @@
 
 #include "crypto/secure_hash.h"
 
-#include <openssl/mem.h>
-#include <openssl/sha.h>
+#include <boringssl/mem.h>
+#include <boringssl/sha.h>
 #include <stddef.h>
 
 #include "base/logging.h"
@@ -55,7 +55,7 @@ class SecureHashSHA256 : public SecureHash {
 
 std::unique_ptr<SecureHash> SecureHash::Create(Algorithm algorithm) {
   switch (algorithm) {
-    case SHA256:
+    case CryptoSHA256:
       return base::MakeUnique<SecureHashSHA256>();
     default:
       NOTIMPLEMENTED();

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,10 +55,10 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/asn1.h>
+#include <boringssl/asn1.h>
 
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 int i2d_ASN1_BOOLEAN(int a, unsigned char **pp)
 {

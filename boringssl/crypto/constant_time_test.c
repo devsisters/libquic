@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /*
  * Utilities for constant-time cryptography.
  *

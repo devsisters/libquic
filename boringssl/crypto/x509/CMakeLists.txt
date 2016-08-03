@@ -74,6 +74,6 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(pkcs7_test crypto)
-target_link_libraries(x509_test crypto)
+target_link_libraries(pkcs7_test bsslcrypto)
+target_link_libraries(x509_test bsslcrypto)
 add_dependencies(all_tests pkcs7_test x509_test)

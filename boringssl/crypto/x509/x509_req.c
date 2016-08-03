@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/x509/x509_req.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -55,16 +56,16 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/asn1.h>
-#include <openssl/asn1t.h>
-#include <openssl/bn.h>
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/pem.h>
-#include <openssl/x509.h>
+#include <boringssl/asn1.h>
+#include <boringssl/asn1t.h>
+#include <boringssl/bn.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/evp.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/pem.h>
+#include <boringssl/x509.h>
 
 X509_REQ *X509_to_X509_REQ(X509 *x, EVP_PKEY *pkey, const EVP_MD *md)
 {

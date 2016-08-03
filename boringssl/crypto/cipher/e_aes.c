@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 2001-2011 The OpenSSL Project.  All rights reserved.
  *
@@ -48,22 +49,22 @@
 
 #include <string.h>
 
-#include <openssl/aead.h>
-#include <openssl/aes.h>
-#include <openssl/cipher.h>
-#include <openssl/cpu.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/nid.h>
-#include <openssl/rand.h>
-#include <openssl/sha.h>
+#include <boringssl/aead.h>
+#include <boringssl/aes.h>
+#include <boringssl/cipher.h>
+#include <boringssl/cpu.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/nid.h>
+#include <boringssl/rand.h>
+#include <boringssl/sha.h>
 
 #include "internal.h"
 #include "../internal.h"
 #include "../modes/internal.h"
 
 #if defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
-#include <openssl/arm_arch.h>
+#include <boringssl/arm_arch.h>
 #endif
 
 

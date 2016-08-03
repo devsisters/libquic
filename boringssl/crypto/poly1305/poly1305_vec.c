@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +19,7 @@
  * http://cr.yp.to/papers.html#neoncrypto. Unrolled to 2 powers, i.e. 64 byte
  * block size */
 
-#include <openssl/poly1305.h>
+#include <boringssl/poly1305.h>
 
 #include "../internal.h"
 

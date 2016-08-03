@@ -49,7 +49,7 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(chacha_test crypto)
+target_link_libraries(chacha_test bsslcrypto)
 add_dependencies(all_tests chacha_test)
 
 perlasm(chacha-armv4.${ASM_EXT} asm/chacha-armv4.pl)

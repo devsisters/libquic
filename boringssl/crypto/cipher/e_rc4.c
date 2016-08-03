@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,9 +58,9 @@
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/cipher.h>
-#include <openssl/nid.h>
-#include <openssl/rc4.h>
+#include <boringssl/cipher.h>
+#include <boringssl/nid.h>
+#include <boringssl/rc4.h>
 
 
 static int rc4_init_key(EVP_CIPHER_CTX *ctx, const uint8_t *key,

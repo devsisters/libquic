@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/x509/x509_d2.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -55,8 +56,8 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/err.h>
-#include <openssl/x509.h>
+#include <boringssl/err.h>
+#include <boringssl/x509.h>
 
 #ifndef OPENSSL_NO_STDIO
 int X509_STORE_set_default_paths(X509_STORE *ctx)

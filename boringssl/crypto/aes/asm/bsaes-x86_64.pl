@@ -800,6 +800,7 @@ ___
 
 $code.=<<___;
 .text
+#include <boringssl/bssl.h>
 
 .extern	asm_AES_encrypt
 .extern	asm_AES_decrypt

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -19,14 +20,14 @@
  * Otherwise based on Emilia's P224 work, which was inspired by my curve25519
  * work which got its smarts from Daniel J. Bernstein's work on the same. */
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #if defined(OPENSSL_64_BIT) && !defined(OPENSSL_WINDOWS)
 
-#include <openssl/bn.h>
-#include <openssl/ec.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/bn.h>
+#include <boringssl/ec.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 #include <string.h>
 

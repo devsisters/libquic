@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 1999-2007 The OpenSSL Project.  All rights reserved.
  *
@@ -49,7 +50,7 @@
 #ifndef OPENSSL_HEADER_MD32_COMMON_H
 #define OPENSSL_HEADER_MD32_COMMON_H
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #include <assert.h>
 

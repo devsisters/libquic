@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* v3_pci.c -*- mode:C; c-file-style: "eay" -*- */
 /*
  * Contributed to the OpenSSL Project 2004 by Richard Levitte
@@ -38,11 +39,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/conf.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/x509v3.h>
+#include <boringssl/conf.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509v3.h>
 
 static int i2r_pci(X509V3_EXT_METHOD *method, PROXY_CERT_INFO_EXTENSION *ext,
                    BIO *out, int indent);

@@ -856,6 +856,7 @@ OPTION	DOTNAME
 ___
 }
 
+print STDOUT "#include <boringssl/bssl.h>\n" if ($gas);
 print STDOUT "#if defined(__x86_64__)\n" if ($gas);
 
 while($line=<>) {

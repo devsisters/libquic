@@ -19,7 +19,7 @@ namespace crypto {
 class CRYPTO_EXPORT SecureHash {
  public:
   enum Algorithm {
-    SHA256,
+    CryptoSHA256,
   };
   virtual ~SecureHash() {}
 

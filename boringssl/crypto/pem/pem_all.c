@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -108,16 +109,16 @@
 
 #include <stdio.h>
 
-#include <openssl/bio.h>
-#include <openssl/dh.h>
-#include <openssl/dsa.h>
-#include <openssl/evp.h>
-#include <openssl/pem.h>
+#include <boringssl/bio.h>
+#include <boringssl/dh.h>
+#include <boringssl/dsa.h>
+#include <boringssl/evp.h>
+#include <boringssl/pem.h>
 /*
- * #include <openssl/pkcs7.h>
+ * #include <boringssl/pkcs7.h>
  */
-#include <openssl/rsa.h>
-#include <openssl/x509.h>
+#include <boringssl/rsa.h>
+#include <boringssl/x509.h>
 
 static RSA *pkey_get_rsa(EVP_PKEY *key, RSA **rsa);
 static DSA *pkey_get_dsa(EVP_PKEY *key, DSA **dsa);

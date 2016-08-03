@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/bio/bss_sock.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -55,7 +56,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/bio.h>
+#include <boringssl/bio.h>
 
 #include <fcntl.h>
 #include <string.h>

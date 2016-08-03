@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +15,8 @@
 
 #include <assert.h>
 
-#include <openssl/rand.h>
-#include <openssl/ssl.h>
+#include <boringssl/rand.h>
+#include <boringssl/ssl.h>
 
 static const uint8_t kCertificateDER[] = {
     0x30, 0x82, 0x02, 0xff, 0x30, 0x82, 0x01, 0xe7, 0xa0, 0x03, 0x02, 0x01,

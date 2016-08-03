@@ -38,7 +38,7 @@ void QuicDecrypter::DiversifyPreliminaryKey(StringPiece preliminary_key,
                                             size_t nonce_prefix_size,
                                             string* out_key,
                                             string* out_nonce_prefix) {
-  crypto::HKDF hkdf(preliminary_key.as_string() + nonce_prefix.as_string(),
+  crypto::CryptoHKDF hkdf(preliminary_key.as_string() + nonce_prefix.as_string(),
                     StringPiece(nonce, kDiversificationNonceSize),
                     "QUIC key diversification", 0, key_size, 0,
                     nonce_prefix_size, 0);

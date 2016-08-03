@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,17 +13,17 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/x509.h>
+#include <boringssl/x509.h>
 
 #include <assert.h>
 #include <limits.h>
 
-#include <openssl/bytestring.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/pem.h>
-#include <openssl/stack.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/pem.h>
+#include <boringssl/stack.h>
 
 #include "../bytestring/internal.h"
 

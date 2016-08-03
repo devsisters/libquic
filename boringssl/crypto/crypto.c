@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,9 +13,9 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/crypto.h>
+#include <boringssl/crypto.h>
 
-#include <openssl/cpu.h>
+#include <boringssl/cpu.h>
 
 #include "internal.h"
 
@@ -57,7 +58,7 @@
 uint32_t OPENSSL_ia32cap_P[4] = {0};
 #elif defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
 
-#include <openssl/arm_arch.h>
+#include <boringssl/arm_arch.h>
 
 #if defined(OPENSSL_STATIC_ARMCAP)
 

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 2011 The OpenSSL Project.  All rights reserved.
  *
@@ -50,9 +51,9 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/dh.h>
+#include <boringssl/dh.h>
 
-#include <openssl/bn.h>
+#include <boringssl/bn.h>
 
 #include "internal.h"
 #include "../bn/internal.h"

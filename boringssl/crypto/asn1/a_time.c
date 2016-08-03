@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,16 +55,16 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/asn1.h>
+#include <boringssl/asn1.h>
 
 #include <string.h>
 #include <time.h>
 
-#include <openssl/asn1t.h>
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/time_support.h>
+#include <boringssl/asn1t.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/time_support.h>
 
 #include "asn1_locl.h"
 

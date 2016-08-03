@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,16 +55,16 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/bio.h>
+#include <boringssl/bio.h>
 
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/thread.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/thread.h>
 
 #include "../internal.h"
 

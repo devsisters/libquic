@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2015, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -17,15 +18,15 @@
  * Inspired by Daniel J. Bernstein's public domain nistp224 implementation
  * and Adam Langley's public domain 64-bit C implementation of curve25519. */
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #if defined(OPENSSL_64_BIT) && !defined(OPENSSL_WINDOWS) && \
     !defined(OPENSSL_SMALL)
 
-#include <openssl/bn.h>
-#include <openssl/ec.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/bn.h>
+#include <boringssl/ec.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 #include <string.h>
 

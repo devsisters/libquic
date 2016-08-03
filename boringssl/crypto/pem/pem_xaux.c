@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* pem_xaux.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
@@ -57,10 +58,10 @@
 
 #include <stdio.h>
 
-#include <openssl/bio.h>
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/x509.h>
+#include <boringssl/bio.h>
+#include <boringssl/evp.h>
+#include <boringssl/pem.h>
+#include <boringssl/x509.h>
 
 IMPLEMENT_PEM_rw(X509_AUX, X509, PEM_STRING_X509_TRUSTED, X509_AUX)
 IMPLEMENT_PEM_rw(X509_CERT_PAIR, X509_CERT_PAIR, PEM_STRING_X509_PAIR,

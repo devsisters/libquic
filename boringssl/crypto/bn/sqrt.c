@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Lenka Fibikova <fibikova@exp-math.uni-essen.de>
  * and Bodo Moeller for the OpenSSL project. */
 /* ====================================================================
@@ -52,9 +53,9 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/bn.h>
+#include <boringssl/bn.h>
 
-#include <openssl/err.h>
+#include <boringssl/err.h>
 
 
 /* Returns 'ret' such that

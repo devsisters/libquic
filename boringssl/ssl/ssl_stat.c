@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -81,7 +82,7 @@
  * OTHERWISE.
  */
 
-#include <openssl/ssl.h>
+#include <boringssl/ssl.h>
 
 #include "internal.h"
 

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Nils Larsch for the OpenSSL project. */
 /* ====================================================================
  * Copyright (c) 2000-2003 The OpenSSL Project.  All rights reserved.
@@ -51,16 +52,16 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/ec.h>
+#include <boringssl/ec.h>
 
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/bytestring.h>
-#include <openssl/bn.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/nid.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/bn.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/nid.h>
 
 #include "internal.h"
 #include "../bytestring/internal.h"

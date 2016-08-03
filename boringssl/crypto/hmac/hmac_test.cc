@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -60,9 +61,9 @@
 #include <string>
 #include <vector>
 
-#include <openssl/crypto.h>
-#include <openssl/digest.h>
-#include <openssl/hmac.h>
+#include <boringssl/crypto.h>
+#include <boringssl/digest.h>
+#include <boringssl/hmac.h>
 
 #include "../test/file_test.h"
 #include "../test/scoped_types.h"

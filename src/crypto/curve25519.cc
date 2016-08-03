@@ -4,7 +4,7 @@
 
 #include "crypto/curve25519.h"
 
-#include <openssl/curve25519.h>
+#include <boringssl/curve25519.h>
 #include <stdint.h>
 
 namespace crypto {

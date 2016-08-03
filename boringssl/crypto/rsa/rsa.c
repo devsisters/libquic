@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,18 +55,18 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/rsa.h>
+#include <boringssl/rsa.h>
 
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/bn.h>
-#include <openssl/engine.h>
-#include <openssl/err.h>
-#include <openssl/ex_data.h>
-#include <openssl/mem.h>
-#include <openssl/nid.h>
-#include <openssl/thread.h>
+#include <boringssl/bn.h>
+#include <boringssl/engine.h>
+#include <boringssl/err.h>
+#include <boringssl/ex_data.h>
+#include <boringssl/mem.h>
+#include <boringssl/nid.h>
+#include <boringssl/thread.h>
 
 #include "internal.h"
 #include "../internal.h"

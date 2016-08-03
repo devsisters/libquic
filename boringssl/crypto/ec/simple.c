@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Originally written by Bodo Moeller for the OpenSSL project.
  * ====================================================================
  * Copyright (c) 1998-2005 The OpenSSL Project.  All rights reserved.
@@ -65,13 +66,13 @@
  * Sheueling Chang Shantz and Douglas Stebila of Sun Microsystems
  * Laboratories. */
 
-#include <openssl/ec.h>
+#include <boringssl/ec.h>
 
 #include <string.h>
 
-#include <openssl/bn.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/bn.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 #include "internal.h"
 

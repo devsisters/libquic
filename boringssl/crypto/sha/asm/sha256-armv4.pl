@@ -175,6 +175,7 @@ $code=<<___;
 #endif
 
 .text
+#include <boringssl/bssl.h>
 #if __ARM_ARCH__<7
 .code	32
 #else

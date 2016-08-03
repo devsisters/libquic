@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -142,12 +143,12 @@
 #ifndef OPENSSL_HEADER_SSL_INTERNAL_H
 #define OPENSSL_HEADER_SSL_INTERNAL_H
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
-#include <openssl/aead.h>
-#include <openssl/pqueue.h>
-#include <openssl/ssl.h>
-#include <openssl/stack.h>
+#include <boringssl/aead.h>
+#include <boringssl/pqueue.h>
+#include <boringssl/ssl.h>
+#include <boringssl/stack.h>
 
 #if defined(OPENSSL_WINDOWS)
 /* Windows defines struct timeval in winsock2.h. */

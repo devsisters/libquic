@@ -35,7 +35,7 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(ed25519_test crypto)
+target_link_libraries(ed25519_test bsslcrypto)
 add_dependencies(all_tests ed25519_test)
 
 add_executable(
@@ -44,7 +44,7 @@ add_executable(
   x25519_test.cc
 )
 
-target_link_libraries(x25519_test crypto)
+target_link_libraries(x25519_test bsslcrypto)
 add_dependencies(all_tests x25519_test)
 
 add_executable(
@@ -53,5 +53,5 @@ add_executable(
   spake25519_test.cc
 )
 
-target_link_libraries(spake25519_test crypto)
+target_link_libraries(spake25519_test bsslcrypto)
 add_dependencies(all_tests spake25519_test)

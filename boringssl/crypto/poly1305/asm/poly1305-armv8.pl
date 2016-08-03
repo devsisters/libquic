@@ -45,6 +45,7 @@ $code.=<<___;
 #include <openssl/arm_arch.h>
 
 .text
+#include <boringssl/bssl.h>
 
 // forward "declarations" are required for Apple
 .extern	OPENSSL_armcap_P

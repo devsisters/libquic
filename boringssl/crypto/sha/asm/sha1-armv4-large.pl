@@ -181,6 +181,7 @@ $code=<<___;
 #include <openssl/arm_arch.h>
 
 .text
+#include <boringssl/bssl.h>
 .code	32
 
 .global	sha1_block_data_order

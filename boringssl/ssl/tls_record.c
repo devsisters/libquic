@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -106,13 +107,13 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/ssl.h>
+#include <boringssl/ssl.h>
 
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/bytestring.h>
-#include <openssl/err.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/err.h>
 
 #include "internal.h"
 

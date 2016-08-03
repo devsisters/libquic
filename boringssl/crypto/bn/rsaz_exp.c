@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /*****************************************************************************
 *                                                                            *
 *  Copyright (c) 2012, Intel Corporation                                     *
@@ -40,13 +41,13 @@
 * (2) University of Haifa, Israel                                            *
 *****************************************************************************/
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64)
 
 #include "rsaz_exp.h"
 
-#include <openssl/mem.h>
+#include <boringssl/mem.h>
 
 #include "../internal.h"
 

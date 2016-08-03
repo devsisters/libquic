@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,13 +55,13 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/lhash.h>
+#include <boringssl/lhash.h>
 
 #include <assert.h>
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/mem.h>
+#include <boringssl/mem.h>
 
 /* kMinNumBuckets is the minimum size of the buckets array in an |_LHASH|. */
 static const size_t kMinNumBuckets = 16;

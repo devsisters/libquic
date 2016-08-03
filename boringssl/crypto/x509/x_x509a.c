@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
  * 1999.
@@ -56,10 +57,10 @@
 
 #include <stdio.h>
 
-#include <openssl/asn1t.h>
-#include <openssl/evp.h>
-#include <openssl/obj.h>
-#include <openssl/x509.h>
+#include <boringssl/asn1t.h>
+#include <boringssl/evp.h>
+#include <boringssl/obj.h>
+#include <boringssl/x509.h>
 
 /*
  * X509_CERT_AUX routines. These are used to encode additional user

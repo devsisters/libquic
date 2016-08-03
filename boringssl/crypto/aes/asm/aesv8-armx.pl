@@ -49,6 +49,7 @@ $code=<<___;
 
 #if __ARM_MAX_ARCH__>=7
 .text
+#include <boringssl/bssl.h>
 ___
 $code.=<<___ if ($flavour =~ /64/);
 #if !defined(__clang__)

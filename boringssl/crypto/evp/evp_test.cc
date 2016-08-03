@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
@@ -70,11 +71,11 @@
 #pragma warning(pop)
 #endif
 
-#include <openssl/bytestring.h>
-#include <openssl/crypto.h>
-#include <openssl/digest.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/crypto.h>
+#include <boringssl/digest.h>
+#include <boringssl/err.h>
+#include <boringssl/evp.h>
 
 #include "../test/file_test.h"
 #include "../test/scoped_types.h"

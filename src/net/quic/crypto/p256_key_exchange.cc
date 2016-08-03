@@ -4,9 +4,9 @@
 
 #include "net/quic/crypto/p256_key_exchange.h"
 
-#include <openssl/ec.h>
-#include <openssl/ecdh.h>
-#include <openssl/evp.h>
+#include <boringssl/ec.h>
+#include <boringssl/ecdh.h>
+#include <boringssl/evp.h>
 
 #include "base/logging.h"
 

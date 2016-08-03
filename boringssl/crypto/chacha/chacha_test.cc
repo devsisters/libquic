@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -18,8 +19,8 @@
 
 #include <memory>
 
-#include <openssl/crypto.h>
-#include <openssl/chacha.h>
+#include <boringssl/crypto.h>
+#include <boringssl/chacha.h>
 
 
 static const uint8_t kKey[32] = {

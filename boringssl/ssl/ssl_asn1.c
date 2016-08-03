@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -80,15 +81,15 @@
  * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
  * OTHERWISE. */
 
-#include <openssl/ssl.h>
+#include <boringssl/ssl.h>
 
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/bytestring.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/x509.h>
+#include <boringssl/bytestring.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/x509.h>
 
 #include "internal.h"
 

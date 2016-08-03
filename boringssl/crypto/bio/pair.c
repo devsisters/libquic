@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
  *
@@ -50,14 +51,14 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/bio.h>
+#include <boringssl/bio.h>
 
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
 
 
 struct bio_bio_st {

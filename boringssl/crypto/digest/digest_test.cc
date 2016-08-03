@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,12 +17,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/crypto.h>
-#include <openssl/digest.h>
-#include <openssl/err.h>
-#include <openssl/md4.h>
-#include <openssl/md5.h>
-#include <openssl/sha.h>
+#include <boringssl/crypto.h>
+#include <boringssl/digest.h>
+#include <boringssl/err.h>
+#include <boringssl/md4.h>
+#include <boringssl/md5.h>
+#include <boringssl/sha.h>
 
 #include "../test/scoped_types.h"
 

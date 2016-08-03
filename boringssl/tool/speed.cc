@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -20,14 +21,14 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <openssl/aead.h>
-#include <openssl/curve25519.h>
-#include <openssl/digest.h>
-#include <openssl/err.h>
-#include <openssl/newhope.h>
-#include <openssl/nid.h>
-#include <openssl/rand.h>
-#include <openssl/rsa.h>
+#include <boringssl/aead.h>
+#include <boringssl/curve25519.h>
+#include <boringssl/digest.h>
+#include <boringssl/err.h>
+#include <boringssl/newhope.h>
+#include <boringssl/nid.h>
+#include <boringssl/rand.h>
+#include <boringssl/rsa.h>
 
 #if defined(OPENSSL_WINDOWS)
 #pragma warning(push, 3)

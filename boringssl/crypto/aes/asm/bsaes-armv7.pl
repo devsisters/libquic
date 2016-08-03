@@ -726,6 +726,7 @@ $code.=<<___;
 .fpu	neon
 
 .text
+#include <boringssl/bssl.h>
 .syntax	unified 	@ ARMv7-capable assembler is expected to handle this
 #if defined(__thumb2__) && !defined(__APPLE__)
 .thumb

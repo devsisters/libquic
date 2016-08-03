@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* DTLS implementation written by Nagendra Modadugu
  * (nagendra@cs.stanford.edu) for the OpenSSL project 2005. */
 /* ====================================================================
@@ -109,16 +110,16 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/ssl.h>
+#include <boringssl/ssl.h>
 
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/buf.h>
-#include <openssl/mem.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
-#include <openssl/rand.h>
+#include <boringssl/buf.h>
+#include <boringssl/mem.h>
+#include <boringssl/evp.h>
+#include <boringssl/err.h>
+#include <boringssl/rand.h>
 
 #include "internal.h"
 

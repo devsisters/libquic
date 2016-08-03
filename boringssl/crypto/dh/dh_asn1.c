@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2000.
  */
@@ -53,10 +54,10 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/dh.h>
+#include <boringssl/dh.h>
 
-#include <openssl/asn1.h>
-#include <openssl/asn1t.h>
+#include <boringssl/asn1.h>
+#include <boringssl/asn1t.h>
 
 #include "internal.h"
 

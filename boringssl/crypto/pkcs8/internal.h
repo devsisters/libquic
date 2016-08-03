@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */
@@ -56,7 +57,7 @@
 #ifndef OPENSSL_HEADER_PKCS8_INTERNAL_H
 #define OPENSSL_HEADER_PKCS8_INTERNAL_H
 
-#include <openssl/base.h>
+#include <boringssl/base.h>
 
 #if defined(__cplusplus)
 extern "C" {

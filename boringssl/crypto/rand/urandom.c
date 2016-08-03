@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,7 +13,7 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/rand.h>
+#include <boringssl/rand.h>
 
 #if !defined(OPENSSL_WINDOWS) && !defined(BORINGSSL_UNSAFE_FUZZER_MODE)
 
@@ -22,8 +23,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <openssl/thread.h>
-#include <openssl/mem.h>
+#include <boringssl/thread.h>
+#include <boringssl/mem.h>
 
 #include "internal.h"
 #include "../internal.h"

@@ -63,7 +63,7 @@ const size_t kMultiplier = 3;
 const int kMaxTokenAddresses = 4;
 
 string DeriveSourceAddressTokenKey(StringPiece source_address_token_secret) {
-  crypto::HKDF hkdf(source_address_token_secret, StringPiece() /* no salt */,
+  crypto::CryptoHKDF hkdf(source_address_token_secret, StringPiece() /* no salt */,
                     "QUIC source address token key",
                     CryptoSecretBoxer::GetKeySize(), 0 /* no fixed IV needed */,
                     0 /* no subkey secret */);
@@ -330,7 +330,7 @@ QuicServerConfigProtobuf* QuicCryptoServerConfig::GenerateConfig(
     // thus we make it a hash of the rest of the server config.
     std::unique_ptr<QuicData> serialized(
         CryptoFramer::ConstructHandshakeMessage(msg));
-    std::unique_ptr<SecureHash> hash(SecureHash::Create(SecureHash::SHA256));
+    std::unique_ptr<SecureHash> hash(SecureHash::Create(SecureHash::CryptoSHA256));
     hash->Update(serialized->data(), serialized->length());
 
     char scid_bytes[16];

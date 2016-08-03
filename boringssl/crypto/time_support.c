@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Richard Levitte (richard@levitte.org) for the OpenSSL
  * project 2001.
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
@@ -59,7 +60,7 @@
 #define _POSIX_C_SOURCE 201410L  /* for gmtime_r */
 #endif
 
-#include <openssl/time_support.h>
+#include <boringssl/time_support.h>
 
 #include <time.h>
 

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* crypto/asn1/x_spki.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
@@ -60,8 +61,8 @@
   * It is under my Copyright with his permission.
   */
 
-#include <openssl/x509.h>
-#include <openssl/asn1t.h>
+#include <boringssl/x509.h>
+#include <boringssl/asn1t.h>
 
 
 ASN1_SEQUENCE(NETSCAPE_SPKAC) = {

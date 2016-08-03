@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,15 +13,15 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/aead.h>
+#include <boringssl/aead.h>
 
 #include <string.h>
 
-#include <openssl/chacha.h>
-#include <openssl/cipher.h>
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/poly1305.h>
+#include <boringssl/chacha.h>
+#include <boringssl/cipher.h>
+#include <boringssl/err.h>
+#include <boringssl/mem.h>
+#include <boringssl/poly1305.h>
 
 #include "internal.h"
 #include "../internal.h"

@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,8 +16,8 @@
 #ifndef OPENSSL_HEADER_NEWHOPE_INTERNAL_H
 #define OPENSSL_HEADER_NEWHOPE_INTERNAL_H
 
-#include <openssl/newhope.h>
-#include <openssl/sha.h>
+#include <boringssl/newhope.h>
+#include <boringssl/sha.h>
 
 #include "../internal.h"
 

@@ -51,5 +51,5 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(asn1_test crypto)
+target_link_libraries(asn1_test bsslcrypto)
 add_dependencies(all_tests asn1_test)

@@ -123,6 +123,7 @@ $out="%rcx";	    # arg4
 {
 $code=<<___;
 .text
+#include <boringssl/bssl.h>
 .extern	OPENSSL_ia32cap_P
 
 .globl	asm_RC4

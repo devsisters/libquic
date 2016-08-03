@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,13 +58,13 @@
  * The DSS routines are based on patches supplied by
  * Steven Schoch <schoch@sheba.arc.nasa.gov>. */
 
-#include <openssl/dsa.h>
+#include <boringssl/dsa.h>
 
 #include <string.h>
 
-#include <openssl/bn.h>
-#include <openssl/crypto.h>
-#include <openssl/err.h>
+#include <boringssl/bn.h>
+#include <boringssl/crypto.h>
+#include <boringssl/err.h>
 
 
 static int dsa_cb(int p, int n, BN_GENCB *arg);

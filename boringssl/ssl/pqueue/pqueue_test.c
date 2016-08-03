@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,9 +16,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/crypto.h>
-#include <openssl/pqueue.h>
-#include <openssl/ssl.h>
+#include <boringssl/crypto.h>
+#include <boringssl/pqueue.h>
+#include <boringssl/ssl.h>
 
 
 static void clear_and_free_queue(pqueue q) {

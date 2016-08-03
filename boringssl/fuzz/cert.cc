@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,8 +13,8 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/mem.h>
-#include <openssl/x509.h>
+#include <boringssl/mem.h>
+#include <boringssl/x509.h>
 
 extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
   const uint8_t *bufp = buf;

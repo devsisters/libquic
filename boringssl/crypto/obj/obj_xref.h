@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* THIS FILE IS GENERATED FROM obj_xref.txt by obj_xref.pl via the
  * following command:
  * perl obj_xref.pl obj_mac.num obj_xref.txt > obj_xref.h */

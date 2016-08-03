@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */
@@ -56,9 +57,9 @@
 
 #include <stdio.h>
 
-#include <openssl/asn1t.h>
-#include <openssl/mem.h>
-#include <openssl/x509.h>
+#include <boringssl/asn1t.h>
+#include <boringssl/mem.h>
+#include <boringssl/x509.h>
 
 /* Minor tweak to operation: zero private key data */
 static int pkey_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,

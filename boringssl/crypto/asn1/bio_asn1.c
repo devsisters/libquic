@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,13 +55,13 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/asn1.h>
+#include <boringssl/asn1.h>
 
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/bio.h>
-#include <openssl/mem.h>
+#include <boringssl/bio.h>
+#include <boringssl/mem.h>
 
 /* Must be large enough for biggest tag+length */
 #define DEFAULT_ASN1_BUF_SIZE 20

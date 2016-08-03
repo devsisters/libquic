@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* ====================================================================
  * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
  *
@@ -50,15 +51,15 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/evp.h>
+#include <boringssl/evp.h>
 
-#include <openssl/bio.h>
-#include <openssl/bn.h>
-#include <openssl/dsa.h>
-#include <openssl/ec.h>
-#include <openssl/ec_key.h>
-#include <openssl/mem.h>
-#include <openssl/rsa.h>
+#include <boringssl/bio.h>
+#include <boringssl/bn.h>
+#include <boringssl/dsa.h>
+#include <boringssl/ec.h>
+#include <boringssl/ec_key.h>
+#include <boringssl/mem.h>
+#include <boringssl/rsa.h>
 
 #include "../rsa/internal.h"
 

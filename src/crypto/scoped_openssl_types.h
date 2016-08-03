@@ -5,14 +5,14 @@
 #ifndef CRYPTO_SCOPED_OPENSSL_TYPES_H_
 #define CRYPTO_SCOPED_OPENSSL_TYPES_H_
 
-#include <openssl/bio.h>
-#include <openssl/bn.h>
-#include <openssl/dsa.h>
-#include <openssl/ec.h>
-#include <openssl/ecdsa.h>
-#include <openssl/evp.h>
-#include <openssl/mem.h>
-#include <openssl/rsa.h>
+#include <boringssl/bio.h>
+#include <boringssl/bn.h>
+#include <boringssl/dsa.h>
+#include <boringssl/ec.h>
+#include <boringssl/ecdsa.h>
+#include <boringssl/evp.h>
+#include <boringssl/mem.h>
+#include <boringssl/rsa.h>
 #include <stdint.h>
 
 #include <memory>

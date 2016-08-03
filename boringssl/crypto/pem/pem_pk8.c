@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -54,16 +55,16 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/pem.h>
+#include <boringssl/pem.h>
 
-#include <openssl/buf.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/mem.h>
-#include <openssl/obj.h>
-#include <openssl/pkcs8.h>
-#include <openssl/rand.h>
-#include <openssl/x509.h>
+#include <boringssl/buf.h>
+#include <boringssl/err.h>
+#include <boringssl/evp.h>
+#include <boringssl/mem.h>
+#include <boringssl/obj.h>
+#include <boringssl/pkcs8.h>
+#include <boringssl/rand.h>
+#include <boringssl/x509.h>
 
 static int do_pk8pkey(BIO *bp, EVP_PKEY *x, int isder,
                       int nid, const EVP_CIPHER *enc,

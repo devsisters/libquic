@@ -1,3 +1,4 @@
+#include <boringssl/bssl.h>
 /* Copyright (c) 2016, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -12,7 +13,7 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <openssl/cpu.h>
+#include <boringssl/cpu.h>
 
 #if defined(OPENSSL_ARM) && !defined(OPENSSL_STATIC_ARMCAP)
 
@@ -22,9 +23,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <openssl/arm_arch.h>
-#include <openssl/buf.h>
-#include <openssl/mem.h>
+#include <boringssl/arm_arch.h>
+#include <boringssl/buf.h>
+#include <boringssl/mem.h>
 
 #include "internal.h"
 
