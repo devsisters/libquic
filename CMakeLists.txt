@@ -440,6 +440,7 @@ add_library(
 	src/third_party/zlib/gzread.c
 	src/third_party/zlib/uncompr.c
 )
+target_link_libraries(quic ${BASE_ARCH_LIBRARIES} ssl crypto protobuf)
 
 #add_executable(
 #	test_quic_server
