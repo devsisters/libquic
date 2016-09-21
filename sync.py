@@ -53,7 +53,7 @@ def main():
 
     excludes = [os.path.join(chromium_root, x) for x in deps.get("dependency_exclude", [])]
 
-    processor = PreProcessor(chromium_root, dict={'OS_POSIX': 1, 'OS_MAXOSX': 1, 'OS_OPENBSD': 1, 'OS_ANDROID': 1}, excludes=excludes)
+    processor = PreProcessor(chromium_root, dict={'OS_POSIX': 1, 'OS_MAXOSX': 1, 'OS_OPENBSD': 1, 'OS_ANDROID': 1, 'OS_LINUX': 1}, excludes=excludes)
 
     q = deps.get("automatic_dependency", [])
     while q:
