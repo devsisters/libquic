@@ -192,9 +192,16 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 		src/base/threading/platform_thread_internal_posix.cc
 		src/base/strings/sys_string_conversions_posix.cc
 		src/base/process/process_linux.cc
+		src/base/process/internal_linux.cc
 		src/base/process/process_handle_linux.cc
+		src/base/process/process_metrics_posix.cc
+		src/base/process/process_metrics_linux.cc
 		src/base/memory/shared_memory_posix.cc
 		src/base/sys_info_linux.cc
+		src/base/files/file_util.cc
+		src/base/files/file_util_posix.cc
+		src/base/files/file_enumerator.cc
+		src/base/files/file_enumerator_posix.cc
 	)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Android")
 	set(
@@ -208,6 +215,7 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Android")
 		src/base/threading/thread_local_android.cc
 		src/base/strings/sys_string_conversions_posix.cc
 		src/base/process/process_handle_linux.cc
+		src/base/process/process_metrics_linux.cc
 		src/base/memory/shared_memory_posix.cc
 		#src/base/sys_info_android.cc
 	)

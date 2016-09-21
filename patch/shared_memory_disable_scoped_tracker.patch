@@ -30,21 +30,22 @@ index 97ce94e..a716db7 100644
    if (options.size == 0) return false;
  
 diff --git a/src/base/memory/shared_memory_posix.cc b/src/base/memory/shared_memory_posix.cc
-index d55c2df..13b6150 100644
+index d55c2df..54e0c49 100644
 --- a/src/base/memory/shared_memory_posix.cc
 +++ b/src/base/memory/shared_memory_posix.cc
-@@ -16,8 +16,10 @@
- #include "base/logging.h"
+@@ -17,7 +17,11 @@
  #include "base/posix/eintr_wrapper.h"
  #include "base/posix/safe_strerror.h"
-+#if 0
  #include "base/process/process_metrics.h"
++#if 0
  #include "base/profiler/scoped_tracker.h"
++#else
++#include "base/threading/thread_restrictions.h"
 +#endif
  #include "base/scoped_generic.h"
  #include "base/strings/utf_string_conversions.h"
  #include "build/build_config.h"
-@@ -37,9 +39,11 @@ struct ScopedPathUnlinkerTraits {
+@@ -37,9 +41,11 @@ struct ScopedPathUnlinkerTraits {
    static void Free(FilePath* path) {
      // TODO(erikchen): Remove ScopedTracker below once http://crbug.com/466437
      // is fixed.
@@ -56,7 +57,7 @@ index d55c2df..13b6150 100644
      if (unlink(path->value().c_str()))
        PLOG(WARNING) << "unlink";
    }
-@@ -67,9 +71,11 @@ bool CreateAnonymousSharedMemory(const SharedMemoryCreateOptions& options,
+@@ -67,9 +73,11 @@ bool CreateAnonymousSharedMemory(const SharedMemoryCreateOptions& options,
    if (GetShmemTempDir(options.executable, &directory)) {
      // TODO(erikchen): Remove ScopedTracker below once http://crbug.com/466437
      // is fixed.
@@ -68,7 +69,7 @@ index d55c2df..13b6150 100644
      fp->reset(base::CreateAndOpenTemporaryFileInDir(directory, path));
  
      // Deleting the file prevents anyone else from mapping it in (making it
-@@ -83,9 +89,11 @@ bool CreateAnonymousSharedMemory(const SharedMemoryCreateOptions& options,
+@@ -83,9 +91,11 @@ bool CreateAnonymousSharedMemory(const SharedMemoryCreateOptions& options,
      if (options.share_read_only) {
        // TODO(erikchen): Remove ScopedTracker below once
        // http://crbug.com/466437 is fixed.
@@ -80,7 +81,7 @@ index d55c2df..13b6150 100644
        // Also open as readonly so that we can ShareReadOnlyToProcess.
        readonly_fd->reset(HANDLE_EINTR(open(path->value().c_str(), O_RDONLY)));
        if (!readonly_fd->is_valid()) {
-@@ -194,9 +202,11 @@ bool SharedMemory::GetSizeFromSharedMemoryHandle(
+@@ -194,9 +204,11 @@ bool SharedMemory::GetSizeFromSharedMemoryHandle(
  bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
    // TODO(erikchen): Remove ScopedTracker below once http://crbug.com/466437
    // is fixed.

@@ -16,9 +16,11 @@
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/posix/safe_strerror.h"
-#if 0
 #include "base/process/process_metrics.h"
+#if 0
 #include "base/profiler/scoped_tracker.h"
+#else
+#include "base/threading/thread_restrictions.h"
 #endif
 #include "base/scoped_generic.h"
 #include "base/strings/utf_string_conversions.h"
