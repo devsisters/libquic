@@ -230,8 +230,13 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 		src/base/threading/platform_thread_internal_posix.cc
 		src/base/strings/sys_string_conversions_posix.cc
 		src/base/process/process_handle_freebsd.cc
+		src/base/process/process_metrics_posix.cc
 		src/base/memory/shared_memory_posix.cc
-		src/base/sys_info_freebsd.mm
+		src/base/sys_info_freebsd.cc
+		src/base/files/file_util.cc
+		src/base/files/file_util_posix.cc
+		src/base/files/file_enumerator.cc
+		src/base/files/file_enumerator_posix.cc
 	)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	FIND_LIBRARY(COREFOUNDATION_LIBRARY CoreFoundation)

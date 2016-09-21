@@ -100,7 +100,8 @@
         "patch/process_posix_disable_valgrind_related.patch",
         "patch/shared_memory_disable_scoped_tracker.patch",
         "patch/sys_info_disable_field_trial.patch",
-        "patch/thread_checker_impl_skip_one_check.patch"
+        "patch/thread_checker_impl_skip_one_check.patch",
+        "patch/freebsd.patch"
     ],
     "custom_files": [
         {"from": "custom/debugger.h", "to": "base/debug/debugger.h"},

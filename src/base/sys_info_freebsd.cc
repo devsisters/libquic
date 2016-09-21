@@ -24,6 +24,7 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
   return static_cast<int64_t>(pages) * page_size;
 }
 
+#if 0
 // static
 uint64_t SysInfo::MaxSharedMemorySize() {
   size_t limit;
@@ -34,5 +35,6 @@ uint64_t SysInfo::MaxSharedMemorySize() {
   }
   return static_cast<uint64_t>(limit);
 }
+#endif
 
 }  // namespace base

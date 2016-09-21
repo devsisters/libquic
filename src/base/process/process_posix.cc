@@ -17,6 +17,10 @@
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "build/build_config.h"
 
+#if defined(OS_FREEBSD)
+#include <signal.h>
+#endif
+
 #if defined(OS_MACOSX)
 #include <sys/event.h>
 #endif
