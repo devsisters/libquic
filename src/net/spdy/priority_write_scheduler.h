@@ -47,10 +47,11 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
                       const StreamPrecedenceType& precedence) override {
     SPDY_BUG_IF(!precedence.is_spdy3_priority()) << "Expected SPDY priority";
 
-    // parent_id not used here, but may as well validate it
+    // parent_id not used here, but may as well validate it.  However,
+    // parent_id may legitimately not be registered yet--see b/15676312.
     StreamIdType parent_id = precedence.parent_id();
-    SPDY_BUG_IF(parent_id != kHttp2RootStreamId && !StreamRegistered(parent_id))
-        << "Stream " << parent_id << " not registered";
+    DVLOG_IF(1, parent_id != kHttp2RootStreamId && !StreamRegistered(parent_id))
+        << "Parent stream " << parent_id << " not registered";
 
     if (stream_id == kHttp2RootStreamId) {
       SPDY_BUG << "Stream " << kHttp2RootStreamId << " already registered";
@@ -85,7 +86,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
       StreamIdType stream_id) const override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      SPDY_BUG << "Stream " << stream_id << " not registered";
+      DVLOG(1) << "Stream " << stream_id << " not registered";
       return StreamPrecedenceType(kV3LowestPriority);
     }
     return StreamPrecedenceType(it->second.priority);
@@ -95,14 +96,16 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
                               const StreamPrecedenceType& precedence) override {
     SPDY_BUG_IF(!precedence.is_spdy3_priority()) << "Expected SPDY priority";
 
-    // parent_id not used here, but may as well validate it
+    // parent_id not used here, but may as well validate it.  However,
+    // parent_id may legitimately not be registered yet--see b/15676312.
     StreamIdType parent_id = precedence.parent_id();
-    SPDY_BUG_IF(parent_id != kHttp2RootStreamId && !StreamRegistered(parent_id))
-        << "Stream " << parent_id << " not registered";
+    DVLOG_IF(1, parent_id != kHttp2RootStreamId && !StreamRegistered(parent_id))
+        << "Parent stream " << parent_id << " not registered";
 
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      SPDY_BUG << "Stream " << stream_id << " not registered";
+      // TODO(mpw): add to stream_infos_ on demand--see b/15676312.
+      DVLOG(1) << "Stream " << stream_id << " not registered";
       return;
     }
     StreamInfo& stream_info = it->second;

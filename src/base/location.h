@@ -97,7 +97,7 @@ struct BASE_EXPORT LocationSnapshot {
 BASE_EXPORT const void* GetProgramCounter();
 
 // Define a macro to record the current source location.
-#define FROM_HERE FROM_HERE_WITH_EXPLICIT_FUNCTION(__FUNCTION__)
+#define FROM_HERE FROM_HERE_WITH_EXPLICIT_FUNCTION(__func__)
 
 #define FROM_HERE_WITH_EXPLICIT_FUNCTION(function_name)                        \
     ::tracked_objects::Location(function_name,                                 \

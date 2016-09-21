@@ -162,11 +162,20 @@
 #define internal_state MOZ_Z_internal_state
 
 /* New as of zlib 1.2.8 */
+#define _tr_flush_bits MOZ_Z__tr_flush_bits
 #define deflateResetKeep MOZ_Z_deflateResetKeep
 #define deflatePending MOZ_Z_deflatePending
 #define inflateGetDictionary MOZ_Z_inflateGetDictionary
 #define inflateResetKeep MOZ_Z_inflateResetKeep
 #define gzopen_w MOZ_Z_gzopen_w
+
+/* Chromium-specific modifications */
+#define copy_with_crc MOZ_Z__copy_with_crc
+#define crc_finalize MOZ_Z__crc_finalize
+#define crc_reset MOZ_Z__crc_reset
+// read_buf used to be local, but this was changed in simd.patch.
+#define read_buf MOZ_Z__read_buf
+#define x86_check_features MOZ_Z__x86_check_features
 
 /* Mangle Byte types except on Mac. */
 #if !defined(__MACTYPES__)

@@ -55,7 +55,7 @@ namespace base {
 template <typename Type>
 struct DefaultLazyInstanceTraits {
   static const bool kRegisterOnExit = true;
-#ifndef NDEBUG
+#if DCHECK_IS_ON()
   static const bool kAllowedToAccessOnNonjoinableThread = false;
 #endif
 
@@ -89,7 +89,7 @@ namespace internal {
 template <typename Type>
 struct LeakyLazyInstanceTraits {
   static const bool kRegisterOnExit = false;
-#ifndef NDEBUG
+#if DCHECK_IS_ON()
   static const bool kAllowedToAccessOnNonjoinableThread = true;
 #endif
 
@@ -138,7 +138,7 @@ class LazyInstance {
   }
 
   Type* Pointer() {
-#ifndef NDEBUG
+#if DCHECK_IS_ON()
     // Avoid making TLS lookup on release builds.
     if (!Traits::kAllowedToAccessOnNonjoinableThread)
       ThreadRestrictions::AssertSingletonAllowed();

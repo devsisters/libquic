@@ -21,6 +21,8 @@
 #include "build/build_config.h"
 #include "net/base/net_export.h"
 #include "net/log/net_log_capture_mode.h"
+#include "net/log/net_log_event_type.h"
+#include "net/log/net_log_source_type.h"
 
 namespace base {
 class DictionaryValue;
@@ -46,28 +48,6 @@ namespace net {
 // https://sites.google.com/a/chromium.org/dev/developers/design-documents/network-stack/netlog
 class NET_EXPORT NetLog {
  public:
-  enum EventType {
-#define EVENT_TYPE(label) TYPE_##label,
-#include "net/log/net_log_event_type_list.h"
-#undef EVENT_TYPE
-    EVENT_COUNT
-  };
-
-  // The 'phase' of an event trace (whether it marks the beginning or end
-  // of an event.).
-  enum EventPhase {
-    PHASE_NONE,
-    PHASE_BEGIN,
-    PHASE_END,
-  };
-
-  // The "source" identifies the entity that generated the log message.
-  enum SourceType {
-#define SOURCE_TYPE(label) SOURCE_##label,
-#include "net/log/net_log_source_type_list.h"
-#undef SOURCE_TYPE
-    SOURCE_COUNT
-  };
 
   // A callback that returns a Value representation of the parameters
   // associated with an event.  If called, it will be called synchronously,
@@ -83,7 +63,7 @@ class NET_EXPORT NetLog {
     static const uint32_t kInvalidId;
 
     Source();
-    Source(SourceType type, uint32_t id);
+    Source(NetLogSourceType type, uint32_t id);
     bool IsValid() const;
 
     // Adds the source to a DictionaryValue containing event parameters,
@@ -100,21 +80,21 @@ class NET_EXPORT NetLog {
     // TODO(mmenke):  Long term, we want to remove this.
     static bool FromEventParameters(base::Value* event_params, Source* source);
 
-    SourceType type;
+    NetLogSourceType type;
     uint32_t id;
   };
 
   struct NET_EXPORT EntryData {
-    EntryData(EventType type,
+    EntryData(NetLogEventType type,
               Source source,
-              EventPhase phase,
+              NetLogEventPhase phase,
               base::TimeTicks time,
               const ParametersCallback* parameters_callback);
     ~EntryData();
 
-    const EventType type;
+    const NetLogEventType type;
     const Source source;
-    const EventPhase phase;
+    const NetLogEventPhase phase;
     const base::TimeTicks time;
     const ParametersCallback* const parameters_callback;
   };
@@ -127,9 +107,9 @@ class NET_EXPORT NetLog {
     Entry(const EntryData* data, NetLogCaptureMode capture_mode);
     ~Entry();
 
-    EventType type() const { return data_->type; }
+    NetLogEventType type() const { return data_->type; }
     Source source() const { return data_->source; }
-    EventPhase phase() const { return data_->phase; }
+    NetLogEventPhase phase() const { return data_->phase; }
 
     // Serializes the specified event to a Value.  The Value also includes the
     // current time.  Takes in a time to allow back-dating entries.
@@ -210,8 +190,8 @@ class NET_EXPORT NetLog {
   virtual ~NetLog();
 
   // Emits a global event to the log stream, with its own unique source ID.
-  void AddGlobalEntry(EventType type);
-  void AddGlobalEntry(EventType type,
+  void AddGlobalEntry(NetLogEventType type);
+  void AddGlobalEntry(NetLogEventType type,
                       const NetLog::ParametersCallback& parameters_callback);
 
   // Returns a unique ID which can be used as a source ID.  All returned IDs
@@ -253,21 +233,21 @@ class NET_EXPORT NetLog {
   static std::string TickCountToString(const base::TimeTicks& time);
 
   // Returns a C-String symbolic name for |event_type|.
-  static const char* EventTypeToString(EventType event_type);
+  static const char* EventTypeToString(NetLogEventType event_type);
 
   // Returns a dictionary that maps event type symbolic names to their enum
   // values.  Caller takes ownership of the returned Value.
   static base::Value* GetEventTypesAsValue();
 
   // Returns a C-String symbolic name for |source_type|.
-  static const char* SourceTypeToString(SourceType source_type);
+  static const char* SourceTypeToString(NetLogSourceType source_type);
 
   // Returns a dictionary that maps source type symbolic names to their enum
   // values.  Caller takes ownership of the returned Value.
   static base::Value* GetSourceTypesAsValue();
 
   // Returns a C-String symbolic name for |event_phase|.
-  static const char* EventPhaseToString(EventPhase event_phase);
+  static const char* EventPhaseToString(NetLogEventPhase event_phase);
 
   // Creates a ParametersCallback that encapsulates a single bool.
   // Warning: |name| must remain valid for the life of the callback.
@@ -297,9 +277,9 @@ class NET_EXPORT NetLog {
  private:
   friend class BoundNetLog;
 
-  void AddEntry(EventType type,
+  void AddEntry(NetLogEventType type,
                 const Source& source,
-                EventPhase phase,
+                NetLogEventPhase phase,
                 const NetLog::ParametersCallback* parameters_callback);
 
   // Called whenever an observer is added or removed, to update
@@ -331,50 +311,51 @@ class NET_EXPORT BoundNetLog {
   ~BoundNetLog();
 
   // Add a log entry to the NetLog for the bound source.
-  void AddEntry(NetLog::EventType type, NetLog::EventPhase phase) const;
-  void AddEntry(NetLog::EventType type,
-                NetLog::EventPhase phase,
+  void AddEntry(NetLogEventType type, NetLogEventPhase phase) const;
+  void AddEntry(NetLogEventType type,
+                NetLogEventPhase phase,
                 const NetLog::ParametersCallback& get_parameters) const;
 
   // Convenience methods that call AddEntry with a fixed "capture phase"
   // (begin, end, or none).
-  void BeginEvent(NetLog::EventType type) const;
-  void BeginEvent(NetLog::EventType type,
+  void BeginEvent(NetLogEventType type) const;
+  void BeginEvent(NetLogEventType type,
                   const NetLog::ParametersCallback& get_parameters) const;
 
-  void EndEvent(NetLog::EventType type) const;
-  void EndEvent(NetLog::EventType type,
+  void EndEvent(NetLogEventType type) const;
+  void EndEvent(NetLogEventType type,
                 const NetLog::ParametersCallback& get_parameters) const;
 
-  void AddEvent(NetLog::EventType type) const;
-  void AddEvent(NetLog::EventType type,
+  void AddEvent(NetLogEventType type) const;
+  void AddEvent(NetLogEventType type,
                 const NetLog::ParametersCallback& get_parameters) const;
 
   // Just like AddEvent, except |net_error| is a net error code.  A parameter
   // called "net_error" with the indicated value will be recorded for the event.
   // |net_error| must be negative, and not ERR_IO_PENDING, as it's not a true
   // error.
-  void AddEventWithNetErrorCode(NetLog::EventType event_type,
+  void AddEventWithNetErrorCode(NetLogEventType event_type,
                                 int net_error) const;
 
   // Just like EndEvent, except |net_error| is a net error code.  If it's
   // negative, a parameter called "net_error" with a value of |net_error| is
   // associated with the event.  Otherwise, the end event has no parameters.
   // |net_error| must not be ERR_IO_PENDING, as it's not a true error.
-  void EndEventWithNetErrorCode(NetLog::EventType event_type,
+  void EndEventWithNetErrorCode(NetLogEventType event_type,
                                 int net_error) const;
 
   // Logs a byte transfer event to the NetLog.  Determines whether to log the
   // received bytes or not based on the current logging level.
-  void AddByteTransferEvent(NetLog::EventType event_type,
+  void AddByteTransferEvent(NetLogEventType event_type,
                             int byte_count,
                             const char* bytes) const;
 
   bool IsCapturing() const;
 
-  // Helper to create a BoundNetLog given a NetLog and a SourceType. Takes care
-  // of creating a unique source ID, and handles the case of NULL net_log.
-  static BoundNetLog Make(NetLog* net_log, NetLog::SourceType source_type);
+  // Helper to create a BoundNetLog given a NetLog and a NetLogSourceType.
+  // Takes care of creating a unique source ID, and handles
+  //  the case of NULL net_log.
+  static BoundNetLog Make(NetLog* net_log, NetLogSourceType source_type);
 
   const NetLog::Source& source() const { return source_; }
   NetLog* net_log() const { return net_log_; }

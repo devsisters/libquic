@@ -18,18 +18,78 @@ namespace net {
 using base::StringPiece;
 using std::string;
 
+class HpackEncoder::RepresentationIterator {
+ public:
+  // |pseudo_headers| and |regular_headers| must outlive the iterator.
+  RepresentationIterator(const Representations& pseudo_headers,
+                         const Representations& regular_headers)
+      : pseudo_begin_(pseudo_headers.begin()),
+        pseudo_end_(pseudo_headers.end()),
+        regular_begin_(regular_headers.begin()),
+        regular_end_(regular_headers.end()) {}
+
+  // |headers| must outlive the iterator.
+  explicit RepresentationIterator(const Representations& headers)
+      : pseudo_begin_(headers.begin()),
+        pseudo_end_(headers.end()),
+        regular_begin_(headers.end()),
+        regular_end_(headers.end()) {}
+
+  bool HasNext() {
+    return pseudo_begin_ != pseudo_end_ || regular_begin_ != regular_end_;
+  }
+
+  const Representation Next() {
+    if (pseudo_begin_ != pseudo_end_) {
+      return *pseudo_begin_++;
+    } else {
+      return *regular_begin_++;
+    }
+  }
+
+ private:
+  Representations::const_iterator pseudo_begin_;
+  Representations::const_iterator pseudo_end_;
+  Representations::const_iterator regular_begin_;
+  Representations::const_iterator regular_end_;
+};
+
+namespace {
+
+// The default HPACK indexing policy.
+bool DefaultPolicy(StringPiece name, StringPiece /* value */) {
+  if (name.empty()) {
+    return false;
+  }
+  // :authority is always present and rarely changes, and has moderate
+  // length, therefore it makes a lot of sense to index (insert in the
+  // dynamic table).
+  if (name[0] == kPseudoHeaderPrefix) {
+    return name == ":authority";
+  }
+  return true;
+}
+
+}  // namespace
+
 HpackEncoder::HpackEncoder(const HpackHuffmanTable& table)
     : output_stream_(),
       huffman_table_(table),
       min_table_size_setting_received_(std::numeric_limits<size_t>::max()),
+      should_index_(DefaultPolicy),
       allow_huffman_compression_(true),
       should_emit_table_size_(false) {}
 
 HpackEncoder::~HpackEncoder() {}
 
+void HpackEncoder::EncodeHeaderSet(const Representations& representations,
+                                   string* output) {
+  RepresentationIterator iter(representations);
+  EncodeRepresentations(&iter, output);
+}
+
 bool HpackEncoder::EncodeHeaderSet(const SpdyHeaderBlock& header_set,
                                    string* output) {
-  MaybeEmitTableSize();
   // Separate header set into pseudo-headers and regular headers.
   Representations pseudo_headers;
   Representations regular_headers;
@@ -48,42 +108,10 @@ bool HpackEncoder::EncodeHeaderSet(const SpdyHeaderBlock& header_set,
     }
   }
 
-  // Encode pseudo-headers.
-  bool found_authority = false;
-  for (const auto& header : pseudo_headers) {
-    const HpackEntry* entry =
-        header_table_.GetByNameAndValue(header.first, header.second);
-    if (entry != NULL) {
-      EmitIndex(entry);
-    } else {
-      // :authority is always present and rarely changes, and has moderate
-      // length, therefore it makes a lot of sense to index (insert in the
-      // header table).
-      if (!found_authority && header.first == ":authority") {
-        // Note that there can only be one ":authority" header, because
-        // |header_set| is a map.
-        found_authority = true;
-        EmitIndexedLiteral(header);
-      } else {
-        // Most common pseudo-header fields are represented in the static table,
-        // while uncommon ones are small, so do not index them.
-        EmitNonIndexedLiteral(header);
-      }
-    }
+  {
+    RepresentationIterator iter(pseudo_headers, regular_headers);
+    EncodeRepresentations(&iter, output);
   }
-
-  // Encode regular headers.
-  for (const auto& header : regular_headers) {
-    const HpackEntry* entry =
-        header_table_.GetByNameAndValue(header.first, header.second);
-    if (entry != NULL) {
-      EmitIndex(entry);
-    } else {
-      EmitIndexedLiteral(header);
-    }
-  }
-
-  output_stream_.TakeString(output);
   return true;
 }
 
@@ -113,6 +141,25 @@ void HpackEncoder::ApplyHeaderTableSizeSetting(size_t size_setting) {
   should_emit_table_size_ = true;
 }
 
+void HpackEncoder::EncodeRepresentations(RepresentationIterator* iter,
+                                         string* output) {
+  MaybeEmitTableSize();
+  while (iter->HasNext()) {
+    const auto header = iter->Next();
+    const HpackEntry* entry =
+        header_table_.GetByNameAndValue(header.first, header.second);
+    if (entry != nullptr) {
+      EmitIndex(entry);
+    } else if (should_index_(header.first, header.second)) {
+      EmitIndexedLiteral(header);
+    } else {
+      EmitNonIndexedLiteral(header);
+    }
+  }
+
+  output_stream_.TakeString(output);
+}
+
 void HpackEncoder::EmitIndex(const HpackEntry* entry) {
   output_stream_.AppendPrefix(kIndexedOpcode);
   output_stream_.AppendUint32(header_table_.IndexOf(entry));
@@ -133,7 +180,7 @@ void HpackEncoder::EmitNonIndexedLiteral(const Representation& representation) {
 
 void HpackEncoder::EmitLiteral(const Representation& representation) {
   const HpackEntry* name_entry = header_table_.GetByName(representation.first);
-  if (name_entry != NULL) {
+  if (name_entry != nullptr) {
     output_stream_.AppendUint32(header_table_.IndexOf(name_entry));
   } else {
     output_stream_.AppendUint32(0);
@@ -162,6 +209,9 @@ void HpackEncoder::MaybeEmitTableSize() {
     return;
   }
   const size_t current_size = CurrentHeaderTableSizeSetting();
+  DVLOG(1) << "MaybeEmitTableSize current_size=" << current_size;
+  DVLOG(1) << "MaybeEmitTableSize min_table_size_setting_received_="
+           << min_table_size_setting_received_;
   if (min_table_size_setting_received_ < current_size) {
     output_stream_.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     output_stream_.AppendUint32(min_table_size_setting_received_);
@@ -183,7 +233,7 @@ void HpackEncoder::CookieToCrumbs(const Representation& cookie,
   StringPiece::size_type first = cookie_value.find_first_not_of(" \t");
   StringPiece::size_type last = cookie_value.find_last_not_of(" \t");
   if (first == StringPiece::npos) {
-    cookie_value.clear();
+    cookie_value = StringPiece();
   } else {
     cookie_value = cookie_value.substr(first, (last - first) + 1);
   }

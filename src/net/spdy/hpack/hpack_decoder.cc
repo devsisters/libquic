@@ -8,24 +8,19 @@
 
 #include "base/logging.h"
 #include "net/spdy/hpack/hpack_constants.h"
-#include "net/spdy/hpack/hpack_output_stream.h"
+#include "net/spdy/hpack/hpack_entry.h"
+#include "net/spdy/spdy_flags.h"
 
 namespace net {
 
 using base::StringPiece;
 using std::string;
 
-namespace {
-
-const char kCookieKey[] = "cookie";
-
-}  // namespace
-
 HpackDecoder::HpackDecoder()
     : handler_(nullptr),
       total_header_bytes_(0),
-      header_block_started_(false),
-      total_parsed_bytes_(0) {}
+      total_parsed_bytes_(0),
+      header_block_started_(false) {}
 
 HpackDecoder::~HpackDecoder() {}
 
@@ -43,6 +38,9 @@ bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
                                                  size_t headers_data_length) {
   if (!header_block_started_) {
     decoded_block_.clear();
+    header_block_started_ = true;
+    size_updates_allowed_ = true;
+    size_updates_seen_ = 0;
     if (handler_ != nullptr) {
       handler_->OnHeaderBlockStart();
     }
@@ -50,27 +48,22 @@ bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
   size_t new_size = headers_block_buffer_.size() + headers_data_length;
   if (max_decode_buffer_size_bytes_ > 0 &&
       new_size > max_decode_buffer_size_bytes_) {
+    DVLOG(1) << "max_decode_buffer_size_bytes_ < new_size: "
+             << max_decode_buffer_size_bytes_ << " < " << new_size;
     return false;
   }
   headers_block_buffer_.insert(headers_block_buffer_.end(), headers_data,
                                headers_data + headers_data_length);
 
-  // Parse as many data in buffer as possible. And remove the parsed data
-  // from buffer.
+  // Parse as many whole HPACK entries in the buffer as possible,
+  // and then remove the parsed data from the buffer.
   HpackInputStream input_stream(headers_block_buffer_);
-
-  // If this is the start of the header block, process table size updates.
-  if (!header_block_started_) {
-    if (!DecodeAtMostTwoHeaderTableSizeUpdates(&input_stream)) {
-      return false;
-    }
-    input_stream.MarkCurrentPosition();
-  }
   while (input_stream.HasMoreData()) {
     if (!DecodeNextOpcodeWrapper(&input_stream)) {
       if (input_stream.NeedMoreData()) {
         break;
       }
+      DVLOG(1) << "!DecodeNextOpcodeWrapper";
       return false;
     }
   }
@@ -78,7 +71,7 @@ bool HpackDecoder::HandleControlFrameHeadersData(const char* headers_data,
   DCHECK_GE(headers_block_buffer_.size(), parsed_bytes);
   headers_block_buffer_.erase(0, parsed_bytes);
   total_parsed_bytes_ += parsed_bytes;
-  header_block_started_ = true;
+
   return true;
 }
 
@@ -119,19 +112,24 @@ void HpackDecoder::set_max_decode_buffer_size_bytes(
 
 bool HpackDecoder::HandleHeaderRepresentation(StringPiece name,
                                               StringPiece value) {
+  size_updates_allowed_ = false;
   total_header_bytes_ += name.size() + value.size();
 
   if (handler_ == nullptr) {
-    auto it = decoded_block_.find(name);
-    if (it == decoded_block_.end()) {
-      // This is a new key.
-      decoded_block_[name] = value;
+    if (FLAGS_chromium_http2_flag_use_new_spdy_header_block_header_joining) {
+      decoded_block_.AppendValueOrAddHeader(name, value);
     } else {
-      // The key already exists, append |value| with appropriate delimiter.
-      string new_value = it->second.as_string();
-      new_value.append((name == kCookieKey) ? "; " : string(1, '\0'));
-      value.AppendToString(&new_value);
-      decoded_block_.ReplaceOrAppendHeader(name, new_value);
+      auto it = decoded_block_.find(name);
+      if (it == decoded_block_.end()) {
+        // This is a new key.
+        decoded_block_[name] = value;
+      } else {
+        // The key already exists, append |value| with appropriate delimiter.
+        string new_value = it->second.as_string();
+        new_value.append((name == "cookie") ? "; " : string(1, '\0'));
+        value.AppendToString(&new_value);
+        decoded_block_.ReplaceOrAppendHeader(name, new_value);
+      }
     }
   } else {
     DCHECK(decoded_block_.empty());
@@ -170,33 +168,10 @@ bool HpackDecoder::DecodeNextOpcode(HpackInputStream* input_stream) {
   // Implements 7.3: Header Table Size Update.
   if (input_stream->MatchPrefixAndConsume(kHeaderTableSizeUpdateOpcode)) {
     // Header table size updates cannot appear mid-block.
-    return false;
+    return DecodeNextHeaderTableSizeUpdate(input_stream);
   }
   // Unrecognized opcode.
   return false;
-}
-
-// Process 0, 1, or 2 Table Size Updates.
-bool HpackDecoder::DecodeAtMostTwoHeaderTableSizeUpdates(
-    HpackInputStream* input_stream) {
-  // Implements 7.3: Header Table Size Update.
-  if (input_stream->HasMoreData() &&
-      input_stream->MatchPrefixAndConsume(kHeaderTableSizeUpdateOpcode)) {
-    // One table size update, decode it.
-    if (DecodeNextHeaderTableSizeUpdate(input_stream)) {
-      // Check for a second table size update.
-      if (input_stream->HasMoreData() &&
-          input_stream->MatchPrefixAndConsume(kHeaderTableSizeUpdateOpcode)) {
-        // Second update found, return the result of decode.
-        return DecodeNextHeaderTableSizeUpdate(input_stream);
-      }
-    } else {
-      // Decoding the first table size update failed.
-      return false;
-    }
-  }
-  // No table size updates in this block.
-  return true;
 }
 
 bool HpackDecoder::DecodeNextHeaderTableSizeUpdate(
@@ -205,7 +180,18 @@ bool HpackDecoder::DecodeNextHeaderTableSizeUpdate(
   if (!input_stream->DecodeNextUint32(&size)) {
     return false;
   }
+  if (!size_updates_allowed_) {
+    DVLOG(1) << "Size updates not allowed after header entries.";
+    return false;
+  }
+  ++size_updates_seen_;
+  if (size_updates_seen_ > 2) {
+    DVLOG(1) << "Too many size updates at the start of the block.";
+    return false;
+  }
   if (size > header_table_.settings_size_bound()) {
+    DVLOG(1) << "Size (" << size << ") exceeds SETTINGS limit ("
+             << header_table_.settings_size_bound() << ")";
     return false;
   }
   header_table_.SetMaxSize(size);
@@ -220,6 +206,7 @@ bool HpackDecoder::DecodeNextIndexedHeader(HpackInputStream* input_stream) {
 
   const HpackEntry* entry = header_table_.GetByIndex(index);
   if (entry == NULL) {
+    DVLOG(1) << "Index " << index << " is not valid.";
     return false;
   }
 
@@ -263,6 +250,7 @@ bool HpackDecoder::DecodeNextName(HpackInputStream* input_stream,
 
   const HpackEntry* entry = header_table_.GetByIndex(index_or_zero);
   if (entry == NULL) {
+    DVLOG(1) << "index " << index_or_zero << " is not valid.";
     return false;
   }
   if (entry->IsStatic()) {

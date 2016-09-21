@@ -532,13 +532,8 @@ class NET_EXPORT_PRIVATE SpdyConstants {
   // for this value as opposed to a constant.
   static size_t GetDataFrameMinimumSize(SpdyMajorVersion version);
 
-  // Number of octets in the frame header
+  // Number of octets in the frame header.
   static size_t GetFrameHeaderSize(SpdyMajorVersion version);
-
-  // Size, in bytes, of the control frame header.
-  static size_t GetControlFrameHeaderSize(SpdyMajorVersion version);
-
-  static size_t GetPrefixLength(SpdyFrameType type, SpdyMajorVersion version);
 
   // Maximum possible configurable size of a frame in octets.
   static size_t GetMaxFrameSizeLimit(SpdyMajorVersion version);

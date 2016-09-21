@@ -174,6 +174,9 @@ namespace base {
 template <typename T>
 struct IsWeakReceiver;
 
+template <typename>
+struct BindUnwrapTraits;
+
 namespace internal {
 
 template <typename T>
@@ -275,35 +278,12 @@ class PassedWrapper {
   mutable T scoper_;
 };
 
-// Unwrap the stored parameters for the wrappers above.
 template <typename T>
-T&& Unwrap(T&& o) {
-  return std::forward<T>(o);
-}
+using Unwrapper = BindUnwrapTraits<typename std::decay<T>::type>;
 
 template <typename T>
-T* Unwrap(const UnretainedWrapper<T>& unretained) {
-  return unretained.get();
-}
-
-template <typename T>
-const T& Unwrap(const ConstRefWrapper<T>& const_ref) {
-  return const_ref.get();
-}
-
-template <typename T>
-T* Unwrap(const RetainedRefWrapper<T>& o) {
-  return o.get();
-}
-
-template <typename T>
-T* Unwrap(const OwnedWrapper<T>& o) {
-  return o.get();
-}
-
-template <typename T>
-T Unwrap(const PassedWrapper<T>& o) {
-  return o.Take();
+auto Unwrap(T&& o) -> decltype(Unwrapper<T>::Unwrap(std::forward<T>(o))) {
+  return Unwrapper<T>::Unwrap(std::forward<T>(o));
 }
 
 // IsWeakMethod is a helper that determine if we are binding a WeakPtr<> to a
@@ -496,6 +476,50 @@ struct IsWeakReceiver<internal::ConstRefWrapper<T>> : IsWeakReceiver<T> {};
 
 template <typename T>
 struct IsWeakReceiver<WeakPtr<T>> : std::true_type {};
+
+// An injection point to control how bound objects passed to the target
+// function. BindUnwrapTraits<>::Unwrap() is called for each bound objects right
+// before the target function is invoked.
+template <typename>
+struct BindUnwrapTraits {
+  template <typename T>
+  static T&& Unwrap(T&& o) { return std::forward<T>(o); }
+};
+
+template <typename T>
+struct BindUnwrapTraits<internal::UnretainedWrapper<T>> {
+  static T* Unwrap(const internal::UnretainedWrapper<T>& o) {
+    return o.get();
+  }
+};
+
+template <typename T>
+struct BindUnwrapTraits<internal::ConstRefWrapper<T>> {
+  static const T& Unwrap(const internal::ConstRefWrapper<T>& o) {
+    return o.get();
+  }
+};
+
+template <typename T>
+struct BindUnwrapTraits<internal::RetainedRefWrapper<T>> {
+  static T* Unwrap(const internal::RetainedRefWrapper<T>& o) {
+    return o.get();
+  }
+};
+
+template <typename T>
+struct BindUnwrapTraits<internal::OwnedWrapper<T>> {
+  static T* Unwrap(const internal::OwnedWrapper<T>& o) {
+    return o.get();
+  }
+};
+
+template <typename T>
+struct BindUnwrapTraits<internal::PassedWrapper<T>> {
+  static T Unwrap(const internal::PassedWrapper<T>& o) {
+    return o.Take();
+  }
+};
 
 }  // namespace base
 

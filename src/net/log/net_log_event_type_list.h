@@ -475,7 +475,7 @@ EVENT_TYPE(SSL_CLIENT_CERT_REQUESTED)
 //     "type": <type of the key>,
 //     "hash": <hash function used>,
 //   }
-EVENT_TYPE(SSL_PRIVATE_KEY_OPERATION)
+EVENT_TYPE(SSL_PRIVATE_KEY_OP)
 
 // The start/end of getting a domain-bound certificate and private key.
 //
@@ -1278,34 +1278,6 @@ EVENT_TYPE(HTTP2_SESSION)
 //   }
 EVENT_TYPE(HTTP2_SESSION_INITIALIZED)
 
-// This event is sent for a SPDY SYN_STREAM.  Note that there is no SYN_STREAM
-// frame in HTTP/2.
-// The following parameters are attached:
-//   {
-//     "flags": <The control frame flags>,
-//     "headers": <The list of header:value pairs>,
-//     "fin": <True if this is the final data set by the peer on this stream>,
-//     "unidirectional": <True if this stream is unidirectional>,
-//     "priority": <The priority value of the stream>,
-//     "stream_id": <The stream id>,
-//   }
-EVENT_TYPE(HTTP2_SESSION_SYN_STREAM)
-
-// This event is sent for a SPDY SYN_STREAM pushed by the server, where a
-// net::URLRequest is already waiting for the stream.  Note that there is no
-// SYN_STREAM frame in HTTP/2.
-// The following parameters are attached:
-//   {
-//     "flags": <The control frame flags>,
-//     "headers": <The list of header:value pairs>,
-//     "fin": <True if this is the final data set by the peer on this stream>,
-//     "unidirectional": <True if this stream is unidirectional>,
-//     "priority": <The priority value of the stream>,
-//     "stream_id": <The stream id>,
-//     "associated_stream": <The stream id>,
-//   }
-EVENT_TYPE(HTTP2_SESSION_PUSHED_SYN_STREAM)
-
 // This event is sent for sending an HTTP/2 HEADERS frame.
 // The following parameters are attached:
 //   {
@@ -1319,7 +1291,7 @@ EVENT_TYPE(HTTP2_SESSION_PUSHED_SYN_STREAM)
 //   }
 EVENT_TYPE(HTTP2_SESSION_SEND_HEADERS)
 
-// This event is sent for receiving an HTTP/2 (or SPDY) HEADERS frame.
+// This event is sent for receiving an HTTP/2 HEADERS frame.
 // The following parameters are attached:
 //   {
 //     "flags": <The control frame flags>,
@@ -1328,24 +1300,14 @@ EVENT_TYPE(HTTP2_SESSION_SEND_HEADERS)
 //   }
 EVENT_TYPE(HTTP2_SESSION_RECV_HEADERS)
 
-// This event is sent for a SPDY SYN_REPLY.  Not that there is no SYN_REPLY
-// frame in HTTP/2.
-// The following parameters are attached:
-//   {
-//     "flags": <The control frame flags>,
-//     "headers": <The list of header:value pairs>,
-//     "id": <The stream id>,
-//   }
-EVENT_TYPE(HTTP2_SESSION_SYN_REPLY)
-
-// On sending an HTTP/2 (or SPDY) SETTINGS frame.
+// On sending an HTTP/2 SETTINGS frame.
 // The following parameters are attached:
 //   {
 //     "settings": <The list of setting id, flags and value>,
 //   }
 EVENT_TYPE(HTTP2_SESSION_SEND_SETTINGS)
 
-// Receipt of an HTTP/2 (or SPDY) SETTINGS frame is received.
+// Receipt of an HTTP/2 SETTINGS frame.
 // The following parameters are attached:
 //   {
 //     "host": <The host-port string>,
@@ -1354,7 +1316,7 @@ EVENT_TYPE(HTTP2_SESSION_SEND_SETTINGS)
 //   }
 EVENT_TYPE(HTTP2_SESSION_RECV_SETTINGS)
 
-// Receipt of an individual HTTP/2 (or SPDY) setting.
+// Receipt of an individual HTTP/2 setting.
 // The following parameters are attached:
 //   {
 //     "id":    <The setting id>,
@@ -1363,7 +1325,7 @@ EVENT_TYPE(HTTP2_SESSION_RECV_SETTINGS)
 //   }
 EVENT_TYPE(HTTP2_SESSION_RECV_SETTING)
 
-// The receipt of a RST_STREAM
+// The receipt of a RST_STREAM frame.
 // The following parameters are attached:
 //   {
 //     "stream_id": <The stream ID for the window update>,
@@ -1380,7 +1342,7 @@ EVENT_TYPE(HTTP2_SESSION_RST_STREAM)
 //   }
 EVENT_TYPE(HTTP2_SESSION_SEND_RST_STREAM)
 
-// Sending of an HTTP/2 (or SPDY) PING frame.
+// Sending of an HTTP/2 PING frame.
 // The following parameters are attached:
 //   {
 //     "unique_id": <The unique id of the PING message>,
@@ -1388,7 +1350,7 @@ EVENT_TYPE(HTTP2_SESSION_SEND_RST_STREAM)
 //   }
 EVENT_TYPE(HTTP2_SESSION_PING)
 
-// Receipt of an HTTP/2 (or SPDY) GOAWAY frame.
+// Receipt of an HTTP/2 GOAWAY frame.
 // The following parameters are attached:
 //   {
 //     "last_accepted_stream_id": <Last stream id accepted by the server, duh>,
@@ -1398,15 +1360,14 @@ EVENT_TYPE(HTTP2_SESSION_PING)
 //   }
 EVENT_TYPE(HTTP2_SESSION_GOAWAY)
 
-// Receipt of an HTTP/2 (or SPDY) WINDOW_UPDATE frame (which controls the send
-// window).
+// Receipt of an HTTP/2 WINDOW_UPDATE frame (which controls the send window).
 //   {
 //     "stream_id": <The stream ID for the window update>,
 //     "delta"    : <The delta window size>,
 //   }
 EVENT_TYPE(HTTP2_SESSION_RECEIVED_WINDOW_UPDATE_FRAME)
 
-// Sending of an HTTP/2 (or SPDY) WINDOW_UPDATE frame (which controls the
+// Sending of an HTTP/2 WINDOW_UPDATE frame (which controls the
 // receive window).
 //   {
 //     "stream_id": <The stream ID for the window update>,
@@ -1444,7 +1405,7 @@ EVENT_TYPE(HTTP2_SESSION_SEND_DATA)
 //   }
 EVENT_TYPE(HTTP2_SESSION_RECV_DATA)
 
-// This event is sent for receiving an HTTP/2 (or SPDY) PUSH_PROMISE frame.
+// This event is sent for receiving an HTTP/2 PUSH_PROMISE frame.
 // The following parameters are attached:
 //   {
 //     "headers": <The list of header:value pairs>,
@@ -1506,8 +1467,8 @@ EVENT_TYPE(HTTP2_SESSION_POOL_FOUND_EXISTING_SESSION_FROM_IP_POOL)
 //   }
 EVENT_TYPE(HTTP2_SESSION_POOL_CREATED_NEW_SESSION)
 
-// This event indicates that a SSL socket has been upgraded to an HTTP/2 (or
-// SPDY) session.
+// This event indicates that a SSL socket has been upgraded to an HTTP/2
+// session.
 //   {
 //     "source_dependency": <The session id>,
 //   }
@@ -1523,7 +1484,7 @@ EVENT_TYPE(HTTP2_SESSION_POOL_REMOVE_SESSION)
 // SpdyStream
 // ------------------------------------------------------------------------
 
-// The begin and end of an HTTP/2 (or SPDY) STREAM.
+// The begin and end of an HTTP/2 STREAM.
 EVENT_TYPE(HTTP2_STREAM)
 
 // A stream is attached to a pushed stream.
@@ -1565,7 +1526,7 @@ EVENT_TYPE(HTTP2_STREAM_ERROR)
 // ------------------------------------------------------------------------
 
 EVENT_TYPE(HTTP2_PROXY_CLIENT_SESSION)
-// Identifies the HTTP/2 (or SPDY) session a source is using.
+// Identifies the HTTP/2 session a source is using.
 //   {
 //     "source_dependency":  <Source identifier for the underlying session>,
 //   }
@@ -3058,3 +3019,26 @@ EVENT_TYPE(SAFE_BROWSING_CHECKING_URL)
 //                       "resumed_redirect", "unchecked_redirect">
 //  }
 EVENT_TYPE(SAFE_BROWSING_DEFERRED)
+
+// Marks start of UploadDataStream that is logged on initialization.
+// The END phase contains the following parameters:
+// {
+//   "net_error": <Result of the initialization step>,
+//   "total_size": <Shows total content length>,
+//   "is_chunked": <Shows whether data is chunked or not>
+// }
+EVENT_TYPE(UPLOAD_DATA_STREAM_INIT)
+
+// The start/end of UploadDataStream::Read method.
+//
+// The BEGIN phase contains the following information:
+// {
+//   "current_position": <Shows current read position>,
+// }
+//
+// The END phase contains the following information:
+// {
+//   "result": <Result of reading. Result > 0 is bytes read. Result == 0 means
+//              the end of file. Result < 0 means an error.>
+// }
+EVENT_TYPE(UPLOAD_DATA_STREAM_READ)

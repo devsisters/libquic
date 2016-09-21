@@ -12,6 +12,7 @@
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
+#include "base/strings/string_piece.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
@@ -77,11 +78,11 @@ class NET_EXPORT HttpUtil {
   static bool IsSafeHeader(const std::string& name);
 
   // Returns true if |name| is a valid HTTP header name.
-  static bool IsValidHeaderName(const std::string& name);
+  static bool IsValidHeaderName(const base::StringPiece& name);
 
   // Returns false if |value| contains NUL or CRLF. This method does not perform
   // a fully RFC-2616-compliant header value validation.
-  static bool IsValidHeaderValue(const std::string& value);
+  static bool IsValidHeaderValue(const base::StringPiece& value);
 
   // Strips all header lines from |headers| whose name matches
   // |headers_to_remove|. |headers_to_remove| is a list of null-terminated
@@ -108,16 +109,15 @@ class NET_EXPORT HttpUtil {
   // Trim HTTP_LWS chars from the beginning and end of the string.
   static void TrimLWS(std::string::const_iterator* begin,
                       std::string::const_iterator* end);
+  static base::StringPiece TrimLWS(const base::StringPiece& string);
 
   // Whether the character is the start of a quotation mark.
   static bool IsQuote(char c);
 
-  // Whether the string is a valid |token| as defined in RFC 2616 Sec 2.2.
-  static bool IsToken(std::string::const_iterator begin,
-                      std::string::const_iterator end);
-  static bool IsToken(const std::string& str) {
-    return IsToken(str.begin(), str.end());
-  }
+  // Whether the character is a valid |tchar| as defined in RFC 7230 Sec 3.2.6.
+  static bool IsTokenChar(char c);
+  // Whether the string is a valid |token| as defined in RFC 7230 Sec 3.2.6.
+  static bool IsToken(const base::StringPiece& str);
 
   // Whether the string is a valid |parmname| as defined in RFC 5987 Sec 3.2.1.
   static bool IsParmName(std::string::const_iterator begin,

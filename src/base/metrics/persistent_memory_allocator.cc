@@ -13,13 +13,9 @@
 #include <sys/mman.h>
 #endif
 
-#if 0
 #include "base/files/memory_mapped_file.h"
-#endif
 #include "base/logging.h"
-#if 0
 #include "base/memory/shared_memory.h"
-#endif
 #include "base/metrics/histogram_macros.h"
 
 namespace {
@@ -781,7 +777,6 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
 
 
 //----- SharedPersistentMemoryAllocator ----------------------------------------
-#if 0
 
 SharedPersistentMemoryAllocator::SharedPersistentMemoryAllocator(
     std::unique_ptr<SharedMemory> memory,
@@ -831,6 +826,5 @@ bool FilePersistentMemoryAllocator::IsFileAcceptable(
   return IsMemoryAcceptable(file.data(), file.length(), 0, read_only);
 }
 #endif  // !defined(OS_NACL)
-#endif
 
 }  // namespace base

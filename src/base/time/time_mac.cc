@@ -259,6 +259,11 @@ bool TimeTicks::IsHighResolution() {
 }
 
 // static
+bool TimeTicks::IsConsistentAcrossProcesses() {
+  return true;
+}
+
+// static
 TimeTicks::Clock TimeTicks::GetClock() {
 #if defined(OS_IOS)
   return Clock::IOS_CF_ABSOLUTE_TIME_MINUS_KERN_BOOTTIME;

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_SPDY_HPACK_DECODER_H_
-#define NET_SPDY_HPACK_DECODER_H_
+#ifndef NET_SPDY_HPACK_HPACK_DECODER_H_
+#define NET_SPDY_HPACK_HPACK_DECODER_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -37,7 +38,7 @@ class NET_EXPORT_PRIVATE HpackDecoder : public HpackDecoderInterface {
   HpackDecoder();
   ~HpackDecoder() override;
 
-  // Called upon acknowledgement of SETTINGS_HEADER_TABLE_SIZE.
+  // Called upon sending a SETTINGS_HEADER_TABLE_SIZE value.
   void ApplyHeaderTableSizeSetting(size_t size_setting) override;
 
   // If a SpdyHeadersHandlerInterface is provided, HpackDecoder will emit
@@ -94,6 +95,21 @@ class NET_EXPORT_PRIVATE HpackDecoder : public HpackDecoderInterface {
   bool HandleHeaderRepresentation(base::StringPiece name,
                                   base::StringPiece value);
 
+  // Handlers for decoding HPACK opcodes and header representations
+  // (or parts thereof). These methods return true on success and
+  // false on error.
+  bool DecodeNextOpcodeWrapper(HpackInputStream* input_stream);
+  bool DecodeNextOpcode(HpackInputStream* input_stream);
+  bool DecodeNextHeaderTableSizeUpdate(HpackInputStream* input_stream);
+  bool DecodeNextIndexedHeader(HpackInputStream* input_stream);
+  bool DecodeNextLiteralHeader(HpackInputStream* input_stream,
+                               bool should_index);
+  bool DecodeNextName(HpackInputStream* input_stream,
+                      base::StringPiece* next_name);
+  bool DecodeNextStringLiteral(HpackInputStream* input_stream,
+                               bool is_header_key,  // As distinct from a value.
+                               base::StringPiece* output);
+
   HpackHeaderTable header_table_;
 
   // TODO(jgraettinger): Buffer for headers data, and storage for the last-
@@ -109,36 +125,30 @@ class NET_EXPORT_PRIVATE HpackDecoder : public HpackDecoderInterface {
   SpdyHeadersHandlerInterface* handler_;
   size_t total_header_bytes_;
 
-  // Flag to keep track of having seen the header block start.
-  bool header_block_started_;
+  // How much encoded data this decoder is willing to buffer.
+  size_t max_decode_buffer_size_bytes_ = 32 * 1024;  // 32 KB
 
   // Total bytes have been removed from headers_block_buffer_.
   // Its value is updated during incremental decoding.
   uint32_t total_parsed_bytes_;
 
-  // How much encoded data this decoder is willing to buffer.
-  // Defaults to 256 KB.
-  size_t max_decode_buffer_size_bytes_ = kMaxDecodeBufferSize;
+  // Flag to keep track of having seen the header block start.
+  bool header_block_started_;
 
-  // Handlers for decoding HPACK opcodes and header representations
-  // (or parts thereof). These methods return true on success and
-  // false on error.
-  bool DecodeNextOpcodeWrapper(HpackInputStream* input_stream);
-  bool DecodeNextOpcode(HpackInputStream* input_stream);
-  bool DecodeAtMostTwoHeaderTableSizeUpdates(HpackInputStream* input_stream);
-  bool DecodeNextHeaderTableSizeUpdate(HpackInputStream* input_stream);
-  bool DecodeNextIndexedHeader(HpackInputStream* input_stream);
-  bool DecodeNextLiteralHeader(HpackInputStream* input_stream,
-                               bool should_index);
-  bool DecodeNextName(HpackInputStream* input_stream,
-                      base::StringPiece* next_name);
-  bool DecodeNextStringLiteral(HpackInputStream* input_stream,
-                               bool is_header_key,  // As distinct from a value.
-                               base::StringPiece* output);
+  // Number of dynamic table size updates seen at the start; a max of two
+  // are permitted.
+  uint8_t size_updates_seen_;
+
+  // Are dynamic table size updates allowed at this point in decoding? True
+  // at the start, but not once we've seen a header entry.
+  bool size_updates_allowed_;
+
+  // Saved value of --gfe2_reloadable_flag_add_hpack_incremental_decode.
+  bool incremental_decode_;
 
   DISALLOW_COPY_AND_ASSIGN(HpackDecoder);
 };
 
 }  // namespace net
 
-#endif  // NET_SPDY_HPACK_DECODER_H_
+#endif  // NET_SPDY_HPACK_HPACK_DECODER_H_

@@ -1,0 +1,14 @@
+diff --git a/src/base/debug/activity_tracker.cc b/src/base/debug/activity_tracker.cc
+index dc1f529..ba6ceb9 100644
+--- a/src/base/debug/activity_tracker.cc
++++ b/src/base/debug/activity_tracker.cc
+@@ -10,7 +10,9 @@
+ #include "base/files/memory_mapped_file.h"
+ #include "base/logging.h"
+ #include "base/memory/ptr_util.h"
++#if 0
+ #include "base/metrics/field_trial.h"
++#endif
+ #include "base/metrics/histogram_macros.h"
+ #include "base/pending_task.h"
+ #include "base/process/process.h"

@@ -140,15 +140,25 @@
     LOCAL_HISTOGRAM_CUSTOM_COUNTS(name, sample, 1, 10000, 50)
 
 #define LOCAL_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
-    STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
-        base::Histogram::FactoryGet(name, min, max, bucket_count, \
-                                    base::HistogramBase::kNoFlags))
+    INTERNAL_HISTOGRAM_CUSTOM_COUNTS_WITH_FLAG(                             \
+        name, sample, min, max, bucket_count, base::HistogramBase::kNoFlags)
 
 // This is a helper macro used by other macros and shouldn't be used directly.
-#define HISTOGRAM_ENUMERATION_WITH_FLAG(name, sample, boundary, flag) \
-    STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
-        base::LinearHistogram::FactoryGet(name, 1, boundary, boundary + 1, \
-            flag))
+#define INTERNAL_HISTOGRAM_CUSTOM_COUNTS_WITH_FLAG(name, sample, min, max, \
+                                                   bucket_count, flag)     \
+    STATIC_HISTOGRAM_POINTER_BLOCK(                                        \
+        name, Add(sample),                                                 \
+        base::Histogram::FactoryGet(name, min, max, bucket_count, flag))
+
+// This is a helper macro used by other macros and shouldn't be used directly.
+// One additional bucket is created in the LinearHistogram for the illegal
+// values >= boundary_value so that mistakes in calling the UMA enumeration
+// macros can be detected.
+#define INTERNAL_HISTOGRAM_ENUMERATION_WITH_FLAG(name, sample, boundary, flag) \
+    STATIC_HISTOGRAM_POINTER_BLOCK(                                            \
+        name, Add(sample),                                                     \
+        base::LinearHistogram::FactoryGet(                                     \
+            name, 1, boundary, boundary + 1, flag))
 
 #define LOCAL_HISTOGRAM_PERCENTAGE(name, under_one_hundred) \
     LOCAL_HISTOGRAM_ENUMERATION(name, under_one_hundred, 101)
@@ -162,7 +172,9 @@
 // problems down the line if you add additional buckets to the histogram.  Note
 // also that, despite explicitly setting the minimum bucket value to |1| below,
 // it is fine for enumerated histograms to be 0-indexed -- this is because
-// enumerated histograms should never have underflow.
+// enumerated histograms should never have underflow. One additional bucket is
+// created in the LinearHistogram for the illegal values >= boundary_value so
+// that mistakes in calling this macro can be detected.
 #define LOCAL_HISTOGRAM_ENUMERATION(name, sample, boundary_value) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
@@ -224,9 +236,18 @@
     name, sample, 1, 10000, 50)
 
 #define UMA_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
-    STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
-        base::Histogram::FactoryGet(name, min, max, bucket_count, \
-            base::HistogramBase::kUmaTargetedHistogramFlag))
+    INTERNAL_HISTOGRAM_CUSTOM_COUNTS_WITH_FLAG(                           \
+        name, sample, min, max, bucket_count,                             \
+        base::HistogramBase::kUmaTargetedHistogramFlag)
+
+#define UMA_STABILITY_HISTOGRAM_COUNTS_100(name, sample) \
+    UMA_STABILITY_HISTOGRAM_CUSTOM_COUNTS(name, sample, 1, 100, 50)
+
+#define UMA_STABILITY_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, \
+                                              bucket_count)           \
+    INTERNAL_HISTOGRAM_CUSTOM_COUNTS_WITH_FLAG(                       \
+        name, sample, min, max, bucket_count,                         \
+        base::HistogramBase::kUmaStabilityHistogramFlag)
 
 #define UMA_HISTOGRAM_MEMORY_KB(name, sample) UMA_HISTOGRAM_CUSTOM_COUNTS( \
     name, sample, 1000, 500000, 50)
@@ -248,14 +269,16 @@
 // The samples should always be strictly less than |boundary_value|.  For more
 // details, see the comment for the |LOCAL_HISTOGRAM_ENUMERATION| macro, above.
 #define UMA_HISTOGRAM_ENUMERATION(name, sample, boundary_value) \
-    HISTOGRAM_ENUMERATION_WITH_FLAG(name, sample, boundary_value, \
+    INTERNAL_HISTOGRAM_ENUMERATION_WITH_FLAG(                   \
+        name, sample, boundary_value,                           \
         base::HistogramBase::kUmaTargetedHistogramFlag)
 
 // Similar to UMA_HISTOGRAM_ENUMERATION, but used for recording stability
 // histograms.  Use this if recording a histogram that should be part of the
 // initial stability log.
 #define UMA_STABILITY_HISTOGRAM_ENUMERATION(name, sample, boundary_value) \
-    HISTOGRAM_ENUMERATION_WITH_FLAG(name, sample, boundary_value, \
+    INTERNAL_HISTOGRAM_ENUMERATION_WITH_FLAG(                             \
+        name, sample, boundary_value,                                     \
         base::HistogramBase::kUmaStabilityHistogramFlag)
 
 #define UMA_HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) \

@@ -12,19 +12,12 @@ endif()
 
 set(COMMON_C_FLAGS "${COMMON_C_FLAGS} -Wall -fpic")
 
-set(COMMON_DEBUG_FLAGS "-gdwarf-4")
-set(COMMON_RELEASE_FLAGS "-DNDEBUG")
-
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_C_FLAGS} -std=gnu++11")
-
-if (CMAKE_BUILD_TYPE STREQUAL Debug)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_DEBUG_FLAGS}")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_DEBUG_FLAGS}")
-elseif (CMAKE_BUILD_TYPE STREQUAL Release)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_RELEASE_FLAGS}")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_RELEASE_FLAGS}")
-endif()
+set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG")
+set(CMAKE_C_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
 
 add_definitions(-DUSE_OPENSSL -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS)
 
@@ -67,90 +60,91 @@ include_directories(src src/third_party/modp_b64 boringssl/include src/third_par
 set(
 	NET_SOURCES
 
-	src/net/quic/quic_protocol.cc
-	src/net/quic/quic_packet_generator.cc
-	src/net/quic/quic_flow_controller.cc
-	src/net/quic/quic_connection_stats.cc
-	src/net/quic/quic_data_writer.cc
-	src/net/quic/quic_data_reader.cc
-	src/net/quic/quic_session.cc
-	src/net/quic/quic_spdy_session.cc
-	src/net/quic/quic_spdy_stream.cc
-	src/net/quic/iovector.cc
-	src/net/quic/quic_stream_sequencer.cc
-	src/net/quic/quic_framer.cc
-	src/net/quic/quic_sent_packet_manager.cc
-	src/net/quic/quic_time.cc
-	src/net/quic/quic_headers_stream.cc
-	src/net/quic/quic_connection.cc
-	src/net/quic/quic_types.cc
-	src/net/quic/quic_received_packet_manager.cc
-	src/net/quic/quic_write_blocked_list.cc
-	src/net/quic/quic_crypto_stream.cc
-	src/net/quic/quic_socket_address_coder.cc
-	src/net/quic/quic_utils.cc
-	src/net/quic/quic_header_list.cc
-	src/net/quic/spdy_utils.cc
-	src/net/quic/crypto/aead_base_decrypter.cc
-	src/net/quic/crypto/aead_base_encrypter.cc
-	src/net/quic/crypto/chacha20_poly1305_decrypter.cc
-	src/net/quic/crypto/chacha20_poly1305_encrypter.cc
-	src/net/quic/crypto/aes_128_gcm_12_decrypter.cc
-	src/net/quic/crypto/aes_128_gcm_12_encrypter.cc
-	src/net/quic/crypto/p256_key_exchange.cc
-	src/net/quic/crypto/quic_compressed_certs_cache.cc
-	src/net/quic/crypto/quic_crypto_server_config.cc
-	src/net/quic/crypto/crypto_handshake_message.cc
-	src/net/quic/crypto/cert_compressor.cc
-	src/net/quic/crypto/crypto_secret_boxer.cc
-	src/net/quic/crypto/curve25519_key_exchange.cc
-	src/net/quic/crypto/quic_decrypter.cc
-	src/net/quic/crypto/null_decrypter.cc
-	src/net/quic/crypto/crypto_server_config_protobuf.cc
-	src/net/quic/crypto/scoped_evp_aead_ctx.cc
-	src/net/quic/crypto/quic_random.cc
-	src/net/quic/crypto/common_cert_set.cc
-	src/net/quic/crypto/null_encrypter.cc
-	src/net/quic/crypto/crypto_framer.cc
-	src/net/quic/crypto/crypto_handshake.cc
-	src/net/quic/crypto/channel_id.cc
-	src/net/quic/crypto/strike_register.cc
-	src/net/quic/crypto/crypto_utils.cc
-	src/net/quic/crypto/local_strike_register_client.cc
-	src/net/quic/crypto/quic_encrypter.cc
-	src/net/quic/crypto/quic_crypto_client_config.cc
-	src/net/quic/crypto/proof_source.cc
-	src/net/quic/quic_buffered_packet_store.cc
-	src/net/quic/quic_clock.cc
-	src/net/quic/quic_alarm.cc
-	src/net/quic/quic_sent_entropy_manager.cc
-	src/net/quic/congestion_control/pacing_sender.cc
-	src/net/quic/congestion_control/general_loss_algorithm.cc
-	src/net/quic/congestion_control/send_algorithm_interface.cc
-	src/net/quic/congestion_control/cubic.cc
-	src/net/quic/congestion_control/cubic_bytes.cc
-	src/net/quic/congestion_control/prr_sender.cc
-	src/net/quic/congestion_control/hybrid_slow_start.cc
-	src/net/quic/congestion_control/rtt_stats.cc
-	src/net/quic/congestion_control/tcp_cubic_sender_base.cc
-	src/net/quic/congestion_control/tcp_cubic_sender_bytes.cc
-	src/net/quic/congestion_control/tcp_cubic_sender_packets.cc
-	src/net/quic/quic_config.cc
-	src/net/quic/quic_crypto_server_stream.cc
-	src/net/quic/quic_flags.cc
-	src/net/quic/reliable_quic_stream.cc
-	src/net/quic/quic_bandwidth.cc
-	src/net/quic/quic_unacked_packet_map.cc
-	src/net/quic/quic_packet_creator.cc
-	src/net/quic/quic_sustained_bandwidth_recorder.cc
-	src/net/quic/quic_client_session_base.cc
-	src/net/quic/quic_client_promised_info.cc
-	src/net/quic/quic_client_push_promise_index.cc
-	src/net/quic/quic_crypto_client_stream.cc
-	src/net/quic/quic_server_id.cc
-	src/net/quic/quic_simple_buffer_allocator.cc
-	src/net/quic/quic_stream_sequencer_buffer.cc
-	src/net/quic/quic_server_session_base.cc
+	src/net/quic/core/quic_protocol.cc
+	src/net/quic/core/quic_packet_generator.cc
+	src/net/quic/core/quic_flow_controller.cc
+	src/net/quic/core/quic_connection_stats.cc
+	src/net/quic/core/quic_data_writer.cc
+	src/net/quic/core/quic_data_reader.cc
+	src/net/quic/core/quic_session.cc
+	src/net/quic/core/quic_spdy_session.cc
+	src/net/quic/core/quic_spdy_stream.cc
+	src/net/quic/core/iovector.cc
+	src/net/quic/core/quic_stream_sequencer.cc
+	src/net/quic/core/quic_framer.cc
+	src/net/quic/core/quic_sent_packet_manager.cc
+	src/net/quic/core/quic_time.cc
+	src/net/quic/core/quic_headers_stream.cc
+	src/net/quic/core/quic_connection.cc
+	src/net/quic/core/quic_types.cc
+	src/net/quic/core/quic_received_packet_manager.cc
+	src/net/quic/core/quic_write_blocked_list.cc
+	src/net/quic/core/quic_crypto_stream.cc
+	src/net/quic/core/quic_socket_address_coder.cc
+	src/net/quic/core/quic_utils.cc
+	src/net/quic/core/quic_header_list.cc
+	src/net/quic/core/spdy_utils.cc
+	src/net/quic/core/crypto/aead_base_decrypter.cc
+	src/net/quic/core/crypto/aead_base_encrypter.cc
+	src/net/quic/core/crypto/chacha20_poly1305_decrypter.cc
+	src/net/quic/core/crypto/chacha20_poly1305_encrypter.cc
+	src/net/quic/core/crypto/aes_128_gcm_12_decrypter.cc
+	src/net/quic/core/crypto/aes_128_gcm_12_encrypter.cc
+	src/net/quic/core/crypto/p256_key_exchange.cc
+	src/net/quic/core/crypto/quic_compressed_certs_cache.cc
+	src/net/quic/core/crypto/quic_crypto_server_config.cc
+	src/net/quic/core/crypto/crypto_handshake_message.cc
+	src/net/quic/core/crypto/cert_compressor.cc
+	src/net/quic/core/crypto/crypto_secret_boxer.cc
+	src/net/quic/core/crypto/curve25519_key_exchange.cc
+	src/net/quic/core/crypto/quic_decrypter.cc
+	src/net/quic/core/crypto/null_decrypter.cc
+	src/net/quic/core/crypto/crypto_server_config_protobuf.cc
+	src/net/quic/core/crypto/scoped_evp_aead_ctx.cc
+	src/net/quic/core/crypto/quic_random.cc
+	src/net/quic/core/crypto/common_cert_set.cc
+	src/net/quic/core/crypto/null_encrypter.cc
+	src/net/quic/core/crypto/crypto_framer.cc
+	src/net/quic/core/crypto/crypto_handshake.cc
+	src/net/quic/core/crypto/channel_id.cc
+	src/net/quic/core/crypto/strike_register.cc
+	src/net/quic/core/crypto/crypto_utils.cc
+	src/net/quic/core/crypto/local_strike_register_client.cc
+	src/net/quic/core/crypto/quic_encrypter.cc
+	src/net/quic/core/crypto/quic_crypto_client_config.cc
+	src/net/quic/core/crypto/proof_source.cc
+	src/net/quic/core/quic_buffered_packet_store.cc
+	src/net/quic/core/quic_clock.cc
+	src/net/quic/core/quic_alarm.cc
+	src/net/quic/core/quic_sent_entropy_manager.cc
+	src/net/quic/core/quic_multipath_sent_packet_manager.cc
+	src/net/quic/core/congestion_control/pacing_sender.cc
+	src/net/quic/core/congestion_control/general_loss_algorithm.cc
+	src/net/quic/core/congestion_control/send_algorithm_interface.cc
+	src/net/quic/core/congestion_control/cubic.cc
+	src/net/quic/core/congestion_control/cubic_bytes.cc
+	src/net/quic/core/congestion_control/prr_sender.cc
+	src/net/quic/core/congestion_control/hybrid_slow_start.cc
+	src/net/quic/core/congestion_control/rtt_stats.cc
+	src/net/quic/core/congestion_control/tcp_cubic_sender_base.cc
+	src/net/quic/core/congestion_control/tcp_cubic_sender_bytes.cc
+	src/net/quic/core/congestion_control/tcp_cubic_sender_packets.cc
+	src/net/quic/core/quic_config.cc
+	src/net/quic/core/quic_crypto_server_stream.cc
+	src/net/quic/core/quic_flags.cc
+	src/net/quic/core/reliable_quic_stream.cc
+	src/net/quic/core/quic_bandwidth.cc
+	src/net/quic/core/quic_unacked_packet_map.cc
+	src/net/quic/core/quic_packet_creator.cc
+	src/net/quic/core/quic_sustained_bandwidth_recorder.cc
+	src/net/quic/core/quic_client_session_base.cc
+	src/net/quic/core/quic_client_promised_info.cc
+	src/net/quic/core/quic_client_push_promise_index.cc
+	src/net/quic/core/quic_crypto_client_stream.cc
+	src/net/quic/core/quic_server_id.cc
+	src/net/quic/core/quic_simple_buffer_allocator.cc
+	src/net/quic/core/quic_stream_sequencer_buffer.cc
+	src/net/quic/core/quic_server_session_base.cc
 
 	src/net/base/int128.cc
 	src/net/base/escape.cc
@@ -195,6 +189,12 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 		BASE_ARCH_SOURCES
 
 		src/base/threading/platform_thread_linux.cc
+		src/base/threading/platform_thread_internal_posix.cc
+		src/base/strings/sys_string_conversions_posix.cc
+		src/base/process/process_linux.cc
+		src/base/process/process_handle_linux.cc
+		src/base/memory/shared_memory_posix.cc
+		src/base/sys_info_linux.cc
 	)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Android")
 	set(
@@ -204,7 +204,12 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Android")
 		BASE_ARCH_SOURCES
 
 		src/base/threading/platform_thread_linux.cc
+		src/base/threading/platform_thread_internal_posix.cc
 		src/base/threading/thread_local_android.cc
+		src/base/strings/sys_string_conversions_posix.cc
+		src/base/process/process_handle_linux.cc
+		src/base/memory/shared_memory_posix.cc
+		#src/base/sys_info_android.cc
 	)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 	set(
@@ -214,6 +219,11 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 		BASE_ARCH_SOURCES
 
 		src/base/threading/platform_thread_freebsd.cc
+		src/base/threading/platform_thread_internal_posix.cc
+		src/base/strings/sys_string_conversions_posix.cc
+		src/base/process/process_handle_freebsd.cc
+		src/base/memory/shared_memory_posix.cc
+		src/base/sys_info_freebsd.mm
 	)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	FIND_LIBRARY(COREFOUNDATION_LIBRARY CoreFoundation)
@@ -230,11 +240,16 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 		src/base/threading/platform_thread_mac.mm
 		src/base/strings/sys_string_conversions_mac.mm
+		src/base/process/process_handle_mac.cc
 		src/base/mac/foundation_util.mm
 		src/base/mac/bundle_locations.mm
 		src/base/mac/mach_logging.cc
 		src/base/mac/scoped_mach_port.cc
+		src/base/mac/scoped_mach_vm.cc
 		src/base/time/time_mac.cc
+		src/base/memory/shared_memory_mac.cc
+		src/base/memory/shared_memory_handle_mac.cc
+		src/base/sys_info_mac.mm
 	)
 endif()
 
@@ -250,21 +265,21 @@ set(
 	src/base/memory/ref_counted.cc
 	src/base/memory/aligned_memory.cc
 	src/base/rand_util_posix.cc
+	src/base/sequence_token.cc
 	src/base/trace_event/heap_profiler_allocation_context_tracker.cc
 	src/base/trace_event/heap_profiler_allocation_context.cc
 	src/base/threading/thread_id_name_manager.cc
 	src/base/threading/platform_thread_posix.cc
-	src/base/threading/platform_thread_internal_posix.cc
 	src/base/threading/thread_restrictions.cc
 	src/base/threading/thread_local_storage_posix.cc
 	src/base/threading/thread_local_storage.cc
 	src/base/threading/thread_collision_warner.cc
+	src/base/threading/thread_checker_impl.cc
 	src/base/threading/thread_local_posix.cc
 	src/base/time/time_posix.cc
 	src/base/time/time.cc
 	src/base/synchronization/lock.cc
 	src/base/synchronization/lock_impl_posix.cc
-	src/base/strings/sys_string_conversions_posix.cc
 	src/base/strings/string_piece.cc
 	src/base/strings/string_util.cc
 	src/base/strings/string_number_conversions.cc
@@ -279,6 +294,7 @@ set(
 	src/base/debug/alias.cc
 	src/base/debug/stack_trace.cc
 	src/base/debug/debugger.cc
+	src/base/debug/activity_tracker.cc
 	src/base/callback_helpers.cc
 	src/base/json/json_string_value_serializer.cc
 	src/base/json/json_parser.cc
@@ -290,6 +306,7 @@ set(
 	src/base/base_switches.cc
 	src/base/values.cc
 	src/base/at_exit.cc
+	src/base/process/process_posix.cc
 	src/base/process/process_handle_posix.cc
 	src/base/bind_helpers.cc
 	src/base/vlog.cc
@@ -312,11 +329,20 @@ set(
 	src/base/rand_util.cc
 	src/base/files/file_path_constants.cc
 	src/base/files/file_path.cc
+	src/base/files/file.cc
+	src/base/files/file_posix.cc
+	src/base/files/file_tracing.cc
+	src/base/files/scoped_file.cc
+	src/base/files/memory_mapped_file.cc
+	src/base/files/memory_mapped_file_posix.cc
 	src/base/third_party/nspr/prtime.cc
 	src/base/third_party/dmg_fp/dtoa.cc
 	src/base/third_party/dmg_fp/g_fmt.cc
 	src/base/third_party/icu/icu_utf.cc
+	src/base/timer/elapsed_timer.cc
 	src/base/command_line.cc
+	src/base/sys_info.cc
+	src/base/sys_info_posix.cc
 
 	src/base/third_party/superfasthash/superfasthash.c
 )
@@ -360,8 +386,8 @@ set(
 set(
 	PROTO_SOURCES
 
-	src/net/quic/proto/cached_network_parameters.proto
-	src/net/quic/proto/source_address_token.proto
+	src/net/quic/core/proto/cached_network_parameters.proto
+	src/net/quic/core/proto/source_address_token.proto
 )
 
 find_package(Protobuf 3)
@@ -391,8 +417,8 @@ else()
 	set(
 		PROTO_RESULTS
 
-		src/net/quic/proto/cached_network_parameters.pb.cc
-		src/net/quic/proto/source_address_token.pb.cc
+		src/net/quic/core/proto/cached_network_parameters.pb.cc
+		src/net/quic/core/proto/source_address_token.pb.cc
 	)
 
 	# message("Cannot find protobuf")

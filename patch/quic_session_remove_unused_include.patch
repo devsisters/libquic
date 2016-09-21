@@ -1,11 +1,11 @@
-diff --git a/src/net/quic/quic_session.cc b/src/net/quic/quic_session.cc
-index e3aad3f..9887358 100644
---- a/src/net/quic/quic_session.cc
-+++ b/src/net/quic/quic_session.cc
+diff --git a/src/net/quic/core/quic_session.cc b/src/net/quic/core/quic_session.cc
+index e3472b7..424a6ec 100644
+--- a/src/net/quic/core/quic_session.cc
++++ b/src/net/quic/core/quic_session.cc
 @@ -12,7 +12,9 @@
- #include "net/quic/quic_connection.h"
- #include "net/quic/quic_flags.h"
- #include "net/quic/quic_flow_controller.h"
+ #include "net/quic/core/quic_connection.h"
+ #include "net/quic/core/quic_flags.h"
+ #include "net/quic/core/quic_flow_controller.h"
 +#if 0
  #include "net/ssl/ssl_info.h"
 +#endif

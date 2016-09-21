@@ -340,6 +340,11 @@ bool TimeTicks::IsHighResolution() {
 }
 
 // static
+bool TimeTicks::IsConsistentAcrossProcesses() {
+  return true;
+}
+
+// static
 ThreadTicks ThreadTicks::Now() {
 #if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     defined(OS_ANDROID)

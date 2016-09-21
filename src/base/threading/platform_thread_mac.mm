@@ -166,6 +166,11 @@ void SetPriorityRealtimeAudio(mach_port_t mach_thread_id) {
 }  // anonymous namespace
 
 // static
+bool PlatformThread::CanIncreaseCurrentThreadPriority() {
+  return true;
+}
+
+// static
 void PlatformThread::SetCurrentThreadPriority(ThreadPriority priority) {
   // Convert from pthread_t to mach thread identifier.
   mach_port_t mach_thread_id =

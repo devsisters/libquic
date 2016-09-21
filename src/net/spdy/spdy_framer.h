@@ -105,6 +105,13 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // Called if an error is detected in the SpdySerializedFrame protocol.
   virtual void OnError(SpdyFramer* framer) = 0;
 
+  // Called when the common header for a frame is received. Validating the
+  // common header occurs in later processing.
+  virtual void OnCommonHeader(SpdyStreamId stream_id,
+                              size_t length,
+                              uint8_t type,
+                              uint8_t flags) {}
+
   // Called when a data frame header is received. The frame's data
   // payload will be provided via subsequent calls to
   // OnStreamFrameData().
@@ -515,6 +522,10 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     enable_compression_ = value;
   }
 
+  void SetHpackIndexingPolicy(HpackEncoder::IndexingPolicy policy) {
+    GetHpackEncoder()->SetIndexingPolicy(std::move(policy));
+  }
+
   // Used only in log messages.
   void set_display_protocol(const std::string& protocol) {
     display_protocol_ = protocol;
@@ -535,15 +546,9 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     recv_frame_size_limit_ = recv_frame_size_limit;
   }
 
-  void SetDecoderHeaderTableDebugVisitor(
-      std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor);
-
-  void SetEncoderHeaderTableDebugVisitor(
-      std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor);
-
   // Returns the (minimum) size of frames (sans variable-length portions).
   size_t GetDataFrameMinimumSize() const;
-  size_t GetControlFrameHeaderSize() const;
+  size_t GetFrameHeaderSize() const;
   size_t GetSynStreamMinimumSize() const;
   size_t GetSynReplyMinimumSize() const;
   size_t GetRstStreamMinimumSize() const;
@@ -566,9 +571,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
   // Returns the maximum payload size of a DATA frame.
   size_t GetDataFrameMaximumPayload() const;
-
-  // Returns the prefix length for the given frame type.
-  size_t GetPrefixLength(SpdyFrameType type) const;
 
   // For debugging.
   static const char* StateToString(int state);
@@ -597,8 +599,22 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Updates the maximum size of the header encoder compression table.
   void UpdateHeaderEncoderTableSize(uint32_t value);
 
+  // Updates the maximum size of the header decoder compression table.
+  void UpdateHeaderDecoderTableSize(uint32_t value);
+
   // Returns the maximum size of the header encoder compression table.
   size_t header_encoder_table_size() const;
+
+  void SetDecoderHeaderTableDebugVisitor(
+      std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor);
+
+  void SetEncoderHeaderTableDebugVisitor(
+      std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor);
+
+  // For testing support (i.e. for clients and backends),
+  // allow overriding the flag on a per framer basis.
+  void set_use_new_methods_for_test(bool v) { use_new_methods_ = v; }
+  bool use_new_methods_for_test() const { return use_new_methods_; }
 
  protected:
   friend class BufferedSpdyFramer;
@@ -855,8 +871,8 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // rather than reading all available input.
   bool process_single_input_frame_ = false;
 
-  bool enforce_max_frame_size_ =
-      FLAGS_chromium_http2_flag_enforce_max_frame_size;
+  bool use_new_methods_ =
+      FLAGS_chromium_http2_flag_spdy_framer_use_new_methods4;
 };
 
 }  // namespace net

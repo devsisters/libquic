@@ -491,47 +491,13 @@ const GURL& GURL::EmptyGURL() {
 #endif  // WIN32
 
 bool GURL::DomainIs(base::StringPiece lower_ascii_domain) const {
-  if (!is_valid_ || lower_ascii_domain.empty())
+  if (!is_valid_)
     return false;
 
-  // FileSystem URLs have empty parsed_.host, so check this first.
+  // FileSystem URLs have empty host_piece, so check this first.
   if (SchemeIsFileSystem() && inner_url_)
     return inner_url_->DomainIs(lower_ascii_domain);
-
-  if (!parsed_.host.is_nonempty())
-    return false;
-
-  // If the host name ends with a dot but the input domain doesn't,
-  // then we ignore the dot in the host name.
-  const char* host_last_pos = spec_.data() + parsed_.host.end() - 1;
-  int host_len = parsed_.host.len;
-  int domain_len = lower_ascii_domain.length();
-  if ('.' == *host_last_pos && '.' != lower_ascii_domain[domain_len - 1]) {
-    host_last_pos--;
-    host_len--;
-  }
-
-  if (host_len < domain_len)
-    return false;
-
-  // |host_first_pos| is the start of the compared part of the host name, not
-  // start of the whole host name.
-  const char* host_first_pos = spec_.data() + parsed_.host.begin +
-                               host_len - domain_len;
-
-  if (!base::LowerCaseEqualsASCII(
-           base::StringPiece(host_first_pos, domain_len), lower_ascii_domain))
-    return false;
-
-  // Make sure there aren't extra characters in host before the compared part;
-  // if the host name is longer than the input domain name, then the character
-  // immediately before the compared part should be a dot. For example,
-  // www.google.com has domain "google.com", but www.iamnotgoogle.com does not.
-  if ('.' != lower_ascii_domain[0] && host_len > domain_len &&
-      '.' != *(host_first_pos - 1))
-    return false;
-
-  return true;
+  return url::DomainIs(host_piece(), lower_ascii_domain);
 }
 
 void GURL::Swap(GURL* other) {

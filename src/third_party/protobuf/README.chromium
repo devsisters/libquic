@@ -40,18 +40,6 @@ Steps used to create the current version:
 
 Description of the patches:
 
-- 0001-ignore-option-retain-unknown-fields.patch
-
-  Previous versions of protobuf in Chromium carried a local patch that retained
-  unknown fields in protobuf_lite mode. It was enabled by setting option
-  retain_unknown_fields = true in .proto file. Now that it is enabled by
-  default, this option is no longer recognized by protobuf, and so I had to
-  patch it so that I don't have to fix all .proto files in Chromium in a single
-  CL.
-
-  I plan to remove those occurences, and then this patch will no longer be
-  necessary.
-
 - 0003-remove-static-initializers.patch
 
   This patch removes all static initializers from Chromium. The change in Status

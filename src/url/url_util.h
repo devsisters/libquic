@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/strings/string16.h"
+#include "base/strings/string_piece.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_canon.h"
 #include "url/url_constants.h"
@@ -35,7 +36,7 @@ URL_EXPORT void Initialize();
 // library.
 URL_EXPORT void Shutdown();
 
-// Schemes --------------------------------------------------------------------
+// Schemes ---------------------------------------------------------------------
 
 // Types of a scheme representing the requirements on the data represented by
 // the authority component of a URL with the scheme.
@@ -132,7 +133,20 @@ URL_EXPORT bool GetStandardSchemeType(const char* spec,
                                       const Component& scheme,
                                       SchemeType* type);
 
-// URL library wrappers -------------------------------------------------------
+// Domains ---------------------------------------------------------------------
+
+// Returns true if the |canonicalized_host| matches or is in the same domain as
+// the given |lower_ascii_domain| string. For example, if the canonicalized
+// hostname is "www.google.com", this will return true for "com", "google.com",
+// and "www.google.com" domains.
+//
+// If either of the input StringPieces is empty, the return value is false. The
+// input domain should be a lower-case ASCII string in order to match the
+// canonicalized host.
+URL_EXPORT bool DomainIs(base::StringPiece canonicalized_host,
+                         base::StringPiece lower_ascii_domain);
+
+// URL library wrappers --------------------------------------------------------
 
 // Parses the given spec according to the extracted scheme type. Normal users
 // should use the URL object, although this may be useful if performance is
@@ -204,7 +218,7 @@ URL_EXPORT bool ReplaceComponents(
     CanonOutput* output,
     Parsed* out_parsed);
 
-// String helper functions ----------------------------------------------------
+// String helper functions -----------------------------------------------------
 
 // Unescapes the given string using URL escaping rules.
 URL_EXPORT void DecodeURLEscapeSequences(const char* input,

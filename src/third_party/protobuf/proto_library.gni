@@ -6,15 +6,18 @@
 #
 # Protobuf parameters:
 #
-#   proto_out_dir (optional)
-#       Specifies the path suffix that output files are generated under. This
-#       path will be appended to the root_gen_dir.
+#   proto_in_dir (optional)
+#       Specifies the path relative to the current BUILD.gn file where
+#       proto files are located and the directory structure of
+#       this proto library starts.
 #
-#       Targets that depend on the proto target will be able to include the
-#       resulting proto headers with an include like:
-#         #include "dir/for/my_proto_lib/foo.pb.h"
-#       If undefined, this defaults to matching the input directory for each
-#       .proto file (you should almost always use the default mode).
+#       This option can be calculated automatically but it will raise an
+#       assertion error if any nested directories are found.
+#
+#   proto_out_dir (optional)
+#       Specifies the path suffix that output files are generated under.
+#       This path will be appended to |root_gen_dir|, but for python stubs
+#       it will be appended to |root_build_dir|/pyproto.
 #
 #   generate_python (optional, default true)
 #       Generate Python protobuf stubs.
@@ -32,19 +35,19 @@
 #       macro to work (see cc_include) and set
 #       component_build_force_source_set = true.
 #
-#   generator_plugin (optional)
-#       Name of plugin executable which generates custom cc stubs.
-#       Plugin itself should be dependency of the invoker.
+#   cc_include (optional)
+#       String listing an extra include that should be passed.
+#       Example: cc_include = "foo/bar.h"
 #
-#   generator_plugin_suffix (required if generator_plugin set)
+#   generator_plugin_label (optional)
+#       GN label for plugin executable which generates custom cc stubs.
+#       Don't specify a toolchain, host toolchain is assumed.
+#
+#   generator_plugin_suffix (required if |generator_plugin_label| set)
 #       Suffix (before extension) for generated .cc and .h files.
 #
 #   generator_plugin_options (optional)
 #       Extra flags passed to the plugin. See cc_generator_options.
-#
-#   cc_include (optional)
-#       String listing an extra include that should be passed.
-#       Example: cc_include = "foo/bar.h"
 #
 #   deps (optional)
 #       Additional dependencies.
@@ -66,7 +69,7 @@
 #       A list of config labels that will be appended to the configs applying
 #       to the source set.
 #
-# Example
+# Example:
 #  proto_library("mylib") {
 #    sources = [
 #      "foo.proto",
@@ -75,6 +78,7 @@
 
 template("proto_library") {
   assert(defined(invoker.sources), "Need sources for proto_library")
+  proto_sources = invoker.sources
 
   # Don't apply OS-specific sources filtering to the assignments later on.
   # Platform files should have gotten filtered out in the sources assignment
@@ -82,120 +86,216 @@ template("proto_library") {
   # this template shouldn't re-apply the filter.
   set_sources_assignment_filter([])
 
-  action_name = "${target_name}_gen"
-  source_set_name = target_name
-  action_foreach(action_name) {
-    visibility = [ ":$source_set_name" ]
+  if (defined(invoker.generate_cc)) {
+    generate_cc = invoker.generate_cc
+  } else {
+    generate_cc = true
+  }
 
-    script = "//tools/protoc_wrapper/protoc_wrapper.py"
+  if (defined(invoker.generate_python)) {
+    generate_python = invoker.generate_python
+  } else {
+    generate_python = true
+  }
 
-    sources = invoker.sources
+  if (defined(invoker.generator_plugin_label)) {
+    generator_plugin_label = invoker.generator_plugin_label
+    generator_plugin_suffix = invoker.generator_plugin_suffix
+    generate_with_plugin = true
 
-    # Compute the output directory, both relative to the source root (for
-    # declaring "outputs") and relative to the build dir (for passing to the
-    # script).
-    if (defined(invoker.proto_out_dir)) {
-      proto_out_dir = invoker.proto_out_dir
-    } else {
-      proto_out_dir = "{{source_root_relative_dir}}"
+    # Straightforward way to get the name of executable doesn't work because
+    # |root_out_dir| and |root_build_dir| may differ in cross-compilation and
+    # also Windows executables have .exe at the end.
+
+    plugin_host_label = generator_plugin_label + "($host_toolchain)"
+    plugin_path = get_label_info(plugin_host_label, "root_out_dir") + "/" +
+                  get_label_info(plugin_host_label, "name")
+    if (host_os == "win") {
+      plugin_path += ".exe"
     }
-    out_dir = "$root_gen_dir/" + proto_out_dir
-    rel_out_dir = rebase_path(out_dir, root_build_dir)
+    plugin_path = rebase_path(plugin_path, root_build_dir)
+  } else {
+    generate_with_plugin = false
+  }
 
-    outputs = []
+  # TODO(kraynov): Remove (in the next CL) merge conflict temporary workaround.
+  # This option along with |inputs| would be replaced by the following pattern:
+  # source_set("some_python_plugin") {
+  #   sources = [
+  #     "bar.py",
+  #     ...
+  #   ]
+  # }
+  # proto_library("some_proto_lib") {
+  #   generator_plugin_label = ":some_python_plugin"
+  #   generator_plugin_suffix = ".pb.foo"
+  #   generator_plugin_script = "bar.py"
+  # }
+  if (defined(invoker.json_converter)) {
+    generator_plugin_suffix = "_json_converter"
+    plugin_path = rebase_path(invoker.json_converter)
+    invoker.generator_plugin_options = "output_dir=:"
+    generate_with_plugin = true
+  }
 
-    args = []
-    if (defined(invoker.cc_include)) {
-      args += [
-        "--include",
-        invoker.cc_include,
-        "--protobuf",
-        "$rel_out_dir/{{source_name_part}}.pb.h",
+  if (defined(invoker.proto_in_dir)) {
+    proto_in_dir = invoker.proto_in_dir
+    has_nested_dirs = false
+    foreach(proto_source, proto_sources) {
+      if (get_path_info(proto_source, "dir") != proto_in_dir) {
+        has_nested_dirs = true
+      }
+    }
+  } else {
+    proto_in_dir = get_path_info(proto_sources[0], "dir")
+    has_nested_dirs = false
+
+    # Sanity check, |proto_in_dir| should be defined to allow sub-directories.
+    foreach(proto_source, proto_sources) {
+      assert(get_path_info(proto_source, "dir") == proto_in_dir,
+             "Please define |proto_in_dir| to allow nested directories.")
+    }
+  }
+
+  # Avoid absolute path because of the assumption that |proto_in_dir| is
+  # relative to the directory of current BUILD.gn file.
+  proto_in_dir = rebase_path(proto_in_dir, ".")
+
+  if (defined(invoker.proto_out_dir)) {
+    proto_out_dir = invoker.proto_out_dir
+  } else {
+    # Absolute path to the directory of current BUILD.gn file excluding "//".
+    proto_out_dir = rebase_path(".", "//")
+    if (proto_in_dir != ".") {
+      proto_out_dir += "/$proto_in_dir"
+    }
+  }
+
+  # We need both absolute path to use in GN statements and a relative one
+  # to pass to external script.
+  if (generate_cc || generate_with_plugin) {
+    cc_out_dir = "$root_gen_dir/" + proto_out_dir
+    rel_cc_out_dir = rebase_path(cc_out_dir, root_build_dir)
+  }
+  if (generate_python) {
+    py_out_dir = "$root_out_dir/pyproto/" + proto_out_dir
+    rel_py_out_dir = rebase_path(py_out_dir, root_build_dir)
+  }
+
+  protos = rebase_path(invoker.sources, proto_in_dir)
+  protogens = []
+
+  # List output files.
+  foreach(proto, protos) {
+    proto_dir = get_path_info(proto, "dir")
+    proto_name = get_path_info(proto, "name")
+    proto_path = proto_dir + "/" + proto_name
+
+    if (generate_cc) {
+      protogens += [
+        "$cc_out_dir/$proto_path.pb.h",
+        "$cc_out_dir/$proto_path.pb.cc",
       ]
     }
+    if (generate_python) {
+      protogens += [ "$py_out_dir/${proto_path}_pb2.py" ]
+    }
+    if (generate_with_plugin) {
+      # TODO(kraynov): Remove merge conflict temporary workaround.
+      if (defined(invoker.json_converter)) {
+        protogens += [ "$cc_out_dir/${proto_path}$generator_plugin_suffix.h" ]
+      } else {
+        protogens += [
+          "$cc_out_dir/${proto_path}$generator_plugin_suffix.h",
+          "$cc_out_dir/${proto_path}$generator_plugin_suffix.cc",
+        ]
+      }
+    }
+  }
 
-    args += [
-      "--proto-in-dir",
-      "{{source_dir}}",
-      "--proto-in-file",
-      "{{source_file_part}}",
+  action_name = "${target_name}_gen"
+  source_set_name = target_name
 
-      # TODO(brettw) support system protobuf compiler.
-      "--use-system-protobuf=0",
-    ]
+  # Generate protobuf stubs.
+  action(action_name) {
+    visibility = [ ":$source_set_name" ]
+    script = "//tools/protoc_wrapper/protoc_wrapper.py"
+    sources = proto_sources
+    outputs = get_path_info(protogens, "abspath")
+    args = protos
+
+    if (defined(invoker.inputs)) {
+      inputs = invoker.inputs
+    }
 
     protoc_label = "//third_party/protobuf:protoc($host_toolchain)"
+    protoc_out_dir = get_label_info(protoc_label, "root_out_dir")
     args += [
-      "--",
-
-      # Prepend with "./" so this will never pick up the system one (normally
-      # when not cross-compiling, protoc's output directory will be the same
-      # as the build dir, so the relative location will be empty).
-      "./" +
-          rebase_path(get_label_info(protoc_label, "root_out_dir") + "/protoc",
-                      root_build_dir),
+      # Wrapper should never pick a system protoc.
+      # Path should be rebased because |root_build_dir| for current toolchain
+      # may be different from |root_out_dir| of protoc built on host toolchain.
+      "--protoc",
+      "./" + rebase_path(protoc_out_dir, root_build_dir) + "/protoc",
+      "--proto-in-dir",
+      rebase_path(proto_in_dir, root_build_dir),
     ]
 
-    if (!defined(invoker.generate_python) || invoker.generate_python) {
-      py_out_dir = "$root_out_dir/pyproto/" + proto_out_dir
-      rel_py_out_dir = rebase_path(py_out_dir, root_build_dir)
-
-      outputs += [ "$py_out_dir/{{source_name_part}}_pb2.py" ]
+    if (generate_cc) {
       args += [
-        "--python_out",
+        "--cc-out-dir",
+        rel_cc_out_dir,
+      ]
+      if (defined(invoker.cc_generator_options)) {
+        args += [
+          "--cc-options",
+          invoker.cc_generator_options,
+        ]
+      }
+      if (defined(invoker.cc_include)) {
+        args += [
+          "--include",
+          invoker.cc_include,
+        ]
+      }
+    }
+
+    if (generate_python) {
+      args += [
+        "--py-out-dir",
         rel_py_out_dir,
       ]
     }
 
-    if (!defined(invoker.generate_cc) || invoker.generate_cc) {
-      # If passed cc_generator_options should end in a colon, which will
-      # separate it from the directory when we concatenate them. The proto
-      # compiler understands this syntax.
-      if (defined(invoker.cc_generator_options)) {
-        cc_generator_options = invoker.cc_generator_options
-      } else {
-        cc_generator_options = ""
-      }
-      outputs += [
-        "$out_dir/{{source_name_part}}.pb.cc",
-        "$out_dir/{{source_name_part}}.pb.h",
-      ]
-      args += [
-        "--cpp_out",
-        "$cc_generator_options$rel_out_dir",  # Separated by colon.
-      ]
-    }
-
-    if (defined(invoker.generator_plugin)) {
-      generator_plugin = invoker.generator_plugin
-      generator_plugin_suffix = invoker.generator_plugin_suffix
-      if (defined(invoker.generator_plugin_options)) {
-        generator_plugin_options = invoker.generator_plugin_options
-      } else {
-        generator_plugin_options = ""
-      }
-      outputs += [
-        "$out_dir/{{source_name_part}}$generator_plugin_suffix.cc",
-        "$out_dir/{{source_name_part}}$generator_plugin_suffix.h",
-      ]
+    if (generate_with_plugin) {
       args += [
         "--plugin",
-        "protoc-gen-plugin=./$generator_plugin",
-        "--plugin_out",
-        "$generator_plugin_options$rel_out_dir",  # Separated by colon.
+        plugin_path,
+        "--plugin-out-dir",
+        rel_cc_out_dir,
       ]
+      if (defined(invoker.generator_plugin_options)) {
+        args += [
+          "--plugin-options",
+          invoker.generator_plugin_options,
+        ]
+      }
     }
 
     deps = [
+      # System protoc is not used so it's necessary to build a chromium one.
       protoc_label,
     ]
-
-    # The deps may have steps that have to run before running protobuf.
+    if (defined(plugin_host_label)) {
+      # Action depends on generator plugin but for host toolchain only.
+      deps += [ plugin_host_label ]
+    }
     if (defined(invoker.deps)) {
+      # The deps may have steps that have to run before running protoc.
       deps += invoker.deps
     }
   }
 
+  # Option to disable building a library in component build.
   if (defined(invoker.component_build_force_source_set) &&
       invoker.component_build_force_source_set &&
       is_component_build) {
@@ -203,11 +303,25 @@ template("proto_library") {
   } else {
     link_target_type = "static_library"
   }
+
+  # Generated files may include other generated headers. These includes always
+  # use relative paths starting at |cc_out_dir|.
+  # However there is no necessity to add an additional directory, if all protos
+  # are located in the same directory which is in the search path by default.
+  if (has_nested_dirs) {
+    config_name = "${target_name}_config"
+    config(config_name) {
+      include_dirs = [ cc_out_dir ]
+    }
+  }
+
+  # Build generated protobuf stubs as libary or source set.
   target(link_target_type, target_name) {
     forward_variables_from(invoker,
                            [
-                             "visibility",
                              "defines",
+                             "testonly",
+                             "visibility",
                            ])
 
     sources = get_target_outputs(":$action_name")
@@ -218,14 +332,24 @@ template("proto_library") {
 
     public_configs = [ "//third_party/protobuf:using_proto" ]
 
-    # If using built-in cc generator the resulting headers reference headers
-    # within protobuf_lite, hence dependencies require those headers too.
-    # In case of generator plugin such issues should be resolved by invoker.
-    if (!defined(invoker.generate_cc) || invoker.generate_cc) {
-      public_deps = [
-        "//third_party/protobuf:protobuf_lite",
-      ]
+    if (generate_cc || generate_with_plugin) {
+      # Not necessary if all protos are located in the same directory.
+      if (has_nested_dirs) {
+        # It's not enough to set |include_dirs| for target since public imports
+        # expose corresponding includes to header files as well.
+        public_configs += [ ":$config_name" ]
+      }
+
+      # If using built-in cc generator, the resulting headers reference headers
+      # within protobuf_lite. Hence, dependencies require those headers too.
+      # If using generator plugin, extra deps should be resolved by the invoker.
+      if (generate_cc) {
+        public_deps = [
+          "//third_party/protobuf:protobuf_lite",
+        ]
+      }
     }
+
     deps = [
       ":$action_name",
     ]

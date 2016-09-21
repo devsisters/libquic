@@ -61,6 +61,23 @@ class BASE_EXPORT Lock {
   void AssertAcquired() const;
 #endif  // DCHECK_IS_ON()
 
+  // Whether Lock mitigates priority inversion when used from different thread
+  // priorities.
+  static bool HandlesMultipleThreadPriorities() {
+#if defined(OS_POSIX)
+    // POSIX mitigates priority inversion by setting the priority of a thread
+    // holding a Lock to the maximum priority of any other thread waiting on it.
+    return internal::LockImpl::PriorityInheritanceAvailable();
+#elif defined(OS_WIN)
+    // Windows mitigates priority inversion by randomly boosting the priority of
+    // ready threads.
+    // https://msdn.microsoft.com/library/windows/desktop/ms684831.aspx
+    return true;
+#else
+#error Unsupported platform
+#endif
+  }
+
 #if defined(OS_POSIX) || defined(OS_WIN)
   // Both Windows and POSIX implementations of ConditionVariable need to be
   // able to see our lock and tweak our debugging counters, as they release and

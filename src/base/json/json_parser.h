@@ -161,24 +161,23 @@ class BASE_EXPORT JSONParser {
   // currently wound to a '/'.
   bool EatComment();
 
-  // Calls GetNextToken() and then ParseToken(). Caller owns the result.
-  Value* ParseNextToken();
+  // Calls GetNextToken() and then ParseToken().
+  std::unique_ptr<Value> ParseNextToken();
 
   // Takes a token that represents the start of a Value ("a structural token"
-  // in RFC terms) and consumes it, returning the result as an object the
-  // caller owns.
-  Value* ParseToken(Token token);
+  // in RFC terms) and consumes it, returning the result as a Value.
+  std::unique_ptr<Value> ParseToken(Token token);
 
   // Assuming that the parser is currently wound to '{', this parses a JSON
   // object into a DictionaryValue.
-  Value* ConsumeDictionary();
+  std::unique_ptr<Value> ConsumeDictionary();
 
   // Assuming that the parser is wound to '[', this parses a JSON list into a
-  // ListValue.
-  Value* ConsumeList();
+  // std::unique_ptr<ListValue>.
+  std::unique_ptr<Value> ConsumeList();
 
   // Calls through ConsumeStringRaw and wraps it in a value.
-  Value* ConsumeString();
+  std::unique_ptr<Value> ConsumeString();
 
   // Assuming that the parser is wound to a double quote, this parses a string,
   // decoding any escape sequences and converts UTF-16 to UTF-8. Returns true on
@@ -198,14 +197,14 @@ class BASE_EXPORT JSONParser {
 
   // Assuming that the parser is wound to the start of a valid JSON number,
   // this parses and converts it to either an int or double value.
-  Value* ConsumeNumber();
+  std::unique_ptr<Value> ConsumeNumber();
   // Helper that reads characters that are ints. Returns true if a number was
   // read and false on error.
   bool ReadInt(bool allow_leading_zeros);
 
   // Consumes the literal values of |true|, |false|, and |null|, assuming the
   // parser is wound to the first character of any of those.
-  Value* ConsumeLiteral();
+  std::unique_ptr<Value> ConsumeLiteral();
 
   // Compares two string buffers of a given length.
   static bool StringsAreEqual(const char* left, const char* right, size_t len);

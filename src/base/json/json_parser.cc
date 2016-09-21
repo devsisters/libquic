@@ -61,7 +61,7 @@ class DictionaryHiddenRootValue : public DictionaryValue {
   // Not overriding DictionaryValue::Remove because it just calls through to
   // the method below.
 
-  bool RemoveWithoutPathExpansion(const std::string& key,
+  bool RemoveWithoutPathExpansion(StringPiece key,
                                   std::unique_ptr<Value>* out) override {
     // If the caller won't take ownership of the removed value, just call up.
     if (!out)
@@ -467,11 +467,11 @@ bool JSONParser::EatComment() {
   return false;
 }
 
-Value* JSONParser::ParseNextToken() {
+std::unique_ptr<Value> JSONParser::ParseNextToken() {
   return ParseToken(GetNextToken());
 }
 
-Value* JSONParser::ParseToken(Token token) {
+std::unique_ptr<Value> JSONParser::ParseToken(Token token) {
   switch (token) {
     case T_OBJECT_BEGIN:
       return ConsumeDictionary();
@@ -491,7 +491,7 @@ Value* JSONParser::ParseToken(Token token) {
   }
 }
 
-Value* JSONParser::ConsumeDictionary() {
+std::unique_ptr<Value> JSONParser::ConsumeDictionary() {
   if (*pos_ != '{') {
     ReportError(JSONReader::JSON_UNEXPECTED_TOKEN, 1);
     return nullptr;
@@ -529,13 +529,13 @@ Value* JSONParser::ConsumeDictionary() {
 
     // The next token is the value. Ownership transfers to |dict|.
     NextChar();
-    Value* value = ParseNextToken();
+    std::unique_ptr<Value> value = ParseNextToken();
     if (!value) {
       // ReportError from deeper level.
       return nullptr;
     }
 
-    dict->SetWithoutPathExpansion(key.AsString(), value);
+    dict->SetWithoutPathExpansion(key.AsString(), std::move(value));
 
     NextChar();
     token = GetNextToken();
@@ -552,10 +552,10 @@ Value* JSONParser::ConsumeDictionary() {
     }
   }
 
-  return dict.release();
+  return std::move(dict);
 }
 
-Value* JSONParser::ConsumeList() {
+std::unique_ptr<Value> JSONParser::ConsumeList() {
   if (*pos_ != '[') {
     ReportError(JSONReader::JSON_UNEXPECTED_TOKEN, 1);
     return nullptr;
@@ -572,13 +572,13 @@ Value* JSONParser::ConsumeList() {
   NextChar();
   Token token = GetNextToken();
   while (token != T_ARRAY_END) {
-    Value* item = ParseToken(token);
+    std::unique_ptr<Value> item = ParseToken(token);
     if (!item) {
       // ReportError from deeper level.
       return nullptr;
     }
 
-    list->Append(item);
+    list->Append(std::move(item));
 
     NextChar();
     token = GetNextToken();
@@ -595,10 +595,10 @@ Value* JSONParser::ConsumeList() {
     }
   }
 
-  return list.release();
+  return std::move(list);
 }
 
-Value* JSONParser::ConsumeString() {
+std::unique_ptr<Value> JSONParser::ConsumeString() {
   StringBuilder string;
   if (!ConsumeStringRaw(&string))
     return nullptr;
@@ -606,11 +606,11 @@ Value* JSONParser::ConsumeString() {
   // Create the Value representation, using a hidden root, if configured
   // to do so, and if the string can be represented by StringPiece.
   if (string.CanBeStringPiece() && !(options_ & JSON_DETACHABLE_CHILDREN))
-    return new JSONStringValue(string.AsStringPiece());
+    return base::MakeUnique<JSONStringValue>(string.AsStringPiece());
 
   if (string.CanBeStringPiece())
     string.Convert();
-  return new StringValue(string.AsString());
+  return base::MakeUnique<StringValue>(string.AsString());
 }
 
 bool JSONParser::ConsumeStringRaw(StringBuilder* out) {
@@ -670,7 +670,8 @@ bool JSONParser::ConsumeStringRaw(StringBuilder* out) {
           }
 
           int hex_digit = 0;
-          if (!HexStringToInt(StringPiece(NextChar(), 2), &hex_digit)) {
+          if (!HexStringToInt(StringPiece(NextChar(), 2), &hex_digit) ||
+              !IsValidCharacter(hex_digit)) {
             ReportError(JSONReader::JSON_INVALID_ESCAPE, -1);
             return false;
           }
@@ -827,7 +828,7 @@ void JSONParser::DecodeUTF8(const int32_t& point, StringBuilder* dest) {
   }
 }
 
-Value* JSONParser::ConsumeNumber() {
+std::unique_ptr<Value> JSONParser::ConsumeNumber() {
   const char* num_start = pos_;
   const int start_index = index_;
   int end_index = start_index;
@@ -892,12 +893,12 @@ Value* JSONParser::ConsumeNumber() {
 
   int num_int;
   if (StringToInt(num_string, &num_int))
-    return new FundamentalValue(num_int);
+    return base::MakeUnique<FundamentalValue>(num_int);
 
   double num_double;
   if (StringToDouble(num_string.as_string(), &num_double) &&
       std::isfinite(num_double)) {
-    return new FundamentalValue(num_double);
+    return base::MakeUnique<FundamentalValue>(num_double);
   }
 
   return nullptr;
@@ -922,7 +923,7 @@ bool JSONParser::ReadInt(bool allow_leading_zeros) {
   return true;
 }
 
-Value* JSONParser::ConsumeLiteral() {
+std::unique_ptr<Value> JSONParser::ConsumeLiteral() {
   switch (*pos_) {
     case 't': {
       const char kTrueLiteral[] = "true";
@@ -933,7 +934,7 @@ Value* JSONParser::ConsumeLiteral() {
         return nullptr;
       }
       NextNChars(kTrueLen - 1);
-      return new FundamentalValue(true);
+      return base::MakeUnique<FundamentalValue>(true);
     }
     case 'f': {
       const char kFalseLiteral[] = "false";
@@ -944,7 +945,7 @@ Value* JSONParser::ConsumeLiteral() {
         return nullptr;
       }
       NextNChars(kFalseLen - 1);
-      return new FundamentalValue(false);
+      return base::MakeUnique<FundamentalValue>(false);
     }
     case 'n': {
       const char kNullLiteral[] = "null";
@@ -955,7 +956,7 @@ Value* JSONParser::ConsumeLiteral() {
         return nullptr;
       }
       NextNChars(kNullLen - 1);
-      return Value::CreateNullValue().release();
+      return Value::CreateNullValue();
     }
     default:
       ReportError(JSONReader::JSON_UNEXPECTED_TOKEN, 1);

@@ -752,8 +752,7 @@ class LinearHistogram::Factory : public Histogram::Factory {
 
   std::unique_ptr<HistogramBase> HeapAlloc(
       const BucketRanges* ranges) override {
-    return WrapUnique(
-        new LinearHistogram(name_, minimum_, maximum_, ranges));
+    return WrapUnique(new LinearHistogram(name_, minimum_, maximum_, ranges));
   }
 
   void FillHistogram(HistogramBase* base_histogram) override {

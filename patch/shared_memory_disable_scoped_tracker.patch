@@ -1,0 +1,94 @@
+diff --git a/src/base/memory/shared_memory_mac.cc b/src/base/memory/shared_memory_mac.cc
+index 97ce94e..a716db7 100644
+--- a/src/base/memory/shared_memory_mac.cc
++++ b/src/base/memory/shared_memory_mac.cc
+@@ -12,10 +12,14 @@
+ #include "base/mac/foundation_util.h"
+ #include "base/mac/mac_util.h"
+ #include "base/mac/scoped_mach_vm.h"
++#if 0
+ #include "base/metrics/field_trial.h"
++#endif
+ #include "base/metrics/histogram_macros.h"
++#if 0
+ #include "base/process/process_metrics.h"
+ #include "base/profiler/scoped_tracker.h"
++#endif
+ #include "base/scoped_generic.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "build/build_config.h"
+@@ -132,9 +136,11 @@ bool SharedMemory::GetSizeFromSharedMemoryHandle(
+ bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
+   // TODO(erikchen): Remove ScopedTracker below once http://crbug.com/466437
+   // is fixed.
++#if 0
+   tracked_objects::ScopedTracker tracking_profile1(
+       FROM_HERE_WITH_EXPLICIT_FUNCTION(
+           "466437 SharedMemory::Create::Start"));
++#endif
+   DCHECK(!shm_.IsValid());
+   if (options.size == 0) return false;
+ 
+diff --git a/src/base/memory/shared_memory_posix.cc b/src/base/memory/shared_memory_posix.cc
+index d55c2df..13b6150 100644
+--- a/src/base/memory/shared_memory_posix.cc
++++ b/src/base/memory/shared_memory_posix.cc
+@@ -16,8 +16,10 @@
+ #include "base/logging.h"
+ #include "base/posix/eintr_wrapper.h"
+ #include "base/posix/safe_strerror.h"
++#if 0
+ #include "base/process/process_metrics.h"
+ #include "base/profiler/scoped_tracker.h"
++#endif
+ #include "base/scoped_generic.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "build/build_config.h"
+@@ -37,9 +39,11 @@ struct ScopedPathUnlinkerTraits {
+   static void Free(FilePath* path) {
+     // TODO(erikchen): Remove ScopedTracker below once http://crbug.com/466437
+     // is fixed.
++#if 0
+     tracked_objects::ScopedTracker tracking_profile(
+         FROM_HERE_WITH_EXPLICIT_FUNCTION(
+             "466437 SharedMemory::Create::Unlink"));
++#endif
+     if (unlink(path->value().c_str()))
+       PLOG(WARNING) << "unlink";
+   }
+@@ -67,9 +71,11 @@ bool CreateAnonymousSharedMemory(const SharedMemoryCreateOptions& options,
+   if (GetShmemTempDir(options.executable, &directory)) {
+     // TODO(erikchen): Remove ScopedTracker below once http://crbug.com/466437
+     // is fixed.
++#if 0
+     tracked_objects::ScopedTracker tracking_profile(
+         FROM_HERE_WITH_EXPLICIT_FUNCTION(
+             "466437 SharedMemory::Create::OpenTemporaryFile"));
++#endif
+     fp->reset(base::CreateAndOpenTemporaryFileInDir(directory, path));
+ 
+     // Deleting the file prevents anyone else from mapping it in (making it
+@@ -83,9 +89,11 @@ bool CreateAnonymousSharedMemory(const SharedMemoryCreateOptions& options,
+     if (options.share_read_only) {
+       // TODO(erikchen): Remove ScopedTracker below once
+       // http://crbug.com/466437 is fixed.
++#if 0
+       tracked_objects::ScopedTracker tracking_profile(
+           FROM_HERE_WITH_EXPLICIT_FUNCTION(
+               "466437 SharedMemory::Create::OpenReadonly"));
++#endif
+       // Also open as readonly so that we can ShareReadOnlyToProcess.
+       readonly_fd->reset(HANDLE_EINTR(open(path->value().c_str(), O_RDONLY)));
+       if (!readonly_fd->is_valid()) {
+@@ -194,9 +202,11 @@ bool SharedMemory::GetSizeFromSharedMemoryHandle(
+ bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
+   // TODO(erikchen): Remove ScopedTracker below once http://crbug.com/466437
+   // is fixed.
++#if 0
+   tracked_objects::ScopedTracker tracking_profile1(
+       FROM_HERE_WITH_EXPLICIT_FUNCTION(
+           "466437 SharedMemory::Create::Start"));
++#endif
+   DCHECK_EQ(-1, mapped_file_);
+   if (options.size == 0) return false;
+ 

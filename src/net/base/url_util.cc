@@ -76,8 +76,7 @@ GURL AppendOrReplaceQueryParameter(const GURL& url,
       replaced = true;
       key_value_pair = (param_name + "=" + param_value);
     } else {
-      key_value_pair.assign(input.data(),
-                            key_range.begin,
+      key_value_pair.assign(input, key_range.begin,
                             value_range.end() - key_range.begin);
     }
     if (!output.empty())

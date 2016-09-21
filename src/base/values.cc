@@ -251,9 +251,8 @@ bool FundamentalValue::Equals(const Value* other) const {
 
 ///////////////////// StringValue ////////////////////
 
-StringValue::StringValue(const std::string& in_value)
-    : Value(TYPE_STRING),
-      value_(in_value) {
+StringValue::StringValue(StringPiece in_value)
+    : Value(TYPE_STRING), value_(in_value.as_string()) {
   DCHECK(IsStringUTF8(in_value));
 }
 
@@ -376,9 +375,9 @@ bool DictionaryValue::GetAsDictionary(const DictionaryValue** out_value) const {
   return true;
 }
 
-bool DictionaryValue::HasKey(const std::string& key) const {
+bool DictionaryValue::HasKey(StringPiece key) const {
   DCHECK(IsStringUTF8(key));
-  auto current_entry = dictionary_.find(key);
+  auto current_entry = dictionary_.find(key.as_string());
   DCHECK((current_entry == dictionary_.end()) || current_entry->second);
   return current_entry != dictionary_.end();
 }
@@ -387,12 +386,11 @@ void DictionaryValue::Clear() {
   dictionary_.clear();
 }
 
-void DictionaryValue::Set(const std::string& path,
-                          std::unique_ptr<Value> in_value) {
+void DictionaryValue::Set(StringPiece path, std::unique_ptr<Value> in_value) {
   DCHECK(IsStringUTF8(path));
   DCHECK(in_value);
 
-  std::string current_path(path);
+  std::string current_path(path.as_string());
   DictionaryValue* current_dictionary = this;
   for (size_t delimiter_position = current_path.find('.');
        delimiter_position != std::string::npos;
@@ -413,64 +411,62 @@ void DictionaryValue::Set(const std::string& path,
                                               std::move(in_value));
 }
 
-void DictionaryValue::Set(const std::string& path, Value* in_value) {
+void DictionaryValue::Set(StringPiece path, Value* in_value) {
   Set(path, WrapUnique(in_value));
 }
 
-void DictionaryValue::SetBoolean(const std::string& path, bool in_value) {
+void DictionaryValue::SetBoolean(StringPiece path, bool in_value) {
   Set(path, new FundamentalValue(in_value));
 }
 
-void DictionaryValue::SetInteger(const std::string& path, int in_value) {
+void DictionaryValue::SetInteger(StringPiece path, int in_value) {
   Set(path, new FundamentalValue(in_value));
 }
 
-void DictionaryValue::SetDouble(const std::string& path, double in_value) {
+void DictionaryValue::SetDouble(StringPiece path, double in_value) {
   Set(path, new FundamentalValue(in_value));
 }
 
-void DictionaryValue::SetString(const std::string& path,
-                                const std::string& in_value) {
+void DictionaryValue::SetString(StringPiece path, StringPiece in_value) {
+  Set(path, new StringValue(in_value.as_string()));
+}
+
+void DictionaryValue::SetString(StringPiece path, const string16& in_value) {
   Set(path, new StringValue(in_value));
 }
 
-void DictionaryValue::SetString(const std::string& path,
-                                const string16& in_value) {
-  Set(path, new StringValue(in_value));
-}
-
-void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
+void DictionaryValue::SetWithoutPathExpansion(StringPiece key,
                                               std::unique_ptr<Value> in_value) {
-  dictionary_[key] = std::move(in_value);
+  dictionary_[key.as_string()] = std::move(in_value);
 }
 
-void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
+void DictionaryValue::SetWithoutPathExpansion(StringPiece key,
                                               Value* in_value) {
   SetWithoutPathExpansion(key, WrapUnique(in_value));
 }
 
-void DictionaryValue::SetBooleanWithoutPathExpansion(
-    const std::string& path, bool in_value) {
+void DictionaryValue::SetBooleanWithoutPathExpansion(StringPiece path,
+                                                     bool in_value) {
   SetWithoutPathExpansion(path, new FundamentalValue(in_value));
 }
 
-void DictionaryValue::SetIntegerWithoutPathExpansion(
-    const std::string& path, int in_value) {
+void DictionaryValue::SetIntegerWithoutPathExpansion(StringPiece path,
+                                                     int in_value) {
   SetWithoutPathExpansion(path, new FundamentalValue(in_value));
 }
 
-void DictionaryValue::SetDoubleWithoutPathExpansion(
-    const std::string& path, double in_value) {
+void DictionaryValue::SetDoubleWithoutPathExpansion(StringPiece path,
+                                                    double in_value) {
   SetWithoutPathExpansion(path, new FundamentalValue(in_value));
 }
 
-void DictionaryValue::SetStringWithoutPathExpansion(
-    const std::string& path, const std::string& in_value) {
-  SetWithoutPathExpansion(path, new StringValue(in_value));
+void DictionaryValue::SetStringWithoutPathExpansion(StringPiece path,
+                                                    StringPiece in_value) {
+  SetWithoutPathExpansion(path, new StringValue(in_value.as_string()));
 }
 
-void DictionaryValue::SetStringWithoutPathExpansion(
-    const std::string& path, const string16& in_value) {
+void DictionaryValue::SetStringWithoutPathExpansion(StringPiece path,
+                                                    const string16& in_value) {
   SetWithoutPathExpansion(path, new StringValue(in_value));
 }
 
@@ -503,8 +499,7 @@ bool DictionaryValue::Get(StringPiece path, Value** out_value)  {
       const_cast<const Value**>(out_value));
 }
 
-bool DictionaryValue::GetBoolean(const std::string& path,
-                                 bool* bool_value) const {
+bool DictionaryValue::GetBoolean(StringPiece path, bool* bool_value) const {
   const Value* value;
   if (!Get(path, &value))
     return false;
@@ -512,8 +507,7 @@ bool DictionaryValue::GetBoolean(const std::string& path,
   return value->GetAsBoolean(bool_value);
 }
 
-bool DictionaryValue::GetInteger(const std::string& path,
-                                 int* out_value) const {
+bool DictionaryValue::GetInteger(StringPiece path, int* out_value) const {
   const Value* value;
   if (!Get(path, &value))
     return false;
@@ -521,8 +515,7 @@ bool DictionaryValue::GetInteger(const std::string& path,
   return value->GetAsInteger(out_value);
 }
 
-bool DictionaryValue::GetDouble(const std::string& path,
-                                double* out_value) const {
+bool DictionaryValue::GetDouble(StringPiece path, double* out_value) const {
   const Value* value;
   if (!Get(path, &value))
     return false;
@@ -530,7 +523,7 @@ bool DictionaryValue::GetDouble(const std::string& path,
   return value->GetAsDouble(out_value);
 }
 
-bool DictionaryValue::GetString(const std::string& path,
+bool DictionaryValue::GetString(StringPiece path,
                                 std::string* out_value) const {
   const Value* value;
   if (!Get(path, &value))
@@ -539,8 +532,7 @@ bool DictionaryValue::GetString(const std::string& path,
   return value->GetAsString(out_value);
 }
 
-bool DictionaryValue::GetString(const std::string& path,
-                                string16* out_value) const {
+bool DictionaryValue::GetString(StringPiece path, string16* out_value) const {
   const Value* value;
   if (!Get(path, &value))
     return false;
@@ -548,7 +540,7 @@ bool DictionaryValue::GetString(const std::string& path,
   return value->GetAsString(out_value);
 }
 
-bool DictionaryValue::GetStringASCII(const std::string& path,
+bool DictionaryValue::GetStringASCII(StringPiece path,
                                      std::string* out_value) const {
   std::string out;
   if (!GetString(path, &out))
@@ -563,7 +555,7 @@ bool DictionaryValue::GetStringASCII(const std::string& path,
   return true;
 }
 
-bool DictionaryValue::GetBinary(const std::string& path,
+bool DictionaryValue::GetBinary(StringPiece path,
                                 const BinaryValue** out_value) const {
   const Value* value;
   bool result = Get(path, &value);
@@ -576,8 +568,7 @@ bool DictionaryValue::GetBinary(const std::string& path,
   return true;
 }
 
-bool DictionaryValue::GetBinary(const std::string& path,
-                                BinaryValue** out_value) {
+bool DictionaryValue::GetBinary(StringPiece path, BinaryValue** out_value) {
   return static_cast<const DictionaryValue&>(*this).GetBinary(
       path,
       const_cast<const BinaryValue**>(out_value));
@@ -603,7 +594,7 @@ bool DictionaryValue::GetDictionary(StringPiece path,
       const_cast<const DictionaryValue**>(out_value));
 }
 
-bool DictionaryValue::GetList(const std::string& path,
+bool DictionaryValue::GetList(StringPiece path,
                               const ListValue** out_value) const {
   const Value* value;
   bool result = Get(path, &value);
@@ -616,16 +607,16 @@ bool DictionaryValue::GetList(const std::string& path,
   return true;
 }
 
-bool DictionaryValue::GetList(const std::string& path, ListValue** out_value) {
+bool DictionaryValue::GetList(StringPiece path, ListValue** out_value) {
   return static_cast<const DictionaryValue&>(*this).GetList(
       path,
       const_cast<const ListValue**>(out_value));
 }
 
-bool DictionaryValue::GetWithoutPathExpansion(const std::string& key,
+bool DictionaryValue::GetWithoutPathExpansion(StringPiece key,
                                               const Value** out_value) const {
   DCHECK(IsStringUTF8(key));
-  auto entry_iterator = dictionary_.find(key);
+  auto entry_iterator = dictionary_.find(key.as_string());
   if (entry_iterator == dictionary_.end())
     return false;
 
@@ -634,14 +625,14 @@ bool DictionaryValue::GetWithoutPathExpansion(const std::string& key,
   return true;
 }
 
-bool DictionaryValue::GetWithoutPathExpansion(const std::string& key,
+bool DictionaryValue::GetWithoutPathExpansion(StringPiece key,
                                               Value** out_value) {
   return static_cast<const DictionaryValue&>(*this).GetWithoutPathExpansion(
       key,
       const_cast<const Value**>(out_value));
 }
 
-bool DictionaryValue::GetBooleanWithoutPathExpansion(const std::string& key,
+bool DictionaryValue::GetBooleanWithoutPathExpansion(StringPiece key,
                                                      bool* out_value) const {
   const Value* value;
   if (!GetWithoutPathExpansion(key, &value))
@@ -650,7 +641,7 @@ bool DictionaryValue::GetBooleanWithoutPathExpansion(const std::string& key,
   return value->GetAsBoolean(out_value);
 }
 
-bool DictionaryValue::GetIntegerWithoutPathExpansion(const std::string& key,
+bool DictionaryValue::GetIntegerWithoutPathExpansion(StringPiece key,
                                                      int* out_value) const {
   const Value* value;
   if (!GetWithoutPathExpansion(key, &value))
@@ -659,7 +650,7 @@ bool DictionaryValue::GetIntegerWithoutPathExpansion(const std::string& key,
   return value->GetAsInteger(out_value);
 }
 
-bool DictionaryValue::GetDoubleWithoutPathExpansion(const std::string& key,
+bool DictionaryValue::GetDoubleWithoutPathExpansion(StringPiece key,
                                                     double* out_value) const {
   const Value* value;
   if (!GetWithoutPathExpansion(key, &value))
@@ -669,7 +660,7 @@ bool DictionaryValue::GetDoubleWithoutPathExpansion(const std::string& key,
 }
 
 bool DictionaryValue::GetStringWithoutPathExpansion(
-    const std::string& key,
+    StringPiece key,
     std::string* out_value) const {
   const Value* value;
   if (!GetWithoutPathExpansion(key, &value))
@@ -678,7 +669,7 @@ bool DictionaryValue::GetStringWithoutPathExpansion(
   return value->GetAsString(out_value);
 }
 
-bool DictionaryValue::GetStringWithoutPathExpansion(const std::string& key,
+bool DictionaryValue::GetStringWithoutPathExpansion(StringPiece key,
                                                     string16* out_value) const {
   const Value* value;
   if (!GetWithoutPathExpansion(key, &value))
@@ -688,7 +679,7 @@ bool DictionaryValue::GetStringWithoutPathExpansion(const std::string& key,
 }
 
 bool DictionaryValue::GetDictionaryWithoutPathExpansion(
-    const std::string& key,
+    StringPiece key,
     const DictionaryValue** out_value) const {
   const Value* value;
   bool result = GetWithoutPathExpansion(key, &value);
@@ -702,7 +693,7 @@ bool DictionaryValue::GetDictionaryWithoutPathExpansion(
 }
 
 bool DictionaryValue::GetDictionaryWithoutPathExpansion(
-    const std::string& key,
+    StringPiece key,
     DictionaryValue** out_value) {
   const DictionaryValue& const_this =
       static_cast<const DictionaryValue&>(*this);
@@ -712,7 +703,7 @@ bool DictionaryValue::GetDictionaryWithoutPathExpansion(
 }
 
 bool DictionaryValue::GetListWithoutPathExpansion(
-    const std::string& key,
+    StringPiece key,
     const ListValue** out_value) const {
   const Value* value;
   bool result = GetWithoutPathExpansion(key, &value);
@@ -725,7 +716,7 @@ bool DictionaryValue::GetListWithoutPathExpansion(
   return true;
 }
 
-bool DictionaryValue::GetListWithoutPathExpansion(const std::string& key,
+bool DictionaryValue::GetListWithoutPathExpansion(StringPiece key,
                                                   ListValue** out_value) {
   return
       static_cast<const DictionaryValue&>(*this).GetListWithoutPathExpansion(
@@ -733,10 +724,10 @@ bool DictionaryValue::GetListWithoutPathExpansion(const std::string& key,
           const_cast<const ListValue**>(out_value));
 }
 
-bool DictionaryValue::Remove(const std::string& path,
+bool DictionaryValue::Remove(StringPiece path,
                              std::unique_ptr<Value>* out_value) {
   DCHECK(IsStringUTF8(path));
-  std::string current_path(path);
+  std::string current_path(path.as_string());
   DictionaryValue* current_dictionary = this;
   size_t delimiter_position = current_path.rfind('.');
   if (delimiter_position != std::string::npos) {
@@ -751,10 +742,10 @@ bool DictionaryValue::Remove(const std::string& path,
 }
 
 bool DictionaryValue::RemoveWithoutPathExpansion(
-    const std::string& key,
+    StringPiece key,
     std::unique_ptr<Value>* out_value) {
   DCHECK(IsStringUTF8(key));
-  auto entry_iterator = dictionary_.find(key);
+  auto entry_iterator = dictionary_.find(key.as_string());
   if (entry_iterator == dictionary_.end())
     return false;
 
@@ -764,7 +755,7 @@ bool DictionaryValue::RemoveWithoutPathExpansion(
   return true;
 }
 
-bool DictionaryValue::RemovePath(const std::string& path,
+bool DictionaryValue::RemovePath(StringPiece path,
                                  std::unique_ptr<Value>* out_value) {
   bool result = false;
   size_t delimiter_position = path.find('.');
@@ -772,7 +763,7 @@ bool DictionaryValue::RemovePath(const std::string& path,
   if (delimiter_position == std::string::npos)
     return RemoveWithoutPathExpansion(path, out_value);
 
-  const std::string subdict_path = path.substr(0, delimiter_position);
+  StringPiece subdict_path = path.substr(0, delimiter_position);
   DictionaryValue* subdict = NULL;
   if (!GetDictionary(subdict_path, &subdict))
     return false;
@@ -1068,8 +1059,8 @@ void ListValue::AppendDouble(double in_value) {
   Append(new FundamentalValue(in_value));
 }
 
-void ListValue::AppendString(const std::string& in_value) {
-  Append(new StringValue(in_value));
+void ListValue::AppendString(StringPiece in_value) {
+  Append(new StringValue(in_value.as_string()));
 }
 
 void ListValue::AppendString(const string16& in_value) {
@@ -1090,24 +1081,23 @@ void ListValue::AppendStrings(const std::vector<string16>& in_values) {
   }
 }
 
-bool ListValue::AppendIfNotPresent(Value* in_value) {
+bool ListValue::AppendIfNotPresent(std::unique_ptr<Value> in_value) {
   DCHECK(in_value);
   for (const auto& entry : list_) {
-    if (entry->Equals(in_value)) {
-      delete in_value;
+    if (entry->Equals(in_value.get())) {
       return false;
     }
   }
-  list_.emplace_back(in_value);
+  list_.push_back(std::move(in_value));
   return true;
 }
 
-bool ListValue::Insert(size_t index, Value* in_value) {
+bool ListValue::Insert(size_t index, std::unique_ptr<Value> in_value) {
   DCHECK(in_value);
   if (index > list_.size())
     return false;
 
-  list_.insert(list_.begin() + index, WrapUnique(in_value));
+  list_.insert(list_.begin() + index, std::move(in_value));
   return true;
 }
 

@@ -4,10 +4,10 @@
 
 #include "net/spdy/spdy_header_block.h"
 
+#include <string.h>
+
 #include <algorithm>
-#include <ios>
 #include <utility>
-#include <vector>
 
 #include "base/logging.h"
 #include "base/macros.h"
@@ -28,6 +28,8 @@ namespace {
 // SpdyHeaderBlock::Storage allocates blocks of this size by default.
 const size_t kDefaultStorageBlockSize = 2048;
 
+const char kCookieKey[] = "cookie";
+
 }  // namespace
 
 // This class provides a backing store for StringPieces. It previously used
@@ -45,6 +47,24 @@ class SpdyHeaderBlock::Storage {
 
   StringPiece Write(const StringPiece s) {
     return StringPiece(arena_.Memdup(s.data(), s.size()), s.size());
+  }
+
+  // Given value, a string already in the arena, perform a realloc and append
+  // separator and more to the end of the value's new location. If value is the
+  // most recently added string (via Write), then UnsafeArena will not copy the
+  // existing value but instead will increase the space reserved for value.
+  StringPiece Realloc(StringPiece value,
+                      StringPiece separator,
+                      StringPiece more) {
+    size_t total_length = value.size() + separator.size() + more.size();
+    char* ptr = const_cast<char*>(value.data());
+    ptr = arena_.Realloc(ptr, value.size(), total_length);
+    StringPiece result(ptr, total_length);
+    ptr += value.size();
+    memcpy(ptr, separator.data(), separator.size());
+    ptr += separator.size();
+    memcpy(ptr, more.data(), more.size());
+    return result;
   }
 
   // If |s| points to the most recent allocation from arena_, the arena will
@@ -206,6 +226,22 @@ void SpdyHeaderBlock::ReplaceOrAppendHeader(const StringPiece key,
     DVLOG(1) << "Updating key: " << iter->first << " with value: " << value;
     iter->second = GetStorage()->Write(value);
   }
+}
+
+void SpdyHeaderBlock::AppendValueOrAddHeader(const StringPiece key,
+                                             const StringPiece value) {
+  auto iter = block_.find(key);
+  if (iter == block_.end()) {
+    DVLOG(1) << "Inserting: (" << key << ", " << value << ")";
+    AppendHeader(key, value);
+    return;
+  }
+  DVLOG(1) << "Updating key: " << iter->first << "; appending value: " << value;
+  StringPiece separator("", 1);
+  if (key == kCookieKey) {
+    separator = "; ";
+  }
+  iter->second = GetStorage()->Realloc(iter->second, separator, value);
 }
 
 void SpdyHeaderBlock::AppendHeader(const StringPiece key,

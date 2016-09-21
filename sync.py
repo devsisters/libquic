@@ -74,11 +74,11 @@ def main():
                 dirs.add(dirpath)
 
             if relpath not in files:
-                run("cp {} {}".format(node, relpath))
+                run("cp -p {} {}".format(node, relpath))
                 files.add(relpath)
 
                 if node.endswith('.h'):
-                    for extension in ('.cc', '.mm'):#, '_posix.cc', '_mac.mm', '_linux.cc', '_freebsd.cc'):
+                    for extension in ('.cc', '.mm', '_posix.cc', '_mac.mm', '_mac.cc', '_linux.cc', '_freebsd.cc'):
                         if os.path.exists(node[:-2] + extension):
                             print("Append {} from {}".format(node[:-2] + extension, autodep))
                             q.append(node[:-2] + extension)
@@ -89,13 +89,13 @@ def main():
                 run("mkdir -p src/{target}".format(target=target))
         elif dep["action"] == "copy":
             for target in dep["target"]:
-                run("cp {chromium}/{target} src/{targetpath}/".format(
+                run("cp -p {chromium}/{target} src/{targetpath}/".format(
                     chromium=chromium_root,
                     target=target,
                     targetpath=os.path.dirname(target)))
         elif dep["action"] == "copydir":
             for target in dep["target"]:
-                run("cp -r {chromium}/{target} src/{targetpath}/".format(
+                run("cp -p -r {chromium}/{target} src/{targetpath}/".format(
                     chromium=chromium_root,
                     target=target,
                     targetpath=os.path.dirname(target)))
@@ -112,7 +112,7 @@ def main():
 
     # 4. Copy custom files
     for custom in deps.get("custom_files", []):
-        run("cp {from_} src/{to}".format(from_=custom['from'], to=custom['to']))
+        run("cp -p {from_} src/{to}".format(from_=custom['from'], to=custom['to']))
 
 
 if __name__ == "__main__":

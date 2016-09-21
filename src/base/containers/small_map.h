@@ -510,8 +510,8 @@ class SmallMap {
     size_ = 0;
   }
 
-  // Invalidates iterators.
-  void erase(const iterator& position) {
+  // Invalidates iterators. Returns iterator following the last removed element.
+  iterator erase(const iterator& position) {
     if (size_ >= 0) {
       int i = position.array_iter_ - array_;
       array_[i].Destroy();
@@ -519,10 +519,11 @@ class SmallMap {
       if (i != size_) {
         array_[i].InitFromMove(std::move(array_[size_]));
         array_[size_].Destroy();
+        return iterator(array_ + i);
       }
-    } else {
-      map_->erase(position.hash_iter_);
+      return end();
     }
+    return iterator(map_->erase(position.hash_iter_));
   }
 
   size_t erase(const key_type& key) {

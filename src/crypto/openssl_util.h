@@ -15,7 +15,7 @@ namespace crypto {
 
 // Provides a buffer of at least MIN_SIZE bytes, for use when calling OpenSSL's
 // SHA256, HMAC, etc functions, adapting the buffer sizing rules to meet those
-// of the our base wrapper APIs.
+// of our base wrapper APIs.
 // This allows the library to write directly to the caller's buffer if it is of
 // sufficient size, but if not it will write to temporary |min_sized_buffer_|
 // of required size and then its content is automatically copied out on

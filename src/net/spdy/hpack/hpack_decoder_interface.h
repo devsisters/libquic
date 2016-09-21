@@ -56,9 +56,7 @@ class NET_EXPORT_PRIVATE HpackDecoderInterface {
   virtual void SetHeaderTableDebugVisitor(
       std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) = 0;
 
-  // How much encoded data this decoder is willing to buffer. Defaults to 32 KB.
-  // See FLAGS_gfe2_reloadable_flag_remove_hpack_decode_buffer_size_limit, which
-  // is increasing this to twice the decoded limit.
+  // How much encoded data this decoder is willing to buffer.
   virtual void set_max_decode_buffer_size_bytes(
       size_t max_decode_buffer_size_bytes) = 0;
 };

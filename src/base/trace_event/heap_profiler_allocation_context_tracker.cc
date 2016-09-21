@@ -108,17 +108,17 @@ void AllocationContextTracker::SetCaptureMode(CaptureMode mode) {
 }
 
 void AllocationContextTracker::PushPseudoStackFrame(
-    const char* trace_event_name) {
+    AllocationContextTracker::PseudoStackFrame stack_frame) {
   // Impose a limit on the height to verify that every push is popped, because
   // in practice the pseudo stack never grows higher than ~20 frames.
   if (pseudo_stack_.size() < kMaxStackDepth)
-    pseudo_stack_.push_back(trace_event_name);
+    pseudo_stack_.push_back(stack_frame);
   else
     NOTREACHED();
 }
 
 void AllocationContextTracker::PopPseudoStackFrame(
-    const char* trace_event_name) {
+    AllocationContextTracker::PseudoStackFrame stack_frame) {
   // Guard for stack underflow. If tracing was started with a TRACE_EVENT in
   // scope, the frame was never pushed, so it is possible that pop is called
   // on an empty stack.
@@ -128,7 +128,7 @@ void AllocationContextTracker::PopPseudoStackFrame(
   // Assert that pushes and pops are nested correctly. This DCHECK can be
   // hit if some TRACE_EVENT macro is unbalanced (a TRACE_EVENT_END* call
   // without a corresponding TRACE_EVENT_BEGIN).
-  DCHECK_EQ(trace_event_name, pseudo_stack_.back())
+  DCHECK(stack_frame == pseudo_stack_.back())
       << "Encountered an unmatched TRACE_EVENT_END";
 
   pseudo_stack_.pop_back();
@@ -193,11 +193,12 @@ AllocationContext AllocationContextTracker::GetContextSnapshot() {
       }
     case CaptureMode::PSEUDO_STACK:
       {
-        for (const char* event_name: pseudo_stack_) {
+        for (const PseudoStackFrame& stack_frame : pseudo_stack_) {
           if (backtrace == backtrace_end) {
             break;
           }
-          *backtrace++ = StackFrame::FromTraceEventName(event_name);
+          *backtrace++ =
+              StackFrame::FromTraceEventName(stack_frame.trace_event_name);
         }
         break;
       }
@@ -237,7 +238,13 @@ AllocationContext AllocationContextTracker::GetContextSnapshot() {
 
   // TODO(ssid): Fix crbug.com/594803 to add file name as 3rd dimension
   // (component name) in the heap profiler and not piggy back on the type name.
-  ctx.type_name = task_contexts_.empty() ? nullptr : task_contexts_.back();
+  if (!task_contexts_.empty()) {
+    ctx.type_name = task_contexts_.back();
+  } else if (!pseudo_stack_.empty()) {
+    // If task context was unavailable, then the category names are taken from
+    // trace events.
+    ctx.type_name = pseudo_stack_.back().trace_event_category;
+  }
 
   return ctx;
 }

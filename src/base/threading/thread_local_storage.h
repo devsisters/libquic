@@ -127,14 +127,20 @@ class BASE_EXPORT ThreadLocalStorage {
 
   // A convenience wrapper around StaticSlot with a constructor. Can be used
   // as a member variable.
-  class BASE_EXPORT Slot : public StaticSlot {
+  class BASE_EXPORT Slot {
    public:
-    // Calls StaticSlot::Initialize().
     explicit Slot(TLSDestructorFunc destructor = NULL);
+    ~Slot();
+
+    // Get the thread-local value stored in this slot.
+    // Values are guaranteed to initially be zero.
+    void* Get() const;
+
+    // Set the slot's thread-local value to |value|.
+    void Set(void* value);
 
    private:
-    using StaticSlot::initialized_;
-    using StaticSlot::slot_;
+    StaticSlot tls_slot_;
 
     DISALLOW_COPY_AND_ASSIGN(Slot);
   };

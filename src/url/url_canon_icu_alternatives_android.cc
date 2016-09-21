@@ -11,6 +11,8 @@
 #include "jni/IDNStringUtil_jni.h"
 #include "url/url_canon_internal.h"
 
+using base::android::ScopedJavaLocalRef;
+
 namespace url {
 
 // This uses the JDK's conversion function, which uses IDNA 2003, unlike the
@@ -32,10 +34,6 @@ bool IDNToASCII(const base::char16* src, int src_len, CanonOutputW* output) {
       base::android::ConvertJavaStringToUTF16(java_result);
   output->Append(utf16_result.data(), static_cast<int>(utf16_result.size()));
   return true;
-}
-
-bool RegisterIcuAlternativesJni(JNIEnv* env) {
-  return android::RegisterNativesImpl(env);
 }
 
 }  // namespace url

@@ -48,6 +48,11 @@ class BASE_EXPORT LockImpl {
   // unnecessary.
   NativeHandle* native_handle() { return &native_handle_; }
 
+#if defined(OS_POSIX)
+  // Whether this lock will attempt to use priority inheritance.
+  static bool PriorityInheritanceAvailable();
+#endif
+
  private:
   NativeHandle native_handle_;
 

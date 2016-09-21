@@ -17,13 +17,13 @@ WeakReference::Flag::Flag() : is_valid_(true) {
 void WeakReference::Flag::Invalidate() {
   // The flag being invalidated with a single ref implies that there are no
   // weak pointers in existence. Allow deletion on other thread in this case.
-  DCHECK(sequence_checker_.CalledOnValidSequencedThread() || HasOneRef())
+  DCHECK(sequence_checker_.CalledOnValidSequence() || HasOneRef())
       << "WeakPtrs must be invalidated on the same sequenced thread.";
   is_valid_ = false;
 }
 
 bool WeakReference::Flag::IsValid() const {
-  DCHECK(sequence_checker_.CalledOnValidSequencedThread())
+  DCHECK(sequence_checker_.CalledOnValidSequence())
       << "WeakPtrs must be checked on the same sequenced thread.";
   return is_valid_;
 }

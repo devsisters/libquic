@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
@@ -83,10 +84,23 @@ class NET_EXPORT SpdyHeaderBlock {
   // Clears both our MapType member and the memory used to hold headers.
   void clear();
 
-  // These methods copy data into our backing storage.
+  // The next few methods copy data into our backing storage.
+
+  // If key already exists in the block, replaces the value of that key. Else
+  // adds a new header to the end of the block.
   void insert(const MapType::value_type& value);
+
+  // If key already exists in the block, replaces the value of that key. Else
+  // adds a new header to the end of the block.
   void ReplaceOrAppendHeader(const base::StringPiece key,
                              const base::StringPiece value);
+
+  // If a header with the key is already present, then append the value to the
+  // existing header value, NUL ("\0") separated unless the key is cookie, in
+  // which case the separator is "; ".
+  // If there is no such key, a new header with the key and value is added.
+  void AppendValueOrAddHeader(const base::StringPiece key,
+                              const base::StringPiece value);
 
   // Allows either lookup or mutation of the value associated with a key.
   StringPieceProxy operator[](const base::StringPiece key);

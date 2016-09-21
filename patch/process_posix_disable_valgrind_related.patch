@@ -1,0 +1,18 @@
+diff --git a/src/base/process/process_posix.cc b/src/base/process/process_posix.cc
+index a9d745e..914bce8 100644
+--- a/src/base/process/process_posix.cc
++++ b/src/base/process/process_posix.cc
+@@ -305,11 +305,13 @@ bool Process::Terminate(int exit_code, bool wait) const {
+   if (result && wait) {
+     int tries = 60;
+ 
++#if 0
+     if (RunningOnValgrind()) {
+       // Wait for some extra time when running under Valgrind since the child
+       // processes may take some time doing leak checking.
+       tries *= 2;
+     }
++#endif
+ 
+     unsigned sleep_ms = 4;
+ 

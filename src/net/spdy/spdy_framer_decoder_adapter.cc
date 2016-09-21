@@ -16,7 +16,7 @@
 #elif defined(COMPILER_MSVC)
 #define PRETTY_THIS base::StringPrintf("%s@%p ", __FUNCSIG__, this)
 #else
-#define PRETTY_THIS base::StringPrintf("%s@%p ", __FUNCTION__, this)
+#define PRETTY_THIS base::StringPrintf("%s@%p ", __func__, this)
 #endif
 
 namespace net {
@@ -233,6 +233,12 @@ class NestedSpdyFramerDecoder : public SpdyFramerDecoderAdapter {
 
   size_t ProcessInput(const char* data, size_t len) override {
     DVLOG(2) << "ProcessInput(data, " << len << ")";
+    const bool use_new_methods = outer_->use_new_methods_for_test();
+    if (framer_.use_new_methods_for_test() != use_new_methods) {
+      DVLOG(1) << "Overriding use_new_methods_ in nested framer, setting="
+               << (use_new_methods ? "true" : "false");
+      framer_.set_use_new_methods_for_test(use_new_methods);
+    }
     size_t result = framer_.ProcessInput(data, len);
     DVLOG(2) << "ProcessInput(data, " << len << ")  returning " << result;
     return result;

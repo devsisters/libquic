@@ -169,6 +169,15 @@
 #define MSAN_CHECK_MEM_IS_INITIALIZED(p, size)
 #endif  // MEMORY_SANITIZER
 
+// DISABLE_CFI_PERF -- Disable Control Flow Integrity for perf reasons.
+#if !defined(DISABLE_CFI_PERF)
+#if defined(__clang__)
+#define DISABLE_CFI_PERF __attribute__((no_sanitize("cfi")))
+#else
+#define DISABLE_CFI_PERF
+#endif
+#endif
+
 // Macro useful for writing cross-platform function pointers.
 #if !defined(CDECL)
 #if defined(OS_WIN)

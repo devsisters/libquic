@@ -5600,18 +5600,6 @@ bool DescriptorBuilder::OptionInterpreter::InterpretSingleOption(
                         "\"uninterpreted_option\".");
   }
 
-  // TODO(xyzzyz): remove when all uses in Chromium are removed
-  if (uninterpreted_option_->name(0).name_part() == "retain_unknown_fields") {
-    // Chromium patch to protobuf used to introduce a retain_unknown_fields
-    // option that would make the protobuf_lite runtime retain unknown fields
-    // just like the protobuf_full would. A newer upstream version of protobuf
-    // retains these unknown fields even in lite runtime, so the option is no
-    // longer necessary. Therefore, we ignore this option, and when we remove
-    // all the occurrences of the option from Chromium, we can remove this
-    // ignore.
-    return true;
-  }
-
   const Descriptor* options_descriptor = NULL;
   // Get the options message's descriptor from the builder's pool, so that we
   // get the version that knows about any extension options declared in the

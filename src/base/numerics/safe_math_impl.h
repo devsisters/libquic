@@ -223,7 +223,7 @@ CheckedMul(T x, T y, RangeConstraint* validity) {
           y >= std::numeric_limits<T>::max() / x ? RANGE_VALID : RANGE_OVERFLOW;
   }
 
-  return static_cast<T>(x * y);
+  return static_cast<T>(*validity == RANGE_VALID ? x * y : 0);
 }
 
 template <typename T>
@@ -235,7 +235,7 @@ CheckedMul(T x, T y, RangeConstraint* validity) {
   *validity = (y == 0 || x <= std::numeric_limits<T>::max() / y)
                   ? RANGE_VALID
                   : RANGE_OVERFLOW;
-  return static_cast<T>(x * y);
+  return static_cast<T>(*validity == RANGE_VALID ? x * y : 0);
 }
 
 // Division just requires a check for an invalid negation on signed min/-1.
@@ -261,7 +261,7 @@ typename std::enable_if<std::numeric_limits<T>::is_integer &&
                         T>::type
 CheckedMod(T x, T y, RangeConstraint* validity) {
   *validity = y > 0 ? RANGE_VALID : RANGE_INVALID;
-  return static_cast<T>(x % y);
+  return static_cast<T>(*validity == RANGE_VALID ? x % y: 0);
 }
 
 template <typename T>
@@ -281,7 +281,7 @@ CheckedNeg(T value, RangeConstraint* validity) {
   *validity =
       value != std::numeric_limits<T>::min() ? RANGE_VALID : RANGE_OVERFLOW;
   // The negation of signed min is min, so catch that one.
-  return static_cast<T>(-value);
+  return static_cast<T>(*validity == RANGE_VALID ? -value : 0);
 }
 
 template <typename T>
@@ -291,8 +291,8 @@ typename std::enable_if<std::numeric_limits<T>::is_integer &&
 CheckedNeg(T value, RangeConstraint* validity) {
   // The only legal unsigned negation is zero.
   *validity = value ? RANGE_UNDERFLOW : RANGE_VALID;
-  return static_cast<T>(
-      -static_cast<typename SignedIntegerForSize<T>::type>(value));
+  return static_cast<T>(*validity == RANGE_VALID ?
+      -static_cast<typename SignedIntegerForSize<T>::type>(value) : 0);
 }
 
 template <typename T>
@@ -302,7 +302,7 @@ typename std::enable_if<std::numeric_limits<T>::is_integer &&
 CheckedAbs(T value, RangeConstraint* validity) {
   *validity =
       value != std::numeric_limits<T>::min() ? RANGE_VALID : RANGE_OVERFLOW;
-  return static_cast<T>(std::abs(value));
+  return static_cast<T>(*validity == RANGE_VALID ? std::abs(value) : 0);
 }
 
 template <typename T>

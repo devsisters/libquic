@@ -28,7 +28,7 @@ class NET_EXPORT_PRIVATE SpdyHeadersHandlerInterface {
   virtual void OnHeader(base::StringPiece key, base::StringPiece value) = 0;
 
   // A callback method which notifies when the parser finishes handling a
-  // header block (i.e. the containing frame has the END_STREAM flag set).
+  // header block (i.e. the containing frame has the END_HEADERS flag set).
   // Also indicates the total number of bytes in this block.
   virtual void OnHeaderBlockEnd(size_t uncompressed_header_bytes) = 0;
 };

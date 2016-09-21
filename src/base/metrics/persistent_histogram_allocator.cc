@@ -119,7 +119,7 @@ PersistentSparseHistogramDataManager::GetSampleMapRecordsWhileLocked(
     return found->second.get();
 
   std::unique_ptr<PersistentSampleMapRecords>& samples = sample_records_[id];
-  samples = WrapUnique(new PersistentSampleMapRecords(this, id));
+  samples = MakeUnique<PersistentSampleMapRecords>(this, id);
   return samples.get();
 }
 
@@ -672,9 +672,9 @@ void GlobalHistogramAllocator::CreateWithPersistentMemory(
     size_t page_size,
     uint64_t id,
     StringPiece name) {
-  Set(WrapUnique(new GlobalHistogramAllocator(
-      WrapUnique(new PersistentMemoryAllocator(
-          base, size, page_size, id, name, false)))));
+  Set(WrapUnique(
+      new GlobalHistogramAllocator(MakeUnique<PersistentMemoryAllocator>(
+          base, size, page_size, id, name, false))));
 }
 
 // static
@@ -683,7 +683,7 @@ void GlobalHistogramAllocator::CreateWithLocalMemory(
     uint64_t id,
     StringPiece name) {
   Set(WrapUnique(new GlobalHistogramAllocator(
-      WrapUnique(new LocalPersistentMemoryAllocator(size, id, name)))));
+      MakeUnique<LocalPersistentMemoryAllocator>(size, id, name))));
 }
 
 #if 0
@@ -712,9 +712,9 @@ void GlobalHistogramAllocator::CreateWithFile(
     return;
   }
 
-  Set(WrapUnique(new GlobalHistogramAllocator(
-      WrapUnique(new FilePersistentMemoryAllocator(
-          std::move(mmfile), size, id, name, false)))));
+  Set(WrapUnique(
+      new GlobalHistogramAllocator(MakeUnique<FilePersistentMemoryAllocator>(
+          std::move(mmfile), size, id, name, false))));
 }
 #endif
 
@@ -731,9 +731,9 @@ void GlobalHistogramAllocator::CreateWithSharedMemory(
   }
 
   DCHECK_LE(memory->mapped_size(), size);
-  Set(WrapUnique(new GlobalHistogramAllocator(
-      WrapUnique(new SharedPersistentMemoryAllocator(
-          std::move(memory), 0, StringPiece(), /*readonly=*/false)))));
+  Set(WrapUnique(
+      new GlobalHistogramAllocator(MakeUnique<SharedPersistentMemoryAllocator>(
+          std::move(memory), 0, StringPiece(), /*readonly=*/false))));
 }
 
 // static
@@ -748,9 +748,9 @@ void GlobalHistogramAllocator::CreateWithSharedMemoryHandle(
     return;
   }
 
-  Set(WrapUnique(new GlobalHistogramAllocator(
-      WrapUnique(new SharedPersistentMemoryAllocator(
-          std::move(shm), 0, StringPiece(), /*readonly=*/false)))));
+  Set(WrapUnique(
+      new GlobalHistogramAllocator(MakeUnique<SharedPersistentMemoryAllocator>(
+          std::move(shm), 0, StringPiece(), /*readonly=*/false))));
 }
 #endif
 

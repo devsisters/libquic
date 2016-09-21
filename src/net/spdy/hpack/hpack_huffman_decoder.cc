@@ -334,7 +334,7 @@ bool HpackHuffmanDecoder::DecodeString(HpackInputStream* in, std::string* out) {
     const HuffmanCodeLength code_length = CodeLengthOfPrefix(bits);
     DCHECK_LE(kMinCodeLength, code_length);
     DCHECK_LE(code_length, kMaxCodeLength);
-    DVLOG(1) << "bits: 0b" << std::bitset<32>(bits)
+    DVLOG(2) << "bits: 0b" << std::bitset<32>(bits)
              << " (avail=" << bits_available << ")"
              << "    prefix length: " << code_length
              << (code_length > bits_available ? "      *****" : "");
@@ -392,7 +392,7 @@ bool HpackHuffmanDecoder::DecodeString(HpackInputStream* in, std::string* out) {
       // if we got any bits.
       peeked_success = in->PeekBits(&bits_available, &bits);
     }
-    DLOG_IF(WARNING, (VLOG_IS_ON(1) && bits_available < 32 && !peeked_success))
+    DLOG_IF(WARNING, (VLOG_IS_ON(2) && bits_available < 32 && !peeked_success))
         << "no more peeking possible";
   }
 }

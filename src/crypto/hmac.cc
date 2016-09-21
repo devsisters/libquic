@@ -25,7 +25,7 @@ HMAC::HMAC(HashAlgorithm hash_alg) : hash_alg_(hash_alg), initialized_(false) {
 HMAC::~HMAC() {
   // Zero out key copy.
   key_.assign(key_.size(), 0);
-  STLClearObject(&key_);
+  base::STLClearObject(&key_);
 }
 
 size_t HMAC::DigestLength() const {

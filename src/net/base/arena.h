@@ -29,11 +29,13 @@ class NET_EXPORT_PRIVATE UnsafeArena {
   UnsafeArena(UnsafeArena&& other);
   UnsafeArena& operator=(UnsafeArena&& other);
 
+  char* Alloc(size_t size);
+  char* Realloc(char* original, size_t oldsize, size_t newsize);
   char* Memdup(const char* data, size_t size);
 
   // If |data| and |size| describe the most recent allocation made from this
   // arena, the memory is reclaimed. Otherwise, this method is a no-op.
-  void Free(void* data, size_t size);
+  void Free(char* data, size_t size);
 
   void Reset();
 

@@ -18,10 +18,8 @@
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 
-#if 0
 #if defined(OS_POSIX)
 #include "base/files/file.h"
-#endif
 #endif
 
 namespace base {

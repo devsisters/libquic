@@ -488,6 +488,43 @@ bool FindAndCompareScheme(const base::char16* str,
   return DoFindAndCompareScheme(str, str_len, compare, found_scheme);
 }
 
+bool DomainIs(base::StringPiece canonicalized_host,
+              base::StringPiece lower_ascii_domain) {
+  if (canonicalized_host.empty() || lower_ascii_domain.empty())
+    return false;
+
+  // If the host name ends with a dot but the input domain doesn't, then we
+  // ignore the dot in the host name.
+  size_t host_len = canonicalized_host.length();
+  if (canonicalized_host.back() == '.' && lower_ascii_domain.back() != '.')
+    --host_len;
+
+  if (host_len < lower_ascii_domain.length())
+    return false;
+
+  // |host_first_pos| is the start of the compared part of the host name, not
+  // start of the whole host name.
+  const char* host_first_pos =
+      canonicalized_host.data() + host_len - lower_ascii_domain.length();
+
+  if (!base::LowerCaseEqualsASCII(
+          base::StringPiece(host_first_pos, lower_ascii_domain.length()),
+          lower_ascii_domain)) {
+    return false;
+  }
+
+  // Make sure there aren't extra characters in host before the compared part;
+  // if the host name is longer than the input domain name, then the character
+  // immediately before the compared part should be a dot. For example,
+  // www.google.com has domain "google.com", but www.iamnotgoogle.com does not.
+  if (lower_ascii_domain[0] != '.' && host_len > lower_ascii_domain.length() &&
+      *(host_first_pos - 1) != '.') {
+    return false;
+  }
+
+  return true;
+}
+
 bool Canonicalize(const char* spec,
                   int spec_len,
                   bool trim_path_end,

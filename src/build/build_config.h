@@ -51,6 +51,8 @@
 #define TOOLKIT_VIEWS 1
 #elif defined(__FreeBSD__)
 #define OS_FREEBSD 1
+#elif defined(__NetBSD__)
+#define OS_NETBSD 1
 #elif defined(__OpenBSD__)
 #define OS_OPENBSD 1
 #elif defined(__sun)
@@ -67,15 +69,16 @@
 
 // For access to standard BSD features, use OS_BSD instead of a
 // more specific macro.
-#if defined(OS_FREEBSD) || defined(OS_OPENBSD)
+#if defined(OS_FREEBSD) || defined(OS_NETBSD) || defined(OS_OPENBSD)
 #define OS_BSD 1
 #endif
 
 // For access to standard POSIXish features, use OS_POSIX instead of a
 // more specific macro.
 #if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD) ||     \
-    defined(OS_OPENBSD) || defined(OS_SOLARIS) || defined(OS_ANDROID) ||  \
-    defined(OS_NACL) || defined(OS_QNX)
+    defined(OS_NETBSD) || defined(OS_OPENBSD) || defined(OS_SOLARIS) ||   \
+    defined(OS_ANDROID) || defined(OS_OPENBSD) || defined(OS_SOLARIS) ||  \
+    defined(OS_ANDROID) || defined(OS_NACL) || defined(OS_QNX)
 #define OS_POSIX 1
 #endif
 
