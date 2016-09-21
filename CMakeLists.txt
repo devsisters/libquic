@@ -229,12 +229,22 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	FIND_LIBRARY(COREFOUNDATION_LIBRARY CoreFoundation)
 	FIND_LIBRARY(COCOA_LIBRARY Cocoa)
 	FIND_LIBRARY(SECURITY_LIBRARY Security)
+
+	try_compile(CMAKE_SYSTEM_IS_IOS ${CMAKE_CURRENT_BINARY_DIR}/is_ios
+		SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/is_ios.c
+		OUTPUT_VARIABLE IOS_TEST)
+
 	set(
 		BASE_ARCH_LIBRARIES
 
 		${COREFOUNDATION_LIBRARY}
 		${COCOA_LIBRARY}
 	)
+
+	if (NOT CMAKE_SYSTEM_IS_IOS)
+		list(APPEND BASE_ARCH_LIBRARIES ${SECURITY_LIBRARY})
+	endif()
+
 	set(
 		BASE_ARCH_SOURCES
 
@@ -456,6 +466,7 @@ add_library(
 	src/third_party/zlib/gzread.c
 	src/third_party/zlib/uncompr.c
 )
+target_link_libraries(quic ${BASE_ARCH_LIBRARIES} ssl crypto protobuf)
 
 #add_executable(
 #	test_quic_server
