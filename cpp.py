@@ -256,7 +256,7 @@ class PreProcessor(object):
 
         # For efficiency, a dispatch table maps each C preprocessor
         # directive (#if, #define, etc.) to the method that should be
-        # called when we see it.  We accomodate state changes (#if,
+        # called when we see it.  We accommodate state changes (#if,
         # #ifdef, #ifndef) by pushing the current dispatch table on a
         # stack and changing what method gets called for each relevant
         # directive we might see next at this level (#else, #elif).
